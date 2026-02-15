@@ -461,3 +461,12 @@ Future tables (not in stage 1):
 - Create sample statuses (enums in code)
 
 End of document.
+
+---
+
+## Addendum: Field Requirement Matrix (Stage 1)
+Before implementation, each module must define required vs optional fields in writing.
+
+Vendor module baseline:
+- Required: name, vendor_type, contact_person, phone, email, address, bank_name, account_name, account_number, notes, is_active.
+- Optional: none (except system fields like timestamps/soft deletes).

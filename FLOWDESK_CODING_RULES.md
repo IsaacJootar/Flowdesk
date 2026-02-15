@@ -252,3 +252,12 @@ Departments are mandatory for users and requests.
 Use Actions for business logic and ActivityLogger for logs."
 
 End of document.
+
+---
+
+## Addendum: Livewire Purity and Temporary Fallbacks
+- Default rule: module CRUD actions should be Livewire-driven once stabilized.
+- Do not keep temporary HTTP fallback routes/controllers for Livewire CRUD unless explicitly approved.
+- If a fallback is added for emergency debugging, remove it before module lock.
+- Livewire forms should use semantic submit handling (`wire:submit.prevent` + submit button).
+- Any non-standard event workaround must be documented and removed in cleanup.

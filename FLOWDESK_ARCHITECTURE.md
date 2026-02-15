@@ -284,3 +284,9 @@ When generating code:
 - Use Actions for core business operations
 - Ensure audit logs for important actions
 - Keep UI modern and minimal
+
+---
+
+## Addendum: Local XAMPP Subfolder Note
+When running from a subfolder URL (for example `http://localhost/flowdesk/public`), Livewire script/update paths must be path-aware.
+Preferred production and long-term local shape: use a virtual host/domain with document root pointing to `/public` to avoid subfolder routing overrides.

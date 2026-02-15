@@ -285,3 +285,14 @@ Create git commit:
 "phase1 complete"
 
 STOP.
+
+---
+
+## Addendum: Module Definition of Done
+A step is complete only if all are true:
+- create/edit/delete actions function end-to-end.
+- field-level validation messages are visible and readable.
+- tenancy (`company_id`) is enforced on read/write paths.
+- role permissions are enforced server-side.
+- activity logs are produced for all critical actions.
+- loading states are present and no debug/fallback leftovers remain.

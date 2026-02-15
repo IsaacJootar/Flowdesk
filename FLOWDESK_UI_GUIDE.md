@@ -103,3 +103,13 @@ Use modals for:
 - Livewire used for SPA-like interactions where helpful:
   filters, tables, modals, slide-over panels.
 - Major section navigation can remain normal routes.
+
+---
+
+## Addendum: Modal Quality Checklist
+For all create/edit modals:
+- Modal container must be scrollable on short screens (`max-height` + `overflow-y-auto`).
+- Action footer should remain reachable (sticky footer recommended).
+- Show field-level validation messages only (no raw keys like `form.name`).
+- Show button loading labels (for example: `Opening...`, `Saving...`).
+- Avoid hidden blocking states; users must always see why submit is blocked.
