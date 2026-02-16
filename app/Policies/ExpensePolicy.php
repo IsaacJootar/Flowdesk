@@ -10,7 +10,7 @@ class ExpensePolicy
 {
     public function viewAny(User $user): bool
     {
-        return $user->is_active;
+        return (bool) $user->is_active;
     }
 
     public function view(User $user, Expense $expense): bool
@@ -20,26 +20,41 @@ class ExpensePolicy
 
     public function create(User $user): bool
     {
-        return $this->hasAnyRole($user, [UserRole::Owner, UserRole::Finance, UserRole::Manager, UserRole::Staff]);
+        return $user->is_active && $this->canManageExpenses($user);
     }
 
     public function update(User $user, Expense $expense): bool
     {
-        return $this->sameCompany($user, $expense) && $this->hasAnyRole($user, [UserRole::Owner, UserRole::Finance]);
+        return $this->sameCompany($user, $expense)
+            && $this->canManageExpenses($user)
+            && $expense->status !== 'void';
+    }
+
+    public function void(User $user, Expense $expense): bool
+    {
+        return $this->sameCompany($user, $expense)
+            && $this->canManageExpenses($user)
+            && $expense->status !== 'void';
+    }
+
+    public function uploadAttachment(User $user, Expense $expense): bool
+    {
+        return $this->sameCompany($user, $expense) && $this->canManageExpenses($user);
     }
 
     public function delete(User $user, Expense $expense): bool
     {
-        return $this->update($user, $expense);
+        return false;
     }
 
     private function sameCompany(User $user, object $model): bool
     {
-        return (int) $user->company_id === (int) ($model->company_id ?? 0);
+        return (bool) $user->is_active
+            && (int) $user->company_id === (int) ($model->company_id ?? 0);
     }
 
-    private function hasAnyRole(User $user, array $roles): bool
+    private function canManageExpenses(User $user): bool
     {
-        return in_array($user->role, array_map(fn (UserRole $role): string => $role->value, $roles), true);
+        return in_array($user->role, [UserRole::Owner->value, UserRole::Finance->value], true);
     }
 }

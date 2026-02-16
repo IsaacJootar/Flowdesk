@@ -2,9 +2,11 @@
 
 namespace App\Domains\Vendors\Models;
 
+use App\Domains\Expenses\Models\Expense;
 use App\Traits\CompanyScoped;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Vendor extends Model
@@ -35,5 +37,10 @@ class Vendor extends Model
         return [
             'is_active' => 'boolean',
         ];
+    }
+
+    public function expenses(): HasMany
+    {
+        return $this->hasMany(Expense::class);
     }
 }

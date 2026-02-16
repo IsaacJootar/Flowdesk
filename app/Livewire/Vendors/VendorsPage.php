@@ -5,7 +5,9 @@ namespace App\Livewire\Vendors;
 use App\Actions\Vendors\CreateVendor;
 use App\Actions\Vendors\DeleteVendor;
 use App\Actions\Vendors\UpdateVendor;
+use App\Domains\Expenses\Models\Expense;
 use App\Domains\Vendors\Models\Vendor;
+use App\Services\VendorPaymentInsights;
 use Throwable;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\View\View;
@@ -42,6 +44,15 @@ class VendorsPage extends Component
     public int $feedbackKey = 0;
 
     public ?string $feedbackError = null;
+
+    public int $vendorTotalPaid = 0;
+
+    public int $vendorPaymentsCount = 0;
+
+    public ?string $vendorLastPaymentDate = null;
+
+    /** @var array<int, array<string, mixed>> */
+    public array $vendorRecentPayments = [];
 
     /** @var array<string, mixed> */
     public array $form = [
@@ -123,6 +134,7 @@ class VendorsPage extends Component
         Gate::authorize('view', $vendor);
 
         $this->selectedVendorId = $vendor->id;
+        $this->loadVendorInsights($vendor);
         $this->showDetailPanel = true;
     }
 
@@ -130,6 +142,7 @@ class VendorsPage extends Component
     {
         $this->showDetailPanel = false;
         $this->selectedVendorId = null;
+        $this->resetVendorInsights();
     }
 
     public function closeFormModal(): void
@@ -304,6 +317,41 @@ class VendorsPage extends Component
         $this->feedbackKey++;
     }
 
+    private function loadVendorInsights(Vendor $vendor): void
+    {
+        /** @var VendorPaymentInsights $insightsService */
+        $insightsService = app(VendorPaymentInsights::class);
+        $insights = $insightsService->forVendor($vendor);
+
+        $this->vendorTotalPaid = (int) $insights['total_paid'];
+        $this->vendorPaymentsCount = (int) $insights['payments_count'];
+        $this->vendorLastPaymentDate = $insights['last_payment_date']
+            ? (string) \Illuminate\Support\Carbon::parse($insights['last_payment_date'])->format('M d, Y')
+            : null;
+
+        $this->vendorRecentPayments = $insights['recent_payments']
+            ->map(function (Expense $expense): array {
+                return [
+                    'expense_code' => $expense->expense_code,
+                    'title' => $expense->title,
+                    'amount' => $expense->amount,
+                    'expense_date' => $expense->expense_date?->format('M d, Y'),
+                    'payment_method' => $expense->payment_method,
+                    'department_name' => $expense->department?->name,
+                    'status' => $expense->status,
+                ];
+            })
+            ->all();
+    }
+
+    private function resetVendorInsights(): void
+    {
+        $this->vendorTotalPaid = 0;
+        $this->vendorPaymentsCount = 0;
+        $this->vendorLastPaymentDate = null;
+        $this->vendorRecentPayments = [];
+    }
+
     /**
      * @return array<string, array<int, string>>
      */
@@ -382,7 +430,7 @@ class VendorsPage extends Component
             'form.email.email' => 'Please enter a valid email address.',
             'form.name.max' => 'Vendor name cannot exceed 180 characters.',
             'form.contact_person.max' => 'Contact person cannot exceed 180 characters.',
-            'form.phone.max' => 'Phone cannot exceed 50 characters.',
+            'form.phone.max' => 'Phone cannot exceed 12 characters.',
             'form.email.max' => 'Email cannot exceed 255 characters.',
             'form.address.max' => 'Address cannot exceed 1000 characters.',
             'form.bank_name.max' => 'Bank name cannot exceed 180 characters.',

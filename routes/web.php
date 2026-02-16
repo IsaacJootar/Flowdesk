@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\ExpenseAttachmentDownloadController;
 use App\Livewire\Dashboard\DashboardShell;
 use App\Livewire\Settings\CompanySetup;
 use Illuminate\Support\Facades\Route;
@@ -28,6 +29,8 @@ Route::middleware(['auth', 'company.context'])->group(function (): void {
 
     Route::prefix('expenses')->name('expenses.')->group(function (): void {
         Route::view('/', 'app.expenses.index')->name('index');
+        Route::get('/attachments/{attachment}/download', ExpenseAttachmentDownloadController::class)
+            ->name('attachments.download');
     });
 
     Route::prefix('vendors')->name('vendors.')->group(function (): void {

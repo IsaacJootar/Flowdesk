@@ -308,6 +308,46 @@
                             <p class="text-xs uppercase tracking-[0.12em] text-slate-500">Notes</p>
                             <p class="mt-1 text-slate-800">{{ $vendor->notes ?: '-' }}</p>
                         </div>
+
+                        <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Payment Intelligence</p>
+                            <div class="mt-3 grid grid-cols-3 gap-3 text-xs">
+                                <div class="rounded-lg border border-slate-200 bg-white p-3">
+                                    <p class="uppercase tracking-[0.1em] text-slate-500">Total Paid</p>
+                                    <p class="mt-1 text-sm font-semibold text-slate-900">NGN {{ number_format($this->vendorTotalPaid) }}</p>
+                                </div>
+                                <div class="rounded-lg border border-slate-200 bg-white p-3">
+                                    <p class="uppercase tracking-[0.1em] text-slate-500">Payments</p>
+                                    <p class="mt-1 text-sm font-semibold text-slate-900">{{ number_format($this->vendorPaymentsCount) }}</p>
+                                </div>
+                                <div class="rounded-lg border border-slate-200 bg-white p-3">
+                                    <p class="uppercase tracking-[0.1em] text-slate-500">Last Paid</p>
+                                    <p class="mt-1 text-sm font-semibold text-slate-900">{{ $this->vendorLastPaymentDate ?? 'Never' }}</p>
+                                </div>
+                            </div>
+
+                            <div class="mt-4">
+                                <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Recent Payments</p>
+                                <div class="mt-2 space-y-2">
+                                    @forelse ($this->vendorRecentPayments as $payment)
+                                        <div class="rounded-lg border border-slate-200 bg-white px-3 py-2">
+                                            <div class="flex items-center justify-between gap-2">
+                                                <div>
+                                                    <p class="text-sm font-medium text-slate-800">{{ $payment['title'] }}</p>
+                                                    <p class="text-xs text-slate-500">{{ $payment['expense_code'] }} • {{ $payment['department_name'] ?? 'No department' }}</p>
+                                                </div>
+                                                <div class="text-right">
+                                                    <p class="text-sm font-semibold text-slate-900">NGN {{ number_format((int) $payment['amount']) }}</p>
+                                                    <p class="text-xs text-slate-500">{{ $payment['expense_date'] ?? '-' }}</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    @empty
+                                        <p class="text-xs text-slate-500">No payments linked to this vendor yet.</p>
+                                    @endforelse
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     @if ($this->canManage)
