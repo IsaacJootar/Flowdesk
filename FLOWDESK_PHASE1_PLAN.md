@@ -345,3 +345,32 @@ Apply these upgrades before adding net-new modules:
 - budget threshold alerts
 - reporting exports (CSV/PDF)
 - in-app notifications + email events
+
+## Addendum: Approved IA + UX Refactor Backlog (Owner Approved)
+Objective:
+- Split overloaded settings screens into clear operational modules.
+- Improve scale-readiness with pagination and consistent table behavior.
+
+Execution order:
+1) Navigation and page split
+- Create first-class pages for `Departments`, `Team`, and `Approval Workflows`.
+- Keep `Settings` for platform/company configuration only.
+
+2) Organization data UX cleanup
+- Separate concerns per page:
+  - Departments: CRUD + department head assignment
+  - Team: staff CRUD + role assignment + reports-to hierarchy
+  - Approval Workflows: workflow CRUD + default + step chain
+
+3) Table standardization
+- Add server-side pagination to all operational tables.
+- Add row count footer and page-size selector (10/25/50).
+- Keep search/filter/sort behavior consistent.
+
+4) Engineering hardening
+- Ensure indexed queries for search/filter fields.
+- Keep heavy side effects (email/notification) async via queues.
+- Guard against duplicate submits and concurrency issues.
+
+Status:
+- Approved and queued as the active refactor track before additional module expansion.

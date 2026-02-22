@@ -29,6 +29,8 @@ class VendorsPage extends Component
 
     public string $typeFilter = 'all';
 
+    public int $perPage = 10;
+
     public bool $showFormModal = false;
 
     public bool $showDetailPanel = false;
@@ -91,6 +93,15 @@ class VendorsPage extends Component
 
     public function updatedTypeFilter(): void
     {
+        $this->resetPage();
+    }
+
+    public function updatedPerPage(): void
+    {
+        if (! in_array($this->perPage, [10, 25, 50], true)) {
+            $this->perPage = 10;
+        }
+
         $this->resetPage();
     }
 
@@ -230,8 +241,8 @@ class VendorsPage extends Component
     public function render(): View
     {
         $vendors = $this->readyToLoad
-            ? $this->vendorQuery()->paginate(10)
-            : Vendor::query()->whereRaw('1 = 0')->paginate(10);
+            ? $this->vendorQuery()->paginate($this->perPage)
+            : Vendor::query()->whereRaw('1 = 0')->paginate($this->perPage);
 
         return view('livewire.vendors.vendors-page', [
             'vendors' => $vendors,

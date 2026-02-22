@@ -49,7 +49,7 @@
 
     <div class="fd-card p-5">
         <div class="grid gap-4 xl:grid-cols-[1fr_auto] xl:items-end">
-            <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
                 <label class="block">
                     <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Search</span>
                     <input
@@ -88,6 +88,15 @@
                         @endforeach
                     </select>
                 </label>
+
+                <label class="block">
+                    <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Rows</span>
+                    <select wire:model.live="perPage" class="w-full rounded-xl border-slate-300 text-sm focus:border-slate-500 focus:ring-slate-500">
+                        <option value="10">10</option>
+                        <option value="25">25</option>
+                        <option value="50">50</option>
+                    </select>
+                </label>
             </div>
 
             <div class="inline-flex items-center gap-2">
@@ -117,7 +126,7 @@
                 @endfor
             </div>
         @else
-            <div wire:loading.flex wire:target="search,departmentFilter,statusFilter,periodTypeFilter,gotoPage,previousPage,nextPage" class="border-b border-slate-200 px-4 py-3 text-sm text-slate-500">
+            <div wire:loading.flex wire:target="search,departmentFilter,statusFilter,periodTypeFilter,perPage,gotoPage,previousPage,nextPage" class="border-b border-slate-200 px-4 py-3 text-sm text-slate-500">
                 Loading budgets...
             </div>
 
@@ -158,9 +167,28 @@
                                 <td class="px-4 py-3 text-right">
                                     @if ($this->canManage)
                                         <div class="inline-flex items-center gap-2">
-                                            <button type="button" wire:click="openEditModal({{ $budget->id }})" class="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50">Edit</button>
+                                            <button
+                                                type="button"
+                                                wire:click="openEditModal({{ $budget->id }})"
+                                                wire:loading.attr="disabled"
+                                                wire:target="openEditModal"
+                                                class="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-70"
+                                            >
+                                                <span wire:loading.remove wire:target="openEditModal">Edit</span>
+                                                <span wire:loading wire:target="openEditModal">Opening...</span>
+                                            </button>
                                             @if ($budget->status === 'active')
-                                                <button type="button" wire:click="closeBudget({{ $budget->id }})" wire:confirm="Close this budget?" class="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50">Close</button>
+                                                <button
+                                                    type="button"
+                                                    wire:click="closeBudget({{ $budget->id }})"
+                                                    wire:loading.attr="disabled"
+                                                    wire:target="closeBudget"
+                                                    wire:confirm="Close this budget?"
+                                                    class="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-70"
+                                                >
+                                                    <span wire:loading.remove wire:target="closeBudget">Close</span>
+                                                    <span wire:loading wire:target="closeBudget">Closing...</span>
+                                                </button>
                                             @endif
                                         </div>
                                     @else
@@ -180,14 +208,19 @@
             </div>
 
             <div class="border-t border-slate-200 px-4 py-3">
-                {{ $budgets->links() }}
+                <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <p class="text-xs text-slate-500">
+                        Showing {{ $budgets->firstItem() ?? 0 }}-{{ $budgets->lastItem() ?? 0 }} of {{ $budgets->total() }}
+                    </p>
+                    {{ $budgets->links() }}
+                </div>
             </div>
         @endif
     </div>
 
     @if ($showFormModal)
-        <div class="fixed left-0 right-0 bottom-0 top-16 z-40 overflow-y-auto bg-slate-900/40 p-4">
-            <div class="flex min-h-full items-start justify-center py-6">
+        <div class="fixed left-0 right-0 bottom-0 top-0 z-40 overflow-y-auto bg-slate-900/40 p-3">
+            <div class="flex items-start justify-center pt-1">
                 <div class="fd-card w-full max-w-2xl p-6" style="max-height: calc(100vh - 3rem); overflow-y: auto;">
                     <div class="mb-4 flex items-start justify-between">
                         <div>

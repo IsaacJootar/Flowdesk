@@ -24,6 +24,8 @@ class User extends Authenticatable
         'name',
         'email',
         'phone',
+        'avatar_path',
+        'gender',
         'password',
         'role',
         'reports_to_user_id',

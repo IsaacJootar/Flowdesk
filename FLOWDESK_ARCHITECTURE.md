@@ -115,14 +115,20 @@ Sidebar:
 - Budgets
 - Assets
 - Reports
+- Departments
+- Team
+- Approval Workflows
 - Settings
 
 Settings (Owner/Finance):
 - Company profile
-- Departments
-- Users
-- Roles (simple assignment)
-- Approval workflow settings (v2+)
+- Access and policy configuration
+- Integrations and system preferences
+- Company profile and billing
+
+Navigation rule:
+- Operational modules (Departments, Team, Approval Workflows) are first-class pages.
+- Settings is reserved for configuration, not day-to-day operations.
 
 ---
 
@@ -280,6 +286,15 @@ Routes:
   - editing an asset
   - assigning an asset
 - Never trust front-end role checks; always enforce on server
+
+## 11.1 Performance and Concurrency Rules (Non-negotiable)
+- Large tables must use server-side pagination by default (10/25/50 per page).
+- Search and filters must execute on indexed fields.
+- Avoid loading full datasets in Livewire components for operational tables.
+- Critical multi-step writes must run in transactions.
+- Queue email/notification side effects (no blocking HTTP request paths).
+- Use idempotent handlers for retryable operations.
+- Add throttling on expensive or high-frequency endpoints/actions.
 
 ---
 

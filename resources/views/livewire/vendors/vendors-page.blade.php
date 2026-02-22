@@ -30,8 +30,8 @@
     </div>
 
     <div class="fd-card p-5">
-        <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-            <div class="grid gap-3 sm:grid-cols-3 lg:min-w-[650px]">
+        <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:gap-3">
+            <div class="grid gap-3 sm:grid-cols-4 lg:flex-1 lg:grid-cols-[minmax(180px,1.35fr)_minmax(110px,0.75fr)_minmax(130px,0.9fr)_minmax(88px,0.55fr)]">
                 <label class="block">
                     <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Search</span>
                     <input
@@ -60,6 +60,15 @@
                         @endforeach
                     </select>
                 </label>
+
+                <label class="block">
+                    <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Rows</span>
+                    <select wire:model.live="perPage" class="w-full rounded-xl border-slate-300 text-sm focus:border-slate-500 focus:ring-slate-500">
+                        <option value="10">10</option>
+                        <option value="25">25</option>
+                        <option value="50">50</option>
+                    </select>
+                </label>
             </div>
 
             @if ($this->canManage)
@@ -68,9 +77,14 @@
                     wire:click="openCreateModal"
                     wire:loading.attr="disabled"
                     wire:target="openCreateModal"
-                    class="inline-flex items-center rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:opacity-70"
+                    class="inline-flex h-10 shrink-0 items-center whitespace-nowrap rounded-xl bg-slate-900 px-3.5 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:opacity-70"
                 >
-                    <span wire:loading.remove wire:target="openCreateModal">New Vendor</span>
+                    <span wire:loading.remove wire:target="openCreateModal" class="inline-flex items-center gap-1.5">
+                        <svg class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                            <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
+                        </svg>
+                        <span>Vendor</span>
+                    </span>
                     <span wire:loading wire:target="openCreateModal">Opening...</span>
                 </button>
             @else
@@ -87,7 +101,7 @@
                 @endfor
             </div>
         @else
-            <div wire:loading.flex wire:target="search,statusFilter,typeFilter,gotoPage,previousPage,nextPage" class="border-b border-slate-200 px-4 py-3 text-sm text-slate-500">
+            <div wire:loading.flex wire:target="search,statusFilter,typeFilter,perPage,gotoPage,previousPage,nextPage" class="border-b border-slate-200 px-4 py-3 text-sm text-slate-500">
                 Loading vendors...
             </div>
 
@@ -131,14 +145,26 @@
                                 <td class="px-4 py-3 text-right">
                                     @if ($this->canManage)
                                         <div class="flex justify-end gap-2">
-                                            <button type="button" wire:click.stop="openEditModal({{ $vendor->id }})" class="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50">Edit</button>
+                                            <button
+                                                type="button"
+                                                wire:click.stop="openEditModal({{ $vendor->id }})"
+                                                wire:loading.attr="disabled"
+                                                wire:target="openEditModal"
+                                                class="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-70"
+                                            >
+                                                <span wire:loading.remove wire:target="openEditModal">Edit</span>
+                                                <span wire:loading wire:target="openEditModal">Opening...</span>
+                                            </button>
                                             <button
                                                 type="button"
                                                 wire:click.stop="delete({{ $vendor->id }})"
+                                                wire:loading.attr="disabled"
+                                                wire:target="delete"
                                                 wire:confirm="Delete this vendor?"
-                                                class="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50"
+                                                class="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-70"
                                             >
-                                                Delete
+                                                <span wire:loading.remove wire:target="delete">Delete</span>
+                                                <span wire:loading wire:target="delete">Deleting...</span>
                                             </button>
                                         </div>
                                     @else
@@ -156,14 +182,19 @@
             </div>
 
             <div class="border-t border-slate-200 px-4 py-3">
-                {{ $vendors->links() }}
+                <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <p class="text-xs text-slate-500">
+                        Showing {{ $vendors->firstItem() ?? 0 }}-{{ $vendors->lastItem() ?? 0 }} of {{ $vendors->total() }}
+                    </p>
+                    {{ $vendors->links() }}
+                </div>
             </div>
         @endif
     </div>
 
     @if ($showFormModal)
-        <div class="fixed left-0 right-0 bottom-0 top-16 z-40 overflow-y-auto bg-slate-900/40 p-4">
-            <div class="flex min-h-full items-start justify-center py-6">
+        <div class="fixed left-0 right-0 bottom-0 top-0 z-40 overflow-y-auto bg-slate-900/40 p-3">
+            <div class="flex items-start justify-center pt-1">
             <div class="fd-card w-full max-w-3xl p-6" style="max-height: calc(100vh - 3rem); overflow-y: auto;">
                 <div class="mb-4 flex items-start justify-between">
                     <div>
@@ -374,8 +405,27 @@
 
                     @if ($this->canManage)
                         <div class="flex items-center justify-end gap-3 border-t border-slate-200 px-6 py-4">
-                            <button type="button" wire:click="openEditModal({{ $vendor->id }})" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Edit</button>
-                            <button type="button" wire:click="delete({{ $vendor->id }})" wire:confirm="Delete this vendor?" class="rounded-xl border border-red-200 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50">Delete</button>
+                            <button
+                                type="button"
+                                wire:click="openEditModal({{ $vendor->id }})"
+                                wire:loading.attr="disabled"
+                                wire:target="openEditModal"
+                                class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-70"
+                            >
+                                <span wire:loading.remove wire:target="openEditModal">Edit</span>
+                                <span wire:loading wire:target="openEditModal">Opening...</span>
+                            </button>
+                            <button
+                                type="button"
+                                wire:click="delete({{ $vendor->id }})"
+                                wire:loading.attr="disabled"
+                                wire:target="delete"
+                                wire:confirm="Delete this vendor?"
+                                class="rounded-xl border border-red-200 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 disabled:opacity-70"
+                            >
+                                <span wire:loading.remove wire:target="delete">Delete</span>
+                                <span wire:loading wire:target="delete">Deleting...</span>
+                            </button>
                         </div>
                     @endif
                 </div>

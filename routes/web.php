@@ -2,7 +2,12 @@
 
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ExpenseAttachmentDownloadController;
+use App\Http\Controllers\UserAvatarController;
+use App\Enums\UserRole;
 use App\Livewire\Dashboard\DashboardShell;
+use App\Livewire\Organization\ApprovalWorkflowsPage;
+use App\Livewire\Organization\DepartmentsPage;
+use App\Livewire\Organization\TeamPage;
 use App\Livewire\Settings\CompanySetup;
 use Illuminate\Support\Facades\Route;
 
@@ -45,8 +50,27 @@ Route::middleware(['auth', 'company.context'])->group(function (): void {
         Route::view('/', 'app.assets.index')->name('index');
     });
 
+    Route::prefix('departments')->name('departments.')->group(function (): void {
+        Route::get('/', DepartmentsPage::class)->name('index');
+    });
+
+    Route::prefix('team')->name('team.')->group(function (): void {
+        Route::get('/', TeamPage::class)->name('index');
+    });
+
+    Route::get('/users/{user}/avatar', UserAvatarController::class)->name('users.avatar');
+
+    Route::prefix('approval-workflows')->name('approval-workflows.')->group(function (): void {
+        Route::get('/', ApprovalWorkflowsPage::class)->name('index');
+    });
+
     Route::prefix('settings')->name('settings.')->group(function (): void {
         Route::view('/', 'app.settings.index')->name('index');
+        Route::get('/organization', function () {
+            abort_unless(auth()->user()?->role === UserRole::Owner->value, 403);
+
+            return redirect()->route('departments.index');
+        })->name('organization');
     });
 });
 

@@ -47,9 +47,15 @@ Design reference mix: Stripe + Ramp/Brex + Linear + Notion.
 Tables must include:
 - Search input (top left)
 - Filters (status, department, date range)
+- Server-side pagination (default 10 rows; allow 25/50)
 - Status badges (pill style)
 - Row click opens details slide-over
 - Inline row actions as kebab menu (optional)
+- Footer summary: "Showing X-Y of N"
+
+Table performance rule:
+- No operational table should render unbounded rows.
+- Pagination, sorting, and filters must be consistent across modules.
 
 ## E) Slide-over panels (Ramp/Brex style)
 Use slide-over for:

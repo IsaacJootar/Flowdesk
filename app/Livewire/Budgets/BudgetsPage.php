@@ -30,6 +30,8 @@ class BudgetsPage extends Component
 
     public string $periodTypeFilter = 'all';
 
+    public int $perPage = 10;
+
     public bool $showFormModal = false;
 
     public bool $isEditing = false;
@@ -89,6 +91,15 @@ class BudgetsPage extends Component
 
     public function updatedPeriodTypeFilter(): void
     {
+        $this->resetPage();
+    }
+
+    public function updatedPerPage(): void
+    {
+        if (! in_array($this->perPage, [10, 25, 50], true)) {
+            $this->perPage = 10;
+        }
+
         $this->resetPage();
     }
 
@@ -205,8 +216,8 @@ class BudgetsPage extends Component
         $departments = Department::query()->orderBy('name')->get(['id', 'name']);
 
         $budgets = $this->readyToLoad
-            ? $this->budgetsQuery()->paginate(10)
-            : DepartmentBudget::query()->whereRaw('1 = 0')->paginate(10);
+            ? $this->budgetsQuery()->paginate($this->perPage)
+            : DepartmentBudget::query()->whereRaw('1 = 0')->paginate($this->perPage);
 
         $this->budgetMetrics = [];
         foreach ($budgets as $budget) {

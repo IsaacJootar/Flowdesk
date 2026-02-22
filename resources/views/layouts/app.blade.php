@@ -35,6 +35,9 @@
                     <a href="{{ route('vendors.index') }}" class="fd-nav-item {{ request()->routeIs('vendors.*') ? 'fd-nav-item-active' : '' }}">Vendors</a>
                     <a href="{{ route('budgets.index') }}" class="fd-nav-item {{ request()->routeIs('budgets.*') ? 'fd-nav-item-active' : '' }}">Budgets</a>
                     <a href="{{ route('assets.index') }}" class="fd-nav-item {{ request()->routeIs('assets.*') ? 'fd-nav-item-active' : '' }}">Assets</a>
+                    <a href="{{ route('departments.index') }}" class="fd-nav-item {{ request()->routeIs('departments.*') ? 'fd-nav-item-active' : '' }}">Departments</a>
+                    <a href="{{ route('team.index') }}" class="fd-nav-item {{ request()->routeIs('team.*') ? 'fd-nav-item-active' : '' }}">Team</a>
+                    <a href="{{ route('approval-workflows.index') }}" class="fd-nav-item {{ request()->routeIs('approval-workflows.*') ? 'fd-nav-item-active' : '' }}">Approval Workflows</a>
                     <span class="fd-nav-item cursor-not-allowed opacity-60">Reports</span>
                     <a href="{{ route('settings.index') }}" class="fd-nav-item {{ request()->routeIs('settings.*') ? 'fd-nav-item-active' : '' }}">Settings</a>
                 </nav>

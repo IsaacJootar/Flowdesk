@@ -9,7 +9,6 @@ use App\Actions\Expenses\VoidExpense;
 use App\Domains\Company\Models\Department;
 use App\Domains\Expenses\Models\Expense;
 use App\Domains\Vendors\Models\Vendor;
-use App\Services\ExpenseDuplicateDetector;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Gate;
@@ -41,7 +40,7 @@ class ExpensesPage extends Component
 
     public string $statusFilter = 'all';
 
-    public string $sourceFilter = 'all';
+    public int $perPage = 12;
 
     public bool $showFormModal = false;
 
@@ -70,22 +69,16 @@ class ExpensesPage extends Component
 
     public int $feedbackKey = 0;
 
-    /** @var array{risk: 'none'|'soft'|'hard', matches: array<int, array{id:int, expense_code:string, title:string, amount:int, expense_date:string|null}>}|null */
-    public ?array $duplicateWarning = null;
-
     /** @var array<string, mixed> */
     public array $form = [
         'department_id' => '',
         'vendor_id' => '',
-        'source_mode' => 'direct',
-        'request_reference' => '',
         'title' => '',
         'description' => '',
         'amount' => '',
         'expense_date' => '',
         'payment_method' => '',
         'paid_by_user_id' => '',
-        'duplicate_override' => false,
     ];
 
     /** @var array<int, mixed> */
@@ -138,8 +131,12 @@ class ExpensesPage extends Component
         $this->resetPage();
     }
 
-    public function updatedSourceFilter(): void
+    public function updatedPerPage(): void
     {
+        if (! in_array($this->perPage, [10, 25, 50], true)) {
+            $this->perPage = 12;
+        }
+
         $this->resetPage();
     }
 
@@ -155,7 +152,6 @@ class ExpensesPage extends Component
         $this->showViewModal = false;
         $this->showVoidModal = false;
         $this->voidingExpenseId = null;
-        $this->duplicateWarning = null;
         $this->resetForm();
         $this->isEditing = false;
         $this->editingExpenseId = null;
@@ -175,7 +171,6 @@ class ExpensesPage extends Component
         $this->showViewModal = false;
         $this->showVoidModal = false;
         $this->voidingExpenseId = null;
-        $this->duplicateWarning = null;
         $this->isEditing = true;
         $this->editingExpenseId = $expense->id;
         $this->fillFormFromExpense($expense);
@@ -195,7 +190,6 @@ class ExpensesPage extends Component
         $this->showFormModal = false;
         $this->showVoidModal = false;
         $this->voidingExpenseId = null;
-        $this->duplicateWarning = null;
         $this->isEditing = false;
         $this->editingExpenseId = null;
         $this->selectedExpenseId = $expense->id;
@@ -218,7 +212,6 @@ class ExpensesPage extends Component
         $this->showViewModal = false;
         $this->isEditing = false;
         $this->editingExpenseId = null;
-        $this->duplicateWarning = null;
         $this->voidingExpenseId = $expense->id;
         $this->voidReason = '';
         $this->showVoidModal = true;
@@ -247,33 +240,22 @@ class ExpensesPage extends Component
         $this->resetForm();
         $this->isEditing = false;
         $this->editingExpenseId = null;
-        $this->duplicateWarning = null;
         $this->resetValidation();
     }
 
     public function save(
         CreateExpense $createExpense,
         UpdateExpense $updateExpense,
-        UploadExpenseAttachment $uploadExpenseAttachment,
-        ExpenseDuplicateDetector $expenseDuplicateDetector
+        UploadExpenseAttachment $uploadExpenseAttachment
     ): void {
         $this->feedbackError = null;
         $this->validate($this->formRules(), $this->formMessages());
         $payload = $this->formPayload();
 
         try {
-            $editingExpense = null;
-
             if ($this->isEditing && $this->editingExpenseId) {
-                $editingExpense = $this->findExpenseOrFail($this->editingExpenseId);
-            }
-
-            if (! $this->guardDuplicateFlow($expenseDuplicateDetector, $payload, $editingExpense)) {
-                return;
-            }
-
-            if ($editingExpense) {
-                $updatedExpense = $updateExpense(auth()->user(), $editingExpense, $payload);
+                $expense = $this->findExpenseOrFail($this->editingExpenseId);
+                $updatedExpense = $updateExpense(auth()->user(), $expense, $payload);
                 $this->setFeedback('Expense updated successfully.');
                 $this->attachUploadedFiles($uploadExpenseAttachment, $updatedExpense);
             } else {
@@ -282,54 +264,14 @@ class ExpensesPage extends Component
                 $this->attachUploadedFiles($uploadExpenseAttachment, $expense);
             }
         } catch (ValidationException $exception) {
-            $errors = $exception->errors();
-            if (array_key_exists('no_changes', $errors)) {
-                $this->feedbackError = null;
-                $this->addError('form.no_changes', (string) ($errors['no_changes'][0] ?? 'No changes made.'));
-
-                return;
-            }
-
             throw ValidationException::withMessages($this->normalizeValidationErrors($exception->errors()));
-        } catch (Throwable $exception) {
-            report($exception);
-            $this->setFeedbackError('Unable to save expense. Please try again.');
+        } catch (Throwable) {
+            $this->feedbackError = 'Unable to save expense. Please try again.';
             return;
         }
 
         $this->closeFormModal();
         $this->resetPage();
-    }
-
-    public function updatedFormTitle(): void
-    {
-        $this->resetErrorBag('form.no_changes');
-        $this->resetDuplicateWarningState();
-    }
-
-    public function updatedFormAmount(): void
-    {
-        $this->resetErrorBag('form.no_changes');
-        $this->resetDuplicateWarningState();
-    }
-
-    public function updatedFormExpenseDate(): void
-    {
-        $this->resetErrorBag('form.no_changes');
-        $this->resetDuplicateWarningState();
-    }
-
-    public function updatedFormVendorId(): void
-    {
-        $this->resetErrorBag('form.no_changes');
-        $this->resetDuplicateWarningState();
-    }
-
-    public function updated(string $propertyName, mixed $value = null): void
-    {
-        if (str_starts_with($propertyName, 'form.')) {
-            $this->resetErrorBag('form.no_changes');
-        }
     }
 
     public function submitVoidExpense(VoidExpense $voidExpense): void
@@ -346,9 +288,8 @@ class ExpensesPage extends Component
             $voidExpense(auth()->user(), $expense, ['reason' => $this->voidReason]);
         } catch (ValidationException $exception) {
             throw ValidationException::withMessages($this->normalizeValidationErrors($exception->errors()));
-        } catch (Throwable $exception) {
-            report($exception);
-            $this->setFeedbackError('Unable to void this expense now.');
+        } catch (Throwable) {
+            $this->feedbackError = 'Unable to void this expense now.';
             return;
         }
 
@@ -388,8 +329,8 @@ class ExpensesPage extends Component
             : collect();
 
         $expenses = $this->readyToLoad
-            ? $this->expenseQuery()->paginate(12)
-            : Expense::query()->whereRaw('1 = 0')->paginate(12);
+            ? $this->expenseQuery()->paginate($this->perPage)
+            : Expense::query()->whereRaw('1 = 0')->paginate($this->perPage);
 
         return view('livewire.expenses.expenses-page', [
             'expenses' => $expenses,
@@ -418,10 +359,6 @@ class ExpensesPage extends Component
             ->when($this->departmentFilter !== 'all', fn ($query) => $query->where('department_id', $this->departmentFilter))
             ->when($this->paymentMethodFilter !== 'all', fn ($query) => $query->where('payment_method', $this->paymentMethodFilter))
             ->when($this->statusFilter !== 'all', fn ($query) => $query->where('status', $this->statusFilter))
-            ->when(
-                $this->sourceFilter !== 'all',
-                fn ($query) => $query->where('is_direct', $this->sourceFilter === 'direct')
-            )
             ->latest('expense_date')
             ->latest('id');
     }
@@ -439,20 +376,15 @@ class ExpensesPage extends Component
      */
     private function formPayload(): array
     {
-        $isDirect = ($this->form['source_mode'] ?? 'direct') !== 'request';
-
         return [
             'department_id' => (int) $this->form['department_id'],
             'vendor_id' => $this->form['vendor_id'] !== '' ? (int) $this->form['vendor_id'] : null,
-            'is_direct' => $isDirect,
-            'request_id' => $isDirect ? null : (int) $this->form['request_reference'],
             'title' => trim((string) $this->form['title']),
             'description' => $this->nullableString($this->form['description']),
             'amount' => (int) $this->form['amount'],
             'expense_date' => (string) $this->form['expense_date'],
             'payment_method' => $this->nullableString($this->form['payment_method']),
             'paid_by_user_id' => $this->form['paid_by_user_id'] !== '' ? (int) $this->form['paid_by_user_id'] : null,
-            'duplicate_override' => (bool) ($this->form['duplicate_override'] ?? false),
         ];
     }
 
@@ -461,15 +393,12 @@ class ExpensesPage extends Component
         $this->form = [
             'department_id' => '',
             'vendor_id' => '',
-            'source_mode' => 'direct',
-            'request_reference' => '',
             'title' => '',
             'description' => '',
             'amount' => '',
             'expense_date' => now()->toDateString(),
             'payment_method' => '',
             'paid_by_user_id' => auth()->id() ?? '',
-            'duplicate_override' => false,
         ];
         $this->vendorPickerSearch = '';
         $this->newAttachments = [];
@@ -480,15 +409,12 @@ class ExpensesPage extends Component
         $this->form = [
             'department_id' => (string) $expense->department_id,
             'vendor_id' => $expense->vendor_id ? (string) $expense->vendor_id : '',
-            'source_mode' => $expense->is_direct ? 'direct' : 'request',
-            'request_reference' => $expense->request_id ? (string) $expense->request_id : '',
             'title' => (string) $expense->title,
             'description' => (string) ($expense->description ?? ''),
             'amount' => (string) $expense->amount,
             'expense_date' => $expense->expense_date?->format('Y-m-d') ?? now()->toDateString(),
             'payment_method' => (string) ($expense->payment_method ?? ''),
             'paid_by_user_id' => $expense->paid_by_user_id ? (string) $expense->paid_by_user_id : '',
-            'duplicate_override' => false,
         ];
         $this->vendorPickerSearch = '';
         $this->newAttachments = [];
@@ -517,15 +443,12 @@ class ExpensesPage extends Component
         return [
             'form.department_id' => ['required', 'integer'],
             'form.vendor_id' => ['nullable', 'integer'],
-            'form.source_mode' => ['required', Rule::in(['direct', 'request'])],
-            'form.request_reference' => ['required_if:form.source_mode,request', 'nullable', 'integer', 'min:1'],
             'form.title' => ['required', 'string', 'max:180'],
             'form.description' => ['nullable', 'string', 'max:2000'],
             'form.amount' => ['required', 'integer', 'min:1'],
             'form.expense_date' => ['required', 'date'],
             'form.payment_method' => ['nullable', Rule::in($this->paymentMethods())],
             'form.paid_by_user_id' => ['nullable', 'integer'],
-            'form.duplicate_override' => ['nullable', 'boolean'],
             'newAttachments.*' => ['nullable', 'file', 'max:10240', 'mimes:jpg,jpeg,png,pdf,webp'],
         ];
     }
@@ -537,7 +460,6 @@ class ExpensesPage extends Component
     {
         return [
             'form.department_id.required' => 'Department is required.',
-            'form.request_reference.required_if' => 'Request reference is required for request-linked expenses.',
             'form.title.required' => 'Expense title is required.',
             'form.amount.required' => 'Amount is required.',
             'form.amount.min' => 'Amount must be greater than zero.',
@@ -570,13 +492,6 @@ class ExpensesPage extends Component
         $this->feedbackKey++;
     }
 
-    private function setFeedbackError(string $message): void
-    {
-        $this->feedbackMessage = null;
-        $this->feedbackError = $message;
-        $this->feedbackKey++;
-    }
-
     /**
      * @param  array<string, array<int, string>>  $errors
      * @return array<string, array<int, string>>
@@ -587,15 +502,12 @@ class ExpensesPage extends Component
         $formFields = [
             'department_id',
             'vendor_id',
-            'source_mode',
-            'request_reference',
             'title',
             'description',
             'amount',
             'expense_date',
             'payment_method',
             'paid_by_user_id',
-            'duplicate_override',
         ];
 
         foreach ($errors as $key => $messages) {
@@ -620,60 +532,6 @@ class ExpensesPage extends Component
         return $mapped;
     }
 
-    /**
-     * @param  array<string, mixed>  $payload
-     */
-    private function guardDuplicateFlow(
-        ExpenseDuplicateDetector $expenseDuplicateDetector,
-        array $payload,
-        ?Expense $editingExpense = null
-    ): bool {
-        $companyId = auth()->user()?->company_id;
-
-        if (! $companyId) {
-            return true;
-        }
-
-        $duplicateAnalysis = $expenseDuplicateDetector->analyze(
-            companyId: (int) $companyId,
-            input: $payload,
-            excludeExpenseId: $editingExpense?->id
-        );
-
-        if ($duplicateAnalysis['risk'] === 'none') {
-            $this->duplicateWarning = null;
-            $this->resetErrorBag('form.duplicate_override');
-
-            return true;
-        }
-
-        $this->duplicateWarning = $duplicateAnalysis;
-        $override = (bool) ($payload['duplicate_override'] ?? false);
-
-        if ($duplicateAnalysis['risk'] === 'hard') {
-            $this->addError('form.duplicate_override', 'Exact duplicate detected. This expense cannot be posted.');
-
-            return false;
-        }
-
-        if (! $override) {
-            $this->addError('form.duplicate_override', 'Possible duplicate found. Tick override to continue.');
-
-            return false;
-        }
-
-        $this->resetErrorBag('form.duplicate_override');
-
-        return true;
-    }
-
-    private function resetDuplicateWarningState(): void
-    {
-        $this->form['duplicate_override'] = false;
-        $this->duplicateWarning = null;
-        $this->resetErrorBag('form.duplicate_override');
-    }
-
     public function attachmentDownloadUrlById(int $attachmentId): string
     {
         return route('expenses.attachments.download', ['attachment' => $attachmentId]);
@@ -687,7 +545,6 @@ class ExpensesPage extends Component
                 'vendor:id,name',
                 'paidBy:id,name',
                 'creator:id,name',
-                'voidedBy:id,name',
                 'attachments' => fn ($query) => $query->latest('uploaded_at'),
             ])
             ->findOrFail($expenseId);
@@ -711,16 +568,11 @@ class ExpensesPage extends Component
             'amount' => (int) $expense->amount,
             'expense_date' => $expense->expense_date?->format('M d, Y'),
             'status' => $expense->status,
-            'source' => $expense->is_direct ? 'Direct expense' : 'Request-linked expense',
-            'request_reference' => $expense->request_id ? 'REQ-'.$expense->request_id : '-',
             'department' => $expense->department?->name ?? '-',
             'vendor' => $expense->vendor?->name ?? 'Unlinked',
             'payment_method' => $expense->payment_method ? ucfirst($expense->payment_method) : 'Not specified',
             'created_by' => $expense->creator?->name ?? '-',
             'paid_by' => $expense->paidBy?->name ?? 'Unspecified',
-            'voided_by' => $expense->voidedBy?->name ?? '-',
-            'voided_at' => optional($expense->voided_at)->format('M d, Y H:i'),
-            'void_reason' => $expense->void_reason ?: '-',
             'description' => $expense->description ?: '-',
             'attachments' => $expense->attachments
                 ->map(fn ($attachment): array => [
@@ -734,4 +586,3 @@ class ExpensesPage extends Component
         ];
     }
 }
-
