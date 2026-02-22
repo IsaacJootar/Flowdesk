@@ -94,6 +94,13 @@ class VendorsPage extends Component
         $this->resetPage();
     }
 
+    public function updated(string $propertyName, mixed $value = null): void
+    {
+        if (str_starts_with($propertyName, 'form.')) {
+            $this->resetErrorBag('form.no_changes');
+        }
+    }
+
     /**
      * @throws AuthorizationException
      */
@@ -172,9 +179,17 @@ class VendorsPage extends Component
                 $this->setFeedback('Vendor created successfully.');
             }
         } catch (ValidationException $exception) {
+            $errors = $exception->errors();
+            if (array_key_exists('no_changes', $errors)) {
+                $this->feedbackError = null;
+                $this->addError('form.no_changes', (string) ($errors['no_changes'][0] ?? 'No changes made.'));
+
+                return;
+            }
+
             throw ValidationException::withMessages($this->normalizeValidationErrors($exception->errors()));
         } catch (Throwable) {
-            $this->feedbackError = 'Save failed. Please try again.';
+            $this->setFeedbackError('Save failed. Please try again.');
             return;
         }
 
@@ -314,6 +329,13 @@ class VendorsPage extends Component
     {
         $this->feedbackError = null;
         $this->feedbackMessage = $message;
+        $this->feedbackKey++;
+    }
+
+    private function setFeedbackError(string $message): void
+    {
+        $this->feedbackMessage = null;
+        $this->feedbackError = $message;
         $this->feedbackKey++;
     }
 

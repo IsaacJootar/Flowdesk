@@ -6,6 +6,7 @@ use App\Actions\Expenses\CreateExpense;
 use App\Actions\Expenses\UpdateExpense;
 use App\Actions\Expenses\UploadExpenseAttachment;
 use App\Actions\Expenses\VoidExpense;
+use App\Domains\Budgets\Models\DepartmentBudget;
 use App\Domains\Company\Models\Company;
 use App\Domains\Company\Models\Department;
 use App\Domains\Expenses\Models\Expense;
@@ -47,6 +48,54 @@ class ExpenseModuleTest extends TestCase
         ]);
     }
 
+    public function test_finance_can_create_request_linked_expense(): void
+    {
+        [$company, $department] = $this->createCompanyContext('Expense Request Linked');
+        $finance = $this->createUser($company, $department, UserRole::Finance->value);
+        $vendor = $this->createVendor($company);
+
+        $this->actingAs($finance);
+
+        $expense = app(CreateExpense::class)($finance, [
+            ...$this->validExpensePayload($department, $vendor),
+            'is_direct' => false,
+            'request_id' => 1042,
+        ]);
+
+        $this->assertFalse((bool) $expense->is_direct);
+        $this->assertSame(1042, (int) $expense->request_id);
+        $this->assertDatabaseHas('expenses', [
+            'id' => $expense->id,
+            'is_direct' => false,
+            'request_id' => 1042,
+        ]);
+    }
+
+    public function test_budget_guardrail_blocks_creation_when_department_budget_is_exceeded(): void
+    {
+        [$company, $department] = $this->createCompanyContext('Expense Budget Creation');
+        $finance = $this->createUser($company, $department, UserRole::Finance->value);
+        $vendor = $this->createVendor($company);
+
+        $this->actingAs($finance);
+        $this->createDepartmentBudget($company, $department, $finance, 100000);
+
+        app(CreateExpense::class)($finance, [
+            ...$this->validExpensePayload($department, $vendor),
+            'amount' => 80000,
+        ]);
+
+        try {
+            app(CreateExpense::class)($finance, [
+                ...$this->validExpensePayload($department, $vendor),
+                'amount' => 30000,
+            ]);
+            $this->fail('Expected validation exception was not thrown.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('amount', $exception->errors());
+        }
+    }
+
     public function test_manager_cannot_create_expense(): void
     {
         [$company, $department] = $this->createCompanyContext('Expense Manager');
@@ -56,6 +105,77 @@ class ExpenseModuleTest extends TestCase
         $this->expectException(AuthorizationException::class);
 
         app(CreateExpense::class)($manager, $this->validExpensePayload($department, null));
+    }
+
+    public function test_soft_duplicate_requires_override_before_create(): void
+    {
+        [$company, $department] = $this->createCompanyContext('Expense Duplicate Soft Create');
+        $finance = $this->createUser($company, $department, UserRole::Finance->value);
+        $vendor = $this->createVendor($company);
+        $existing = $this->createExpense($company, $department, $finance, $vendor);
+
+        $this->actingAs($finance);
+
+        $payload = [
+            ...$this->validExpensePayload($department, $vendor),
+            'title' => 'Generator maintenance charge',
+            'amount' => (int) $existing->amount,
+            'expense_date' => $existing->expense_date?->toDateString() ?? now()->toDateString(),
+        ];
+
+        try {
+            app(CreateExpense::class)($finance, $payload);
+            $this->fail('Expected validation exception was not thrown.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('duplicate_override', $exception->errors());
+        }
+
+        $expense = app(CreateExpense::class)($finance, [
+            ...$payload,
+            'duplicate_override' => true,
+        ]);
+
+        $this->assertDatabaseHas('activity_logs', [
+            'company_id' => $company->id,
+            'user_id' => $finance->id,
+            'action' => 'expense.duplicate.review_required',
+        ]);
+        $this->assertDatabaseHas('activity_logs', [
+            'company_id' => $company->id,
+            'user_id' => $finance->id,
+            'action' => 'expense.duplicate.overridden',
+            'entity_type' => Expense::class,
+            'entity_id' => $expense->id,
+        ]);
+    }
+
+    public function test_hard_duplicate_is_blocked_even_when_override_is_true(): void
+    {
+        [$company, $department] = $this->createCompanyContext('Expense Duplicate Hard Create');
+        $finance = $this->createUser($company, $department, UserRole::Finance->value);
+        $vendor = $this->createVendor($company);
+        $existing = $this->createExpense($company, $department, $finance, $vendor);
+
+        $this->actingAs($finance);
+
+        try {
+            app(CreateExpense::class)($finance, [
+                ...$this->validExpensePayload($department, $vendor),
+                'title' => (string) $existing->title,
+                'amount' => (int) $existing->amount,
+                'expense_date' => $existing->expense_date?->toDateString() ?? now()->toDateString(),
+                'duplicate_override' => true,
+            ]);
+            $this->fail('Expected validation exception was not thrown.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('duplicate_override', $exception->errors());
+        }
+
+        $this->assertDatabaseHas('activity_logs', [
+            'company_id' => $company->id,
+            'user_id' => $finance->id,
+            'action' => 'expense.duplicate.blocked',
+        ]);
     }
 
     public function test_finance_can_update_expense_and_log_activity(): void
@@ -89,6 +209,86 @@ class ExpenseModuleTest extends TestCase
         ]);
     }
 
+    public function test_budget_guardrail_blocks_update_when_projected_spend_exceeds_budget(): void
+    {
+        [$company, $department] = $this->createCompanyContext('Expense Budget Update');
+        $finance = $this->createUser($company, $department, UserRole::Finance->value);
+        $vendor = $this->createVendor($company);
+
+        $this->actingAs($finance);
+        $this->createDepartmentBudget($company, $department, $finance, 100000);
+
+        $firstExpense = app(CreateExpense::class)($finance, [
+            ...$this->validExpensePayload($department, $vendor),
+            'amount' => 60000,
+        ]);
+
+        app(CreateExpense::class)($finance, [
+            ...$this->validExpensePayload($department, $vendor),
+            'amount' => 30000,
+        ]);
+
+        try {
+            app(UpdateExpense::class)($finance, $firstExpense, [
+                ...$this->validExpensePayload($department, $vendor),
+                'amount' => 80000,
+            ]);
+            $this->fail('Expected validation exception was not thrown.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('amount', $exception->errors());
+        }
+    }
+
+    public function test_soft_duplicate_requires_override_before_update(): void
+    {
+        [$company, $department] = $this->createCompanyContext('Expense Duplicate Soft Update');
+        $finance = $this->createUser($company, $department, UserRole::Finance->value);
+        $vendor = $this->createVendor($company);
+
+        $this->actingAs($finance);
+
+        $existing = $this->createExpense($company, $department, $finance, $vendor);
+        $toUpdate = app(CreateExpense::class)($finance, [
+            ...$this->validExpensePayload($department, $vendor),
+            'title' => 'Team logistics payment',
+            'amount' => 225000,
+        ]);
+
+        $updatePayload = [
+            ...$this->validExpensePayload($department, $vendor),
+            'title' => 'Driver allowance',
+            'amount' => (int) $existing->amount,
+            'expense_date' => $existing->expense_date?->toDateString() ?? now()->toDateString(),
+        ];
+
+        try {
+            app(UpdateExpense::class)($finance, $toUpdate, $updatePayload);
+            $this->fail('Expected validation exception was not thrown.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('duplicate_override', $exception->errors());
+        }
+
+        app(UpdateExpense::class)($finance, $toUpdate, [
+            ...$updatePayload,
+            'duplicate_override' => true,
+        ]);
+
+        $this->assertDatabaseHas('activity_logs', [
+            'company_id' => $company->id,
+            'user_id' => $finance->id,
+            'action' => 'expense.duplicate.review_required',
+            'entity_type' => Expense::class,
+            'entity_id' => $toUpdate->id,
+        ]);
+        $this->assertDatabaseHas('activity_logs', [
+            'company_id' => $company->id,
+            'user_id' => $finance->id,
+            'action' => 'expense.duplicate.overridden',
+            'entity_type' => Expense::class,
+            'entity_id' => $toUpdate->id,
+        ]);
+    }
+
     public function test_finance_can_void_expense_with_reason_and_log_activity(): void
     {
         [$company, $department] = $this->createCompanyContext('Expense Void');
@@ -102,7 +302,10 @@ class ExpenseModuleTest extends TestCase
         $this->assertDatabaseHas('expenses', [
             'id' => $expense->id,
             'status' => 'void',
+            'voided_by' => $finance->id,
+            'void_reason' => 'Duplicate posting in cashbook',
         ]);
+        $this->assertNotNull($expense->fresh()?->voided_at);
         $this->assertDatabaseHas('activity_logs', [
             'company_id' => $company->id,
             'user_id' => $finance->id,
@@ -114,7 +317,7 @@ class ExpenseModuleTest extends TestCase
 
     public function test_finance_can_upload_attachment_and_log_activity(): void
     {
-        Storage::fake('public');
+        Storage::fake('local');
 
         [$company, $department] = $this->createCompanyContext('Expense Attachment');
         $finance = $this->createUser($company, $department, UserRole::Finance->value);
@@ -134,7 +337,7 @@ class ExpenseModuleTest extends TestCase
             'expense_id' => $expense->id,
             'uploaded_by' => $finance->id,
         ]);
-        Storage::disk('public')->assertExists($attachment->file_path);
+        Storage::disk('local')->assertExists($attachment->file_path);
         $this->assertDatabaseHas('activity_logs', [
             'company_id' => $company->id,
             'user_id' => $finance->id,
@@ -223,6 +426,26 @@ class ExpenseModuleTest extends TestCase
             'account_number' => (string) random_int(10000000, 99999999),
             'notes' => 'Vendor seed',
             'is_active' => true,
+        ]);
+    }
+
+    private function createDepartmentBudget(
+        Company $company,
+        Department $department,
+        User $creator,
+        int $allocatedAmount
+    ): DepartmentBudget {
+        return DepartmentBudget::query()->create([
+            'company_id' => $company->id,
+            'department_id' => $department->id,
+            'period_type' => 'monthly',
+            'period_start' => now()->startOfMonth()->toDateString(),
+            'period_end' => now()->endOfMonth()->toDateString(),
+            'allocated_amount' => $allocatedAmount,
+            'used_amount' => 0,
+            'remaining_amount' => $allocatedAmount,
+            'status' => 'active',
+            'created_by' => $creator->id,
         ]);
     }
 

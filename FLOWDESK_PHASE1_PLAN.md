@@ -79,6 +79,11 @@ vendors table:
 - Edit vendor modal
 - Vendor detail panel
 - Store bank details
+- Vendor payment insights panel:
+  - total paid
+  - payment count
+  - last payment date
+  - recent payments list
 - Activity logs:
   vendor.created
   vendor.updated
@@ -225,12 +230,19 @@ expenses:
 - amount
 - payment_method
 - expense_date
-- status
+- status (posted|void)
+- is_direct
 - created_by
+- voided_by
+- voided_at
+- void_reason
 
-expense_receipts:
+expense_attachments:
 - expense_id
 - file_path
+- original_name
+- mime_type
+- file_size
 - uploaded_by
 
 ### Features
@@ -239,11 +251,14 @@ expense_receipts:
 - Vendor linked expenses
 - Expense list page
 - Expense detail panel
+- Void flow with dedicated confirm modal and required reason
+- Attachment secure download with authorization checks
 
 ### Activity logs
 expense.created  
 expense.updated  
-receipt.uploaded  
+expense.voided  
+expense.attachment.uploaded  
 
 STOP after completion and report.
 
@@ -296,3 +311,37 @@ A step is complete only if all are true:
 - role permissions are enforced server-side.
 - activity logs are produced for all critical actions.
 - loading states are present and no debug/fallback leftovers remain.
+
+## Addendum: Expense Module Lock Notes (2026-02-17)
+- Locked flow:
+  - list + filters
+  - create/edit
+  - read-only view modal
+  - separate void confirm modal
+  - attachment download
+- Required UX states verified:
+  - open/view/void button loading labels
+  - save/void disabled during processing
+- Cleanup decisions:
+  - removed temporary test modal/fallback patterns
+  - kept destructive actions outside read-only view modal
+
+## Addendum: Blueprint Parity Upgrade Sequence (After Baseline)
+Apply these upgrades before adding net-new modules:
+
+1) Expenses Depth Upgrade (first priority)
+- enforce posted/void lifecycle strictly
+- require `void_reason` and actor/timestamp capture
+- support both direct and request-linked expense creation paths
+- add stronger status filters and audit timeline visibility
+
+2) Vendor Finance Upgrade (second priority)
+- add vendor invoice model and UI
+- record partial/full invoice payments
+- compute outstanding balances in real time
+- expose vendor statement timeline (invoices + payments)
+
+3) Control and Visibility Upgrade
+- budget threshold alerts
+- reporting exports (CSV/PDF)
+- in-app notifications + email events

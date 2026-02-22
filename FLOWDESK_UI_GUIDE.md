@@ -113,3 +113,12 @@ For all create/edit modals:
 - Show field-level validation messages only (no raw keys like `form.name`).
 - Show button loading labels (for example: `Opening...`, `Saving...`).
 - Avoid hidden blocking states; users must always see why submit is blocked.
+
+## Addendum: Destructive Modal Checklist
+For confirm/void/delete modals:
+- Use centered overlay container (`fixed inset-0`) for consistent visual focus.
+- Keep destructive modal small (`max-w-lg`) but ensure body can scroll on short screens.
+- Always render at least two actions in footer: cancel + confirm.
+- Confirm action must have high contrast and remain readable on all themes.
+- Add loading labels on both trigger and confirm actions (`Opening...`, `Voiding...`, `Deleting...`).
+- Keep details modal read-only by default; place destructive actions in a separate confirm modal.

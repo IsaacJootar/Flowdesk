@@ -4,6 +4,7 @@ namespace App\Domains\Expenses\Models;
 
 use App\Domains\Company\Models\Company;
 use App\Domains\Company\Models\Department;
+use App\Domains\Requests\Models\SpendRequest;
 use App\Domains\Vendors\Models\Vendor;
 use App\Models\User;
 use App\Traits\CompanyScoped;
@@ -24,6 +25,7 @@ class Expense extends Model
     protected $fillable = [
         'company_id',
         'expense_code',
+        'request_id',
         'department_id',
         'vendor_id',
         'title',
@@ -33,6 +35,9 @@ class Expense extends Model
         'payment_method',
         'paid_by_user_id',
         'created_by',
+        'voided_by',
+        'voided_at',
+        'void_reason',
         'status',
         'is_direct',
     ];
@@ -42,6 +47,7 @@ class Expense extends Model
         return [
             'amount' => 'integer',
             'expense_date' => 'date',
+            'voided_at' => 'datetime',
             'is_direct' => 'boolean',
         ];
     }
@@ -54,6 +60,11 @@ class Expense extends Model
     public function department(): BelongsTo
     {
         return $this->belongsTo(Department::class);
+    }
+
+    public function request(): BelongsTo
+    {
+        return $this->belongsTo(SpendRequest::class, 'request_id');
     }
 
     public function vendor(): BelongsTo
@@ -69,6 +80,11 @@ class Expense extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function voidedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'voided_by');
     }
 
     public function attachments(): HasMany

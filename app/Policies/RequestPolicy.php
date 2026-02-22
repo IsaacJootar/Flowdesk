@@ -5,9 +5,15 @@ namespace App\Policies;
 use App\Domains\Requests\Models\SpendRequest;
 use App\Enums\UserRole;
 use App\Models\User;
+use App\Services\RequestApprovalRouter;
 
 class RequestPolicy
 {
+    public function __construct(
+        private readonly RequestApprovalRouter $requestApprovalRouter
+    ) {
+    }
+
     public function viewAny(User $user): bool
     {
         return $user->is_active;
@@ -49,6 +55,10 @@ class RequestPolicy
     {
         if (! $this->sameCompany($user, $request)) {
             return false;
+        }
+
+        if ($this->requestApprovalRouter->hasConfiguredWorkflow($request)) {
+            return $this->requestApprovalRouter->canApprove($user, $request);
         }
 
         return $this->hasAnyRole($user, [UserRole::Owner, UserRole::Finance])

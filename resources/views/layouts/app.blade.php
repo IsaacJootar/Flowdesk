@@ -68,8 +68,17 @@
 
                 <main class="p-4 sm:p-6 lg:p-8">
                     @if (session('status'))
-                        <div class="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-                            {{ session('status') }}
+                        <div
+                            x-data="{ show: true }"
+                            x-init="setTimeout(() => show = false, 3200)"
+                            x-show="show"
+                            x-transition.opacity.duration.250ms
+                            class="pointer-events-none fixed z-[90]"
+                            style="right: 16px; top: 72px; width: 320px; max-width: calc(100vw - 24px);"
+                        >
+                            <div class="pointer-events-auto rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 shadow-lg">
+                                {{ session('status') }}
+                            </div>
                         </div>
                     @endif
 

@@ -1,20 +1,33 @@
 <div wire:init="loadData" class="space-y-5">
-    @if ($feedbackMessage)
-        <div
-            wire:key="vendor-feedback-{{ $feedbackKey }}"
-            x-data="{ show: true }"
-            x-init="setTimeout(() => show = false, 3500)"
-            x-show="show"
-            class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700"
-        >
-            {{ $feedbackMessage }}
-        </div>
-    @endif
-    @if ($feedbackError)
-        <div class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {{ $feedbackError }}
-        </div>
-    @endif
+    <div
+        class="pointer-events-none fixed z-[95] space-y-2"
+        style="right: 16px; top: 72px; width: 320px; max-width: calc(100vw - 24px);"
+    >
+        @if ($feedbackMessage)
+            <div
+                wire:key="vendor-feedback-success-{{ $feedbackKey }}"
+                x-data="{ show: true }"
+                x-init="setTimeout(() => show = false, 3200)"
+                x-show="show"
+                x-transition.opacity.duration.250ms
+                class="pointer-events-auto rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 shadow-lg"
+            >
+                {{ $feedbackMessage }}
+            </div>
+        @endif
+        @if ($feedbackError)
+            <div
+                wire:key="vendor-feedback-error-{{ $feedbackKey }}"
+                x-data="{ show: true }"
+                x-init="setTimeout(() => show = false, 5000)"
+                x-show="show"
+                x-transition.opacity.duration.250ms
+                class="pointer-events-auto rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 shadow-lg"
+            >
+                {{ $feedbackError }}
+            </div>
+        @endif
+    </div>
 
     <div class="fd-card p-5">
         <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
@@ -161,7 +174,16 @@
                 </div>
 
                 <form wire:submit.prevent="save" class="space-y-4">
-                    @if ($errors->any())
+                    @error('form.no_changes')
+                        <div class="rounded-xl px-4 py-3 text-sm" style="background:#fffbeb;border:1px solid #f59e0b;color:#92400e;">
+                            <span class="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em]" style="background:#fef3c7;border:1px solid #fbbf24;color:#92400e;">
+                                No Changes
+                            </span>
+                            <p class="mt-2">{{ $message }}</p>
+                        </div>
+                    @enderror
+
+                    @if ($errors->any() && ! $errors->has('form.no_changes'))
                         <div class="rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">
                             Please correct the highlighted fields and submit again.
                         </div>

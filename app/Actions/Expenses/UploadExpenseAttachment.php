@@ -29,7 +29,7 @@ class UploadExpenseAttachment
             ['file' => ['required', 'file', 'max:10240', 'mimes:jpg,jpeg,png,pdf,webp']]
         )->validate();
 
-        $path = $file->store("expense-attachments/{$expense->company_id}/{$expense->id}", 'public');
+        $path = $file->store("private/expense-attachments/{$expense->company_id}/{$expense->id}", 'local');
 
         $attachment = ExpenseAttachment::query()->create([
             'company_id' => $expense->company_id,

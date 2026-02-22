@@ -13,6 +13,9 @@ Stage 1 ships two pillars:
 - Department budgets
 - Expense tracking + receipt capture
 - Dashboards + basic reporting
+- Expense lifecycle control (posted, voided, and auditable reason)
+- Vendor finance intelligence (paid totals, last payment date, payment count)
+- Reporting/export readiness (CSV/PDF in reporting domain)
 
 ### B. Asset Management
 - Asset register (laptops, vehicles, equipment, tools)
@@ -97,6 +100,8 @@ Flowdesk is built in “domains” so it scales without becoming messy.
 - Expenses (expense entries, receipts)
 - Assets (assets, assignments, maintenance, returns)
 - Dashboard (metrics, cards, charts)
+- Reports (operational and financial analytics)
+- Notifications (in-app + email alerts)
 - Audit (activity logs)
 
 ---
@@ -144,6 +149,16 @@ Settings (Owner/Finance):
 - rejected
 - cancelled
 
+### Expense status (canonical)
+- posted
+- void
+
+### Vendor invoice status (Stage 1.5/2)
+- unpaid
+- part_paid
+- paid
+- void
+
 ### Asset status (canonical)
 - available
 - assigned
@@ -164,7 +179,19 @@ Approval tracking must be auditable:
 - who approved
 - when
 - comment
-- previous status → new status
+- previous status transition
+
+### 8.1 Expense workflow modes (Stage 1 baseline + upgrade path)
+1. Direct expense mode
+   - Finance records spending directly.
+   - Expense is saved as `posted` with complete audit metadata.
+2. Request-linked expense mode
+   - Approved request is converted into expense record.
+   - Request and expense stay linked for traceability.
+3. Void flow (controlled reversal)
+   - Only authorized roles can void.
+   - Void requires explicit reason.
+   - Previous values remain auditable.
 
 ---
 
@@ -265,14 +292,25 @@ Routes:
 - Dashboard + audit logs
 
 ### Stage 2 (next)
-- Travel requests specialization (same request table, new types)
-- Reimbursements and expense policies
-- Better reporting + exports
+- Vendor invoices, payments, and outstanding balance tracking
+- Budget threshold alerts and policy checks at request/expense stages
+- In-app notifications and email alert events
+- Better reporting + exports (CSV/PDF)
 
 ### Stage 3 (fintech)
 - Wallet + virtual cards + transaction feeds
 - Limits, categories, policy enforcement
 - Integrations
+
+### 12.1 Current implementation status (as of February 21, 2026)
+- Implemented and usable:
+  - Vendors module (CRUD + payment insights from expenses)
+  - Expenses module (create/edit/view, attachments, void flow, filters)
+- Routed but still placeholder pages:
+  - Requests and Approvals
+  - Budgets
+  - Assets
+  - Reports
 
 ---
 
@@ -290,3 +328,4 @@ When generating code:
 ## Addendum: Local XAMPP Subfolder Note
 When running from a subfolder URL (for example `http://localhost/flowdesk/public`), Livewire script/update paths must be path-aware.
 Preferred production and long-term local shape: use a virtual host/domain with document root pointing to `/public` to avoid subfolder routing overrides.
+

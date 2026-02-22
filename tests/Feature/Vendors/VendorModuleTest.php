@@ -69,6 +69,35 @@ class VendorModuleTest extends TestCase
         ]);
     }
 
+    public function test_update_vendor_requires_at_least_one_change(): void
+    {
+        [$company, $department] = $this->createCompanyContext('Acme Vendor No Change');
+        $owner = $this->createUser($company, $department, UserRole::Owner->value);
+        $vendor = $this->createVendor($company);
+
+        $this->actingAs($owner);
+
+        try {
+            app(UpdateVendor::class)($owner, $vendor, [
+                'name' => (string) $vendor->name,
+                'vendor_type' => (string) $vendor->vendor_type,
+                'contact_person' => (string) $vendor->contact_person,
+                'phone' => (string) $vendor->phone,
+                'email' => (string) $vendor->email,
+                'address' => (string) $vendor->address,
+                'bank_name' => (string) $vendor->bank_name,
+                'account_name' => (string) $vendor->account_name,
+                'account_number' => (string) $vendor->account_number,
+                'notes' => (string) $vendor->notes,
+                'is_active' => (bool) $vendor->is_active,
+            ]);
+
+            $this->fail('Expected ValidationException was not thrown.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('no_changes', $exception->errors());
+        }
+    }
+
     public function test_owner_can_delete_vendor_and_log_activity(): void
     {
         [$company, $department] = $this->createCompanyContext('Acme Admin');

@@ -9,11 +9,19 @@
                 </div>
             @endfor
         @else
+            @php($metricCardStyles = [
+                'background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%); color: #ffffff;',
+                'background: linear-gradient(135deg, #0f766e 0%, #059669 100%); color: #ffffff;',
+                'background: linear-gradient(135deg, #d97706 0%, #ea580c 100%); color: #ffffff;',
+                'background: linear-gradient(135deg, #7c3aed 0%, #4338ca 100%); color: #ffffff;',
+                'background: linear-gradient(135deg, #0f172a 0%, #334155 100%); color: #ffffff;',
+                'background: linear-gradient(135deg, #be123c 0%, #e11d48 100%); color: #ffffff;',
+            ])
             @foreach ($metrics as $metric)
-                <div class="fd-card p-5">
-                    <p class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">{{ $metric['label'] }}</p>
-                    <p class="mt-2 text-2xl font-semibold text-slate-900">{{ $metric['value'] }}</p>
-                    <p class="mt-2 text-xs text-slate-500">{{ $metric['hint'] }}</p>
+                <div class="rounded-2xl p-5 shadow-sm" style="{{ $metricCardStyles[$loop->index % count($metricCardStyles)] }}">
+                    <p class="text-xs font-semibold uppercase tracking-[0.16em]" style="color: rgba(255,255,255,0.82);">{{ $metric['label'] }}</p>
+                    <p class="mt-2 text-2xl font-semibold">{{ $metric['value'] }}</p>
+                    <p class="mt-2 text-xs" style="color: rgba(255,255,255,0.82);">{{ $metric['hint'] }}</p>
                 </div>
             @endforeach
         @endif

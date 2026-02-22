@@ -17,10 +17,15 @@ class ExpenseAttachmentDownloadController extends Controller
 
         Gate::authorize('view', $expense);
 
-        $disk = Storage::disk('public');
+        $localDisk = Storage::disk('local');
+        if ($localDisk->exists($attachment->file_path)) {
+            return $localDisk->download($attachment->file_path, $attachment->original_name);
+        }
 
-        abort_unless($disk->exists($attachment->file_path), 404);
+        // Backward compatibility: legacy attachments were saved on the public disk.
+        $publicDisk = Storage::disk('public');
+        abort_unless($publicDisk->exists($attachment->file_path), 404);
 
-        return $disk->download($attachment->file_path, $attachment->original_name);
+        return $publicDisk->download($attachment->file_path, $attachment->original_name);
     }
 }

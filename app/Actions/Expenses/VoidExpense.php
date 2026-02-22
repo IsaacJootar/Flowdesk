@@ -32,8 +32,13 @@ class VoidExpense
             'reason' => ['required', 'string', 'min:3', 'max:1000'],
         ])->validate();
 
+        $reason = trim($validated['reason']);
+
         $expense->forceFill([
             'status' => 'void',
+            'voided_by' => $user->id,
+            'voided_at' => now(),
+            'void_reason' => $reason,
         ])->save();
 
         $this->activityLogger->log(
@@ -42,7 +47,9 @@ class VoidExpense
             entityId: $expense->id,
             metadata: [
                 'expense_code' => $expense->expense_code,
-                'reason' => trim($validated['reason']),
+                'reason' => $reason,
+                'voided_by' => $user->id,
+                'voided_at' => optional($expense->voided_at)?->toIso8601String(),
             ],
             companyId: $expense->company_id,
             userId: $user->id,

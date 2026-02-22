@@ -205,10 +205,12 @@ Optionally linked to an approved request.
 - currency_code (default company currency)
 - expense_date (date)
 - payment_method (nullable string: cash|transfer|pos|online|cheque)
-- status (draft|submitted|approved|rejected|reconciled)  (keep simple v1)
+- status (posted|void)
+- is_direct (bool default true)
 - created_by (FK users.id)
-- approved_by (nullable FK users.id)
-- approved_at (nullable datetime)
+- voided_by (nullable FK users.id)
+- voided_at (nullable datetime)
+- void_reason (nullable text)
 - timestamps
 - softDeletes
 
@@ -222,17 +224,17 @@ Optionally linked to an approved request.
 
 ---
 
-### 2.5 expense_receipts
-Stores uploaded proof/receipts.
+### 2.5 expense_attachments (receipt evidence)
+Stores uploaded proof/receipts linked to expenses.
 
 **Columns**
 - id
 - company_id (FK)
 - expense_id (FK)
 - file_path (string)
-- file_name (string nullable)
-- file_size (bigint nullable)
-- mime_type (string nullable)
+- original_name (string)
+- file_size (bigint)
+- mime_type (string)
 - uploaded_by (FK users.id)
 - uploaded_at (datetime)
 - timestamps
@@ -255,13 +257,13 @@ Company vendor directory.
 - company_id (FK)
 - name (string)
 - vendor_type (nullable string: supplier|contractor|service|other)
-- contact_name (nullable string)
-- contact_email (nullable string)
-- contact_phone (nullable string)
+- contact_person (nullable string)
+- email (nullable string)
+- phone (nullable string)
 - address (nullable text)
 - bank_name (nullable string)
-- bank_account_name (nullable string)
-- bank_account_number (nullable string)
+- account_name (nullable string)
+- account_number (nullable string)
 - notes (nullable text)
 - is_active (bool default true)
 - created_by (nullable FK users.id)
@@ -299,6 +301,65 @@ Budgets per department (monthly or yearly).
 - index(department_id)
 - index(period_type)
 - index(status)
+
+---
+
+### 3.3 vendor_invoices (Stage 1.5/2)
+Tracks payable invoices raised by vendors.
+
+**Columns**
+- id
+- company_id (FK)
+- vendor_id (FK)
+- invoice_code (string, unique per company)
+- invoice_number (nullable string, supplier reference)
+- invoice_date (date)
+- due_date (nullable date)
+- amount (bigint kobo)
+- paid_amount (bigint kobo default 0)
+- balance_amount (bigint kobo)
+- status (unpaid|part_paid|paid|void)
+- notes (nullable text)
+- created_by (FK users.id)
+- voided_by (nullable FK users.id)
+- voided_at (nullable datetime)
+- void_reason (nullable text)
+- timestamps
+- softDeletes
+
+**Indexes**
+- index(company_id)
+- index(vendor_id)
+- index(status)
+- index(invoice_date)
+- index(due_date)
+- unique(company_id, invoice_code)
+
+---
+
+### 3.4 vendor_invoice_payments (Stage 1.5/2)
+Tracks partial/full payments against vendor invoices.
+
+**Columns**
+- id
+- company_id (FK)
+- vendor_invoice_id (FK)
+- payment_code (string, unique per company)
+- amount (bigint kobo)
+- payment_date (date)
+- payment_method (nullable string)
+- reference (nullable string)
+- notes (nullable text)
+- evidence_path (nullable string)
+- created_by (FK users.id)
+- timestamps
+- softDeletes
+
+**Indexes**
+- index(company_id)
+- index(vendor_invoice_id)
+- index(payment_date)
+- unique(company_id, payment_code)
 
 ---
 
@@ -435,6 +496,27 @@ Single table for all major events.
 
 ---
 
+### 5.2 notifications (in-app + email events)
+Supports web app in-app notifications and optional email event tracking.
+
+**Columns**
+- id (uuid/string if using Laravel default notifications table)
+- company_id (FK)
+- type (string)
+- notifiable_type (string)
+- notifiable_id (bigint)
+- data (json)
+- read_at (nullable datetime)
+- created_at (datetime)
+- updated_at (datetime)
+
+**Indexes**
+- index(company_id)
+- index(notifiable_type, notifiable_id)
+- index(read_at)
+
+---
+
 ## 6) Recommended Foreign Key Behavior
 - Use `restrictOnDelete()` for most relationships to preserve audit history.
 - Use `nullOnDelete()` where appropriate (e.g., vendor linked to old expense).
@@ -444,6 +526,9 @@ Single table for all major events.
 
 ## 7) Notes for Stage 2+
 Future tables (not in stage 1):
+- vendor_invoices
+- vendor_invoice_payments
+- notifications
 - travel_trips
 - wallets
 - virtual_cards

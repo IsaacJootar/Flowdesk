@@ -261,3 +261,12 @@ End of document.
 - If a fallback is added for emergency debugging, remove it before module lock.
 - Livewire forms should use semantic submit handling (`wire:submit.prevent` + submit button).
 - Any non-standard event workaround must be documented and removed in cleanup.
+
+## Addendum: Livewire Stability Guardrails
+- Do not create component methods using Livewire lifecycle hook prefixes unless they are real hooks:
+  - avoid names like `hydrate*`, `dehydrate*`, `updating*`, `updated*`, `boot*`, `mount*`.
+- For private helper methods, use neutral prefixes such as `build*`, `fill*`, `map*`, `refresh*`.
+- For file downloads from Laravel storage, use the correct return type:
+  - `Symfony\\Component\\HttpFoundation\\StreamedResponse`.
+- Keep destructive business actions (void/delete) in dedicated confirm flows, not mixed into read-only detail views.
+- Before module lock, run target feature tests and clear framework caches.

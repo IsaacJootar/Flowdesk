@@ -50,7 +50,15 @@ class UpdateVendor
             'account_number' => $validated['account_number'],
             'notes' => $validated['notes'],
             'is_active' => (bool) $validated['is_active'],
-        ])->save();
+        ]);
+
+        if (! $vendor->isDirty()) {
+            throw ValidationException::withMessages([
+                'no_changes' => 'No changes made. Update at least one field before saving.',
+            ]);
+        }
+
+        $vendor->save();
 
         $after = $vendor->only(array_keys($before));
 
