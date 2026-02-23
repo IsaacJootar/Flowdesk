@@ -13,10 +13,82 @@
         @vite(['resources/css/app.css', 'resources/js/app.js'])
         @livewireStyles
     </head>
-    <body class="bg-slate-50 text-slate-900 antialiased" x-data="{ sidebarOpen: false }">
+    <body
+        class="bg-slate-50 text-slate-900 antialiased"
+        x-data="{ sidebarOpen: false, companyName: @js(auth()->user()?->company?->name ?? 'Flowdesk') }"
+        x-on:company-name-updated.window="companyName = ($event.detail && $event.detail.name) ? $event.detail.name : companyName"
+    >
         @php
             $user = auth()->user();
+            if ($user) {
+                $user->loadMissing([
+                    'department:id,name',
+                    'reportsTo:id,name',
+                ]);
+            }
             $companyName = $user?->company?->name ?? 'Flowdesk';
+            $role = $user?->role ?? 'staff';
+            $roleLabel = match ((string) $role) {
+                'owner' => 'Admin (Owner)',
+                'finance' => 'Finance',
+                'manager' => 'Manager',
+                'auditor' => 'Auditor',
+                default => 'Staff',
+            };
+            $departmentLabel = $user?->department?->name ?? 'No department';
+            $reportsToLabel = $user?->reportsTo?->name ?? 'Not assigned';
+
+            $navByRole = [
+                'owner' => [
+                    ['route' => 'dashboard', 'pattern' => 'dashboard*', 'label' => 'Dashboard'],
+                    ['route' => 'requests.index', 'pattern' => 'requests.index', 'label' => 'Requests & Approvals'],
+                    ['route' => 'requests.communications', 'pattern' => 'requests.communications', 'label' => 'Request Inbox & Logs'],
+                    ['route' => 'expenses.index', 'pattern' => 'expenses.*', 'label' => 'Expenses'],
+                    ['route' => 'vendors.index', 'pattern' => 'vendors.*', 'label' => 'Vendors'],
+                    ['route' => 'budgets.index', 'pattern' => 'budgets.*', 'label' => 'Budgets'],
+                    ['route' => 'assets.index', 'pattern' => 'assets.*', 'label' => 'Assets'],
+                    ['route' => 'departments.index', 'pattern' => 'departments.*', 'label' => 'Departments'],
+                    ['route' => 'team.index', 'pattern' => 'team.*', 'label' => 'Team'],
+                    ['route' => 'approval-workflows.index', 'pattern' => 'approval-workflows.*', 'label' => 'Approval Workflows'],
+                    ['route' => 'settings.communications', 'pattern' => 'settings.communications', 'label' => 'Communications'],
+                    ['route' => 'settings.request-configuration', 'pattern' => 'settings.request-configuration', 'label' => 'Request Configuration'],
+                    ['route' => 'settings.index', 'pattern' => 'settings.*', 'label' => 'Settings'],
+                ],
+                'finance' => [
+                    ['route' => 'dashboard', 'pattern' => 'dashboard*', 'label' => 'Dashboard'],
+                    ['route' => 'requests.index', 'pattern' => 'requests.index', 'label' => 'Requests & Approvals'],
+                    ['route' => 'requests.communications', 'pattern' => 'requests.communications', 'label' => 'Request Inbox & Logs'],
+                    ['route' => 'expenses.index', 'pattern' => 'expenses.*', 'label' => 'Expenses'],
+                    ['route' => 'vendors.index', 'pattern' => 'vendors.*', 'label' => 'Vendors'],
+                    ['route' => 'budgets.index', 'pattern' => 'budgets.*', 'label' => 'Budgets'],
+                    ['route' => 'assets.index', 'pattern' => 'assets.*', 'label' => 'Assets'],
+                ],
+                'manager' => [
+                    ['route' => 'dashboard', 'pattern' => 'dashboard*', 'label' => 'Dashboard'],
+                    ['route' => 'requests.index', 'pattern' => 'requests.index', 'label' => 'Requests & Approvals'],
+                    ['route' => 'requests.communications', 'pattern' => 'requests.communications', 'label' => 'Request Inbox & Logs'],
+                    ['route' => 'expenses.index', 'pattern' => 'expenses.*', 'label' => 'Expenses'],
+                    ['route' => 'budgets.index', 'pattern' => 'budgets.*', 'label' => 'Budgets'],
+                    ['route' => 'assets.index', 'pattern' => 'assets.*', 'label' => 'Assets'],
+                ],
+                'staff' => [
+                    ['route' => 'dashboard', 'pattern' => 'dashboard*', 'label' => 'Dashboard'],
+                    ['route' => 'requests.index', 'pattern' => 'requests.index', 'label' => 'Requests & Approvals'],
+                    ['route' => 'requests.communications', 'pattern' => 'requests.communications', 'label' => 'Request Inbox & Logs'],
+                    ['route' => 'assets.index', 'pattern' => 'assets.*', 'label' => 'Assets'],
+                ],
+                'auditor' => [
+                    ['route' => 'dashboard', 'pattern' => 'dashboard*', 'label' => 'Dashboard'],
+                    ['route' => 'requests.index', 'pattern' => 'requests.index', 'label' => 'Requests & Approvals'],
+                    ['route' => 'requests.communications', 'pattern' => 'requests.communications', 'label' => 'Request Inbox & Logs'],
+                    ['route' => 'expenses.index', 'pattern' => 'expenses.*', 'label' => 'Expenses'],
+                    ['route' => 'vendors.index', 'pattern' => 'vendors.*', 'label' => 'Vendors'],
+                    ['route' => 'budgets.index', 'pattern' => 'budgets.*', 'label' => 'Budgets'],
+                    ['route' => 'assets.index', 'pattern' => 'assets.*', 'label' => 'Assets'],
+                ],
+            ];
+
+            $navItems = $navByRole[$role] ?? $navByRole['staff'];
         @endphp
 
         <div class="min-h-screen md:flex">
@@ -24,22 +96,23 @@
                 <div class="flex h-16 items-center border-b border-slate-200 px-5">
                     <div>
                         <p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Flowdesk</p>
-                        <p class="text-sm font-semibold text-slate-800">{{ $companyName }}</p>
+                        <p class="text-sm font-semibold text-slate-800" x-text="companyName">{{ $companyName }}</p>
                     </div>
                 </div>
 
                 <nav class="space-y-1 px-3 py-4 text-sm">
-                    <a href="{{ route('dashboard') }}" class="fd-nav-item {{ request()->routeIs('dashboard*') ? 'fd-nav-item-active' : '' }}">Dashboard</a>
-                    <a href="{{ route('requests.index') }}" class="fd-nav-item {{ request()->routeIs('requests.*') ? 'fd-nav-item-active' : '' }}">Requests & Approvals</a>
-                    <a href="{{ route('expenses.index') }}" class="fd-nav-item {{ request()->routeIs('expenses.*') ? 'fd-nav-item-active' : '' }}">Expenses</a>
-                    <a href="{{ route('vendors.index') }}" class="fd-nav-item {{ request()->routeIs('vendors.*') ? 'fd-nav-item-active' : '' }}">Vendors</a>
-                    <a href="{{ route('budgets.index') }}" class="fd-nav-item {{ request()->routeIs('budgets.*') ? 'fd-nav-item-active' : '' }}">Budgets</a>
-                    <a href="{{ route('assets.index') }}" class="fd-nav-item {{ request()->routeIs('assets.*') ? 'fd-nav-item-active' : '' }}">Assets</a>
-                    <a href="{{ route('departments.index') }}" class="fd-nav-item {{ request()->routeIs('departments.*') ? 'fd-nav-item-active' : '' }}">Departments</a>
-                    <a href="{{ route('team.index') }}" class="fd-nav-item {{ request()->routeIs('team.*') ? 'fd-nav-item-active' : '' }}">Team</a>
-                    <a href="{{ route('approval-workflows.index') }}" class="fd-nav-item {{ request()->routeIs('approval-workflows.*') ? 'fd-nav-item-active' : '' }}">Approval Workflows</a>
-                    <span class="fd-nav-item cursor-not-allowed opacity-60">Reports</span>
-                    <a href="{{ route('settings.index') }}" class="fd-nav-item {{ request()->routeIs('settings.*') ? 'fd-nav-item-active' : '' }}">Settings</a>
+                    @foreach ($navItems as $item)
+                        <a
+                            href="{{ route($item['route']) }}"
+                            class="fd-nav-item {{ request()->routeIs($item['pattern']) ? 'fd-nav-item-active' : '' }}"
+                        >
+                            {{ $item['label'] }}
+                        </a>
+                    @endforeach
+
+                    @if (in_array($role, ['owner', 'finance', 'manager', 'auditor'], true))
+                        <span class="fd-nav-item cursor-not-allowed opacity-60">Reports</span>
+                    @endif
                 </nav>
             </aside>
 
@@ -52,12 +125,24 @@
                             </button>
                             <div>
                                 <h1 class="text-base font-semibold text-slate-900">{{ $title ?? 'Workspace' }}</h1>
-                                <p class="text-xs text-slate-500">{{ $subtitle ?? 'Modern controls for company operations' }}</p>
+                                <p class="text-xs text-slate-500">{{ $subtitle ?? 'Built for modern organizations' }}</p>
                             </div>
                         </div>
 
                         <div class="flex items-center gap-3">
                             @auth
+                                <div class="hidden items-center gap-2 lg:flex">
+                                    <span class="inline-flex items-center rounded-full border border-slate-300 bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-700">
+                                        {{ $roleLabel }}
+                                    </span>
+                                    <span class="inline-flex items-center rounded-full border border-slate-300 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-600">
+                                        {{ $departmentLabel }}
+                                    </span>
+                                    <span class="inline-flex items-center rounded-full border border-slate-300 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-600">
+                                        Reports to: {{ $reportsToLabel }}
+                                    </span>
+                                </div>
+
                                 <a href="{{ route('profile.edit') }}" class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600">Profile</a>
 
                                 <form method="POST" action="{{ route('logout') }}">
@@ -90,6 +175,31 @@
                             {{ $header }}
                         </div>
                     @endisset
+
+                    @auth
+                        @unless (request()->routeIs('dashboard*'))
+                            <div class="mb-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                                <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                                    <div>
+                                        <p class="text-xs uppercase tracking-[0.1em] text-slate-500">Signed In User</p>
+                                        <p class="mt-1 text-sm font-semibold text-slate-900">{{ $user?->name }}</p>
+                                    </div>
+                                    <div>
+                                        <p class="text-xs uppercase tracking-[0.1em] text-slate-500">Role / Designation</p>
+                                        <p class="mt-1 text-sm font-semibold text-slate-900">{{ $roleLabel }}</p>
+                                    </div>
+                                    <div>
+                                        <p class="text-xs uppercase tracking-[0.1em] text-slate-500">Department</p>
+                                        <p class="mt-1 text-sm font-semibold text-slate-900">{{ $departmentLabel }}</p>
+                                    </div>
+                                    <div>
+                                        <p class="text-xs uppercase tracking-[0.1em] text-slate-500">Reporting Line</p>
+                                        <p class="mt-1 text-sm font-semibold text-slate-900">Direct Manager ({{ $reportsToLabel }})</p>
+                                    </div>
+                                </div>
+                            </div>
+                        @endunless
+                    @endauth
 
                     {{ $slot }}
                 </main>

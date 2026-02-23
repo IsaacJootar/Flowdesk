@@ -128,3 +128,30 @@ For confirm/void/delete modals:
 - Confirm action must have high contrast and remain readable on all themes.
 - Add loading labels on both trigger and confirm actions (`Opening...`, `Voiding...`, `Deleting...`).
 - Keep details modal read-only by default; place destructive actions in a separate confirm modal.
+
+## Addendum: Adopted UI Standards from Active Implementation
+These patterns are now standard across modules and should be reused in future pages.
+
+1) Toast feedback standard
+- Use right-side floating toast container for success/error feedback.
+- Toast width should be compact (not full-width banners).
+- Success and error toasts must be visually distinct and readable.
+
+2) Modal opening alignment
+- Default modal placement should open slightly higher on viewport for immediate context.
+- Keep modal body scrollable with max-height on short screens.
+- Apply consistent spacing and action footer alignment across modules.
+
+3) Table interaction consistency
+- Keep action buttons with compact sizing and loading labels.
+- Use server-side pagination in operational tables (10/25/50).
+- Keep search + filters grouped cleanly; avoid scattered control layouts.
+
+4) Avatar and profile image behavior
+- Staff avatar is single-source: latest uploaded image replaces the old one.
+- Avatar rendering should prioritize face visibility with slight upward crop positioning.
+- Use fallback initials when no image exists, with readable contrast styles.
+
+5) Settings UX behavior
+- Company Setup is a persistent settings page (create on first run, edit thereafter).
+- Settings pages must provide immediate feedback after save actions without requiring full page refresh.

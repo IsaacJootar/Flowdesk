@@ -2,19 +2,25 @@
 
 namespace App\Actions\Company;
 
+use App\Domains\Company\Models\CompanyCommunicationSetting;
 use App\Enums\UserRole;
 use App\Models\User;
 use App\Services\ActivityLogger;
+use App\Services\StaffOnboardingMessenger;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use Throwable;
 
 class CreateCompanyUser
 {
-    public function __construct(private readonly ActivityLogger $activityLogger)
+    public function __construct(
+        private readonly ActivityLogger $activityLogger,
+        private readonly StaffOnboardingMessenger $staffOnboardingMessenger
+    )
     {
     }
 
@@ -52,6 +58,8 @@ class CreateCompanyUser
                 ),
             ],
             'avatar' => ['nullable', 'file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
+            'notification_channels' => ['required', 'array', 'min:1'],
+            'notification_channels.*' => ['string', Rule::in(CompanyCommunicationSetting::CHANNELS)],
         ];
 
         if ($hasGenderColumn) {
@@ -74,6 +82,37 @@ class CreateCompanyUser
             'is_active' => true,
             'email_verified_at' => now(),
         ];
+        $temporaryPassword = (string) $validated['password'];
+
+        $settings = CompanyCommunicationSetting::query()
+            ->firstOrCreate(
+                ['company_id' => (int) $actor->company_id],
+                array_merge(
+                    CompanyCommunicationSetting::defaultAttributes(),
+                    [
+                        'created_by' => (int) $actor->id,
+                        'updated_by' => (int) $actor->id,
+                    ]
+                )
+            );
+        $selectableChannels = $settings->selectableChannels();
+        $requestedChannels = array_values(array_unique(array_map(
+            'strval',
+            (array) ($validated['notification_channels'] ?? $selectableChannels)
+        )));
+        $invalidChannels = array_values(array_diff($requestedChannels, $selectableChannels));
+        if ($invalidChannels !== []) {
+            throw ValidationException::withMessages([
+                'notification_channels' => 'Selected onboarding channel is not enabled/configured: '.implode(', ', $invalidChannels).'.',
+            ]);
+        }
+
+        if (in_array(CompanyCommunicationSetting::CHANNEL_SMS, $requestedChannels, true)
+            && trim((string) ($validated['phone'] ?? '')) === '') {
+            throw ValidationException::withMessages([
+                'phone' => 'Phone is required when SMS onboarding is selected.',
+            ]);
+        }
 
         if ($hasGenderColumn) {
             $payload['gender'] = $validated['gender'] ?? 'other';
@@ -106,6 +145,17 @@ class CreateCompanyUser
             userId: $actor->id,
         );
 
+        try {
+            $this->staffOnboardingMessenger->sendWelcomeCredentials(
+                actor: $actor->loadMissing('company:id,name'),
+                staff: $createdUser,
+                temporaryPassword: $temporaryPassword,
+                selectedChannels: $requestedChannels
+            );
+        } catch (Throwable $exception) {
+            report($exception);
+        }
+
         return $createdUser;
     }
 
@@ -115,7 +165,7 @@ class CreateCompanyUser
     private function ensureOwner(User $actor): void
     {
         if (! $actor->hasRole(UserRole::Owner)) {
-            throw new AuthorizationException('Only owner can manage team assignments.');
+            throw new AuthorizationException('Only admin (owner) can manage team assignments.');
         }
     }
 }

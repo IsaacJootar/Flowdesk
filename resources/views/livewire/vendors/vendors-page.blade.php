@@ -88,7 +88,7 @@
                     <span wire:loading wire:target="openCreateModal">Opening...</span>
                 </button>
             @else
-                <p class="text-xs text-slate-500">Read-only access: owner or finance required for vendor management.</p>
+                <p class="text-xs text-slate-500">Read-only access: admin (owner) or finance required for vendor management.</p>
             @endif
         </div>
     </div>
@@ -193,9 +193,9 @@
     </div>
 
     @if ($showFormModal)
-        <div class="fixed left-0 right-0 bottom-0 top-0 z-40 overflow-y-auto bg-slate-900/40 p-3">
+        <div wire:click="closeFormModal" class="fixed left-0 right-0 bottom-0 top-0 z-40 overflow-y-auto bg-slate-900/40 p-3">
             <div class="flex items-start justify-center pt-1">
-            <div class="fd-card w-full max-w-3xl p-6" style="max-height: calc(100vh - 3rem); overflow-y: auto;">
+            <div wire:click.stop class="fd-card w-full max-w-3xl p-6" style="max-height: calc(100vh - 3rem); overflow-y: auto;">
                 <div class="mb-4 flex items-start justify-between">
                     <div>
                         <h2 class="text-lg font-semibold text-slate-900">{{ $isEditing ? 'Edit Vendor' : 'Create Vendor' }}</h2>
@@ -311,8 +311,8 @@
 
     @if ($showDetailPanel && $this->selectedVendor)
         @php($vendor = $this->selectedVendor)
-        <div class="fixed left-0 right-0 bottom-0 top-16 z-30 bg-slate-900/20">
-            <div class="absolute inset-y-0 right-0 w-full max-w-lg border-l border-slate-200 bg-white shadow-2xl">
+        <div wire:click="closeDetailPanel" class="fixed left-0 right-0 bottom-0 top-16 z-30 bg-slate-900/20">
+            <div wire:click.stop class="absolute inset-y-0 right-0 w-full max-w-lg border-l border-slate-200 bg-white shadow-2xl">
                 <div class="flex h-full flex-col">
                     <div class="flex items-start justify-between border-b border-slate-200 px-6 py-5">
                         <div>

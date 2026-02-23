@@ -26,6 +26,10 @@ class RequestApproval extends Model
         'action',
         'acted_by',
         'acted_at',
+        'due_at',
+        'reminder_sent_at',
+        'escalated_at',
+        'reminder_count',
         'comment',
         'from_status',
         'to_status',
@@ -37,6 +41,10 @@ class RequestApproval extends Model
         return [
             'step_order' => 'integer',
             'acted_at' => 'datetime',
+            'due_at' => 'datetime',
+            'reminder_sent_at' => 'datetime',
+            'escalated_at' => 'datetime',
+            'reminder_count' => 'integer',
             'metadata' => 'array',
         ];
     }
@@ -56,4 +64,3 @@ class RequestApproval extends Model
         return $this->belongsTo(User::class, 'acted_by');
     }
 }
-

@@ -30,137 +30,176 @@
         @endif
     </div>
 
-    <div class="grid gap-6 xl:grid-cols-[380px_1fr]">
-        <div class="fd-card p-6">
-            <div class="mb-4">
-                <span class="inline-flex items-center rounded-full border border-slate-300 bg-slate-200 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-800">
-                    Department Setup
-                </span>
-                <h2 class="mt-2 text-base font-semibold text-slate-900">Create Department</h2>
+    <div class="fd-card p-6">
+        <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div>
+                <h3 class="text-base font-semibold text-slate-900">Departments</h3>
+                <p class="text-sm text-slate-600">Maintain departments and department-head assignments.</p>
             </div>
-
-            <form wire:submit.prevent="createDepartment" class="space-y-3">
-                <label class="block">
-                    <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Department Name</span>
-                    <input
-                        type="text"
-                        wire:model.defer="departmentForm.name"
-                        class="w-full rounded-xl border-slate-300 text-sm focus:border-slate-500 focus:ring-slate-500"
-                        placeholder="Operations"
-                    >
-                    @error('departmentForm.name')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
-                </label>
-
-                <label class="block">
-                    <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Code</span>
-                    <input
-                        type="text"
-                        wire:model.defer="departmentForm.code"
-                        class="w-full rounded-xl border-slate-300 text-sm focus:border-slate-500 focus:ring-slate-500"
-                        placeholder="OPS"
-                    >
-                    @error('departmentForm.code')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
-                </label>
-
-                <label class="block">
-                    <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Department Head</span>
-                    <select wire:model.defer="departmentForm.manager_user_id" class="w-full rounded-xl border-slate-300 text-sm focus:border-slate-500 focus:ring-slate-500">
-                        <option value="">No head assigned</option>
-                        @foreach ($managerOptions as $managerOption)
-                            <option value="{{ $managerOption->id }}">{{ $managerOption->name }} ({{ ucfirst((string) $managerOption->role) }})</option>
-                        @endforeach
-                    </select>
-                    @error('departmentForm.manager_user_id')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
-                </label>
-
+            <div class="flex flex-wrap items-center gap-2">
                 <button
-                    type="submit"
+                    type="button"
+                    wire:click="openCreateModal"
                     wire:loading.attr="disabled"
-                    wire:target="createDepartment"
-                    class="w-full rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-700 disabled:opacity-70"
+                    wire:target="openCreateModal"
+                    class="inline-flex min-w-[190px] items-center justify-center rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700 disabled:opacity-70"
                 >
-                    <span wire:loading.remove wire:target="createDepartment">Add Department</span>
-                    <span wire:loading wire:target="createDepartment">Creating...</span>
+                    <svg class="mr-2 h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                        <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
+                    </svg>
+                    <span>Create Department</span>
+                    <span class="ml-2 inline-flex h-4 w-4 items-center justify-center">
+                        <svg
+                            wire:loading
+                            wire:target="openCreateModal"
+                            class="h-4 w-4 animate-spin text-white"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            aria-hidden="true"
+                        >
+                            <circle cx="12" cy="12" r="9" class="opacity-25" stroke="currentColor" stroke-width="3"></circle>
+                            <path d="M21 12a9 9 0 0 0-9-9" class="opacity-90" stroke="currentColor" stroke-width="3" stroke-linecap="round"></path>
+                        </svg>
+                    </span>
                 </button>
-            </form>
+                <input
+                    type="text"
+                    wire:model.live.debounce.350ms="search"
+                    class="rounded-xl border-slate-300 text-sm focus:border-slate-500 focus:ring-slate-500"
+                    placeholder="Search name or code"
+                >
+                <select wire:model.live="perPage" class="rounded-xl border-slate-300 text-sm focus:border-slate-500 focus:ring-slate-500">
+                    <option value="10">10 / page</option>
+                    <option value="25">25 / page</option>
+                    <option value="50">50 / page</option>
+                </select>
+            </div>
         </div>
 
-        <div class="fd-card p-6">
-            <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
-                <div>
-                    <h3 class="text-base font-semibold text-slate-900">Departments</h3>
-                    <p class="text-sm text-slate-600">Manage department head assignments and active structure.</p>
-                </div>
-                <div class="flex items-center gap-2">
-                    <input
-                        type="text"
-                        wire:model.live.debounce.350ms="search"
-                        class="rounded-xl border-slate-300 text-sm focus:border-slate-500 focus:ring-slate-500"
-                        placeholder="Search name or code"
-                    >
-                    <select wire:model.live="perPage" class="rounded-xl border-slate-300 text-sm focus:border-slate-500 focus:ring-slate-500">
-                        <option value="10">10 / page</option>
-                        <option value="25">25 / page</option>
-                        <option value="50">50 / page</option>
-                    </select>
-                </div>
-            </div>
-
-            <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-slate-200 text-sm">
-                    <thead class="bg-slate-50 text-xs uppercase tracking-[0.12em] text-slate-500">
-                        <tr>
-                            <th class="px-4 py-3 text-left font-semibold">Department</th>
-                            <th class="px-4 py-3 text-left font-semibold">Code</th>
-                            <th class="px-4 py-3 text-left font-semibold">Head</th>
-                            <th class="px-4 py-3 text-left font-semibold">Members</th>
-                            <th class="px-4 py-3 text-right font-semibold">Action</th>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-slate-200 text-sm">
+                <thead class="bg-slate-50 text-xs uppercase tracking-[0.12em] text-slate-500">
+                    <tr>
+                        <th class="px-4 py-3 text-left font-semibold">Department</th>
+                        <th class="px-4 py-3 text-left font-semibold">Code</th>
+                        <th class="px-4 py-3 text-left font-semibold">Head</th>
+                        <th class="px-4 py-3 text-left font-semibold">Members</th>
+                        <th class="px-4 py-3 text-right font-semibold">Action</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    @forelse ($departments as $department)
+                        <tr wire:key="department-row-{{ $department->id }}">
+                            <td class="px-4 py-3 font-medium text-slate-800">{{ $department->name }}</td>
+                            <td class="px-4 py-3 text-slate-600">{{ $department->code ?: '-' }}</td>
+                            <td class="px-4 py-3">
+                                <select wire:model.defer="departmentManagers.{{ $department->id }}" class="w-full rounded-lg border-slate-300 text-xs focus:border-slate-500 focus:ring-slate-500">
+                                    <option value="">No head assigned</option>
+                                    @foreach ($managerOptions as $managerOption)
+                                        <option value="{{ $managerOption->id }}">{{ $managerOption->name }}</option>
+                                    @endforeach
+                                </select>
+                            </td>
+                            <td class="px-4 py-3 text-slate-600">{{ number_format((int) $department->users_count) }}</td>
+                            <td class="px-4 py-3 text-right">
+                                <button
+                                    type="button"
+                                    wire:click="saveDepartmentManager({{ $department->id }})"
+                                    wire:loading.attr="disabled"
+                                    wire:target="saveDepartmentManager({{ $department->id }})"
+                                    class="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-700 disabled:opacity-70"
+                                >
+                                    <span wire:loading.remove wire:target="saveDepartmentManager({{ $department->id }})">Save</span>
+                                    <span wire:loading wire:target="saveDepartmentManager({{ $department->id }})">Saving...</span>
+                                </button>
+                            </td>
                         </tr>
-                    </thead>
-                    <tbody class="divide-y divide-slate-100">
-                        @forelse ($departments as $department)
-                            <tr wire:key="department-row-{{ $department->id }}">
-                                <td class="px-4 py-3 font-medium text-slate-800">{{ $department->name }}</td>
-                                <td class="px-4 py-3 text-slate-600">{{ $department->code ?: '-' }}</td>
-                                <td class="px-4 py-3">
-                                    <select wire:model.defer="departmentManagers.{{ $department->id }}" class="w-full rounded-lg border-slate-300 text-xs focus:border-slate-500 focus:ring-slate-500">
-                                        <option value="">No head assigned</option>
-                                        @foreach ($managerOptions as $managerOption)
-                                            <option value="{{ $managerOption->id }}">{{ $managerOption->name }}</option>
-                                        @endforeach
-                                    </select>
-                                </td>
-                                <td class="px-4 py-3 text-slate-600">{{ number_format((int) $department->users_count) }}</td>
-                                <td class="px-4 py-3 text-right">
-                                    <button
-                                        type="button"
-                                        wire:click="saveDepartmentManager({{ $department->id }})"
-                                        wire:loading.attr="disabled"
-                                        wire:target="saveDepartmentManager"
-                                        class="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-700 disabled:opacity-70"
-                                    >
-                                        <span wire:loading.remove wire:target="saveDepartmentManager">Save</span>
-                                        <span wire:loading wire:target="saveDepartmentManager">Saving...</span>
-                                    </button>
-                                </td>
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="5" class="px-4 py-6 text-center text-sm text-slate-500">
-                                    No departments found for this filter.
-                                </td>
-                            </tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
+                    @empty
+                        <tr>
+                            <td colspan="5" class="px-4 py-6 text-center text-sm text-slate-500">
+                                No departments found for this filter.
+                            </td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
 
-            <div class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <p class="text-xs text-slate-500">
-                    Showing {{ $departments->firstItem() ?? 0 }}-{{ $departments->lastItem() ?? 0 }} of {{ $departments->total() }}
-                </p>
-                {{ $departments->links() }}
-            </div>
+        <div class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <p class="text-xs text-slate-500">
+                Showing {{ $departments->firstItem() ?? 0 }}-{{ $departments->lastItem() ?? 0 }} of {{ $departments->total() }}
+            </p>
+            {{ $departments->links() }}
         </div>
     </div>
+
+    @if ($showCreateModal)
+        <div wire:click="closeCreateModal" class="fixed left-0 right-0 bottom-0 top-0 z-50 overflow-y-auto bg-slate-900/40 p-3">
+            <div class="flex items-start justify-center pt-1">
+                <div wire:click.stop class="w-full max-w-xl rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl" style="max-height: calc(100vh - 3rem); overflow-y: auto;">
+                    <div class="mb-4 flex items-start justify-between">
+                        <div>
+                            <span class="inline-flex items-center rounded-full border border-slate-300 bg-slate-200 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-800">
+                                Department Setup
+                            </span>
+                            <h2 class="mt-2 text-base font-semibold text-slate-900">Create Department</h2>
+                        </div>
+                        <button type="button" wire:click="closeCreateModal" class="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50">
+                            Close
+                        </button>
+                    </div>
+
+                    <form wire:submit.prevent="createDepartment" class="space-y-3">
+                        <label class="block">
+                            <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Department Name</span>
+                            <input
+                                type="text"
+                                wire:model.defer="departmentForm.name"
+                                class="w-full rounded-xl border-slate-300 text-sm focus:border-slate-500 focus:ring-slate-500"
+                                placeholder="Operations"
+                            >
+                            @error('departmentForm.name')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+                        </label>
+
+                        <label class="block">
+                            <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Code</span>
+                            <input
+                                type="text"
+                                wire:model.defer="departmentForm.code"
+                                class="w-full rounded-xl border-slate-300 text-sm focus:border-slate-500 focus:ring-slate-500"
+                                placeholder="OPS"
+                            >
+                            @error('departmentForm.code')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+                        </label>
+
+                        <label class="block">
+                            <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Department Head</span>
+                            <select wire:model.defer="departmentForm.manager_user_id" class="w-full rounded-xl border-slate-300 text-sm focus:border-slate-500 focus:ring-slate-500">
+                                <option value="">No head assigned</option>
+                                @foreach ($managerOptions as $managerOption)
+                                    <option value="{{ $managerOption->id }}">{{ $managerOption->name }} ({{ ((string) $managerOption->role) === 'owner' ? 'Admin (Owner)' : ucfirst((string) $managerOption->role) }})</option>
+                                @endforeach
+                            </select>
+                            @error('departmentForm.manager_user_id')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+                        </label>
+
+                        <div class="flex justify-end gap-2 border-t border-slate-200 pt-4">
+                            <button type="button" wire:click="closeCreateModal" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+                                Cancel
+                            </button>
+                            <button
+                                type="submit"
+                                wire:loading.attr="disabled"
+                                wire:target="createDepartment"
+                                class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700 disabled:opacity-70"
+                            >
+                                <span wire:loading.remove wire:target="createDepartment">Add Department</span>
+                                <span wire:loading wire:target="createDepartment">Creating...</span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    @endif
 </div>

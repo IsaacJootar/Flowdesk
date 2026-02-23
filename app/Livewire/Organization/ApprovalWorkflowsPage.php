@@ -7,6 +7,7 @@ use App\Actions\Approvals\CreateApprovalWorkflow;
 use App\Actions\Approvals\DeleteApprovalWorkflow;
 use App\Actions\Approvals\SetApprovalWorkflowDefault;
 use App\Domains\Approvals\Models\ApprovalWorkflow;
+use App\Domains\Company\Models\CompanyCommunicationSetting;
 use App\Domains\Requests\Models\SpendRequest;
 use App\Enums\UserRole;
 use App\Models\User;
@@ -22,6 +23,10 @@ use Throwable;
 class ApprovalWorkflowsPage extends Component
 {
     use WithPagination;
+
+    public bool $showCreateWorkflowModal = false;
+
+    public bool $showAddStepModal = false;
 
     public ?string $feedbackMessage = null;
 
@@ -41,13 +46,14 @@ class ApprovalWorkflowsPage extends Component
         'is_default' => false,
     ];
 
-    /** @var array{workflow_id: string, approver_source: string, approver_value: string, min_amount: string, max_amount: string} */
+    /** @var array{workflow_id: string, approver_source: string, approver_value: string, min_amount: string, max_amount: string, notification_channels: array<int, string>} */
     public array $stepForm = [
         'workflow_id' => '',
         'approver_source' => '',
         'approver_value' => '',
         'min_amount' => '',
         'max_amount' => '',
+        'notification_channels' => [],
     ];
 
     protected array $queryString = [
@@ -59,6 +65,7 @@ class ApprovalWorkflowsPage extends Component
     {
         $this->authorizeOwner();
         $this->normalizeStepOrdersAndLabels();
+        $this->stepForm['notification_channels'] = $this->defaultSelectableChannels();
     }
 
     public function updatingSearch(): void
@@ -73,6 +80,45 @@ class ApprovalWorkflowsPage extends Component
         }
 
         $this->resetPage();
+    }
+
+    public function openCreateWorkflowModal(): void
+    {
+        $this->authorizeOwner();
+        $this->resetValidation();
+        $this->feedbackError = null;
+        $this->showCreateWorkflowModal = true;
+    }
+
+    public function closeCreateWorkflowModal(): void
+    {
+        $this->showCreateWorkflowModal = false;
+        $this->workflowForm = [
+            'name' => '',
+            'code' => '',
+            'description' => '',
+            'is_default' => false,
+        ];
+        $this->resetValidation();
+    }
+
+    public function openAddStepModal(): void
+    {
+        $this->authorizeOwner();
+        $this->resetValidation();
+        $this->feedbackError = null;
+        $this->showAddStepModal = true;
+    }
+
+    public function closeAddStepModal(): void
+    {
+        $this->showAddStepModal = false;
+        $this->stepForm['approver_source'] = '';
+        $this->stepForm['approver_value'] = '';
+        $this->stepForm['min_amount'] = '';
+        $this->stepForm['max_amount'] = '';
+        $this->stepForm['notification_channels'] = $this->defaultSelectableChannels();
+        $this->resetValidation();
     }
 
     public function createWorkflow(CreateApprovalWorkflow $createApprovalWorkflow): void
@@ -106,6 +152,7 @@ class ApprovalWorkflowsPage extends Component
         $this->stepForm['workflow_id'] = (string) $workflow->id;
         $this->normalizeStepOrdersAndLabels();
         $this->setFeedback('Approval workflow created.');
+        $this->showCreateWorkflowModal = false;
     }
 
     public function createPresetWorkflow(
@@ -159,6 +206,7 @@ class ApprovalWorkflowsPage extends Component
                     'actor_value' => null,
                     'step_key' => 'direct_manager_review',
                     'step_order' => 1,
+                    'notification_channels' => $this->defaultSelectableChannels(),
                 ]);
 
                 $addApprovalWorkflowStep($owner, $workflow, [
@@ -166,6 +214,7 @@ class ApprovalWorkflowsPage extends Component
                     'actor_value' => UserRole::Finance->value,
                     'step_key' => 'finance_signoff',
                     'step_order' => 2,
+                    'notification_channels' => $this->defaultSelectableChannels(),
                 ]);
 
                 $this->applyDefaultLabelsToWorkflowSteps($workflow);
@@ -191,6 +240,7 @@ class ApprovalWorkflowsPage extends Component
                     'actor_value' => null,
                     'step_key' => 'direct_manager_review',
                     'step_order' => null,
+                    'notification_channels' => $this->defaultSelectableChannels(),
                 ]);
             }
 
@@ -200,6 +250,7 @@ class ApprovalWorkflowsPage extends Component
                     'actor_value' => UserRole::Finance->value,
                     'step_key' => 'finance_signoff',
                     'step_order' => null,
+                    'notification_channels' => $this->defaultSelectableChannels(),
                 ]);
             }
 
@@ -255,10 +306,26 @@ class ApprovalWorkflowsPage extends Component
                 return;
             }
 
+            if ($approverSource === 'role' && $this->stepForm['approver_value'] === UserRole::Staff->value) {
+                $this->addError('stepForm.approver_value', 'Role-based approvals cannot target Staff. Use Specific Person for staff approvers.');
+
+                return;
+            }
+
             $approverValue = $this->stepForm['approver_value'];
         }
 
         try {
+            $selectedChannels = array_values(array_unique(array_filter(
+                (array) ($this->stepForm['notification_channels'] ?? []),
+                fn ($value): bool => in_array((string) $value, CompanyCommunicationSetting::CHANNELS, true)
+            )));
+            if ($selectedChannels === []) {
+                $this->addError('stepForm.notification_channels', 'Select at least one notification channel.');
+
+                return;
+            }
+
             $addApprovalWorkflowStep(auth()->user(), $workflow, [
                 'step_order' => null,
                 'step_key' => $this->defaultStepKeyForApproverSource($approverSource, $approverValue),
@@ -266,6 +333,7 @@ class ApprovalWorkflowsPage extends Component
                 'actor_value' => $approverValue,
                 'min_amount' => $this->stepForm['min_amount'] !== '' ? (int) $this->stepForm['min_amount'] : null,
                 'max_amount' => $this->stepForm['max_amount'] !== '' ? (int) $this->stepForm['max_amount'] : null,
+                'notification_channels' => $selectedChannels,
             ]);
         } catch (ValidationException $exception) {
             $errors = $exception->errors();
@@ -288,6 +356,12 @@ class ApprovalWorkflowsPage extends Component
                 return;
             }
 
+            if (array_key_exists('notification_channels', $errors)) {
+                $this->addError('stepForm.notification_channels', (string) ($errors['notification_channels'][0] ?? 'Invalid notification channels.'));
+
+                return;
+            }
+
             throw $exception;
         } catch (Throwable $exception) {
             report($exception);
@@ -300,14 +374,26 @@ class ApprovalWorkflowsPage extends Component
         $this->stepForm['approver_value'] = '';
         $this->stepForm['min_amount'] = '';
         $this->stepForm['max_amount'] = '';
+        $this->stepForm['notification_channels'] = $this->defaultSelectableChannels();
         $this->normalizeStepOrdersAndLabels();
         $this->setFeedback('Workflow step added.');
+        $this->showAddStepModal = false;
     }
 
     public function updatedStepFormApproverSource(): void
     {
         $this->stepForm['approver_value'] = '';
         $this->resetErrorBag('stepForm.approver_value');
+    }
+
+    public function updatedStepFormNotificationChannels(): void
+    {
+        $this->stepForm['notification_channels'] = array_values(array_unique(array_filter(
+            (array) ($this->stepForm['notification_channels'] ?? []),
+            fn ($value): bool => in_array((string) $value, CompanyCommunicationSetting::CHANNELS, true)
+        )));
+
+        $this->resetErrorBag('stepForm.notification_channels');
     }
 
     public function setDefaultWorkflow(int $workflowId, SetApprovalWorkflowDefault $setApprovalWorkflowDefault): void
@@ -403,10 +489,16 @@ class ApprovalWorkflowsPage extends Component
 
                 foreach ($workflow->steps as $duplicateStep) {
                     $existsOnKeeper = $keeper->steps->contains(function ($keeperStep) use ($duplicateStep): bool {
+                        $keeperChannels = array_values((array) ($keeperStep->notification_channels ?? []));
+                        sort($keeperChannels);
+                        $duplicateChannels = array_values((array) ($duplicateStep->notification_channels ?? []));
+                        sort($duplicateChannels);
+
                         return $keeperStep->actor_type === $duplicateStep->actor_type
                             && (string) ($keeperStep->actor_value ?? '') === (string) ($duplicateStep->actor_value ?? '')
                             && (int) ($keeperStep->min_amount ?? -1) === (int) ($duplicateStep->min_amount ?? -1)
-                            && (int) ($keeperStep->max_amount ?? -1) === (int) ($duplicateStep->max_amount ?? -1);
+                            && (int) ($keeperStep->max_amount ?? -1) === (int) ($duplicateStep->max_amount ?? -1)
+                            && $keeperChannels === $duplicateChannels;
                     });
 
                     if (! $existsOnKeeper) {
@@ -417,6 +509,7 @@ class ApprovalWorkflowsPage extends Component
                             'actor_value' => $duplicateStep->actor_value ?: null,
                             'min_amount' => $duplicateStep->min_amount,
                             'max_amount' => $duplicateStep->max_amount,
+                            'notification_channels' => (array) ($duplicateStep->notification_channels ?? []),
                         ]);
                         $keeper->load(['steps' => fn ($query) => $query->where('is_active', true)->orderBy('step_order')]);
                     }
@@ -483,11 +576,23 @@ class ApprovalWorkflowsPage extends Component
             ->orderBy('name')
             ->get(['id', 'name', 'role']);
 
+        $communicationSetting = CompanyCommunicationSetting::query()
+            ->firstOrCreate(
+                ['company_id' => (int) auth()->user()->company_id],
+                array_merge(
+                    CompanyCommunicationSetting::defaultAttributes(),
+                    ['created_by' => auth()->id()]
+                )
+            );
+
         return view('livewire.organization.approval-workflows-page', [
             'workflows' => $workflows,
             'workflowsForStepForm' => $workflowsForStepForm,
             'users' => $users,
             'roles' => UserRole::values(),
+            'communicationSetting' => $communicationSetting,
+            'channelPolicies' => $this->channelPolicies($communicationSetting),
+            'defaultStepChannels' => $this->defaultSelectableChannels(),
         ])->layout('layouts.app', [
             'title' => 'Approval Workflows',
             'subtitle' => 'Configure policy chains and approval routing for requests',
@@ -511,7 +616,7 @@ class ApprovalWorkflowsPage extends Component
     private function authorizeOwner(): void
     {
         if (! auth()->check() || auth()->user()->role !== UserRole::Owner->value) {
-            throw new AuthorizationException('Only owner can manage approval workflow settings.');
+            throw new AuthorizationException('Only admin (owner) can manage approval workflow settings.');
         }
     }
 
@@ -567,5 +672,49 @@ class ApprovalWorkflowsPage extends Component
     {
         app(ApprovalWorkflowStepOrderService::class)
             ->normalizeCompanyRequestWorkflows((int) auth()->user()->company_id);
+    }
+
+    /**
+     * @return array<string, array{label: string, enabled: bool, configured: bool, selectable: bool}>
+     */
+    private function channelPolicies(CompanyCommunicationSetting $setting): array
+    {
+        return [
+            CompanyCommunicationSetting::CHANNEL_IN_APP => [
+                'label' => 'In-app',
+                'enabled' => (bool) $setting->in_app_enabled,
+                'configured' => true,
+                'selectable' => (bool) $setting->in_app_enabled,
+            ],
+            CompanyCommunicationSetting::CHANNEL_EMAIL => [
+                'label' => 'Email',
+                'enabled' => (bool) $setting->email_enabled,
+                'configured' => (bool) $setting->email_configured,
+                'selectable' => (bool) $setting->email_enabled && (bool) $setting->email_configured,
+            ],
+            CompanyCommunicationSetting::CHANNEL_SMS => [
+                'label' => 'SMS',
+                'enabled' => (bool) $setting->sms_enabled,
+                'configured' => (bool) $setting->sms_configured,
+                'selectable' => (bool) $setting->sms_enabled && (bool) $setting->sms_configured,
+            ],
+        ];
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function defaultSelectableChannels(): array
+    {
+        $setting = CompanyCommunicationSetting::query()
+            ->firstOrCreate(
+                ['company_id' => (int) auth()->user()->company_id],
+                array_merge(
+                    CompanyCommunicationSetting::defaultAttributes(),
+                    ['created_by' => auth()->id()]
+                )
+            );
+
+        return $setting->selectableChannels();
     }
 }

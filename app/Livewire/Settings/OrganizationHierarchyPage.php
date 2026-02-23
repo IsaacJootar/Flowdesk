@@ -652,7 +652,7 @@ class OrganizationHierarchyPage extends Component
     private function authorizeOwner(): void
     {
         if (! auth()->check() || auth()->user()->role !== UserRole::Owner->value) {
-            throw new AuthorizationException('Only owner can manage organization hierarchy settings.');
+            throw new AuthorizationException('Only admin (owner) can manage organization hierarchy settings.');
         }
     }
 

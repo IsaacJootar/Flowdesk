@@ -128,7 +128,7 @@
                                 <td class="px-4 py-3">
                                     <select wire:model.defer="userAssignments.{{ $user->id }}.role" class="w-full rounded-lg border-slate-300 text-xs focus:border-slate-500 focus:ring-slate-500">
                                         @foreach ($roles as $role)
-                                            <option value="{{ $role }}">{{ ucfirst($role) }}</option>
+                                            <option value="{{ $role }}">{{ $role === 'owner' ? 'Admin (Owner)' : ucfirst($role) }}</option>
                                         @endforeach
                                     </select>
                                 </td>
@@ -200,9 +200,9 @@
     </div>
 
     @if ($showCreateModal)
-        <div class="fixed left-0 right-0 bottom-0 top-0 z-50 overflow-y-auto bg-slate-900/40 p-3">
+        <div wire:click="closeCreateModal" class="fixed left-0 right-0 bottom-0 top-0 z-50 overflow-y-auto bg-slate-900/40 p-3">
             <div class="flex items-start justify-center pt-1">
-                <div class="w-full max-w-2xl rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl" style="max-height: calc(100vh - 3rem); overflow-y: auto;">
+                <div wire:click.stop class="w-full max-w-2xl rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl" style="max-height: calc(100vh - 3rem); overflow-y: auto;">
                     <div class="mb-4 flex items-start justify-between">
                         <div>
                             <span class="inline-flex items-center rounded-full border border-slate-300 bg-slate-200 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-800">
@@ -239,7 +239,7 @@
                                 <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Role</span>
                                 <select wire:model.defer="newUserForm.role" class="w-full rounded-xl border-slate-300 text-sm focus:border-slate-500 focus:ring-slate-500">
                                     @foreach ($roles as $role)
-                                        <option value="{{ $role }}">{{ ucfirst($role) }}</option>
+                                        <option value="{{ $role }}">{{ $role === 'owner' ? 'Admin (Owner)' : ucfirst($role) }}</option>
                                     @endforeach
                                 </select>
                                 @error('newUserForm.role')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
@@ -279,7 +279,7 @@
                             <select wire:model.defer="newUserForm.reports_to_user_id" class="w-full rounded-xl border-slate-300 text-sm focus:border-slate-500 focus:ring-slate-500">
                                 <option value="">No direct manager</option>
                                 @foreach ($managerOptions as $managerOption)
-                                    <option value="{{ $managerOption->id }}">{{ $managerOption->name }} ({{ ucfirst((string) $managerOption->role) }})</option>
+                                    <option value="{{ $managerOption->id }}">{{ $managerOption->name }} ({{ ((string) $managerOption->role) === 'owner' ? 'Admin (Owner)' : ucfirst((string) $managerOption->role) }})</option>
                                 @endforeach
                             </select>
                             @error('newUserForm.reports_to_user_id')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
@@ -292,6 +292,41 @@
                             @error('avatarUpload')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
                             <div wire:loading wire:target="avatarUpload" class="mt-1 text-xs text-slate-600">Uploading photo...</div>
                         </label>
+
+                        <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                            <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Welcome Credential Channels</p>
+                            <p class="mt-1 text-xs text-slate-500">Enabled channels are preselected. Uncheck any channel you do not want for onboarding.</p>
+                            <div class="mt-2 grid gap-2 sm:grid-cols-2">
+                                @foreach ($onboardingChannelPolicies as $channel => $policy)
+                                    <label class="inline-flex items-center gap-2 text-xs {{ $policy['selectable'] ? 'text-slate-700' : 'text-slate-400' }}">
+                                        <input
+                                            type="checkbox"
+                                            value="{{ $channel }}"
+                                            wire:model.defer="onboardingNotificationChannels"
+                                            @disabled(! $policy['selectable'])
+                                            class="rounded border-slate-300 text-slate-700 focus:ring-slate-500"
+                                        >
+                                        @if ($channel === 'email')
+                                            <svg class="h-4 w-4 text-slate-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                                <rect x="3" y="5" width="18" height="14" rx="2"></rect>
+                                                <path d="M3 7l9 6 9-6"></path>
+                                            </svg>
+                                        @elseif ($channel === 'sms')
+                                            <svg class="h-4 w-4 text-slate-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                                <path d="M4 6h16a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H8l-4 3v-3H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2z"></path>
+                                            </svg>
+                                        @endif
+                                        <span>
+                                            {{ $policy['label'] }}
+                                            @if (! $policy['selectable'])
+                                                ({{ ! $policy['enabled'] ? 'Disabled' : 'Not configured' }})
+                                            @endif
+                                        </span>
+                                    </label>
+                                @endforeach
+                            </div>
+                            @error('onboardingNotificationChannels')<p class="mt-2 text-xs text-red-600">{{ $message }}</p>@enderror
+                        </div>
 
                         <div class="flex justify-end gap-2 border-t border-slate-200 pt-4">
                             <button type="button" wire:click="closeCreateModal" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
@@ -314,9 +349,9 @@
     @endif
 
     @if ($showProfileModal && $this->profileUser)
-        <div class="fixed left-0 right-0 bottom-0 top-0 z-50 overflow-y-auto bg-slate-900/40 p-3">
+        <div wire:click="closeProfileModal" class="fixed left-0 right-0 bottom-0 top-0 z-50 overflow-y-auto bg-slate-900/40 p-3">
             <div class="flex items-start justify-center pt-1">
-                <div class="w-full max-w-xl rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl" style="max-height: calc(100vh - 3rem); overflow-y: auto;">
+                <div wire:click.stop class="w-full max-w-xl rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl" style="max-height: calc(100vh - 3rem); overflow-y: auto;">
                     <div class="mb-4 flex items-start justify-between">
                         <div>
                             <span class="inline-flex items-center rounded-full border border-slate-300 bg-slate-200 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-800">

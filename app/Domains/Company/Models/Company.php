@@ -2,9 +2,12 @@
 
 namespace App\Domains\Company\Models;
 
+use App\Domains\Requests\Models\CompanyRequestType;
+use App\Domains\Requests\Models\CompanySpendCategory;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -42,5 +45,20 @@ class Company extends Model
     public function users(): HasMany
     {
         return $this->hasMany(User::class);
+    }
+
+    public function requestTypes(): HasMany
+    {
+        return $this->hasMany(CompanyRequestType::class);
+    }
+
+    public function spendCategories(): HasMany
+    {
+        return $this->hasMany(CompanySpendCategory::class);
+    }
+
+    public function communicationSetting(): HasOne
+    {
+        return $this->hasOne(CompanyCommunicationSetting::class);
     }
 }

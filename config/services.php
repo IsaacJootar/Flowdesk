@@ -31,4 +31,15 @@ return [
         ],
     ],
 
+    'sms' => [
+        'provider' => env('SMS_PROVIDER', 'placeholder'),
+    ],
+
+    'termii' => [
+        'api_key' => env('TERMII_API_KEY'),
+        'sender_id' => env('TERMII_SENDER_ID'),
+        'channel' => env('TERMII_CHANNEL', 'generic'),
+        'url' => env('TERMII_SMS_URL', 'https://api.ng.termii.com/api/sms/send'),
+    ],
+
 ];

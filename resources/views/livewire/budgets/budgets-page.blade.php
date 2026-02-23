@@ -112,7 +112,7 @@
                         <span wire:loading wire:target="openCreateModal">Opening...</span>
                     </button>
                 @else
-                    <p class="text-xs text-slate-500">Read-only access: owner or finance required for budget changes.</p>
+                    <p class="text-xs text-slate-500">Read-only access: admin (owner) or finance required for budget changes.</p>
                 @endif
             </div>
         </div>
@@ -219,9 +219,9 @@
     </div>
 
     @if ($showFormModal)
-        <div class="fixed left-0 right-0 bottom-0 top-0 z-40 overflow-y-auto bg-slate-900/40 p-3">
+        <div wire:click="closeFormModal" class="fixed left-0 right-0 bottom-0 top-0 z-40 overflow-y-auto bg-slate-900/40 p-3">
             <div class="flex items-start justify-center pt-1">
-                <div class="fd-card w-full max-w-2xl p-6" style="max-height: calc(100vh - 3rem); overflow-y: auto;">
+                <div wire:click.stop class="fd-card w-full max-w-2xl p-6" style="max-height: calc(100vh - 3rem); overflow-y: auto;">
                     <div class="mb-4 flex items-start justify-between">
                         <div>
                             <h2 class="text-lg font-semibold text-slate-900">{{ $isEditing ? 'Edit Budget' : 'Create Budget' }}</h2>

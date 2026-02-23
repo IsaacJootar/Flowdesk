@@ -92,7 +92,7 @@ class CreateApprovalWorkflow
     private function ensureOwner(User $actor): void
     {
         if (! $actor->hasRole(UserRole::Owner)) {
-            throw new AuthorizationException('Only owner can manage approval workflows.');
+            throw new AuthorizationException('Only admin (owner) can manage approval workflows.');
         }
     }
 

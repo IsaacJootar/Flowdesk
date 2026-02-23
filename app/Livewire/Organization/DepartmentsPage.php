@@ -18,6 +18,8 @@ class DepartmentsPage extends Component
 {
     use WithPagination;
 
+    public bool $showCreateModal = false;
+
     public ?string $feedbackMessage = null;
 
     public ?string $feedbackError = null;
@@ -62,6 +64,25 @@ class DepartmentsPage extends Component
         $this->resetPage();
     }
 
+    public function openCreateModal(): void
+    {
+        $this->authorizeOwner();
+        $this->resetValidation();
+        $this->feedbackError = null;
+        $this->showCreateModal = true;
+    }
+
+    public function closeCreateModal(): void
+    {
+        $this->showCreateModal = false;
+        $this->departmentForm = [
+            'name' => '',
+            'code' => '',
+            'manager_user_id' => '',
+        ];
+        $this->resetValidation();
+    }
+
     public function createDepartment(CreateDepartment $createDepartment): void
     {
         $this->authorizeOwner();
@@ -83,9 +104,9 @@ class DepartmentsPage extends Component
             return;
         }
 
-        $this->departmentForm = ['name' => '', 'code' => '', 'manager_user_id' => ''];
         $this->departmentManagers[$department->id] = $department->manager_user_id ? (string) $department->manager_user_id : '';
         $this->setFeedback('Department created.');
+        $this->closeCreateModal();
         $this->resetPage();
     }
 
@@ -167,7 +188,7 @@ class DepartmentsPage extends Component
     private function authorizeOwner(): void
     {
         if (! auth()->check() || auth()->user()->role !== UserRole::Owner->value) {
-            throw new AuthorizationException('Only owner can manage departments.');
+            throw new AuthorizationException('Only admin (owner) can manage departments.');
         }
     }
 }

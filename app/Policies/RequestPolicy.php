@@ -3,6 +3,7 @@
 namespace App\Policies;
 
 use App\Domains\Requests\Models\SpendRequest;
+use App\Domains\Approvals\Models\RequestApproval;
 use App\Enums\UserRole;
 use App\Models\User;
 use App\Services\RequestApprovalRouter;
@@ -25,6 +26,20 @@ class RequestPolicy
             return false;
         }
 
+        if ($this->requestApprovalRouter->canApprove($user, $request)) {
+            return true;
+        }
+
+        $hasActedOnRequest = RequestApproval::query()
+            ->where('company_id', (int) $user->company_id)
+            ->where('request_id', (int) $request->id)
+            ->where('acted_by', (int) $user->id)
+            ->exists();
+
+        if ($hasActedOnRequest) {
+            return true;
+        }
+
         if ($this->hasAnyRole($user, [UserRole::Owner, UserRole::Finance, UserRole::Auditor])) {
             return true;
         }
@@ -43,7 +58,24 @@ class RequestPolicy
 
     public function update(User $user, SpendRequest $request): bool
     {
-        return $this->view($user, $request);
+        if (! $this->sameCompany($user, $request)) {
+            return false;
+        }
+
+        if (! in_array((string) $request->status, ['draft', 'returned'], true)) {
+            return false;
+        }
+
+        if ($this->hasAnyRole($user, [UserRole::Owner, UserRole::Finance])) {
+            return true;
+        }
+
+        return (int) $request->requested_by === (int) $user->id;
+    }
+
+    public function submit(User $user, SpendRequest $request): bool
+    {
+        return $this->update($user, $request);
     }
 
     public function delete(User $user, SpendRequest $request): bool
@@ -54,6 +86,10 @@ class RequestPolicy
     public function approve(User $user, SpendRequest $request): bool
     {
         if (! $this->sameCompany($user, $request)) {
+            return false;
+        }
+
+        if ((string) $request->status !== 'in_review') {
             return false;
         }
 

@@ -5,6 +5,7 @@ namespace App\Livewire\Organization;
 use App\Actions\Company\CreateCompanyUser;
 use App\Actions\Company\UpdateCompanyUserAssignment;
 use App\Actions\Company\UpdateCompanyUserProfile;
+use App\Domains\Company\Models\CompanyCommunicationSetting;
 use App\Domains\Company\Models\Department;
 use App\Enums\UserRole;
 use App\Models\User;
@@ -41,6 +42,12 @@ class TeamPage extends Component
 
     public ?int $profileUserId = null;
 
+    /** @var array<string, array{label: string, enabled: bool, configured: bool, selectable: bool}> */
+    public array $onboardingChannelPolicies = [];
+
+    /** @var array<int, string> */
+    public array $onboardingNotificationChannels = [];
+
     /** @var array{name: string, email: string, phone: string, gender: string, password: string, role: string, department_id: string, reports_to_user_id: string} */
     public array $newUserForm = [
         'name' => '',
@@ -72,6 +79,7 @@ class TeamPage extends Component
     public function mount(): void
     {
         $this->authorizeOwner();
+        $this->prepareOnboardingChannels();
     }
 
     public function updatingSearch(): void
@@ -93,6 +101,7 @@ class TeamPage extends Component
         $this->authorizeOwner();
         $this->resetValidation();
         $this->feedbackError = null;
+        $this->prepareOnboardingChannels();
         $this->showCreateModal = true;
     }
 
@@ -110,6 +119,7 @@ class TeamPage extends Component
             'department_id' => '',
             'reports_to_user_id' => '',
         ];
+        $this->prepareOnboardingChannels();
         $this->resetValidation();
     }
 
@@ -130,6 +140,7 @@ class TeamPage extends Component
                     ? (int) $this->newUserForm['reports_to_user_id']
                     : null,
                 'avatar' => $this->avatarUpload,
+                'notification_channels' => $this->onboardingNotificationChannels,
             ]);
         } catch (ValidationException $exception) {
             throw ValidationException::withMessages($this->normalizeValidationErrors($exception->errors()));
@@ -151,6 +162,7 @@ class TeamPage extends Component
             'reports_to_user_id' => '',
         ];
         $this->avatarUpload = null;
+        $this->prepareOnboardingChannels();
 
         $this->setFeedback('Team member created.');
         $this->showCreateModal = false;
@@ -326,7 +338,7 @@ class TeamPage extends Component
     private function authorizeOwner(): void
     {
         if (! auth()->check() || auth()->user()->role !== UserRole::Owner->value) {
-            throw new AuthorizationException('Only owner can manage team assignments.');
+            throw new AuthorizationException('Only admin (owner) can manage team assignments.');
         }
     }
 
@@ -352,6 +364,11 @@ class TeamPage extends Component
 
             if ($key === 'avatar') {
                 $mapped['avatarUpload'] = $messages;
+                continue;
+            }
+
+            if ($key === 'notification_channels' || str_starts_with($key, 'notification_channels.')) {
+                $mapped['onboardingNotificationChannels'] = $messages;
                 continue;
             }
 
@@ -390,5 +407,37 @@ class TeamPage extends Component
         }
 
         return $mapped;
+    }
+
+    private function prepareOnboardingChannels(): void
+    {
+        $settings = CompanyCommunicationSetting::query()
+            ->firstOrCreate(
+                ['company_id' => (int) auth()->user()->company_id],
+                array_merge(
+                    CompanyCommunicationSetting::defaultAttributes(),
+                    ['created_by' => auth()->id()]
+                )
+            );
+
+        $this->onboardingChannelPolicies = [
+            CompanyCommunicationSetting::CHANNEL_EMAIL => [
+                'label' => 'Email',
+                'enabled' => (bool) $settings->email_enabled,
+                'configured' => (bool) $settings->email_configured,
+                'selectable' => (bool) $settings->email_enabled && (bool) $settings->email_configured,
+            ],
+            CompanyCommunicationSetting::CHANNEL_SMS => [
+                'label' => 'SMS',
+                'enabled' => (bool) $settings->sms_enabled,
+                'configured' => (bool) $settings->sms_configured,
+                'selectable' => (bool) $settings->sms_enabled && (bool) $settings->sms_configured,
+            ],
+        ];
+
+        $this->onboardingNotificationChannels = array_keys(array_filter(
+            $this->onboardingChannelPolicies,
+            fn (array $policy): bool => (bool) ($policy['selectable'] ?? false)
+        ));
     }
 }

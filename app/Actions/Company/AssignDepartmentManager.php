@@ -62,7 +62,7 @@ class AssignDepartmentManager
     private function ensureOwner(User $actor): void
     {
         if (! $actor->hasRole(UserRole::Owner)) {
-            throw new AuthorizationException('Only owner can manage organization structure.');
+            throw new AuthorizationException('Only admin (owner) can manage organization structure.');
         }
     }
 }

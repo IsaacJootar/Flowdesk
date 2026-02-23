@@ -1,7 +1,40 @@
 <div class="mx-auto max-w-3xl space-y-6">
+    <div
+        class="pointer-events-none fixed z-[95] space-y-2"
+        style="right: 16px; top: 64px; width: 320px; max-width: calc(100vw - 24px);"
+    >
+        @if ($feedbackMessage)
+            <div
+                wire:key="company-setup-feedback-success-{{ $feedbackKey }}"
+                x-data="{ show: true }"
+                x-init="setTimeout(() => show = false, 3200)"
+                x-show="show"
+                x-transition.opacity.duration.250ms
+                class="pointer-events-auto rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 shadow-lg"
+            >
+                {{ $feedbackMessage }}
+            </div>
+        @endif
+
+        @if ($feedbackError)
+            <div
+                wire:key="company-setup-feedback-error-{{ $feedbackKey }}"
+                x-data="{ show: true }"
+                x-init="setTimeout(() => show = false, 5000)"
+                x-show="show"
+                x-transition.opacity.duration.250ms
+                class="pointer-events-auto rounded-xl border border-red-700 bg-red-600 px-4 py-3 text-sm text-white shadow-lg"
+            >
+                {{ $feedbackError }}
+            </div>
+        @endif
+    </div>
+
     <div class="fd-card p-6">
-        <h2 class="text-lg font-semibold text-slate-900">Set Up Your Company</h2>
-        <p class="mt-1 text-sm text-slate-500">This creates your company, a default General department, and assigns your role as owner.</p>
+        <h2 class="text-lg font-semibold text-slate-900">{{ $isEditMode ? 'Company Settings' : 'Set Up Your Company' }}</h2>
+        <p class="mt-1 text-sm text-slate-500">
+            {{ $isEditMode ? 'Update core company profile and configuration details.' : 'This creates your company, a default General department, and assigns your role as admin (owner).' }}
+        </p>
 
         <form wire:submit="save" class="mt-6 space-y-5">
             <div>
@@ -60,7 +93,7 @@
 
             <div class="flex items-center justify-end">
                 <button type="submit" class="rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-70" wire:loading.attr="disabled" wire:target="save">
-                    <span wire:loading.remove wire:target="save">Complete Setup</span>
+                    <span wire:loading.remove wire:target="save">{{ $isEditMode ? 'Save Changes' : 'Complete Setup' }}</span>
                     <span wire:loading wire:target="save">Saving...</span>
                 </button>
             </div>

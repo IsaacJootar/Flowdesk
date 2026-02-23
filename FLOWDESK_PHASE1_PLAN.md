@@ -374,3 +374,138 @@ Execution order:
 
 Status:
 - Approved and queued as the active refactor track before additional module expansion.
+
+## Addendum: Requests & Approvals Next Phase Scope (Approved Execution List)
+Objective:
+- Build the full request lifecycle and approval operations on top of the already completed hierarchy + workflow configuration.
+
+Feature list (must ship together for module completeness):
+1) Request creation and draft management
+- Create request with type, department, title, amount, and due date.
+- Save as draft, edit draft, submit draft.
+- Support line items and computed totals.
+
+2) Request list and request detail
+- Server-side pagination (10/25/50), search, and filters.
+- Status filters and date filters.
+- Detail view with full request metadata, line items, attachments, and approval progress.
+
+3) Approval inbox
+- "My Pending Approvals" queue for eligible approvers.
+- Approve, reject, and return actions with required reason/comment where applicable.
+- Clear pending badge/count and step context per row.
+
+4) Workflow-driven routing
+- Resolve workflow from selected workflow or company default.
+- Resolve approvers from hierarchy-aware sources:
+  - direct manager (reports-to)
+  - department head/manager
+  - fixed role owner (finance/owner/etc.)
+  - specific user
+- Advance request step deterministically on each decision.
+
+5) Approval timeline and audit
+- Append-only decision history:
+  - who acted
+  - action
+  - comment
+  - from/to state
+  - timestamp
+- Emit activity logs for all request and approval actions.
+
+6) Policy checks and controls
+- Budget guardrail checks at submit/approval transition points.
+- Duplicate request warning signal (non-blocking at first pass).
+- Role and company scope enforcement on every request/approval query and write.
+
+7) Expense linkage contract
+- Approved request can be converted/linked to expense record.
+- Keep direct expense path available (request linkage optional).
+
+8) UX and reliability standards
+- Loading states for all actions.
+- No double-submit behavior.
+- Consistent toast feedback for success/error states.
+- Modal and table behavior must match UI standards already established in Expenses/Team modules.
+
+## Addendum: Request vs Expense Boundary (Authoritative)
+- Requests are not only for expenses.
+- Request module captures intent and authorization before money moves (purchase/payment/travel/expense request).
+- Expense module records actual payment/spend execution and evidence.
+- Linkage rule:
+  - Controlled mode: request approved first, then expense recorded from request.
+  - Direct mode: expense can be recorded directly by authorized finance roles.
+
+## Addendum: Communications Rollout Plan (Email, SMS, In-App)
+Do not block request/approval core logic on communication delivery.
+
+Rollout order:
+1) In-app notifications (start immediately after Requests + Approval inbox is stable)
+- Trigger on submit, approve, reject, return, and final approval.
+- Show unread counts and mark-as-read.
+
+2) Email notifications (next pass, queue-backed)
+- Same core events as in-app.
+- Use queued jobs + retry policy + idempotency key per event.
+
+3) SMS notifications (final pass, policy-driven)
+- Use only for high-priority events by default (for example: final approval/rejection or overdue escalation).
+- Must be tenant-configurable and template-controlled.
+
+Readiness gates before enabling email/SMS:
+- Request and approval state machine fully stable.
+- Queue worker running in target environment.
+- Notification templates approved.
+- Organization-level communication preferences configured.
+
+## Addendum: Multi-Tenant Attachment Storage Checkpoint
+Current implemented storage model:
+- Expense attachments are stored on local private disk under tenant-partitioned paths:
+  - `private/expense-attachments/{company_id}/{expense_id}/...`
+- Attachment rows are also company-scoped in database (`company_id` on `expense_attachments`).
+- Download access is policy-gated and company-context scoped (`expenses.attachments.download`).
+
+Decision kept:
+- Keep single storage backend with strict tenant folder partition + DB scope + authorization checks.
+- Do not create separate physical disk/bucket per tenant in current phase.
+
+Open item:
+- Request-level attachments are not yet implemented end-to-end in Requests module.
+
+## Addendum: Requests & Approvals Remaining Work (Approval Queue)
+The Requests/Approvals module is functional but not complete yet. Remaining items to approve and execute:
+
+1) Request attachments (complete end-to-end)
+- Upload in request draft/edit.
+- Secure private storage path with tenant partition:
+  - `private/request-attachments/{company_id}/{request_id}/...`
+- Download/view endpoint with policy checks.
+- Show attachments in request detail and approval review.
+
+2) Amount-range workflow enforcement
+- Enforce `min_amount` / `max_amount` on workflow steps during routing and approver eligibility.
+- Ensure only matching steps are created/advanced for a given request amount.
+
+3) Request policy checks (parity with expense controls)
+- Add request-stage budget guardrail checks (warn/block rules by company policy).
+- Add duplicate request detector (initially warning/non-blocking, logged in audit).
+
+4) Request reporting filters and list hardening
+- Add date-range filters for request list (submitted/requested date window).
+- Add richer status+type analytics counters for operations view.
+
+5) Approval operations UX polish
+- Keep current channels-on-submit flow, but add clearer per-step delivery summary in timeline.
+- Add explicit "why not approver" context in pending queue when role sees request but cannot act.
+
+6) Expense handoff from approved request
+- Add explicit "Create Expense from Approved Request" action path.
+- Auto-carry allowed fields (department/vendor/line items/reference) with immutable link.
+
+7) Communication delivery integration layer
+- Keep request/approval transitions non-blocking.
+- Implement queued dispatch pipeline for:
+  - in-app (first)
+  - email (second)
+  - SMS (third)
+- Keep organization-configured channel policy and request-time channel reduction rules.

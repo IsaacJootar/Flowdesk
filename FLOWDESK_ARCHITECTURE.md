@@ -199,6 +199,26 @@ Approval tracking must be auditable:
    - Void requires explicit reason.
    - Previous values remain auditable.
 
+### 8.2 Requests & Approvals operational scope (current build phase)
+Requests module responsibilities:
+- Capture spending intent before spend execution.
+- Support request types beyond expense only (purchase/payment/travel/expense request).
+- Manage draft -> submitted -> review -> decision lifecycle.
+
+Approvals module responsibilities:
+- Route each submitted request through configured workflow steps.
+- Resolve approvers from organization hierarchy and policy configuration.
+- Maintain deterministic step progression and append-only decision trail.
+
+Core decision actions:
+- approve
+- reject
+- return_for_update
+
+Implementation rule:
+- Expense recording remains a separate execution module.
+- Approved requests may be linked to expenses, but request approval and expense posting are distinct lifecycle stages.
+
 ---
 
 ## 9) Logging / Audit (Mandatory)
@@ -311,6 +331,17 @@ Routes:
 - Budget threshold alerts and policy checks at request/expense stages
 - In-app notifications and email alert events
 - Better reporting + exports (CSV/PDF)
+
+### 12.2 Communication channel rollout contract
+Order of enablement:
+1. In-app notifications first (non-blocking, immediate UX value)
+2. Email second (queue-backed, retriable, idempotent)
+3. SMS third (high-priority events only, policy-controlled)
+
+Non-negotiable constraints:
+- Communication failures must never break approval state transitions.
+- All channel sends must execute asynchronously via queues.
+- Tenant-level communication preferences must be respected.
 
 ### Stage 3 (fintech)
 - Wallet + virtual cards + transaction feeds

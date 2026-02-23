@@ -4,6 +4,7 @@ namespace App\Actions\Approvals;
 
 use App\Domains\Approvals\Models\ApprovalWorkflow;
 use App\Domains\Approvals\Models\ApprovalWorkflowStep;
+use App\Domains\Company\Models\CompanyCommunicationSetting;
 use App\Enums\UserRole;
 use App\Models\User;
 use App\Services\ApprovalWorkflowStepOrderService;
@@ -48,6 +49,8 @@ class AddApprovalWorkflowStep
             'actor_value' => ['nullable', 'string', 'max:100'],
             'min_amount' => ['nullable', 'integer', 'min:0'],
             'max_amount' => ['nullable', 'integer', 'min:0'],
+            'notification_channels' => ['nullable', 'array', 'min:1'],
+            'notification_channels.*' => ['string', Rule::in(CompanyCommunicationSetting::CHANNELS)],
         ])->validate();
 
         $this->validateActorValue($workflow, $validated['actor_type'], $validated['actor_value'] ?? null);
@@ -63,6 +66,7 @@ class AddApprovalWorkflowStep
 
         $nextStepOrder = $validated['step_order']
             ?? $this->approvalWorkflowStepOrderService->nextStepOrder((int) $actor->company_id, (int) $workflow->id);
+        $notificationChannels = $this->resolveNotificationChannels($workflow, $validated['notification_channels'] ?? null);
 
         $step = ApprovalWorkflowStep::query()->create([
             'company_id' => (int) $actor->company_id,
@@ -73,6 +77,7 @@ class AddApprovalWorkflowStep
             'actor_value' => $validated['actor_value'] ? trim((string) $validated['actor_value']) : null,
             'min_amount' => array_key_exists('min_amount', $validated) ? $validated['min_amount'] : null,
             'max_amount' => array_key_exists('max_amount', $validated) ? $validated['max_amount'] : null,
+            'notification_channels' => $notificationChannels,
             'requires_all' => false,
             'is_active' => true,
         ]);
@@ -86,6 +91,7 @@ class AddApprovalWorkflowStep
                 'step_order' => $step->step_order,
                 'actor_type' => $step->actor_type,
                 'actor_value' => $step->actor_value,
+                'notification_channels' => $step->notification_channels,
             ],
             companyId: (int) $actor->company_id,
             userId: $actor->id,
@@ -109,6 +115,12 @@ class AddApprovalWorkflowStep
             if (! $actorValue || ! in_array($actorValue, UserRole::values(), true)) {
                 throw ValidationException::withMessages([
                     'actor_value' => 'Select a valid system role for role-based step.',
+                ]);
+            }
+
+            if ($actorValue === UserRole::Staff->value) {
+                throw ValidationException::withMessages([
+                    'actor_value' => 'Role-based approvals cannot target Staff. Use "Specific Person" for staff approvers.',
                 ]);
             }
 
@@ -142,7 +154,43 @@ class AddApprovalWorkflowStep
     private function ensureOwner(User $actor): void
     {
         if (! $actor->hasRole(UserRole::Owner)) {
-            throw new AuthorizationException('Only owner can manage approval workflows.');
+            throw new AuthorizationException('Only admin (owner) can manage approval workflows.');
         }
+    }
+
+    /**
+     * @param  array<int, string>|null  $requestedChannels
+     * @return array<int, string>
+     * @throws ValidationException
+     */
+    private function resolveNotificationChannels(ApprovalWorkflow $workflow, ?array $requestedChannels): array
+    {
+        $setting = CompanyCommunicationSetting::query()
+            ->firstOrCreate(
+                ['company_id' => (int) $workflow->company_id],
+                CompanyCommunicationSetting::defaultAttributes()
+            );
+
+        $selectableChannels = $setting->selectableChannels();
+
+        if ($requestedChannels === null || $requestedChannels === []) {
+            if ($selectableChannels === []) {
+                throw ValidationException::withMessages([
+                    'notification_channels' => 'No communication channel is currently selectable. Configure channels in Settings > Communications.',
+                ]);
+            }
+
+            return $selectableChannels;
+        }
+
+        $requested = array_values(array_unique(array_map('strval', $requestedChannels)));
+        $invalid = array_values(array_diff($requested, $selectableChannels));
+        if ($invalid !== []) {
+            throw ValidationException::withMessages([
+                'notification_channels' => 'Selected channel is not enabled/configured at organization level: '.implode(', ', $invalid).'.',
+            ]);
+        }
+
+        return $requested;
     }
 }

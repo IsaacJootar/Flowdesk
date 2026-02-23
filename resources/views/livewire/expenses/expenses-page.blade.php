@@ -102,7 +102,7 @@
                         <span wire:loading wire:target="openCreateModal">Opening...</span>
                     </button>
                 @else
-                    <p class="text-xs text-slate-500">Read-only access. Only owner/finance can record or void expenses.</p>
+                    <p class="text-xs text-slate-500">Read-only access. Only admin (owner) or finance can record or void expenses.</p>
                 @endif
             </div>
         </div>
@@ -218,13 +218,16 @@
     </div>
 
     @if ($showFormModal)
-        <div class="fixed left-0 right-0 bottom-0 top-0 z-40 overflow-y-auto bg-slate-900/40 p-3">
+        <div wire:click="closeFormModal" class="fixed left-0 right-0 bottom-0 top-0 z-40 overflow-y-auto bg-slate-900/40 p-3">
             <div class="flex items-start justify-center pt-1">
-                <div class="fd-card w-full max-w-3xl p-6" style="max-height: calc(100vh - 3rem); overflow-y: auto;">
+                <div wire:click.stop class="fd-card w-full max-w-3xl p-6" style="max-height: calc(100vh - 3rem); overflow-y: auto;">
                     <div class="mb-4 flex items-start justify-between">
                         <div>
+                            <span class="inline-flex items-center rounded-full border border-sky-200 bg-sky-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-sky-700">
+                                Expense Entry
+                            </span>
                             <h2 class="text-lg font-semibold text-slate-900">{{ $isEditing ? 'Edit Expense' : 'Record Expense' }}</h2>
-                            <p class="text-sm text-slate-500">Finance and owner can post direct expense payments without approval dependencies.</p>
+                            <p class="text-sm text-slate-500">Finance and admin (owner) can post direct expense payments without approval dependencies.</p>
                         </div>
                         <button type="button" wire:click="closeFormModal" class="rounded-lg border border-slate-200 px-3 py-1 text-sm text-slate-600 hover:bg-slate-50">
                             Close
@@ -313,7 +316,12 @@
 
                         <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
                             <div class="flex items-center justify-between gap-3">
-                                <p class="text-sm font-medium text-slate-700">Attachments (Optional)</p>
+                                <p class="inline-flex items-center gap-1.5 text-sm font-medium text-slate-700">
+                                    <svg class="h-4 w-4 text-slate-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                        <path d="M21.44 11.05l-8.49 8.49a6 6 0 01-8.49-8.49l8.49-8.49a4 4 0 115.66 5.66l-8.5 8.49a2 2 0 11-2.82-2.83l7.78-7.78"></path>
+                                    </svg>
+                                    <span>Attachments (Optional)</span>
+                                </p>
                                 <p class="text-xs text-slate-500">At least one receipt is recommended for audit traceability.</p>
                             </div>
                             <div class="mt-2">
@@ -343,12 +351,14 @@
     @endif
 
     @if ($showViewModal && $viewExpense)
-        <div class="fixed left-0 right-0 bottom-0 top-0 z-50 overflow-y-auto bg-slate-900/40 p-3">
+        <div wire:click="closeViewModal" class="fixed left-0 right-0 bottom-0 top-0 z-50 overflow-y-auto bg-slate-900/40 p-3">
             <div class="flex items-start justify-center pt-1">
-                <div class="w-full max-w-3xl rounded-2xl border border-slate-200 bg-white shadow-2xl" style="max-height: calc(100vh - 3rem); overflow-y: auto;">
+                <div wire:click.stop class="w-full max-w-3xl rounded-2xl border border-slate-200 bg-white shadow-2xl" style="max-height: calc(100vh - 3rem); overflow-y: auto;">
                     <div class="flex items-start justify-between border-b border-slate-200 px-6 py-5">
                         <div>
-                            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Expense Details</p>
+                            <span class="inline-flex items-center rounded-full border border-indigo-200 bg-indigo-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-indigo-700">
+                                Expense Details
+                            </span>
                             <h3 class="mt-1 text-xl font-semibold text-slate-900">{{ $viewExpense['title'] }}</h3>
                             <p class="text-sm text-slate-500">{{ $viewExpense['expense_code'] }}</p>
                         </div>
@@ -389,7 +399,12 @@
 
                         <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
                             <div class="mb-3 flex items-center justify-between">
-                                <p class="text-sm font-semibold text-slate-800">Attachments</p>
+                                <p class="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-800">
+                                    <svg class="h-4 w-4 text-slate-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                        <path d="M21.44 11.05l-8.49 8.49a6 6 0 01-8.49-8.49l8.49-8.49a4 4 0 115.66 5.66l-8.5 8.49a2 2 0 11-2.82-2.83l7.78-7.78"></path>
+                                    </svg>
+                                    <span>Attachments</span>
+                                </p>
                                 <span class="text-xs text-slate-500">{{ count($viewExpense['attachments']) }} file(s)</span>
                             </div>
                             <div class="space-y-2">
@@ -424,12 +439,12 @@
     @endif
 
     @if ($showVoidModal)
-        <div class="fixed left-0 right-0 bottom-0 top-0 z-50 overflow-y-auto bg-slate-900/40 p-3">
+        <div wire:click="closeVoidModal" class="fixed left-0 right-0 bottom-0 top-0 z-50 overflow-y-auto bg-slate-900/40 p-3">
             <div class="flex items-start justify-center pt-1">
-                <div class="w-full max-w-lg rounded-2xl border border-rose-200 bg-white p-6 shadow-2xl" style="max-height: calc(100vh - 3rem); overflow-y: auto;">
+                <div wire:click.stop class="w-full max-w-lg rounded-2xl border border-rose-200 bg-white p-6 shadow-2xl" style="max-height: calc(100vh - 3rem); overflow-y: auto;">
                     <div class="mb-4 flex items-start justify-between gap-4">
                         <div>
-                        <p class="text-xs font-semibold uppercase tracking-[0.14em] text-rose-600">Void Expense</p>
+                        <span class="inline-flex items-center rounded-full border border-rose-200 bg-rose-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-rose-700">Void Expense</span>
                         <h3 class="mt-1 text-lg font-semibold text-slate-900">Confirm Void Action</h3>
                         <p class="mt-1 text-sm text-slate-600">This will mark the expense as void and keep it in history.</p>
                         </div>

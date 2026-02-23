@@ -42,6 +42,8 @@ class SpendRequest extends Model
         'decided_at',
         'decision_note',
         'metadata',
+        'created_by',
+        'updated_by',
     ];
 
     protected function casts(): array
@@ -85,5 +87,20 @@ class SpendRequest extends Model
     public function approvals(): HasMany
     {
         return $this->hasMany(RequestApproval::class, 'request_id');
+    }
+
+    public function items(): HasMany
+    {
+        return $this->hasMany(RequestItem::class, 'request_id');
+    }
+
+    public function comments(): HasMany
+    {
+        return $this->hasMany(RequestComment::class, 'request_id');
+    }
+
+    public function communicationLogs(): HasMany
+    {
+        return $this->hasMany(RequestCommunicationLog::class, 'request_id');
     }
 }

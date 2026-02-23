@@ -8,7 +8,10 @@ use App\Livewire\Dashboard\DashboardShell;
 use App\Livewire\Organization\ApprovalWorkflowsPage;
 use App\Livewire\Organization\DepartmentsPage;
 use App\Livewire\Organization\TeamPage;
+use App\Livewire\Requests\RequestCommunicationsPage;
+use App\Livewire\Settings\CommunicationSettingsPage;
 use App\Livewire\Settings\CompanySetup;
+use App\Livewire\Settings\RequestConfigurationPage;
 use Illuminate\Support\Facades\Route;
 
 Route::redirect('/', '/dashboard');
@@ -30,6 +33,7 @@ Route::middleware(['auth', 'company.context'])->group(function (): void {
 
     Route::prefix('requests')->name('requests.')->group(function (): void {
         Route::view('/', 'app.requests.index')->name('index');
+        Route::get('/communications', RequestCommunicationsPage::class)->name('communications');
     });
 
     Route::prefix('expenses')->name('expenses.')->group(function (): void {
@@ -66,6 +70,8 @@ Route::middleware(['auth', 'company.context'])->group(function (): void {
 
     Route::prefix('settings')->name('settings.')->group(function (): void {
         Route::view('/', 'app.settings.index')->name('index');
+        Route::get('/communications', CommunicationSettingsPage::class)->name('communications');
+        Route::get('/request-configuration', RequestConfigurationPage::class)->name('request-configuration');
         Route::get('/organization', function () {
             abort_unless(auth()->user()?->role === UserRole::Owner->value, 403);
 

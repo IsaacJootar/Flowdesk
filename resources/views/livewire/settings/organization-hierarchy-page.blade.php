@@ -37,7 +37,7 @@
             </span>
             <h2 class="mt-2 text-lg font-semibold text-slate-900">Hierarchy and Approval Governance</h2>
             <p class="mt-1 text-sm text-slate-600">
-                Owners define departments, department heads, team reporting lines, and approval workflow chains.
+                Admins (Owners) define departments, department heads, team reporting lines, and approval workflow chains.
                 Many staff can report to one supervisor, while each user keeps a single direct manager in v1.
             </p>
         </div>
@@ -140,7 +140,7 @@
                     <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Role</span>
                     <select wire:model.defer="newUserForm.role" class="w-full rounded-xl border-slate-300 text-sm focus:border-slate-500 focus:ring-slate-500">
                         @foreach ($roles as $role)
-                            <option value="{{ $role }}">{{ ucfirst($role) }}</option>
+                            <option value="{{ $role }}">{{ $role === 'owner' ? 'Admin (Owner)' : ucfirst($role) }}</option>
                         @endforeach
                     </select>
                     @error('newUserForm.role')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
@@ -160,7 +160,7 @@
                     <select wire:model.defer="newUserForm.reports_to_user_id" class="w-full rounded-xl border-slate-300 text-sm focus:border-slate-500 focus:ring-slate-500">
                         <option value="">No direct manager</option>
                         @foreach ($users as $user)
-                            <option value="{{ $user->id }}">{{ $user->name }} ({{ ucfirst($user->role) }})</option>
+                            <option value="{{ $user->id }}">{{ $user->name }} ({{ ((string) $user->role) === 'owner' ? 'Admin (Owner)' : ucfirst((string) $user->role) }})</option>
                         @endforeach
                     </select>
                     @error('newUserForm.reports_to_user_id')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
@@ -204,7 +204,7 @@
                             <td class="px-4 py-3">
                                 <select wire:model.defer="userAssignments.{{ $user->id }}.role" class="w-full rounded-lg border-slate-300 text-xs focus:border-slate-500 focus:ring-slate-500">
                                     @foreach ($roles as $role)
-                                        <option value="{{ $role }}">{{ ucfirst($role) }}</option>
+                                        <option value="{{ $role }}">{{ $role === 'owner' ? 'Admin (Owner)' : ucfirst($role) }}</option>
                                     @endforeach
                                 </select>
                             </td>
@@ -338,7 +338,7 @@
                         <select wire:model.defer="stepForm.approver_value" class="w-full rounded-xl border-slate-300 text-sm focus:border-slate-500 focus:ring-slate-500">
                             <option value="">Select role</option>
                             @foreach ($roles as $role)
-                                <option value="{{ $role }}">{{ ucfirst($role) }}</option>
+                                <option value="{{ $role }}">{{ $role === 'owner' ? 'Admin (Owner)' : ucfirst($role) }}</option>
                             @endforeach
                         </select>
                         @error('stepForm.approver_value')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
@@ -349,7 +349,7 @@
                         <select wire:model.defer="stepForm.approver_value" class="w-full rounded-xl border-slate-300 text-sm focus:border-slate-500 focus:ring-slate-500">
                             <option value="">Select person</option>
                             @foreach ($users as $user)
-                                <option value="{{ $user->id }}">{{ $user->name }} ({{ ucfirst($user->role) }})</option>
+                                <option value="{{ $user->id }}">{{ $user->name }} ({{ ((string) $user->role) === 'owner' ? 'Admin (Owner)' : ucfirst((string) $user->role) }})</option>
                             @endforeach
                         </select>
                         @error('stepForm.approver_value')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
@@ -459,7 +459,7 @@
                                             @elseif ($step->actor_type === 'department_manager')
                                                 Assigned department head
                                             @elseif ($step->actor_type === 'role')
-                                                {{ ucfirst((string) $step->actor_value) }}
+                                                {{ ((string) $step->actor_value) === 'owner' ? 'Admin (Owner)' : ucfirst((string) $step->actor_value) }}
                                             @elseif ($step->actor_type === 'user')
                                                 @php
                                                     $approverUser = $users->firstWhere('id', (int) $step->actor_value);

@@ -26,6 +26,7 @@ class ApprovalWorkflowStep extends Model
         'actor_value',
         'min_amount',
         'max_amount',
+        'notification_channels',
         'requires_all',
         'is_active',
         'metadata',
@@ -37,6 +38,7 @@ class ApprovalWorkflowStep extends Model
             'step_order' => 'integer',
             'min_amount' => 'integer',
             'max_amount' => 'integer',
+            'notification_channels' => 'array',
             'requires_all' => 'boolean',
             'is_active' => 'boolean',
             'metadata' => 'array',
@@ -53,4 +55,3 @@ class ApprovalWorkflowStep extends Model
         return $this->hasMany(RequestApproval::class, 'workflow_step_id');
     }
 }
-

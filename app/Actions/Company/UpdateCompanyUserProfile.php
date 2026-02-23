@@ -108,7 +108,7 @@ class UpdateCompanyUserProfile
     private function ensureOwner(User $actor): void
     {
         if (! $actor->hasRole(UserRole::Owner)) {
-            throw new AuthorizationException('Only owner can manage team profiles.');
+            throw new AuthorizationException('Only admin (owner) can manage team profiles.');
         }
     }
 }
