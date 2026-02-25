@@ -4,14 +4,10 @@ namespace App\Services;
 
 use App\Domains\Requests\Models\RequestCommunicationLog;
 use App\Domains\Requests\Models\SpendRequest;
+use App\Jobs\ProcessRequestCommunicationLog;
 
 class RequestCommunicationLogger
 {
-    public function __construct(
-        private readonly RequestCommunicationDeliveryManager $deliveryManager
-    ) {
-    }
-
     /**
      * @param  array<int, string>  $channels
      * @param  array<int, int>  $recipientUserIds
@@ -25,6 +21,7 @@ class RequestCommunicationLogger
         ?int $requestApprovalId = null,
         array $metadata = []
     ): void {
+        // Logger only writes queued records; actual delivery is handled by async jobs/adapters.
         $channels = array_values(array_unique(array_map('strval', $channels)));
         if ($channels === []) {
             return;
@@ -82,7 +79,7 @@ class RequestCommunicationLogger
                 'sent_at' => null,
             ]);
 
-            $this->deliveryManager->deliver($log);
+            ProcessRequestCommunicationLog::dispatch((int) $log->id);
         }
     }
 }

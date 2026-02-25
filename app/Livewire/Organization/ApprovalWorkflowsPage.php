@@ -16,10 +16,14 @@ use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Livewire\Attributes\Layout;
+use Livewire\Attributes\Title;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Throwable;
 
+#[Layout('layouts.app')]
+#[Title('Approval Workflows')]
 class ApprovalWorkflowsPage extends Component
 {
     use WithPagination;
@@ -126,7 +130,7 @@ class ApprovalWorkflowsPage extends Component
         $this->authorizeOwner();
 
         try {
-            $workflow = $createApprovalWorkflow(auth()->user(), [
+            $workflow = $createApprovalWorkflow(\Illuminate\Support\Facades\Auth::user(), [
                 'name' => $this->workflowForm['name'],
                 'code' => $this->workflowForm['code'] ?: null,
                 'description' => $this->workflowForm['description'] ?: null,
@@ -161,7 +165,7 @@ class ApprovalWorkflowsPage extends Component
         SetApprovalWorkflowDefault $setApprovalWorkflowDefault
     ): void {
         $this->authorizeOwner();
-        $owner = auth()->user();
+        $owner = \Illuminate\Support\Facades\Auth::user();
         $presetCode = 'preset_standard_request_2step';
         $presetName = 'Standard Request Approval';
 
@@ -326,7 +330,7 @@ class ApprovalWorkflowsPage extends Component
                 return;
             }
 
-            $addApprovalWorkflowStep(auth()->user(), $workflow, [
+            $addApprovalWorkflowStep(\Illuminate\Support\Facades\Auth::user(), $workflow, [
                 'step_order' => null,
                 'step_key' => $this->defaultStepKeyForApproverSource($approverSource, $approverValue),
                 'actor_type' => $approverSource,
@@ -402,7 +406,7 @@ class ApprovalWorkflowsPage extends Component
         $workflow = ApprovalWorkflow::query()->findOrFail($workflowId);
 
         try {
-            $setApprovalWorkflowDefault(auth()->user(), $workflow);
+            $setApprovalWorkflowDefault(\Illuminate\Support\Facades\Auth::user(), $workflow);
         } catch (Throwable $exception) {
             report($exception);
             $this->setFeedbackError('Unable to set default workflow.');
@@ -419,7 +423,7 @@ class ApprovalWorkflowsPage extends Component
         $workflow = ApprovalWorkflow::query()->findOrFail($workflowId);
 
         try {
-            $deleteApprovalWorkflow(auth()->user(), $workflow);
+            $deleteApprovalWorkflow(\Illuminate\Support\Facades\Auth::user(), $workflow);
         } catch (ValidationException $exception) {
             $errors = $exception->errors();
             $this->setFeedbackError((string) ($errors['workflow'][0] ?? 'Unable to delete workflow.'));
@@ -445,7 +449,7 @@ class ApprovalWorkflowsPage extends Component
         SetApprovalWorkflowDefault $setApprovalWorkflowDefault
     ): void {
         $this->authorizeOwner();
-        $owner = auth()->user();
+        $owner = \Illuminate\Support\Facades\Auth::user();
 
         $workflows = ApprovalWorkflow::query()
             ->with(['steps' => fn ($query) => $query->where('is_active', true)->orderBy('step_order')])
@@ -578,10 +582,10 @@ class ApprovalWorkflowsPage extends Component
 
         $communicationSetting = CompanyCommunicationSetting::query()
             ->firstOrCreate(
-                ['company_id' => (int) auth()->user()->company_id],
+                ['company_id' => (int) \Illuminate\Support\Facades\Auth::user()->company_id],
                 array_merge(
                     CompanyCommunicationSetting::defaultAttributes(),
-                    ['created_by' => auth()->id()]
+                    ['created_by' => \Illuminate\Support\Facades\Auth::id()]
                 )
             );
 
@@ -593,9 +597,6 @@ class ApprovalWorkflowsPage extends Component
             'communicationSetting' => $communicationSetting,
             'channelPolicies' => $this->channelPolicies($communicationSetting),
             'defaultStepChannels' => $this->defaultSelectableChannels(),
-        ])->layout('layouts.app', [
-            'title' => 'Approval Workflows',
-            'subtitle' => 'Configure policy chains and approval routing for requests',
         ]);
     }
 
@@ -615,7 +616,7 @@ class ApprovalWorkflowsPage extends Component
 
     private function authorizeOwner(): void
     {
-        if (! auth()->check() || auth()->user()->role !== UserRole::Owner->value) {
+        if (! \Illuminate\Support\Facades\Auth::check() || \Illuminate\Support\Facades\Auth::user()->role !== UserRole::Owner->value) {
             throw new AuthorizationException('Only admin (owner) can manage approval workflow settings.');
         }
     }
@@ -671,7 +672,7 @@ class ApprovalWorkflowsPage extends Component
     private function normalizeStepOrdersAndLabels(): void
     {
         app(ApprovalWorkflowStepOrderService::class)
-            ->normalizeCompanyRequestWorkflows((int) auth()->user()->company_id);
+            ->normalizeCompanyRequestWorkflows((int) \Illuminate\Support\Facades\Auth::user()->company_id);
     }
 
     /**
@@ -708,13 +709,14 @@ class ApprovalWorkflowsPage extends Component
     {
         $setting = CompanyCommunicationSetting::query()
             ->firstOrCreate(
-                ['company_id' => (int) auth()->user()->company_id],
+                ['company_id' => (int) \Illuminate\Support\Facades\Auth::user()->company_id],
                 array_merge(
                     CompanyCommunicationSetting::defaultAttributes(),
-                    ['created_by' => auth()->id()]
+                    ['created_by' => \Illuminate\Support\Facades\Auth::id()]
                 )
             );
 
         return $setting->selectableChannels();
     }
 }
+

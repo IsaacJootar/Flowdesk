@@ -61,7 +61,7 @@
                 </label>
 
                 <label class="block">
-                    <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Department</span>
+                    <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Dept</span>
                     <select wire:model.live="departmentFilter" class="w-full rounded-xl border-slate-300 text-sm focus:border-slate-500 focus:ring-slate-500">
                         <option value="all">All departments</option>
                         @foreach ($departments as $department)
@@ -80,7 +80,7 @@
                 </label>
 
                 <label class="block">
-                    <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Period Type</span>
+                    <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Period</span>
                     <select wire:model.live="periodTypeFilter" class="w-full rounded-xl border-slate-300 text-sm focus:border-slate-500 focus:ring-slate-500">
                         <option value="all">All period types</option>
                         @foreach ($periodTypes as $periodType)

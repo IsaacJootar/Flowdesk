@@ -73,18 +73,13 @@ class DecideSpendRequest
         $notificationChannels = $this->resolveDecisionChannels($request, $currentStep, $selectedChannels);
 
         DB::transaction(function () use ($request, $user, $currentStep, $action, $comment): void {
+            // This block is the request decision state machine (approve/reject/return).
             $fromStatus = (string) $request->status;
             $nextStep = null;
             $toStatus = 'in_review';
 
             if ($action === 'approve') {
-                $nextStep = ApprovalWorkflowStep::query()
-                    ->where('company_id', (int) $request->company_id)
-                    ->where('workflow_id', (int) $currentStep->workflow_id)
-                    ->where('is_active', true)
-                    ->where('step_order', '>', (int) $currentStep->step_order)
-                    ->orderBy('step_order')
-                    ->first();
+                $nextStep = $this->requestApprovalRouter->resolveNextStep($request, (int) $currentStep->step_order);
 
                 if ($nextStep) {
                     $toStatus = 'in_review';
@@ -150,6 +145,7 @@ class DecideSpendRequest
                 ])->save();
             }
 
+            // Persist the current step audit row for timeline/history even when final status changes.
             RequestApproval::query()->updateOrCreate(
                 [
                     'company_id' => (int) $request->company_id,
@@ -199,6 +195,7 @@ class DecideSpendRequest
 
         $currentApproval = $fresh->approvals->firstWhere('step_order', (int) $currentStep->step_order);
         if ($action === 'approve' && (string) $fresh->status === 'in_review') {
+            // Mid-chain approval notifies next step approvers.
             $nextStep = $this->requestApprovalRouter->resolveCurrentStep($fresh);
             $nextRecipients = $nextStep
                 ? $this->requestApprovalRouter->resolveEligibleApprovers($nextStep, $fresh)
@@ -222,6 +219,7 @@ class DecideSpendRequest
                 ]
             );
         } else {
+            // Final decisions notify the original requester.
             $event = match ($action) {
                 'approve' => 'request.approved',
                 'reject' => 'request.rejected',

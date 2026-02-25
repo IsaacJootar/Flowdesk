@@ -30,6 +30,7 @@ class ExpenseDuplicateDetector
             return ['risk' => 'none', 'matches' => []];
         }
 
+        // Soft/hard duplicate match starts with same amount/date/vendor window.
         $query = Expense::query()
             ->where('company_id', $companyId)
             ->where('status', 'posted')
@@ -63,6 +64,7 @@ class ExpenseDuplicateDetector
         $hasExactTitleMatch = false;
 
         foreach ($matches as $match) {
+            // Title equality upgrades risk to hard duplicate.
             if ($this->normalizeTitle((string) $match['title']) === $currentTitle && $currentTitle !== '') {
                 $hasExactTitleMatch = true;
                 break;
@@ -83,4 +85,3 @@ class ExpenseDuplicateDetector
         return $normalized;
     }
 }
-

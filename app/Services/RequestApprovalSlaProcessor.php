@@ -67,6 +67,7 @@ class RequestApprovalSlaProcessor
         array &$stats
     ): void {
         $request = $approval->request;
+        // Skip stale rows; SLA actions only apply while request is actively in review.
         if (! $request instanceof SpendRequest || (string) $request->status !== 'in_review') {
             return;
         }
@@ -90,6 +91,7 @@ class RequestApprovalSlaProcessor
         $channels = $this->resolveChannels($approval);
 
         if (! $approval->reminder_sent_at && $now->greaterThanOrEqualTo($reminderAt) && $now->lessThan($escalationAt)) {
+            // One reminder window before escalation kicks in.
             $recipientIds = $this->currentStepApproverIds($approval, $request);
 
             if (! $dryRun && $recipientIds !== []) {
@@ -115,6 +117,7 @@ class RequestApprovalSlaProcessor
         }
 
         if (! $approval->escalated_at && $now->greaterThanOrEqualTo($escalationAt)) {
+            // Escalation notifies supervisory roles and department leadership.
             $currentApproverIds = $this->currentStepApproverIds($approval, $request);
             $escalationRecipientIds = $this->escalationRecipientIds($request, $currentApproverIds);
 

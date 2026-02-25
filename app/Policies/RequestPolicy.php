@@ -78,6 +78,11 @@ class RequestPolicy
         return $this->update($user, $request);
     }
 
+    public function uploadAttachment(User $user, SpendRequest $request): bool
+    {
+        return $this->update($user, $request);
+    }
+
     public function delete(User $user, SpendRequest $request): bool
     {
         return $this->hasAnyRole($user, [UserRole::Owner, UserRole::Finance]) && $this->sameCompany($user, $request);

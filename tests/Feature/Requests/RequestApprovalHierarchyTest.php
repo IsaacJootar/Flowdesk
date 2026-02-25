@@ -166,7 +166,7 @@ class RequestApprovalHierarchyTest extends TestCase
             'description' => 'Seeded request',
             'amount' => 250000,
             'currency' => 'NGN',
-            'status' => 'pending',
+            'status' => 'in_review',
             'approved_amount' => null,
             'paid_amount' => 0,
             'current_approval_step' => $currentStep,
@@ -175,4 +175,3 @@ class RequestApprovalHierarchyTest extends TestCase
         ]);
     }
 }
-

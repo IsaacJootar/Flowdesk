@@ -58,6 +58,7 @@ class ExpenseBudgetGuardrail
         $spentQuery = Expense::query()
             ->where('company_id', $companyId)
             ->where('department_id', $departmentId)
+            // Budget utilization is based on posted expenses only.
             ->where('status', 'posted')
             ->whereDate('expense_date', '>=', $budget->period_start?->toDateString())
             ->whereDate('expense_date', '<=', $budget->period_end?->toDateString());
@@ -126,4 +127,3 @@ class ExpenseBudgetGuardrail
         return $result;
     }
 }
-

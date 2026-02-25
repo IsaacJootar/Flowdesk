@@ -6,14 +6,21 @@ use App\Actions\Vendors\CreateVendor;
 use App\Actions\Vendors\DeleteVendor;
 use App\Actions\Vendors\UpdateVendor;
 use App\Domains\Company\Models\Company;
+use App\Domains\Company\Models\CompanyCommunicationSetting;
 use App\Domains\Company\Models\Department;
+use App\Domains\Vendors\Models\CompanyVendorPolicySetting;
+use App\Domains\Vendors\Models\VendorCommunicationLog;
+use App\Domains\Vendors\Models\VendorInvoice;
 use App\Domains\Vendors\Models\Vendor;
 use App\Enums\UserRole;
 use App\Models\User;
+use App\Services\VendorCommunicationRetryService;
+use App\Services\VendorReminderService;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Livewire\Livewire;
 use Tests\TestCase;
 
 class VendorModuleTest extends TestCase
@@ -146,6 +153,54 @@ class VendorModuleTest extends TestCase
         app(CreateVendor::class)($manager, $this->validVendorPayload());
     }
 
+    public function test_manager_can_create_vendor_when_vendor_controls_allow_role(): void
+    {
+        [$company, $department] = $this->createCompanyContext('Acme Manager Override');
+        $manager = $this->createUser($company, $department, UserRole::Manager->value);
+
+        $policies = CompanyVendorPolicySetting::defaultActionPolicies();
+        $allowedRoles = (array) ($policies[CompanyVendorPolicySetting::ACTION_CREATE_VENDOR]['allowed_roles'] ?? []);
+        $allowedRoles[] = UserRole::Manager->value;
+        $policies[CompanyVendorPolicySetting::ACTION_CREATE_VENDOR]['allowed_roles'] = array_values(array_unique($allowedRoles));
+
+        CompanyVendorPolicySetting::query()->create([
+            'company_id' => $company->id,
+            'action_policies' => $policies,
+            'created_by' => $manager->id,
+            'updated_by' => $manager->id,
+        ]);
+
+        $this->actingAs($manager);
+        $vendor = app(CreateVendor::class)($manager, $this->validVendorPayload());
+
+        $this->assertSame($company->id, (int) $vendor->company_id);
+        $this->assertDatabaseHas('vendors', [
+            'id' => $vendor->id,
+            'company_id' => $company->id,
+        ]);
+    }
+
+    public function test_auditor_can_view_vendors_but_cannot_create_vendor(): void
+    {
+        [$company, $department] = $this->createCompanyContext('Acme Auditor');
+        $auditor = $this->createUser($company, $department, UserRole::Auditor->value);
+
+        $this->actingAs($auditor);
+        $this->assertTrue($auditor->can('viewAny', Vendor::class));
+
+        $this->expectException(AuthorizationException::class);
+        app(CreateVendor::class)($auditor, $this->validVendorPayload());
+    }
+
+    public function test_manager_cannot_access_vendor_reports_route(): void
+    {
+        [$company, $department] = $this->createCompanyContext('Acme Manager Reports');
+        $manager = $this->createUser($company, $department, UserRole::Manager->value);
+        $this->actingAs($manager);
+
+        $this->get(route('vendors.reports'))->assertForbidden();
+    }
+
     public function test_staff_cannot_update_vendor(): void
     {
         [$company, $department] = $this->createCompanyContext('Acme Staff');
@@ -186,6 +241,104 @@ class VendorModuleTest extends TestCase
         $this->expectException(AuthorizationException::class);
 
         app(UpdateVendor::class)($ownerA, $foreignVendor, $this->validVendorPayload());
+    }
+
+    public function test_vendor_due_reminders_create_internal_finance_events_only(): void
+    {
+        [$company, $department] = $this->createCompanyContext('Acme Internal Reminder');
+        $owner = $this->createUser($company, $department, UserRole::Owner->value);
+        $finance = $this->createUser($company, $department, UserRole::Finance->value);
+        $vendor = $this->createVendor($company);
+        $invoice = $this->createInvoice($company, $vendor, [
+            'due_date' => now()->subDay()->toDateString(),
+            'outstanding_amount' => 120000,
+            'status' => VendorInvoice::STATUS_UNPAID,
+        ]);
+
+        CompanyCommunicationSetting::query()->create([
+            'company_id' => $company->id,
+            'in_app_enabled' => true,
+            'email_enabled' => true,
+            'sms_enabled' => false,
+            'email_configured' => true,
+            'sms_configured' => false,
+            'fallback_order' => ['in_app', 'email', 'sms'],
+            'created_by' => $owner->id,
+            'updated_by' => $owner->id,
+        ]);
+
+        $this->actingAs($owner);
+        $stats = app(VendorReminderService::class)->dispatchDueInvoiceReminders(
+            companyId: $company->id,
+            vendorId: $vendor->id,
+            daysAhead: 0
+        );
+
+        $this->assertGreaterThan(0, $stats['queued']);
+        $this->assertDatabaseHas('vendor_communication_logs', [
+            'company_id' => $company->id,
+            'vendor_invoice_id' => $invoice->id,
+            'event' => 'vendor.internal.overdue.reminder',
+            'recipient_user_id' => $finance->id,
+        ]);
+        $this->assertDatabaseMissing('vendor_communication_logs', [
+            'company_id' => $company->id,
+            'vendor_invoice_id' => $invoice->id,
+            'event' => 'vendor.invoice.overdue.reminder',
+        ]);
+    }
+
+    public function test_vendor_retry_service_can_scope_to_one_vendor(): void
+    {
+        [$company, $department] = $this->createCompanyContext('Acme Retry Scope');
+        $owner = $this->createUser($company, $department, UserRole::Owner->value);
+        $vendorA = $this->createVendor($company, ['name' => 'Vendor A']);
+        $vendorB = $this->createVendor($company, ['name' => 'Vendor B']);
+        $invoiceA = $this->createInvoice($company, $vendorA, ['invoice_number' => 'INV-A-001']);
+        $invoiceB = $this->createInvoice($company, $vendorB, ['invoice_number' => 'INV-B-001']);
+
+        $logA = VendorCommunicationLog::query()->create([
+            'company_id' => $company->id,
+            'vendor_id' => $vendorA->id,
+            'vendor_invoice_id' => $invoiceA->id,
+            'recipient_user_id' => $owner->id,
+            'event' => 'vendor.internal.payment_recorded',
+            'channel' => 'in_app',
+            'status' => 'failed',
+            'message' => 'First attempt failed.',
+            'recipient_email' => $owner->email,
+            'reminder_date' => now()->toDateString(),
+        ]);
+
+        $logB = VendorCommunicationLog::query()->create([
+            'company_id' => $company->id,
+            'vendor_id' => $vendorB->id,
+            'vendor_invoice_id' => $invoiceB->id,
+            'recipient_user_id' => $owner->id,
+            'event' => 'vendor.internal.payment_recorded',
+            'channel' => 'in_app',
+            'status' => 'failed',
+            'message' => 'First attempt failed.',
+            'recipient_email' => $owner->email,
+            'reminder_date' => now()->toDateString(),
+        ]);
+
+        $this->actingAs($owner);
+        $stats = app(VendorCommunicationRetryService::class)->retryFailed(
+            companyId: $company->id,
+            vendorId: $vendorA->id,
+            batchSize: 50
+        );
+
+        $this->assertSame(1, $stats['retried']);
+        $this->assertDatabaseHas('vendor_communication_logs', [
+            'id' => $logA->id,
+            'status' => 'sent',
+        ]);
+        $this->assertDatabaseHas('vendor_communication_logs', [
+            'id' => $logB->id,
+            'status' => 'failed',
+        ]);
     }
 
     public function test_validation_errors_are_thrown_for_empty_payload(): void
@@ -268,6 +421,27 @@ class VendorModuleTest extends TestCase
             ['company_id' => $company->id],
             $overrides
         ));
+    }
+
+    /**
+     * @param  array<string, mixed>  $overrides
+     */
+    private function createInvoice(Company $company, Vendor $vendor, array $overrides = []): VendorInvoice
+    {
+        return VendorInvoice::query()->create(array_merge([
+            'company_id' => $company->id,
+            'vendor_id' => $vendor->id,
+            'invoice_number' => 'INV-'.Str::upper(Str::random(6)),
+            'invoice_date' => now()->toDateString(),
+            'due_date' => now()->addDays(7)->toDateString(),
+            'currency' => 'NGN',
+            'total_amount' => 120000,
+            'paid_amount' => 0,
+            'outstanding_amount' => 120000,
+            'status' => VendorInvoice::STATUS_UNPAID,
+            'description' => 'Testing invoice',
+            'notes' => 'Testing notes',
+        ], $overrides));
     }
 
     /**

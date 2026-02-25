@@ -43,26 +43,69 @@
                         <span class="ml-1 inline-flex rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-700">{{ $inboxUnreadCount }}</span>
                     @endif
                 </button>
-                <button
-                    type="button"
-                    wire:click="switchTab('delivery')"
-                    class="rounded-lg px-3 py-1.5 transition {{ $activeTab === 'delivery' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-800' }}"
-                >
-                    Delivery Logs
-                </button>
+                @if ($canViewDeliveryLogs)
+                    <button
+                        type="button"
+                        wire:click="switchTab('delivery')"
+                        class="rounded-lg px-3 py-1.5 transition {{ $activeTab === 'delivery' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-800' }}"
+                    >
+                        Delivery Logs
+                    </button>
+                @endif
             </div>
 
             @if ($activeTab === 'inbox')
-                <button
-                    type="button"
-                    wire:click="markAllRead"
-                    wire:loading.attr="disabled"
-                    wire:target="markAllRead"
-                    class="rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-70"
-                >
-                    <span wire:loading.remove wire:target="markAllRead">Mark all as read</span>
-                    <span wire:loading wire:target="markAllRead">Processing...</span>
-                </button>
+                <div class="flex flex-wrap items-center gap-2">
+                    <button
+                        type="button"
+                        wire:click="markAllRead"
+                        wire:loading.attr="disabled"
+                        wire:target="markAllRead"
+                        class="rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-70"
+                    >
+                        <span wire:loading.remove wire:target="markAllRead">Mark inbox as read</span>
+                        <span wire:loading wire:target="markAllRead">Processing...</span>
+                    </button>
+                </div>
+            @elseif ($activeTab === 'delivery' && $canManageDeliveryOps)
+                <div class="flex flex-wrap items-center gap-2">
+                    <span class="inline-flex rounded-full bg-red-100 px-2 py-1 text-[11px] font-semibold text-red-700">
+                        Failed: {{ $deliverySummary['failed'] }}
+                    </span>
+                    <span class="inline-flex rounded-full bg-amber-100 px-2 py-1 text-[11px] font-semibold text-amber-700">
+                        Stuck queued: {{ $deliverySummary['queued'] }}
+                    </span>
+                    <label class="inline-flex items-center gap-1.5 text-xs text-slate-600">
+                        <span>Older than</span>
+                        <input
+                            type="number"
+                            min="0"
+                            wire:model.live.debounce.400ms="queuedOlderThanMinutes"
+                            class="w-16 rounded-lg border-slate-300 px-2 py-1 text-xs focus:border-slate-500 focus:ring-slate-500"
+                        >
+                        <span>min</span>
+                    </label>
+                    <button
+                        type="button"
+                        wire:click="retryFailed"
+                        wire:loading.attr="disabled"
+                        wire:target="retryFailed"
+                        class="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-100 disabled:opacity-70"
+                    >
+                        <span wire:loading.remove wire:target="retryFailed">Retry Failed</span>
+                        <span wire:loading wire:target="retryFailed">Retrying...</span>
+                    </button>
+                    <button
+                        type="button"
+                        wire:click="processQueuedBacklog"
+                        wire:loading.attr="disabled"
+                        wire:target="processQueuedBacklog"
+                        class="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-700 hover:bg-amber-100 disabled:opacity-70"
+                    >
+                        <span wire:loading.remove wire:target="processQueuedBacklog">Process Queued</span>
+                        <span wire:loading wire:target="processQueuedBacklog">Processing...</span>
+                    </button>
+                </div>
             @endif
         </div>
 
@@ -73,7 +116,7 @@
                     type="text"
                     wire:model.live.debounce.300ms="search"
                     class="w-full rounded-xl border-slate-300 text-sm focus:border-slate-500 focus:ring-slate-500"
-                    placeholder="Event, request code, title, recipient, message"
+                    placeholder="Event, section, request code, vendor, invoice, recipient, message"
                 >
             </label>
 
@@ -107,7 +150,7 @@
                 @endfor
             </div>
         @else
-            <div wire:loading.flex wire:target="search,channelFilter,statusFilter,activeTab,perPage,gotoPage,previousPage,nextPage,markRead,markAllRead" class="border-b border-slate-200 px-4 py-3 text-sm text-slate-500">
+            <div wire:loading.flex wire:target="search,channelFilter,statusFilter,activeTab,perPage,queuedOlderThanMinutes,gotoPage,previousPage,nextPage,markReadBySource,markAllRead,retryFailed,processQueuedBacklog,retryLog" class="border-b border-slate-200 px-4 py-3 text-sm text-slate-500">
                 Loading communication records...
             </div>
 
@@ -116,13 +159,16 @@
                     <thead class="bg-slate-50 text-xs uppercase tracking-[0.12em] text-slate-500">
                         <tr>
                             <th class="px-4 py-3 text-left font-semibold">Event</th>
-                            <th class="px-4 py-3 text-left font-semibold">Request</th>
+                            <th class="px-4 py-3 text-left font-semibold">Section</th>
+                            <th class="px-4 py-3 text-left font-semibold">Context</th>
                             <th class="px-4 py-3 text-left font-semibold">Channel</th>
                             <th class="px-4 py-3 text-left font-semibold">Recipient</th>
                             <th class="px-4 py-3 text-left font-semibold">Status</th>
                             <th class="px-4 py-3 text-left font-semibold">Time</th>
                             @if ($activeTab === 'inbox')
                                 <th class="px-4 py-3 text-right font-semibold">Action</th>
+                            @elseif ($activeTab === 'delivery' && $canManageDeliveryOps)
+                                <th class="px-4 py-3 text-right font-semibold">Retry</th>
                             @endif
                         </tr>
                     </thead>
@@ -157,15 +203,35 @@
                                     @endif
                                 </td>
                                 <td class="px-4 py-3 text-slate-700">
-                                    <p class="font-medium text-slate-800">{{ $log->request?->request_code ?? '-' }}</p>
-                                    <p class="text-xs text-slate-500">{{ $log->request?->title ?? '-' }}</p>
+                                    @php
+                                        $sourceSection = $activeTab === 'inbox'
+                                            ? (string) ($log->source_section ?? 'requests')
+                                            : 'requests';
+                                        $sourceClass = $sourceSection === 'vendors'
+                                            ? 'bg-indigo-100 text-indigo-700'
+                                            : 'bg-slate-100 text-slate-700';
+                                    @endphp
+                                    <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold {{ $sourceClass }}">
+                                        {{ $sourceSection === 'vendors' ? 'Vendors' : 'Requests' }}
+                                    </span>
+                                </td>
+                                <td class="px-4 py-3 text-slate-700">
+                                    @if ($activeTab === 'inbox' && ($log->source_section ?? 'requests') === 'vendors')
+                                        <p class="font-medium text-slate-800">{{ $log->vendor_name ?? '-' }}</p>
+                                        <p class="text-xs text-slate-500">Invoice: {{ $log->invoice_number ?? '-' }}</p>
+                                    @else
+                                        <p class="font-medium text-slate-800">{{ $activeTab === 'inbox' ? ($log->request_code ?? '-') : ($log->request?->request_code ?? '-') }}</p>
+                                        <p class="text-xs text-slate-500">{{ $activeTab === 'inbox' ? ($log->request_title ?? '-') : ($log->request?->title ?? '-') }}</p>
+                                    @endif
                                 </td>
                                 <td class="px-4 py-3">
                                     <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold {{ $channelClass }}">
                                         {{ strtoupper(str_replace('_', ' ', (string) $log->channel)) }}
                                     </span>
                                 </td>
-                                <td class="px-4 py-3 text-slate-700">{{ $log->recipient?->name ?? 'Workflow audience' }}</td>
+                                <td class="px-4 py-3 text-slate-700">
+                                    {{ $activeTab === 'inbox' ? ($log->recipient_name ?? 'Assigned user') : ($log->recipient?->name ?? 'Workflow audience') }}
+                                </td>
                                 <td class="px-4 py-3">
                                     <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold {{ $statusClass }}">
                                         {{ ucfirst(str_replace('_', ' ', (string) $log->status)) }}
@@ -183,19 +249,36 @@
                                     <td class="px-4 py-3 text-right">
                                         <button
                                             type="button"
-                                            wire:click="markRead({{ $log->id }})"
+                                            wire:click="markReadBySource('{{ $sourceSection }}', {{ $log->id }})"
                                             wire:loading.attr="disabled"
-                                            wire:target="markRead({{ $log->id }})"
+                                            wire:target="markReadBySource('{{ $sourceSection }}', {{ $log->id }})"
                                             class="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-70"
                                         >
                                             Mark read
                                         </button>
                                     </td>
+                                @elseif ($activeTab === 'delivery' && $canManageDeliveryOps)
+                                    <td class="px-4 py-3 text-right">
+                                        @if (in_array((string) $log->status, ['failed', 'queued', 'skipped'], true))
+                                            <button
+                                                type="button"
+                                                wire:click="retryLog({{ $log->id }})"
+                                                wire:loading.attr="disabled"
+                                                wire:target="retryLog({{ $log->id }})"
+                                                class="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-70"
+                                            >
+                                                <span wire:loading.remove wire:target="retryLog({{ $log->id }})">Retry now</span>
+                                                <span wire:loading wire:target="retryLog({{ $log->id }})">Retrying...</span>
+                                            </button>
+                                        @else
+                                            <span class="text-xs text-slate-400">-</span>
+                                        @endif
+                                    </td>
                                 @endif
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="{{ $activeTab === 'inbox' ? 7 : 6 }}" class="px-4 py-10 text-center text-sm text-slate-500">
+                                <td colspan="{{ $activeTab === 'inbox' ? 8 : (($activeTab === 'delivery' && $canManageDeliveryOps) ? 8 : 7) }}" class="px-4 py-10 text-center text-sm text-slate-500">
                                     @if ($activeTab === 'inbox')
                                         No in-app notifications match your filters.
                                     @else

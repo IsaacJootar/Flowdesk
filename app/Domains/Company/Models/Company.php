@@ -3,7 +3,9 @@
 namespace App\Domains\Company\Models;
 
 use App\Domains\Requests\Models\CompanyRequestType;
+use App\Domains\Requests\Models\CompanyRequestPolicySetting;
 use App\Domains\Requests\Models\CompanySpendCategory;
+use App\Domains\Expenses\Models\CompanyExpensePolicySetting;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -60,5 +62,15 @@ class Company extends Model
     public function communicationSetting(): HasOne
     {
         return $this->hasOne(CompanyCommunicationSetting::class);
+    }
+
+    public function requestPolicySetting(): HasOne
+    {
+        return $this->hasOne(CompanyRequestPolicySetting::class);
+    }
+
+    public function expensePolicySetting(): HasOne
+    {
+        return $this->hasOne(CompanyExpensePolicySetting::class);
     }
 }

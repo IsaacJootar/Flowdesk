@@ -8,8 +8,12 @@ use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\View\View;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use Livewire\Attributes\Layout;
+use Livewire\Attributes\Title;
 use Livewire\Component;
 
+#[Layout('layouts.app')]
+#[Title('Communications')]
 class CommunicationSettingsPage extends Component
 {
     public ?string $feedbackMessage = null;
@@ -99,7 +103,7 @@ class CommunicationSettingsPage extends Component
             'email_configured' => (bool) $this->email_configured,
             'sms_configured' => (bool) $this->sms_configured,
             'fallback_order' => $fallbackOrder,
-            'updated_by' => auth()->id(),
+            'updated_by' => \Illuminate\Support\Facades\Auth::id(),
         ])->save();
 
         $this->setFeedback('Communication settings updated.');
@@ -109,9 +113,6 @@ class CommunicationSettingsPage extends Component
     {
         return view('livewire.settings.communication-settings-page', [
             'channels' => CompanyCommunicationSetting::CHANNELS,
-        ])->layout('layouts.app', [
-            'title' => 'Communications',
-            'subtitle' => 'Configure organization notification channels and fallback order',
         ]);
     }
 
@@ -119,10 +120,10 @@ class CommunicationSettingsPage extends Component
     {
         return CompanyCommunicationSetting::query()
             ->firstOrCreate(
-                ['company_id' => (int) auth()->user()->company_id],
+                ['company_id' => (int) \Illuminate\Support\Facades\Auth::user()->company_id],
                 array_merge(
                     CompanyCommunicationSetting::defaultAttributes(),
-                    ['created_by' => auth()->id()]
+                    ['created_by' => \Illuminate\Support\Facades\Auth::id()]
                 )
             );
     }
@@ -150,9 +151,10 @@ class CommunicationSettingsPage extends Component
 
     private function authorizeOwner(): void
     {
-        if (! auth()->check() || auth()->user()->role !== UserRole::Owner->value) {
+        if (! \Illuminate\Support\Facades\Auth::check() || \Illuminate\Support\Facades\Auth::user()->role !== UserRole::Owner->value) {
             throw new AuthorizationException('Only admin (owner) can manage communication settings.');
         }
     }
 }
+
 

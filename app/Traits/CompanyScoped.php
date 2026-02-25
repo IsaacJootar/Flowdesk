@@ -10,16 +10,16 @@ trait CompanyScoped
     protected static function bootCompanyScoped(): void
     {
         static::creating(function (Model $model): void {
-            if (! $model->getAttribute('company_id') && auth()->check()) {
-                $model->setAttribute('company_id', (int) auth()->user()->company_id);
+            if (! $model->getAttribute('company_id') && \Illuminate\Support\Facades\Auth::check()) {
+                $model->setAttribute('company_id', (int) \Illuminate\Support\Facades\Auth::user()->company_id);
             }
         });
 
         static::addGlobalScope('company', function (Builder $builder): void {
-            if (auth()->check()) {
+            if (\Illuminate\Support\Facades\Auth::check()) {
                 $builder->where(
                     $builder->getModel()->getTable().'.company_id',
-                    auth()->user()->company_id
+                    \Illuminate\Support\Facades\Auth::user()->company_id
                 );
             }
         });

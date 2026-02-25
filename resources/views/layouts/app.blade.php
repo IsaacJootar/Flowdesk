@@ -15,11 +15,11 @@
     </head>
     <body
         class="bg-slate-50 text-slate-900 antialiased"
-        x-data="{ sidebarOpen: false, companyName: @js(auth()->user()?->company?->name ?? 'Flowdesk') }"
+        x-data="{ sidebarOpen: false, companyName: @js(\Illuminate\Support\Facades\Auth::user()?->company?->name ?? 'Flowdesk') }"
         x-on:company-name-updated.window="companyName = ($event.detail && $event.detail.name) ? $event.detail.name : companyName"
     >
         @php
-            $user = auth()->user();
+            $user = \Illuminate\Support\Facades\Auth::user();
             if ($user) {
                 $user->loadMissing([
                     'department:id,name',
@@ -37,62 +37,13 @@
             };
             $departmentLabel = $user?->department?->name ?? 'No department';
             $reportsToLabel = $user?->reportsTo?->name ?? 'Not assigned';
-
-            $navByRole = [
-                'owner' => [
-                    ['route' => 'dashboard', 'pattern' => 'dashboard*', 'label' => 'Dashboard'],
-                    ['route' => 'requests.index', 'pattern' => 'requests.index', 'label' => 'Requests & Approvals'],
-                    ['route' => 'requests.communications', 'pattern' => 'requests.communications', 'label' => 'Request Inbox & Logs'],
-                    ['route' => 'expenses.index', 'pattern' => 'expenses.*', 'label' => 'Expenses'],
-                    ['route' => 'vendors.index', 'pattern' => 'vendors.*', 'label' => 'Vendors'],
-                    ['route' => 'budgets.index', 'pattern' => 'budgets.*', 'label' => 'Budgets'],
-                    ['route' => 'assets.index', 'pattern' => 'assets.*', 'label' => 'Assets'],
-                    ['route' => 'departments.index', 'pattern' => 'departments.*', 'label' => 'Departments'],
-                    ['route' => 'team.index', 'pattern' => 'team.*', 'label' => 'Team'],
-                    ['route' => 'approval-workflows.index', 'pattern' => 'approval-workflows.*', 'label' => 'Approval Workflows'],
-                    ['route' => 'settings.communications', 'pattern' => 'settings.communications', 'label' => 'Communications'],
-                    ['route' => 'settings.request-configuration', 'pattern' => 'settings.request-configuration', 'label' => 'Request Configuration'],
-                    ['route' => 'settings.index', 'pattern' => 'settings.*', 'label' => 'Settings'],
-                ],
-                'finance' => [
-                    ['route' => 'dashboard', 'pattern' => 'dashboard*', 'label' => 'Dashboard'],
-                    ['route' => 'requests.index', 'pattern' => 'requests.index', 'label' => 'Requests & Approvals'],
-                    ['route' => 'requests.communications', 'pattern' => 'requests.communications', 'label' => 'Request Inbox & Logs'],
-                    ['route' => 'expenses.index', 'pattern' => 'expenses.*', 'label' => 'Expenses'],
-                    ['route' => 'vendors.index', 'pattern' => 'vendors.*', 'label' => 'Vendors'],
-                    ['route' => 'budgets.index', 'pattern' => 'budgets.*', 'label' => 'Budgets'],
-                    ['route' => 'assets.index', 'pattern' => 'assets.*', 'label' => 'Assets'],
-                ],
-                'manager' => [
-                    ['route' => 'dashboard', 'pattern' => 'dashboard*', 'label' => 'Dashboard'],
-                    ['route' => 'requests.index', 'pattern' => 'requests.index', 'label' => 'Requests & Approvals'],
-                    ['route' => 'requests.communications', 'pattern' => 'requests.communications', 'label' => 'Request Inbox & Logs'],
-                    ['route' => 'expenses.index', 'pattern' => 'expenses.*', 'label' => 'Expenses'],
-                    ['route' => 'budgets.index', 'pattern' => 'budgets.*', 'label' => 'Budgets'],
-                    ['route' => 'assets.index', 'pattern' => 'assets.*', 'label' => 'Assets'],
-                ],
-                'staff' => [
-                    ['route' => 'dashboard', 'pattern' => 'dashboard*', 'label' => 'Dashboard'],
-                    ['route' => 'requests.index', 'pattern' => 'requests.index', 'label' => 'Requests & Approvals'],
-                    ['route' => 'requests.communications', 'pattern' => 'requests.communications', 'label' => 'Request Inbox & Logs'],
-                    ['route' => 'assets.index', 'pattern' => 'assets.*', 'label' => 'Assets'],
-                ],
-                'auditor' => [
-                    ['route' => 'dashboard', 'pattern' => 'dashboard*', 'label' => 'Dashboard'],
-                    ['route' => 'requests.index', 'pattern' => 'requests.index', 'label' => 'Requests & Approvals'],
-                    ['route' => 'requests.communications', 'pattern' => 'requests.communications', 'label' => 'Request Inbox & Logs'],
-                    ['route' => 'expenses.index', 'pattern' => 'expenses.*', 'label' => 'Expenses'],
-                    ['route' => 'vendors.index', 'pattern' => 'vendors.*', 'label' => 'Vendors'],
-                    ['route' => 'budgets.index', 'pattern' => 'budgets.*', 'label' => 'Budgets'],
-                    ['route' => 'assets.index', 'pattern' => 'assets.*', 'label' => 'Assets'],
-                ],
-            ];
-
-            $navItems = $navByRole[$role] ?? $navByRole['staff'];
+            $navigation = app(\App\Services\NavAccessService::class)->forUser($user);
+            $navItems = $navigation['items'];
+            $showReportsPlaceholder = (bool) ($navigation['show_reports_placeholder'] ?? false);
         @endphp
 
         <div class="min-h-screen md:flex">
-            <aside class="fixed inset-y-0 left-0 z-40 w-64 transform border-r border-slate-200 bg-white transition md:translate-x-0" :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'">
+            <aside class="fixed inset-y-0 left-0 z-40 w-64 transform overflow-y-auto border-r border-slate-200 bg-white transition md:translate-x-0" :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'">
                 <div class="flex h-16 items-center border-b border-slate-200 px-5">
                     <div>
                         <p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Flowdesk</p>
@@ -100,17 +51,20 @@
                     </div>
                 </div>
 
-                <nav class="space-y-1 px-3 py-4 text-sm">
+                <nav class="space-y-1 px-3 py-4 pb-8 text-sm">
                     @foreach ($navItems as $item)
+                        @php
+                            $patterns = (array) ($item['pattern'] ?? []);
+                        @endphp
                         <a
                             href="{{ route($item['route']) }}"
-                            class="fd-nav-item {{ request()->routeIs($item['pattern']) ? 'fd-nav-item-active' : '' }}"
+                            class="fd-nav-item {{ request()->routeIs(...$patterns) ? 'fd-nav-item-active' : '' }}"
                         >
                             {{ $item['label'] }}
                         </a>
                     @endforeach
 
-                    @if (in_array($role, ['owner', 'finance', 'manager', 'auditor'], true))
+                    @if ($showReportsPlaceholder)
                         <span class="fd-nav-item cursor-not-allowed opacity-60">Reports</span>
                     @endif
                 </nav>
@@ -125,7 +79,7 @@
                             </button>
                             <div>
                                 <h1 class="text-base font-semibold text-slate-900">{{ $title ?? 'Workspace' }}</h1>
-                                <p class="text-xs text-slate-500">{{ $subtitle ?? 'Built for modern organizations' }}</p>
+                                <p class="text-xs text-slate-500">{{ $subtitle ?? config('page_subtitles.'.($title ?? ''), 'Built for modern organizations') }}</p>
                             </div>
                         </div>
 

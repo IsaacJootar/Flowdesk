@@ -48,6 +48,7 @@ class UpdateRequestDraft
         $before = $this->snapshot($request);
         $after = $this->normalizedSnapshot($validated, $normalizedItems, $currency, $totalAmount, $metadata);
 
+        // Prevent noisy writes and duplicate activity logs when payload is effectively unchanged.
         if ($before === $after) {
             throw ValidationException::withMessages([
                 'no_changes' => 'No changes made. Update at least one field before saving.',
@@ -67,6 +68,7 @@ class UpdateRequestDraft
                 'updated_by' => $user->id,
             ])->save();
 
+            // Items are replaced as a full set to keep totals and audit snapshots deterministic.
             $request->items()->delete();
 
             if ($requestType->requires_line_items) {
@@ -240,6 +242,7 @@ class UpdateRequestDraft
                 CompanyCommunicationSetting::defaultAttributes()
             );
 
+        // Empty array means "use workflow/default channels at submit time".
         if (($validated['channel_mode'] ?? 'workflow_default') !== 'custom') {
             return [];
         }

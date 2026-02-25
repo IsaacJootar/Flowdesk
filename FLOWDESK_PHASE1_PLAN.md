@@ -29,7 +29,7 @@ Never skip tenancy enforcement.
 
 ----------------------------------------------------
 
-# STEP 0 — VERIFY SKELETON
+# STEP 0 â€” VERIFY SKELETON
 
 Confirm:
 
@@ -42,7 +42,7 @@ Confirm:
 - Sidebar layout working
 - Dashboard shell loads
 
-If anything missing → fix before proceeding.
+If anything missing â†’ fix before proceeding.
 
 Create git checkpoint:
 "checkpoint: skeleton stable"
@@ -51,7 +51,7 @@ STOP after completion and report.
 
 ----------------------------------------------------
 
-# STEP 1 — VENDOR MANAGEMENT MODULE
+# STEP 1 â€” VENDOR MANAGEMENT MODULE
 
 Create vendor management system.
 
@@ -98,7 +98,7 @@ STOP after completion and report.
 
 ----------------------------------------------------
 
-# STEP 2 — ASSET MANAGEMENT MODULE
+# STEP 2 â€” ASSET MANAGEMENT MODULE
 
 Create asset tracking system.
 
@@ -158,7 +158,7 @@ STOP after completion and report.
 
 ----------------------------------------------------
 
-# STEP 3 — REQUESTS & APPROVALS
+# STEP 3 â€” REQUESTS & APPROVALS
 
 Create spending request workflow.
 
@@ -193,9 +193,9 @@ request_approvals:
 
 ### Workflow
 
-Staff → create request  
-Manager → approve  
-Finance → approve  
+Staff â†’ create request  
+Manager â†’ approve  
+Finance â†’ approve  
 Then marked approved
 
 ### UI
@@ -214,7 +214,7 @@ STOP after completion and report.
 
 ----------------------------------------------------
 
-# STEP 4 — EXPENSES MODULE
+# STEP 4 â€” EXPENSES MODULE
 
 Create expense recording system.
 
@@ -264,7 +264,7 @@ STOP after completion and report.
 
 ----------------------------------------------------
 
-# STEP 5 — DASHBOARD REAL DATA
+# STEP 5 â€” DASHBOARD REAL DATA
 
 Update dashboard with real data.
 
@@ -284,7 +284,7 @@ STOP after completion and report.
 
 ----------------------------------------------------
 
-# STEP 6 — HARDENING PASS
+# STEP 6 â€” HARDENING PASS
 
 Before Phase 1 complete:
 
@@ -469,43 +469,366 @@ Decision kept:
 - Keep single storage backend with strict tenant folder partition + DB scope + authorization checks.
 - Do not create separate physical disk/bucket per tenant in current phase.
 
-Open item:
-- Request-level attachments are not yet implemented end-to-end in Requests module.
+Implemented update:
+- Request-level attachments are now implemented end-to-end in Requests module:
+  - Upload in request draft/create-edit modal.
+  - Upload in request detail modal for editable states (`draft`, `returned`).
+  - Secure private storage path with tenant partition:
+    - `private/request-attachments/{company_id}/{request_id}/...`
+  - Secure download route with policy checks:
+    - `requests.attachments.download`
+  - Submission guard for request types that require attachments.
 
-## Addendum: Requests & Approvals Remaining Work (Approval Queue)
-The Requests/Approvals module is functional but not complete yet. Remaining items to approve and execute:
+## Addendum: Requests & Approvals Remaining Work (Historical)
+This section is historical reference only.
+All items listed below have now been implemented in the closeout runs.
+Requests/Approvals is complete for current phase scope.
 
-1) Request attachments (complete end-to-end)
-- Upload in request draft/edit.
-- Secure private storage path with tenant partition:
-  - `private/request-attachments/{company_id}/{request_id}/...`
-- Download/view endpoint with policy checks.
-- Show attachments in request detail and approval review.
+Implemented update:
+- Amount-range workflow enforcement is now active end-to-end:
+  - Submit uses only workflow steps where request amount falls within step `min_amount`/`max_amount`.
+  - Ineligible steps are not created for that request.
+  - Current approval step is set to the first applicable step.
+  - Approval progression only advances to the next applicable step (skips out-of-range future steps).
+  - If no step applies to amount, submit is blocked with workflow validation error.
 
-2) Amount-range workflow enforcement
-- Enforce `min_amount` / `max_amount` on workflow steps during routing and approver eligibility.
-- Ensure only matching steps are created/advanced for a given request amount.
+Implemented update:
+- Request policy checks are now active:
+  - Added company-level request policy settings:
+    - budget guardrail mode: `off | warn | block`
+    - duplicate detection toggle + lookback window days
+  - Added request submit budget guardrail enforcement:
+    - `block` mode: submit blocked when projected spend exceeds active department budget
+    - `warn` mode: submit allowed with warning captured in request metadata + audit log
+  - Added duplicate request detector at submit stage:
+    - warning-only behavior (non-blocking)
+    - warnings captured in request metadata + audit log
+  - Request detail UI now shows policy warnings.
 
-3) Request policy checks (parity with expense controls)
-- Add request-stage budget guardrail checks (warn/block rules by company policy).
-- Add duplicate request detector (initially warning/non-blocking, logged in audit).
-
-4) Request reporting filters and list hardening
+1) Request reporting filters and list hardening
 - Add date-range filters for request list (submitted/requested date window).
 - Add richer status+type analytics counters for operations view.
 
-5) Approval operations UX polish
+2) Approval operations UX polish
 - Keep current channels-on-submit flow, but add clearer per-step delivery summary in timeline.
 - Add explicit "why not approver" context in pending queue when role sees request but cannot act.
 
-6) Expense handoff from approved request
+3) Expense handoff from approved request
 - Add explicit "Create Expense from Approved Request" action path.
 - Auto-carry allowed fields (department/vendor/line items/reference) with immutable link.
 
-7) Communication delivery integration layer
+4) Communication delivery integration layer
 - Keep request/approval transitions non-blocking.
 - Implement queued dispatch pipeline for:
   - in-app (first)
   - email (second)
   - SMS (third)
 - Keep organization-configured channel policy and request-time channel reduction rules.
+
+## Addendum: Requests/Approvals Permission Hardening (Implemented)
+Implemented in this cycle:
+
+1) Entry authorization on Requests pages
+- Added explicit policy gate checks on component mount for:
+  - `RequestsPage`
+  - `RequestCommunicationsPage`
+  - `RequestReportsPage`
+- Behavior:
+  - inactive users are blocked with `403`
+  - users without request access are blocked with `403`
+
+2) Delivery logs least-privilege controls
+- Delivery log visibility:
+  - allowed roles: owner, finance, manager, auditor
+- Delivery operation execution (retry/process):
+  - allowed roles: owner, finance
+- Staff:
+  - cannot open Delivery Logs tab
+  - cannot trigger retry/process actions
+- Manager/Auditor:
+  - can view delivery logs
+  - cannot execute retry/process actions
+
+3) UI hardening for communications page
+- Delivery Logs tab is rendered only for roles allowed to view delivery logs.
+- Server-side guard also enforces this (forced tab switch attempts are blocked).
+- Retry/process buttons remain hidden unless execution permission is granted.
+
+4) Automated test coverage added
+- Route-level access:
+  - active user access
+  - inactive user `403` for all request routes
+- Communications permissions:
+  - staff denied delivery logs + denied retry operations
+  - manager allowed view but denied retry operations
+  - owner allowed retry operations
+- Existing request hierarchy and automation tests remain green.
+
+Latest verification:
+- `php artisan test tests/Feature/Requests/RequestApprovalAutomationTest.php tests/Feature/Requests/RequestApprovalHierarchyTest.php`
+- Result: `15 passed` / `0 failed`
+
+## Addendum: Requests/Approvals Completion Run (Implemented)
+Implemented in this run:
+
+1) Request list/report hardening
+- Added date-range filters (`From`, `To`) to Requests list using submitted/created date window logic.
+- Added request operations analytics on Requests page:
+  - total requests
+  - filtered total amount
+  - pending my action
+  - status breakdown counters
+  - request type breakdown counters
+- Kept server-side pagination and filter loading states aligned with existing UI behavior.
+
+2) Approval operations UX polish
+- Added per-row approval context in Requests table for in-review records:
+  - explicit "awaiting your decision" when user is current approver
+  - explicit current step + approver names when user is view-only for that step
+- Added per-step delivery summary in approval timeline:
+  - sent/queued/failed/skipped counts
+  - channel summary per step
+- Added explicit in-modal approval context panel for in-review requests when viewer cannot decide.
+
+3) Expense handoff from approved request
+- Added direct action in Request detail modal: `Create Expense`.
+- Enforced conversion rules:
+  - only approved requests
+  - only roles allowed to create expenses
+  - one expense linkage per request (prevents duplicate conversion)
+- Auto-carried fields into expense creation:
+  - request link (`request_id`, immutable)
+  - department
+  - vendor (request-level, else first line-item vendor fallback)
+  - title
+  - description
+  - amount (approved amount fallback to request amount)
+  - payment actor (`paid_by_user_id` from current user)
+- Request detail now shows linked expense summary after conversion.
+
+4) Communication delivery integration (queue-backed dispatch)
+- Introduced queued delivery job:
+  - `app/Jobs/ProcessRequestCommunicationLog.php`
+- Updated communication logger to enqueue delivery processing per log instead of direct inline delivery:
+  - `RequestCommunicationLogger` now dispatches background processing
+- Existing retry/failure center remains active and compatible with queued logs.
+
+Verification:
+- `php artisan test tests/Feature/Requests/RequestApprovalAutomationTest.php tests/Feature/Requests/RequestApprovalHierarchyTest.php`
+- Result: `24 passed` / `0 failed`
+
+## Addendum: Requests/Approvals Closeout Patch (Implemented)
+Implemented in this run:
+
+1) Reports average-time safety fix
+- Fixed negative average decision time display in Request Reports.
+- Rule applied: average decision time is clamped to a minimum of `0.0h` to handle bad legacy timestamp order (`decided_at < submitted_at`).
+- File:
+  - `app/Livewire/Requests/RequestReportsPage.php`
+
+2) Regression protection
+- Added automated test to ensure request reports never show negative average decision hours.
+- File:
+  - `tests/Feature/Requests/RequestApprovalAutomationTest.php`
+
+Verification:
+- `php artisan test tests/Feature/Requests`
+- Result: `25 passed` / `0 failed`
+- `php artisan view:cache` passed
+
+Module status:
+- Requests/Approvals module is closed for current phase execution scope.
+- Any next work on this area moves to enhancement scope (not blocker/fix scope).
+
+## Addendum: Expense Permission Matrix (Implemented)
+Implemented in this run:
+
+1) Company-configurable expense action controls
+- Added company-scoped expense policy settings model:
+  - `company_expense_policy_settings`
+- Added per-action policy controls:
+  - `create_direct_expense`
+  - `create_expense_from_request`
+  - `edit_posted_expense`
+  - `void_expense`
+- Each action supports:
+  - allowed roles
+  - optional department scope
+  - optional role-level amount limits
+  - optional secondary-approval requirement when limit is exceeded
+
+2) Resolver and enforcement
+- Added `ExpensePolicyResolver` as single source of truth.
+- Wired policy checks into:
+  - `ExpensePolicy` (view/create/update/void/upload)
+  - `CreateExpense`
+  - `UpdateExpense`
+  - `VoidExpense`
+  - request->expense conversion path in `RequestsPage`
+
+3) Settings UI
+- Added `Settings > Expense Controls` page for admin (owner).
+- Added form controls to manage action-level role matrix and optional limits/scopes.
+- Added reset-to-default action (Owner + Finance baseline).
+
+4) Navigation and UX alignment
+- Added route: `settings.expense-controls`.
+- Added Settings card and owner sidebar link.
+- Updated expense page permission messaging to reflect configurable policy.
+
+5) Compatibility behavior
+- Default policy preserves prior baseline:
+  - Owner + Finance allowed by default.
+- Organizations can now enable Manager/Staff expense actions per policy.
+
+6) Validation hardening (implemented)
+- Expense control save now blocks misconfiguration where:
+  - amount limit is entered for a role that is not in allowed roles.
+- Inline section error is shown on the action card until corrected.
+
+7) UI access and navigation notes
+- Owner sidebar now supports vertical scroll for long navigation stacks.
+- `Expense Controls` appears under owner settings navigation.
+
+## Addendum: Vendor Finance Enhancement + Configuration Usage Guide (Implemented)
+Implemented in this run:
+
+1) Vendor invoice + payment data model
+- Added:
+  - `vendor_invoices`
+  - `vendor_invoice_payments`
+- Supports:
+  - invoice statuses (`unpaid`, `part_paid`, `paid`, `void`)
+  - partial and full settlement
+  - outstanding balance tracking per invoice
+  - company-scoped uniqueness (`invoice_number`, `payment_reference`)
+
+2) Vendor finance actions
+- Added actions:
+  - `CreateVendorInvoice`
+  - `UpdateVendorInvoice`
+  - `RecordVendorInvoicePayment`
+  - `VoidVendorInvoice`
+- Guardrails:
+  - cannot overpay outstanding amount
+  - cannot pay void invoice
+  - cannot update void invoice
+  - cannot reduce total below already paid amount
+
+3) Vendor detail UI upgrade
+- Vendor detail panel now includes:
+  - invoice ledger cards (invoiced, paid, outstanding, counts)
+  - invoice search + status filtering
+  - invoice action controls (create/edit/record payment/void)
+  - statement timeline (invoice + payment events)
+- Added finance modals:
+  - Create/Edit Invoice
+  - Record Payment
+  - Void Invoice
+
+4) Configuration usage across Flowdesk (how modules connect)
+- `Team` page:
+  - assign staff role + department + reports-to hierarchy.
+- `Approval Workflows` page:
+  - defines who approves requests and in what order.
+- `Communications` page:
+  - defines default channels for request/approval events.
+- `Expense Controls` page:
+  - defines who can create direct expense vs request-linked expense, and limit behavior.
+- `Vendor Controls` page:
+  - defines per-action role access for vendor module operations (directory, profile CRUD, invoices, payments, exports, communications).
+- `Vendors` page:
+  - manages vendor registry + invoice/payment ledger and balances.
+
+5) Practical setup sequence for a new organization
+1. Configure departments and team hierarchy.
+2. Configure approval workflows and set default workflow.
+3. Configure communications defaults (in-app/email/SMS policy).
+4. Configure expense controls (direct vs request-based permissions).
+5. Create vendors and start invoice/payment ledger operations.
+
+6) Scope note
+- Vendor policy matrix is now implemented via `company_vendor_policy_settings` and `Vendor Controls`:
+  - view directory
+  - create/update/delete vendor
+  - manage invoices
+  - record payments
+  - export statements
+  - manage communications
+
+7) Vendor finance attachment extension (implemented)
+- Added invoice and payment proof storage:
+  - `vendor_invoice_attachments`
+  - `vendor_invoice_payment_attachments`
+- Added upload/download flows:
+  - invoice attachments at invoice create/edit
+  - payment proof attachments at payment record
+  - secure download endpoints with vendor view authorization
+- Added vendor profile UI visibility:
+  - invoice-level attachment chips and file links
+  - payment proof links in statement timeline
+  - invoice cards now show `Invoice files` and `Payment proofs` counts
+
+8) Vendor AP status polish (implemented)
+- Added computed display status `overdue` (without breaking stored status model).
+- Added due-date countdown labels:
+  - `Due in X days`
+  - `Due tomorrow`
+  - `Due today`
+  - `Overdue by X days`
+- Added overdue count chip and overdue badge styling in invoice ledger.
+
+9) Vendor traceability reports (implemented)
+- Added dedicated page: `vendors.reports` (`/vendors/reports`).
+- Purpose:
+  - track vendor-linked vs vendor-unlinked expenses,
+  - track request-linked vs request-unlinked expenses,
+  - expose full request-expense-vendor trace path per record.
+- Added report filters:
+  - search (expense code/title/vendor/request code),
+  - vendor link status,
+  - request link status,
+  - expense status,
+  - department,
+  - vendor,
+  - date range and rows-per-page.
+- Added summary cards:
+  - total expenses,
+  - vendor linked,
+  - vendor unlinked,
+  - request linked,
+  - fully linked (request + expense + vendor).
+- Added paginated table with trace labels:
+  - `Request -> Expense -> Vendor`
+  - `Request -> Expense (No Vendor)`
+  - `Direct Expense -> Vendor`
+  - `Direct Expense`.
+
+10) Vendor communications delivery + retry center (implemented)
+- Delivery pipeline:
+  - logs are queued and processed asynchronously for in-app/email channels.
+  - failed and stuck queued events can be retried safely.
+- Internal AP reminder policy:
+  - due/overdue reminders are internal-only by default (finance team inbox/email).
+  - vendor external reminders are reserved for payment event notifications.
+- Added vendor-level retry center:
+  - failed count,
+  - stuck queued count,
+  - `older than` threshold,
+  - actions: `Retry Failed` and `Process Queued`.
+- Added audience clarity in logs:
+  - each row shows whether delivery target is `Internal Finance` or `Vendor External`.
+- Added company/vendor scoped console commands:
+  - `vendors:communications:retry-failed --company= --vendor= --batch=`
+  - `vendors:communications:process-queued --company= --vendor= --older-than= --batch=`
+
+11) Vendor reporting depth extension (implemented)
+- Added amount-range filters in vendor reports (`amount_min`, `amount_max`).
+- Added AP aging cards:
+  - outstanding invoices,
+  - overdue 0-30,
+  - overdue 31-60,
+  - overdue 61+.
+- Added quick navigation actions in reports table:
+  - `Open in Expenses` deep links expense context,
+  - `Open in Requests` for request-linked expense rows.

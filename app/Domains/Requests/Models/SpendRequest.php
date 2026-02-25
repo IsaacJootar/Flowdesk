@@ -6,12 +6,13 @@ use App\Domains\Approvals\Models\ApprovalWorkflow;
 use App\Domains\Approvals\Models\RequestApproval;
 use App\Domains\Company\Models\Company;
 use App\Domains\Company\Models\Department;
+use App\Domains\Expenses\Models\Expense;
 use App\Domains\Vendors\Models\Vendor;
 use App\Models\User;
 use App\Traits\CompanyScoped;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -102,5 +103,15 @@ class SpendRequest extends Model
     public function communicationLogs(): HasMany
     {
         return $this->hasMany(RequestCommunicationLog::class, 'request_id');
+    }
+
+    public function attachments(): HasMany
+    {
+        return $this->hasMany(RequestAttachment::class, 'request_id');
+    }
+
+    public function expenses(): HasMany
+    {
+        return $this->hasMany(Expense::class, 'request_id');
     }
 }

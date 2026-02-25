@@ -43,6 +43,7 @@ class RequestApprovalSlaService
      */
     public function defaultMetadata(): array
     {
+        // Store resolved defaults in approval metadata so historical decisions remain traceable.
         return [
             'step_due_hours' => $this->stepDueHours([]),
             'reminder_hours_before_due' => $this->reminderHoursBeforeDue([]),

@@ -7,9 +7,13 @@ use App\Domains\Company\Models\Company;
 use App\Enums\UserRole;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use Livewire\Attributes\Layout;
+use Livewire\Attributes\Title;
 use Livewire\Component;
 use Illuminate\Support\Str;
 
+#[Layout('layouts.app')]
+#[Title('Company Setup')]
 class CompanySetup extends Component
 {
     public ?string $feedbackMessage = null;
@@ -31,7 +35,7 @@ class CompanySetup extends Component
 
     public function mount(): void
     {
-        $user = auth()->user();
+        $user = \Illuminate\Support\Facades\Auth::user();
 
         if (! $user) {
             return;
@@ -87,7 +91,7 @@ class CompanySetup extends Component
             'address' => ['nullable', 'string', 'max:1000'],
         ]);
 
-        $user = auth()->user();
+        $user = \Illuminate\Support\Facades\Auth::user();
 
         if ($this->isEditMode) {
             if (! $user || ! $user->hasRole(UserRole::Owner)) {
@@ -134,7 +138,7 @@ class CompanySetup extends Component
             return;
         }
 
-        $createCompanyForUser(auth()->user(), [
+        $createCompanyForUser(\Illuminate\Support\Facades\Auth::user(), [
             'name' => $this->name,
             'slug' => $this->slug,
             'email' => $this->email,
@@ -179,11 +183,11 @@ class CompanySetup extends Component
     public function render()
     {
         return view('livewire.settings.company-setup')
-            ->layout('layouts.app', [
-                'title' => 'Company Setup',
+            ->layoutData([
                 'subtitle' => $this->isEditMode
                     ? 'Review and update your company configuration'
                     : 'Create your company and baseline department',
             ]);
     }
 }
+

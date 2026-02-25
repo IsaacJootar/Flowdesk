@@ -53,6 +53,7 @@ class AddRequestComment
             'strval',
             (array) (($request->metadata ?? [])['notification_channels'] ?? [])
         )));
+        // Keep comment notifications resilient even when request metadata has no channel config yet.
         $channels = $channels === [] ? ['in_app'] : $channels;
 
         $this->requestCommunicationLogger->log(
@@ -71,4 +72,3 @@ class AddRequestComment
         return $comment->loadMissing('user:id,name');
     }
 }
-

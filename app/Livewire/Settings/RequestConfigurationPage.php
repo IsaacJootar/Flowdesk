@@ -3,6 +3,7 @@
 namespace App\Livewire\Settings;
 
 use App\Domains\Requests\Models\CompanyRequestType;
+use App\Domains\Requests\Models\CompanyRequestPolicySetting;
 use App\Domains\Requests\Models\CompanySpendCategory;
 use App\Enums\UserRole;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -10,8 +11,12 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use Livewire\Attributes\Layout;
+use Livewire\Attributes\Title;
 use Livewire\Component;
 
+#[Layout('layouts.app')]
+#[Title('Request Configuration')]
 class RequestConfigurationPage extends Component
 {
     public bool $showRequestTypeModal = false;
@@ -49,9 +54,16 @@ class RequestConfigurationPage extends Component
         'is_active' => true,
     ];
 
+    public string $budget_guardrail_mode = CompanyRequestPolicySetting::BUDGET_MODE_WARN;
+
+    public bool $duplicate_detection_enabled = true;
+
+    public int $duplicate_window_days = 30;
+
     public function mount(): void
     {
         $this->authorizeOwner();
+        $this->hydratePolicySettings();
     }
 
     public function openCreateRequestTypeModal(): void
@@ -92,7 +104,7 @@ class RequestConfigurationPage extends Component
         $this->authorizeOwner();
         $this->feedbackError = null;
 
-        $companyId = (int) auth()->user()->company_id;
+        $companyId = (int) \Illuminate\Support\Facades\Auth::user()->company_id;
         $typeId = $this->editingRequestTypeId;
         $validated = $this->validate([
             'requestTypeForm.name' => ['required', 'string', 'max:80'],
@@ -135,7 +147,7 @@ class RequestConfigurationPage extends Component
                 'requires_date_range' => (bool) $validated['requestTypeForm']['requires_date_range'],
                 'requires_vendor' => (bool) $validated['requestTypeForm']['requires_vendor'],
                 'requires_attachments' => (bool) $validated['requestTypeForm']['requires_attachments'],
-                'updated_by' => auth()->id(),
+                'updated_by' => \Illuminate\Support\Facades\Auth::id(),
             ])->save();
 
             $this->setFeedback('Request type updated.');
@@ -151,8 +163,8 @@ class RequestConfigurationPage extends Component
                 'requires_date_range' => (bool) $validated['requestTypeForm']['requires_date_range'],
                 'requires_vendor' => (bool) $validated['requestTypeForm']['requires_vendor'],
                 'requires_attachments' => (bool) $validated['requestTypeForm']['requires_attachments'],
-                'created_by' => auth()->id(),
-                'updated_by' => auth()->id(),
+                'created_by' => \Illuminate\Support\Facades\Auth::id(),
+                'updated_by' => \Illuminate\Support\Facades\Auth::id(),
             ]);
 
             $this->setFeedback('Request type created.');
@@ -193,7 +205,7 @@ class RequestConfigurationPage extends Component
         $type = CompanyRequestType::query()->findOrFail($typeId);
         $type->forceFill([
             'is_active' => ! (bool) $type->is_active,
-            'updated_by' => auth()->id(),
+            'updated_by' => \Illuminate\Support\Facades\Auth::id(),
         ])->save();
 
         $this->setFeedback('Request type status updated.');
@@ -207,7 +219,7 @@ class RequestConfigurationPage extends Component
         $this->authorizeOwner();
         $this->feedbackError = null;
 
-        $companyId = (int) auth()->user()->company_id;
+        $companyId = (int) \Illuminate\Support\Facades\Auth::user()->company_id;
         $categoryId = $this->editingSpendCategoryId;
         $validated = $this->validate([
             'spendCategoryForm.name' => ['required', 'string', 'max:80'],
@@ -236,7 +248,7 @@ class RequestConfigurationPage extends Component
                 'code' => $code,
                 'description' => $validated['spendCategoryForm']['description'] ?: null,
                 'is_active' => (bool) $validated['spendCategoryForm']['is_active'],
-                'updated_by' => auth()->id(),
+                'updated_by' => \Illuminate\Support\Facades\Auth::id(),
             ])->save();
 
             $this->setFeedback('Spend category updated.');
@@ -247,8 +259,8 @@ class RequestConfigurationPage extends Component
                 'code' => $code,
                 'description' => $validated['spendCategoryForm']['description'] ?: null,
                 'is_active' => (bool) $validated['spendCategoryForm']['is_active'],
-                'created_by' => auth()->id(),
-                'updated_by' => auth()->id(),
+                'created_by' => \Illuminate\Support\Facades\Auth::id(),
+                'updated_by' => \Illuminate\Support\Facades\Auth::id(),
             ]);
 
             $this->setFeedback('Spend category created.');
@@ -284,7 +296,7 @@ class RequestConfigurationPage extends Component
         $category = CompanySpendCategory::query()->findOrFail($categoryId);
         $category->forceFill([
             'is_active' => ! (bool) $category->is_active,
-            'updated_by' => auth()->id(),
+            'updated_by' => \Illuminate\Support\Facades\Auth::id(),
         ])->save();
 
         $this->setFeedback('Spend category status updated.');
@@ -305,10 +317,33 @@ class RequestConfigurationPage extends Component
         return view('livewire.settings.request-configuration-page', [
             'requestTypes' => $requestTypes,
             'spendCategories' => $spendCategories,
-        ])->layout('layouts.app', [
-            'title' => 'Request Configuration',
-            'subtitle' => 'Configure request types and spend categories for your organization',
+            'budgetModes' => CompanyRequestPolicySetting::BUDGET_MODES,
         ]);
+    }
+
+    /**
+     * @throws ValidationException
+     */
+    public function savePolicySettings(): void
+    {
+        $this->authorizeOwner();
+        $this->feedbackError = null;
+
+        $validated = $this->validate([
+            'budget_guardrail_mode' => ['required', Rule::in(CompanyRequestPolicySetting::BUDGET_MODES)],
+            'duplicate_detection_enabled' => ['boolean'],
+            'duplicate_window_days' => ['required', 'integer', 'min:1', 'max:365'],
+        ]);
+
+        $setting = $this->policySettingsRecord();
+        $setting->forceFill([
+            'budget_guardrail_mode' => (string) $validated['budget_guardrail_mode'],
+            'duplicate_detection_enabled' => (bool) $validated['duplicate_detection_enabled'],
+            'duplicate_window_days' => (int) $validated['duplicate_window_days'],
+            'updated_by' => \Illuminate\Support\Facades\Auth::id(),
+        ])->save();
+
+        $this->setFeedback('Request policy settings updated.');
     }
 
     private function resetRequestTypeForm(): void
@@ -345,11 +380,32 @@ class RequestConfigurationPage extends Component
         $this->feedbackKey++;
     }
 
+    private function hydratePolicySettings(): void
+    {
+        $setting = $this->policySettingsRecord();
+        $this->budget_guardrail_mode = (string) $setting->budget_guardrail_mode;
+        $this->duplicate_detection_enabled = (bool) $setting->duplicate_detection_enabled;
+        $this->duplicate_window_days = (int) $setting->duplicate_window_days;
+    }
+
+    private function policySettingsRecord(): CompanyRequestPolicySetting
+    {
+        return CompanyRequestPolicySetting::query()
+            ->firstOrCreate(
+                ['company_id' => (int) \Illuminate\Support\Facades\Auth::user()->company_id],
+                array_merge(
+                    CompanyRequestPolicySetting::defaultAttributes(),
+                    ['created_by' => \Illuminate\Support\Facades\Auth::id()]
+                )
+            );
+    }
+
     private function authorizeOwner(): void
     {
-        if (! auth()->check() || auth()->user()->role !== UserRole::Owner->value) {
+        if (! \Illuminate\Support\Facades\Auth::check() || \Illuminate\Support\Facades\Auth::user()->role !== UserRole::Owner->value) {
             throw new AuthorizationException('Only admin (owner) can manage request configuration.');
         }
     }
 }
+
 

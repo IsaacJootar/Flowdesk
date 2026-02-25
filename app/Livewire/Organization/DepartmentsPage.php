@@ -10,10 +10,14 @@ use App\Models\User;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\View\View;
 use Illuminate\Validation\ValidationException;
+use Livewire\Attributes\Layout;
+use Livewire\Attributes\Title;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Throwable;
 
+#[Layout('layouts.app')]
+#[Title('Departments')]
 class DepartmentsPage extends Component
 {
     use WithPagination;
@@ -88,7 +92,7 @@ class DepartmentsPage extends Component
         $this->authorizeOwner();
 
         try {
-            $department = $createDepartment(auth()->user(), [
+            $department = $createDepartment(\Illuminate\Support\Facades\Auth::user(), [
                 'name' => $this->departmentForm['name'],
                 'code' => $this->departmentForm['code'] ?: null,
                 'manager_user_id' => $this->departmentForm['manager_user_id'] !== ''
@@ -116,7 +120,7 @@ class DepartmentsPage extends Component
         $department = Department::query()->findOrFail($departmentId);
 
         try {
-            $assignDepartmentManager(auth()->user(), $department, [
+            $assignDepartmentManager(\Illuminate\Support\Facades\Auth::user(), $department, [
                 'manager_user_id' => ($this->departmentManagers[$departmentId] ?? '') !== ''
                     ? (int) $this->departmentManagers[$departmentId]
                     : null,
@@ -165,9 +169,6 @@ class DepartmentsPage extends Component
         return view('livewire.organization.departments-page', [
             'departments' => $departments,
             'managerOptions' => $managerOptions,
-        ])->layout('layouts.app', [
-            'title' => 'Departments',
-            'subtitle' => 'Create departments and maintain department head assignments',
         ]);
     }
 
@@ -187,8 +188,9 @@ class DepartmentsPage extends Component
 
     private function authorizeOwner(): void
     {
-        if (! auth()->check() || auth()->user()->role !== UserRole::Owner->value) {
+        if (! \Illuminate\Support\Facades\Auth::check() || \Illuminate\Support\Facades\Auth::user()->role !== UserRole::Owner->value) {
             throw new AuthorizationException('Only admin (owner) can manage departments.');
         }
     }
 }
+

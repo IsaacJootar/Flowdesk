@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Services\ActivityLogger;
 use App\Services\ExpenseBudgetGuardrail;
 use App\Services\ExpenseDuplicateDetector;
+use App\Services\ExpensePolicyResolver;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
@@ -17,7 +18,8 @@ class UpdateExpense
     public function __construct(
         private readonly ActivityLogger $activityLogger,
         private readonly ExpenseBudgetGuardrail $expenseBudgetGuardrail,
-        private readonly ExpenseDuplicateDetector $expenseDuplicateDetector
+        private readonly ExpenseDuplicateDetector $expenseDuplicateDetector,
+        private readonly ExpensePolicyResolver $expensePolicyResolver
     ) {}
 
     /**
@@ -34,6 +36,7 @@ class UpdateExpense
         }
 
         $validated = Validator::make($input, $this->rules((int) $expense->company_id, $input))->validate();
+        // Exclude current record so update checks only against other posted expenses.
         $duplicateAnalysis = $this->expenseDuplicateDetector->analyze(
             companyId: (int) $expense->company_id,
             input: $validated,
@@ -49,6 +52,18 @@ class UpdateExpense
 
         $isDirect = array_key_exists('is_direct', $validated) ? (bool) $validated['is_direct'] : (bool) $expense->is_direct;
         $requestId = $isDirect ? null : (int) ($validated['request_id'] ?? 0);
+        $permissionDecision = $this->expensePolicyResolver->canEditPosted(
+            user: $user,
+            departmentId: (int) $validated['department_id'],
+            amount: (int) $validated['amount']
+        );
+        if (! $permissionDecision['allowed']) {
+            throw ValidationException::withMessages([
+                'authorization' => (string) ($permissionDecision['reason'] ?? 'You are not allowed to edit this expense.'),
+            ]);
+        }
+
+        // Re-evaluate budget against edited values before persisting changes.
         $budgetGuardrail = $this->expenseBudgetGuardrail->enforceOrFail(
             companyId: (int) $expense->company_id,
             departmentId: (int) $validated['department_id'],
@@ -84,6 +99,7 @@ class UpdateExpense
         ]);
 
         if (! $expense->isDirty()) {
+            // Explicit no-change feedback prevents silent "save" clicks.
             throw ValidationException::withMessages([
                 'no_changes' => 'No changes made. Update at least one field before saving.',
             ]);

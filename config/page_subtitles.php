@@ -1,0 +1,18 @@
+<?php
+
+return [
+    'Dashboard' => 'Flowdesk control center skeleton',
+    'Request Communications' => 'Track inbox notifications and delivery status across approval flows',
+    'Request Reports' => 'Analyze request volume, approval speed, and SLA health',
+    'Vendor Profile' => 'View vendor profile, invoices, payments, and statement timeline',
+    'Vendor Reports' => 'Track request-expense-vendor traceability and unlinked spend gaps',
+    'Communications' => 'Configure organization notification channels and fallback order',
+    'Company Setup' => 'Create your company and baseline department',
+    'Expense Controls' => 'Set which roles can post, edit, and void expenses per organization policy',
+    'Vendor Controls' => 'Set which roles can manage vendor profiles, invoices, payments, exports, and communications',
+    'Organization Hierarchy' => 'Manage departments, reporting lines, role ownership, and approval chains',
+    'Request Configuration' => 'Configure request types and spend categories for your organization',
+    'Departments' => 'Create departments and maintain department head assignments',
+    'Approval Workflows' => 'Configure policy chains and approval routing for requests',
+    'Team' => 'Manage staff accounts, role ownership, and reporting hierarchy',
+];

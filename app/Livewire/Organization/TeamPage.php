@@ -12,11 +12,15 @@ use App\Models\User;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\View\View;
 use Illuminate\Validation\ValidationException;
+use Livewire\Attributes\Layout;
+use Livewire\Attributes\Title;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 use Livewire\WithPagination;
 use Throwable;
 
+#[Layout('layouts.app')]
+#[Title('Team')]
 class TeamPage extends Component
 {
     use WithFileUploads;
@@ -128,7 +132,7 @@ class TeamPage extends Component
         $this->authorizeOwner();
 
         try {
-            $createCompanyUser(auth()->user(), [
+            $createCompanyUser(\Illuminate\Support\Facades\Auth::user(), [
                 'name' => $this->newUserForm['name'],
                 'email' => $this->newUserForm['email'],
                 'phone' => $this->newUserForm['phone'] ?: null,
@@ -182,7 +186,7 @@ class TeamPage extends Component
         }
 
         try {
-            $updateCompanyUserAssignment(auth()->user(), $subject, [
+            $updateCompanyUserAssignment(\Illuminate\Support\Facades\Auth::user(), $subject, [
                 'role' => $payload['role'],
                 'department_id' => (int) $payload['department_id'],
                 'reports_to_user_id' => $payload['reports_to_user_id'] !== '' ? (int) $payload['reports_to_user_id'] : null,
@@ -245,7 +249,7 @@ class TeamPage extends Component
         $subject = User::query()->findOrFail($this->profileUserId);
 
         try {
-            $updateCompanyUserProfile(auth()->user(), $subject, [
+            $updateCompanyUserProfile(\Illuminate\Support\Facades\Auth::user(), $subject, [
                 'name' => $this->profileForm['name'],
                 'email' => $this->profileForm['email'],
                 'phone' => $this->profileForm['phone'] ?: null,
@@ -306,9 +310,6 @@ class TeamPage extends Component
             'users' => $users,
             'managerOptions' => $managerOptions,
             'roles' => UserRole::values(),
-        ])->layout('layouts.app', [
-            'title' => 'Team',
-            'subtitle' => 'Manage staff accounts, role ownership, and reporting hierarchy',
         ]);
     }
 
@@ -337,7 +338,7 @@ class TeamPage extends Component
 
     private function authorizeOwner(): void
     {
-        if (! auth()->check() || auth()->user()->role !== UserRole::Owner->value) {
+        if (! \Illuminate\Support\Facades\Auth::check() || \Illuminate\Support\Facades\Auth::user()->role !== UserRole::Owner->value) {
             throw new AuthorizationException('Only admin (owner) can manage team assignments.');
         }
     }
@@ -413,10 +414,10 @@ class TeamPage extends Component
     {
         $settings = CompanyCommunicationSetting::query()
             ->firstOrCreate(
-                ['company_id' => (int) auth()->user()->company_id],
+                ['company_id' => (int) \Illuminate\Support\Facades\Auth::user()->company_id],
                 array_merge(
                     CompanyCommunicationSetting::defaultAttributes(),
-                    ['created_by' => auth()->id()]
+                    ['created_by' => \Illuminate\Support\Facades\Auth::id()]
                 )
             );
 
@@ -441,3 +442,4 @@ class TeamPage extends Component
         ));
     }
 }
+

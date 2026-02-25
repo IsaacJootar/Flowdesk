@@ -8,6 +8,7 @@ class RequestCodeGenerator
 {
     public function generateForCompany(int $companyId): string
     {
+        // Read latest code per tenant, bypassing global scope to avoid accidental cross-context misses.
         $latestCode = SpendRequest::query()
             ->withoutGlobalScope('company')
             ->where('company_id', $companyId)
@@ -25,4 +26,3 @@ class RequestCodeGenerator
         return 'FD-REQ-'.str_pad((string) $nextNumber, 6, '0', STR_PAD_LEFT);
     }
 }
-

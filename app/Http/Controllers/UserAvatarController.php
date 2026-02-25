@@ -10,8 +10,8 @@ class UserAvatarController extends Controller
 {
     public function __invoke(User $user): StreamedResponse
     {
-        abort_unless(auth()->check(), 403);
-        abort_unless((int) auth()->user()->company_id === (int) $user->company_id, 404);
+        abort_unless(\Illuminate\Support\Facades\Auth::check(), 403);
+        abort_unless((int) \Illuminate\Support\Facades\Auth::user()->company_id === (int) $user->company_id, 404);
         abort_if(! $user->avatar_path, 404);
 
         $disk = Storage::disk('local');

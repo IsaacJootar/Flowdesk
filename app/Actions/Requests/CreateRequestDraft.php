@@ -44,6 +44,7 @@ class CreateRequestDraft
         $normalizedItems = $requestType->requires_line_items
             ? $this->normalizeItems($validated['items'] ?? [])
             : [];
+        // Amount source is type-dependent: line-item total for structured requests, direct input otherwise.
         $totalAmount = $this->resolveAmount($requestType, $validated, $normalizedItems);
         $currency = $this->companyCurrency($user);
         $metadata = $this->buildMetadata($requestType, $validated, $notificationChannels);
@@ -240,6 +241,7 @@ class CreateRequestDraft
                 CompanyCommunicationSetting::defaultAttributes()
             );
 
+        // Empty array means "use workflow/default channels at submit time".
         if (($validated['channel_mode'] ?? 'workflow_default') !== 'custom') {
             return [];
         }

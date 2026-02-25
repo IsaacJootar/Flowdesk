@@ -30,6 +30,7 @@ class RequestCommunicationDeliveryManager
             'recipient:id,name,email,phone',
         ]);
 
+        // Protect against stale configs: do not deliver if org disabled/unconfigured the channel.
         if (! $this->isChannelAllowedForCompany($log)) {
             $this->mark($log, DeliveryResult::failed('Channel is disabled or not configured for this organization.'));
 
@@ -78,4 +79,3 @@ class RequestCommunicationDeliveryManager
         ])->save();
     }
 }
-

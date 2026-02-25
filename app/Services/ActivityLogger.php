@@ -15,8 +15,8 @@ class ActivityLogger
         ?int $companyId = null,
         ?int $userId = null
     ): ActivityLog {
-        $resolvedCompanyId = $companyId ?? auth()->user()?->company_id;
-        $resolvedUserId = $userId ?? auth()->id();
+        $resolvedCompanyId = $companyId ?? \Illuminate\Support\Facades\Auth::user()?->company_id;
+        $resolvedUserId = $userId ?? \Illuminate\Support\Facades\Auth::id();
 
         if (! $resolvedCompanyId) {
             throw new InvalidArgumentException('Activity log requires company_id.');

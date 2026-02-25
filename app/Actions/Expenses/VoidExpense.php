@@ -5,15 +5,17 @@ namespace App\Actions\Expenses;
 use App\Domains\Expenses\Models\Expense;
 use App\Models\User;
 use App\Services\ActivityLogger;
+use App\Services\ExpensePolicyResolver;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 
 class VoidExpense
 {
-    public function __construct(private readonly ActivityLogger $activityLogger)
-    {
-    }
+    public function __construct(
+        private readonly ActivityLogger $activityLogger,
+        private readonly ExpensePolicyResolver $expensePolicyResolver
+    ) {}
 
     /**
      * @throws ValidationException
@@ -28,12 +30,24 @@ class VoidExpense
             ]);
         }
 
+        $permissionDecision = $this->expensePolicyResolver->canVoid(
+            user: $user,
+            departmentId: $expense->department_id ? (int) $expense->department_id : null,
+            amount: (int) $expense->amount
+        );
+        if (! $permissionDecision['allowed']) {
+            throw ValidationException::withMessages([
+                'authorization' => (string) ($permissionDecision['reason'] ?? 'You are not allowed to void this expense.'),
+            ]);
+        }
+
         $validated = Validator::make($input, [
             'reason' => ['required', 'string', 'min:3', 'max:1000'],
         ])->validate();
 
         $reason = trim($validated['reason']);
 
+        // Keep original record; mark as void so finance history remains intact.
         $expense->forceFill([
             'status' => 'void',
             'voided_by' => $user->id,

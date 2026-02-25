@@ -61,6 +61,7 @@ class RequestApprovalRouter
             }
         }
 
+        // Fallback keeps requests routable when a draft has no explicit workflow_id.
         return ApprovalWorkflow::query()
             ->where('company_id', $request->company_id)
             ->where('applies_to', 'request')
@@ -72,34 +73,67 @@ class RequestApprovalRouter
 
     public function resolveCurrentStep(SpendRequest $request): ?ApprovalWorkflowStep
     {
-        $workflow = $this->resolveActiveWorkflow($request);
-
-        if (! $workflow) {
+        $applicableSteps = $this->resolveApplicableSteps($request);
+        if ($applicableSteps->isEmpty()) {
             return null;
         }
 
-        $requestedStepOrder = (int) ($request->current_approval_step ?? 1);
-        if ($requestedStepOrder < 1) {
-            $requestedStepOrder = 1;
+        $requestedStepOrder = (int) ($request->current_approval_step ?? 0);
+        if ($requestedStepOrder > 0) {
+            $exact = $applicableSteps->first(
+                fn (ApprovalWorkflowStep $step): bool => (int) $step->step_order === $requestedStepOrder
+            );
+            if ($exact) {
+                return $exact;
+            }
         }
 
-        $exactStep = ApprovalWorkflowStep::query()
-            ->where('company_id', $request->company_id)
-            ->where('workflow_id', $workflow->id)
-            ->where('is_active', true)
-            ->where('step_order', $requestedStepOrder)
-            ->first();
+        return $applicableSteps->first();
+    }
 
-        if ($exactStep) {
-            return $exactStep;
+    public function resolveNextStep(SpendRequest $request, int $afterStepOrder): ?ApprovalWorkflowStep
+    {
+        return $this->resolveApplicableSteps($request)
+            ->first(fn (ApprovalWorkflowStep $step): bool => (int) $step->step_order > $afterStepOrder);
+    }
+
+    /**
+     * @return Collection<int, ApprovalWorkflowStep>
+     */
+    public function resolveApplicableSteps(SpendRequest $request): Collection
+    {
+        $workflow = $this->resolveActiveWorkflow($request);
+        if (! $workflow) {
+            return collect();
         }
 
+        $amount = (int) $request->amount;
+
+        // Amount thresholds are enforced here so approval chains adapt per request value.
         return ApprovalWorkflowStep::query()
             ->where('company_id', $request->company_id)
             ->where('workflow_id', $workflow->id)
             ->where('is_active', true)
             ->orderBy('step_order')
-            ->first();
+            ->get()
+            ->filter(fn (ApprovalWorkflowStep $step): bool => $this->stepAppliesToAmount($step, $amount))
+            ->values();
+    }
+
+    private function stepAppliesToAmount(ApprovalWorkflowStep $step, int $amount): bool
+    {
+        $min = $step->min_amount;
+        $max = $step->max_amount;
+
+        if ($min !== null && $amount < (int) $min) {
+            return false;
+        }
+
+        if ($max !== null && $amount > (int) $max) {
+            return false;
+        }
+
+        return true;
     }
 
     /**

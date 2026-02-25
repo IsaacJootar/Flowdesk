@@ -8,6 +8,7 @@ use App\Services\ActivityLogger;
 use App\Services\ExpenseBudgetGuardrail;
 use App\Services\ExpenseCodeGenerator;
 use App\Services\ExpenseDuplicateDetector;
+use App\Services\ExpensePolicyResolver;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Validator;
@@ -20,7 +21,8 @@ class CreateExpense
         private readonly ActivityLogger $activityLogger,
         private readonly ExpenseCodeGenerator $expenseCodeGenerator,
         private readonly ExpenseBudgetGuardrail $expenseBudgetGuardrail,
-        private readonly ExpenseDuplicateDetector $expenseDuplicateDetector
+        private readonly ExpenseDuplicateDetector $expenseDuplicateDetector,
+        private readonly ExpensePolicyResolver $expensePolicyResolver
     ) {
     }
 
@@ -38,6 +40,7 @@ class CreateExpense
         }
 
         $validated = Validator::make($input, $this->rules((int) $user->company_id, $input))->validate();
+        // Duplicate check runs before write so we can block hard matches or require override for soft matches.
         $duplicateAnalysis = $this->expenseDuplicateDetector->analyze((int) $user->company_id, $validated);
         $duplicateOverride = (bool) ($validated['duplicate_override'] ?? false);
         $this->enforceDuplicateRules(
@@ -48,6 +51,25 @@ class CreateExpense
 
         $isDirect = array_key_exists('is_direct', $validated) ? (bool) $validated['is_direct'] : true;
         $requestId = $isDirect ? null : (int) ($validated['request_id'] ?? 0);
+        $permissionDecision = $isDirect
+            ? $this->expensePolicyResolver->canCreateDirect(
+                user: $user,
+                departmentId: (int) $validated['department_id'],
+                amount: (int) $validated['amount']
+            )
+            : $this->expensePolicyResolver->canCreateFromRequest(
+                user: $user,
+                departmentId: (int) $validated['department_id'],
+                amount: (int) $validated['amount']
+            );
+
+        if (! $permissionDecision['allowed']) {
+            throw ValidationException::withMessages([
+                'authorization' => (string) ($permissionDecision['reason'] ?? 'You are not allowed to post this expense.'),
+            ]);
+        }
+
+        // Budget guardrail evaluates the target period before we insert a posted expense.
         $budgetGuardrail = $this->expenseBudgetGuardrail->enforceOrFail(
             companyId: (int) $user->company_id,
             departmentId: (int) $validated['department_id'],
@@ -56,6 +78,7 @@ class CreateExpense
         );
 
         $expense = DB::transaction(function () use ($user, $validated, $requestId, $isDirect): Expense {
+            // Create is wrapped in transaction so code generation/write and audit expectations remain atomic.
             return Expense::query()->create([
                 'company_id' => $user->company_id,
                 'expense_code' => $this->expenseCodeGenerator->generateForCompany((int) $user->company_id),

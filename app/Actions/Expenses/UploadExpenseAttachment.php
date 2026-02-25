@@ -29,6 +29,7 @@ class UploadExpenseAttachment
             ['file' => ['required', 'file', 'max:10240', 'mimes:jpg,jpeg,png,pdf,webp']]
         )->validate();
 
+        // Tenant + expense partitioning keeps files scoped for safer lookup and cleanup.
         $path = $file->store("private/expense-attachments/{$expense->company_id}/{$expense->id}", 'local');
 
         $attachment = ExpenseAttachment::query()->create([

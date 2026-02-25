@@ -2,16 +2,26 @@
 
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ExpenseAttachmentDownloadController;
+use App\Http\Controllers\RequestAttachmentDownloadController;
 use App\Http\Controllers\UserAvatarController;
+use App\Http\Controllers\VendorInvoiceAttachmentDownloadController;
+use App\Http\Controllers\VendorInvoicePaymentAttachmentDownloadController;
+use App\Http\Controllers\VendorStatementCsvExportController;
+use App\Http\Controllers\VendorStatementPrintController;
 use App\Enums\UserRole;
 use App\Livewire\Dashboard\DashboardShell;
 use App\Livewire\Organization\ApprovalWorkflowsPage;
 use App\Livewire\Organization\DepartmentsPage;
 use App\Livewire\Organization\TeamPage;
 use App\Livewire\Requests\RequestCommunicationsPage;
+use App\Livewire\Requests\RequestReportsPage;
 use App\Livewire\Settings\CommunicationSettingsPage;
 use App\Livewire\Settings\CompanySetup;
+use App\Livewire\Settings\ExpenseControlsPage;
 use App\Livewire\Settings\RequestConfigurationPage;
+use App\Livewire\Settings\VendorControlsPage;
+use App\Livewire\Vendors\VendorDetailsPage;
+use App\Livewire\Vendors\VendorReportsPage;
 use Illuminate\Support\Facades\Route;
 
 Route::redirect('/', '/dashboard');
@@ -34,6 +44,9 @@ Route::middleware(['auth', 'company.context'])->group(function (): void {
     Route::prefix('requests')->name('requests.')->group(function (): void {
         Route::view('/', 'app.requests.index')->name('index');
         Route::get('/communications', RequestCommunicationsPage::class)->name('communications');
+        Route::get('/reports', RequestReportsPage::class)->name('reports');
+        Route::get('/attachments/{attachment}/download', RequestAttachmentDownloadController::class)
+            ->name('attachments.download');
     });
 
     Route::prefix('expenses')->name('expenses.')->group(function (): void {
@@ -44,6 +57,16 @@ Route::middleware(['auth', 'company.context'])->group(function (): void {
 
     Route::prefix('vendors')->name('vendors.')->group(function (): void {
         Route::view('/', 'app.vendors.index')->name('index');
+        Route::get('/reports', VendorReportsPage::class)->name('reports');
+        Route::get('/{vendor}/statement/export.csv', VendorStatementCsvExportController::class)
+            ->name('statement.export.csv');
+        Route::get('/{vendor}/statement/print', VendorStatementPrintController::class)
+            ->name('statement.print');
+        Route::get('/attachments/invoices/{attachment}/download', VendorInvoiceAttachmentDownloadController::class)
+            ->name('attachments.invoices.download');
+        Route::get('/attachments/payments/{attachment}/download', VendorInvoicePaymentAttachmentDownloadController::class)
+            ->name('attachments.payments.download');
+        Route::get('/{vendor}', VendorDetailsPage::class)->name('show');
     });
 
     Route::prefix('budgets')->name('budgets.')->group(function (): void {
@@ -69,11 +92,17 @@ Route::middleware(['auth', 'company.context'])->group(function (): void {
     });
 
     Route::prefix('settings')->name('settings.')->group(function (): void {
-        Route::view('/', 'app.settings.index')->name('index');
+        Route::get('/', function () {
+            abort_unless(\Illuminate\Support\Facades\Auth::user()?->role === UserRole::Owner->value, 403);
+
+            return view('app.settings.index');
+        })->name('index');
         Route::get('/communications', CommunicationSettingsPage::class)->name('communications');
         Route::get('/request-configuration', RequestConfigurationPage::class)->name('request-configuration');
+        Route::get('/expense-controls', ExpenseControlsPage::class)->name('expense-controls');
+        Route::get('/vendor-controls', VendorControlsPage::class)->name('vendor-controls');
         Route::get('/organization', function () {
-            abort_unless(auth()->user()?->role === UserRole::Owner->value, 403);
+            abort_unless(\Illuminate\Support\Facades\Auth::user()?->role === UserRole::Owner->value, 403);
 
             return redirect()->route('departments.index');
         })->name('organization');

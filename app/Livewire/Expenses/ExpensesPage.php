@@ -9,6 +9,7 @@ use App\Actions\Expenses\VoidExpense;
 use App\Domains\Company\Models\Department;
 use App\Domains\Expenses\Models\Expense;
 use App\Domains\Vendors\Models\Vendor;
+use App\Services\ExpensePolicyResolver;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Gate;
@@ -24,6 +25,7 @@ class ExpensesPage extends Component
     use WithFileUploads;
     use WithPagination;
 
+    // Keep first render fast; data is loaded after the page is hydrated.
     public bool $readyToLoad = false;
 
     public string $search = '';
@@ -88,7 +90,13 @@ class ExpensesPage extends Component
     {
         $this->feedbackMessage = session('status');
         $this->form['expense_date'] = now()->toDateString();
-        $this->form['paid_by_user_id'] = auth()->id();
+        $this->form['paid_by_user_id'] = \Illuminate\Support\Facades\Auth::id();
+
+        // Supports deep-link navigation from reports/modules into a pre-filtered expense list.
+        $searchFromQuery = trim((string) request()->query('search', ''));
+        if ($searchFromQuery !== '') {
+            $this->search = $searchFromQuery;
+        }
     }
 
     public function loadData(): void
@@ -145,6 +153,12 @@ class ExpensesPage extends Component
      */
     public function openCreateModal(): void
     {
+        if (! $this->canManage) {
+            $this->feedbackError = 'You are not allowed to post direct expenses.';
+
+            return;
+        }
+
         Gate::authorize('create', Expense::class);
 
         $this->resetValidation();
@@ -254,16 +268,24 @@ class ExpensesPage extends Component
 
         try {
             if ($this->isEditing && $this->editingExpenseId) {
+                // Edit path keeps the current expense id and applies no-change/duplicate guardrails in action.
                 $expense = $this->findExpenseOrFail($this->editingExpenseId);
-                $updatedExpense = $updateExpense(auth()->user(), $expense, $payload);
+                $updatedExpense = $updateExpense(\Illuminate\Support\Facades\Auth::user(), $expense, $payload);
                 $this->setFeedback('Expense updated successfully.');
                 $this->attachUploadedFiles($uploadExpenseAttachment, $updatedExpense);
             } else {
-                $expense = $createExpense(auth()->user(), $payload);
+                // Create path generates a new expense code and posts immediately.
+                $expense = $createExpense(\Illuminate\Support\Facades\Auth::user(), $payload);
                 $this->setFeedback('Expense recorded successfully.');
                 $this->attachUploadedFiles($uploadExpenseAttachment, $expense);
             }
         } catch (ValidationException $exception) {
+            if (array_key_exists('authorization', $exception->errors())) {
+                $this->feedbackError = (string) ($exception->errors()['authorization'][0] ?? 'You are not allowed to save this expense.');
+
+                return;
+            }
+
             throw ValidationException::withMessages($this->normalizeValidationErrors($exception->errors()));
         } catch (Throwable) {
             $this->feedbackError = 'Unable to save expense. Please try again.';
@@ -285,8 +307,14 @@ class ExpensesPage extends Component
         $expense = $this->findExpenseOrFail($this->voidingExpenseId);
 
         try {
-            $voidExpense(auth()->user(), $expense, ['reason' => $this->voidReason]);
+            $voidExpense->__invoke(\Illuminate\Support\Facades\Auth::user(), $expense, ['reason' => $this->voidReason]);
         } catch (ValidationException $exception) {
+            if (array_key_exists('authorization', $exception->errors())) {
+                $this->feedbackError = (string) ($exception->errors()['authorization'][0] ?? 'You are not allowed to void this expense.');
+
+                return;
+            }
+
             throw ValidationException::withMessages($this->normalizeValidationErrors($exception->errors()));
         } catch (Throwable) {
             $this->feedbackError = 'Unable to void this expense now.';
@@ -305,7 +333,26 @@ class ExpensesPage extends Component
 
     public function getCanManageProperty(): bool
     {
-        return Gate::allows('create', Expense::class);
+        $user = \Illuminate\Support\Facades\Auth::user();
+        if (! $user) {
+            return false;
+        }
+
+        return app(ExpensePolicyResolver::class)->canCreateDirect($user)['allowed'];
+    }
+
+    public function getCanEditSelectedExpenseProperty(): bool
+    {
+        if (! $this->selectedExpenseId) {
+            return false;
+        }
+
+        $expense = Expense::query()->find($this->selectedExpenseId);
+        if (! $expense) {
+            return false;
+        }
+
+        return Gate::allows('update', $expense);
     }
 
     public function render(): View
@@ -324,8 +371,8 @@ class ExpensesPage extends Component
             ->limit(50)
             ->get(['id', 'name']);
 
-        $users = auth()->user()
-            ? auth()->user()->company->users()->where('is_active', true)->orderBy('name')->get(['id', 'name'])
+        $users = \Illuminate\Support\Facades\Auth::user()
+            ? \Illuminate\Support\Facades\Auth::user()->company->users()->where('is_active', true)->orderBy('name')->get(['id', 'name'])
             : collect();
 
         $expenses = $this->readyToLoad
@@ -344,6 +391,7 @@ class ExpensesPage extends Component
 
     private function expenseQuery()
     {
+        // Query powers table + summary cards; keep all filters in one place for consistency.
         return Expense::query()
             ->with(['department:id,name', 'vendor:id,name', 'creator:id,name'])
             ->when($this->search !== '', function ($query): void {
@@ -398,7 +446,7 @@ class ExpensesPage extends Component
             'amount' => '',
             'expense_date' => now()->toDateString(),
             'payment_method' => '',
-            'paid_by_user_id' => auth()->id() ?? '',
+            'paid_by_user_id' => \Illuminate\Support\Facades\Auth::id() ?? '',
         ];
         $this->vendorPickerSearch = '';
         $this->newAttachments = [];
@@ -428,7 +476,7 @@ class ExpensesPage extends Component
 
         foreach ($this->newAttachments as $file) {
             if ($file) {
-                $uploadExpenseAttachment(auth()->user(), $expense, $file);
+                $uploadExpenseAttachment(\Illuminate\Support\Facades\Auth::user(), $expense, $file);
             }
         }
 
@@ -498,6 +546,7 @@ class ExpensesPage extends Component
      */
     private function normalizeValidationErrors(array $errors): array
     {
+        // Map action-level field keys back to Livewire-bound input names.
         $mapped = [];
         $formFields = [
             'department_id',
@@ -561,6 +610,7 @@ class ExpensesPage extends Component
 
     private function fillViewExpenseData(Expense $expense): void
     {
+        // Normalize details for modal rendering so blade stays presentation-only.
         $this->viewExpense = [
             'id' => $expense->id,
             'expense_code' => $expense->expense_code,

@@ -4,11 +4,15 @@ namespace App\Actions\Requests;
 
 use App\Domains\Approvals\Models\RequestApproval;
 use App\Domains\Company\Models\CompanyCommunicationSetting;
+use App\Domains\Requests\Models\CompanyRequestPolicySetting;
+use App\Domains\Requests\Models\CompanyRequestType;
 use App\Domains\Requests\Models\SpendRequest;
 use App\Models\User;
 use App\Services\ActivityLogger;
 use App\Services\RequestApprovalSlaService;
+use App\Services\RequestBudgetGuardrail;
 use App\Services\RequestCommunicationLogger;
+use App\Services\RequestDuplicateDetector;
 use App\Services\RequestApprovalRouter;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -20,7 +24,9 @@ class SubmitSpendRequest
         private readonly ActivityLogger $activityLogger,
         private readonly RequestApprovalRouter $requestApprovalRouter,
         private readonly RequestCommunicationLogger $requestCommunicationLogger,
-        private readonly RequestApprovalSlaService $requestApprovalSlaService
+        private readonly RequestApprovalSlaService $requestApprovalSlaService,
+        private readonly RequestBudgetGuardrail $requestBudgetGuardrail,
+        private readonly RequestDuplicateDetector $requestDuplicateDetector
     ) {
     }
 
@@ -37,16 +43,142 @@ class SubmitSpendRequest
             ]);
         }
 
+        if ($this->requiresAttachments($request) && ! $request->attachments()->exists()) {
+            throw ValidationException::withMessages([
+                'attachments' => 'This request type requires at least one attachment before submission.',
+            ]);
+        }
+
         $workflow = $this->requestApprovalRouter->resolveActiveWorkflow($request);
-        $steps = $workflow?->steps()->where('is_active', true)->orderBy('step_order')->get() ?? collect();
+        $steps = $this->requestApprovalRouter->resolveApplicableSteps($request);
 
         if (! $workflow || $steps->isEmpty()) {
             throw ValidationException::withMessages([
-                'workflow' => 'No active approval workflow is configured for requests.',
+                'workflow' => 'No active approval workflow step applies to this request amount.',
             ]);
         }
 
         $firstStep = $steps->first();
+        $policy = CompanyRequestPolicySetting::query()
+            ->firstOrCreate(
+                ['company_id' => (int) $request->company_id],
+                array_merge(
+                    CompanyRequestPolicySetting::defaultAttributes(),
+                    ['created_by' => $user->id, 'updated_by' => $user->id]
+                )
+            );
+        $existingMetadata = (array) ($request->metadata ?? []);
+        $effectiveDate = ! empty($existingMetadata['needed_by']) ? (string) $existingMetadata['needed_by'] : null;
+        $budgetGuardrail = $this->requestBudgetGuardrail->evaluate(
+            companyId: (int) $request->company_id,
+            departmentId: (int) $request->department_id,
+            incomingAmount: (int) $request->amount,
+            effectiveDate: $effectiveDate
+        );
+
+        // Policy checks are advisory/blocking gates before workflow rows are generated.
+        $policyWarnings = [];
+        if ($budgetGuardrail['has_budget'] && $budgetGuardrail['is_exceeded']) {
+            if ((string) $policy->budget_guardrail_mode === CompanyRequestPolicySetting::BUDGET_MODE_BLOCK) {
+                $this->activityLogger->log(
+                    action: 'request.budget.blocked',
+                    entityType: SpendRequest::class,
+                    entityId: (int) $request->id,
+                    metadata: [
+                        'request_code' => (string) $request->request_code,
+                        'over_amount' => (int) $budgetGuardrail['over_amount'],
+                        'guardrail' => $budgetGuardrail,
+                    ],
+                    companyId: (int) $request->company_id,
+                    userId: $user->id,
+                );
+
+                throw ValidationException::withMessages([
+                    'amount' => sprintf(
+                        'Request exceeds department budget by NGN %s for this period.',
+                        number_format((int) $budgetGuardrail['over_amount'])
+                    ),
+                ]);
+            }
+
+            if ((string) $policy->budget_guardrail_mode === CompanyRequestPolicySetting::BUDGET_MODE_WARN) {
+                $policyWarnings[] = sprintf(
+                    'Budget warning: projected spend exceeds budget by NGN %s.',
+                    number_format((int) $budgetGuardrail['over_amount'])
+                );
+            }
+        }
+
+        $duplicateAnalysis = [
+            'risk' => 'none',
+            'matches' => [],
+        ];
+        if ((bool) $policy->duplicate_detection_enabled) {
+            $duplicateAnalysis = $this->requestDuplicateDetector->analyze(
+                companyId: (int) $request->company_id,
+                input: [
+                    'requested_by' => (int) $request->requested_by,
+                    'department_id' => (int) $request->department_id,
+                    'vendor_id' => $request->vendor_id ? (int) $request->vendor_id : null,
+                    'title' => (string) $request->title,
+                    'amount' => (int) $request->amount,
+                ],
+                excludeRequestId: (int) $request->id,
+                windowDays: (int) $policy->duplicate_window_days
+            );
+
+            if (($duplicateAnalysis['risk'] ?? 'none') !== 'none') {
+                $policyWarnings[] = sprintf(
+                    'Possible duplicate request found (%d match%s in last %d day%s).',
+                    count((array) ($duplicateAnalysis['matches'] ?? [])),
+                    count((array) ($duplicateAnalysis['matches'] ?? [])) === 1 ? '' : 'es',
+                    (int) $policy->duplicate_window_days,
+                    (int) $policy->duplicate_window_days === 1 ? '' : 's'
+                );
+            }
+        }
+
+        $policyChecks = [
+            'budget' => array_merge($budgetGuardrail, [
+                'mode' => (string) $policy->budget_guardrail_mode,
+            ]),
+            'duplicate' => [
+                'enabled' => (bool) $policy->duplicate_detection_enabled,
+                'window_days' => (int) $policy->duplicate_window_days,
+                'risk' => (string) ($duplicateAnalysis['risk'] ?? 'none'),
+                'matches_count' => count((array) ($duplicateAnalysis['matches'] ?? [])),
+                'matches' => (array) ($duplicateAnalysis['matches'] ?? []),
+            ],
+        ];
+
+        if ($budgetGuardrail['has_budget'] && $budgetGuardrail['is_exceeded'] && (string) $policy->budget_guardrail_mode === CompanyRequestPolicySetting::BUDGET_MODE_WARN) {
+            $this->activityLogger->log(
+                action: 'request.budget.warning',
+                entityType: SpendRequest::class,
+                entityId: (int) $request->id,
+                metadata: [
+                    'request_code' => (string) $request->request_code,
+                    'guardrail' => $budgetGuardrail,
+                ],
+                companyId: (int) $request->company_id,
+                userId: $user->id,
+            );
+        }
+
+        if (($duplicateAnalysis['risk'] ?? 'none') !== 'none') {
+            $this->activityLogger->log(
+                action: 'request.duplicate.warning',
+                entityType: SpendRequest::class,
+                entityId: (int) $request->id,
+                metadata: [
+                    'request_code' => (string) $request->request_code,
+                    'duplicate' => $policyChecks['duplicate'],
+                ],
+                companyId: (int) $request->company_id,
+                userId: $user->id,
+            );
+        }
+
         $organizationChannels = $this->organizationSelectableChannels((int) $request->company_id);
         $requestChannelOverride = $selectedChannels === null
             ? []
@@ -69,10 +201,13 @@ class SubmitSpendRequest
             ]);
         }
 
-        DB::transaction(function () use ($user, $request, $workflow, $steps, $firstStep, $organizationChannels, $requestChannelMode, $requestChannelOverride): void {
+        DB::transaction(function () use ($user, $request, $workflow, $steps, $firstStep, $organizationChannels, $requestChannelMode, $requestChannelOverride, $policyWarnings, $policyChecks): void {
+            // Persist request state and approval rows atomically to avoid half-submitted records.
             $metadata = array_merge((array) ($request->metadata ?? []), [
                 'channel_mode' => $requestChannelMode,
                 'notification_channels' => $requestChannelOverride,
+                'policy_warnings' => array_values($policyWarnings),
+                'policy_checks' => $policyChecks,
             ]);
             $request->forceFill([
                 'workflow_id' => $workflow->id,
@@ -109,6 +244,7 @@ class SubmitSpendRequest
                     [
                         'workflow_step_id' => $step->id,
                         'step_key' => $step->step_key,
+                        // Only the first applicable step starts pending; later steps wait in queued state.
                         'status' => $isFirstStep ? 'pending' : 'queued',
                         'action' => null,
                         'acted_by' => null,
@@ -138,6 +274,8 @@ class SubmitSpendRequest
                 'workflow_name' => $workflow->name,
                 'initial_step_order' => (int) $firstStep->step_order,
                 'initial_step_key' => $firstStep->step_key,
+                'policy_warnings_count' => count($policyWarnings),
+                'policy_checks' => $policyChecks,
             ],
             companyId: (int) $request->company_id,
             userId: $user->id,
@@ -182,6 +320,23 @@ class SubmitSpendRequest
             );
 
         return $settings->selectableChannels();
+    }
+
+    private function requiresAttachments(SpendRequest $request): bool
+    {
+        $metadata = (array) ($request->metadata ?? []);
+        $typeCode = trim((string) ($metadata['request_type_code'] ?? $metadata['type'] ?? ''));
+        if ($typeCode === '') {
+            return false;
+        }
+
+        $type = CompanyRequestType::query()
+            ->where('company_id', (int) $request->company_id)
+            ->where('code', strtolower($typeCode))
+            ->where('is_active', true)
+            ->first();
+
+        return (bool) ($type?->requires_attachments ?? false);
     }
 
     /**

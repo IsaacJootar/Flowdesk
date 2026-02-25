@@ -20,9 +20,13 @@ use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Livewire\Attributes\Layout;
+use Livewire\Attributes\Title;
 use Livewire\Component;
 use Throwable;
 
+#[Layout('layouts.app')]
+#[Title('Organization Hierarchy')]
 class OrganizationHierarchyPage extends Component
 {
     public ?string $feedbackMessage = null;
@@ -86,7 +90,7 @@ class OrganizationHierarchyPage extends Component
         $this->authorizeOwner();
 
         try {
-            $department = $createDepartment(auth()->user(), [
+            $department = $createDepartment(\Illuminate\Support\Facades\Auth::user(), [
                 'name' => $this->departmentForm['name'],
                 'code' => $this->departmentForm['code'] ?: null,
                 'manager_user_id' => $this->departmentForm['manager_user_id'] !== ''
@@ -113,7 +117,7 @@ class OrganizationHierarchyPage extends Component
         $department = Department::query()->findOrFail($departmentId);
 
         try {
-            $assignDepartmentManager(auth()->user(), $department, [
+            $assignDepartmentManager(\Illuminate\Support\Facades\Auth::user(), $department, [
                 'manager_user_id' => ($this->departmentManagers[$departmentId] ?? '') !== ''
                     ? (int) $this->departmentManagers[$departmentId]
                     : null,
@@ -135,7 +139,7 @@ class OrganizationHierarchyPage extends Component
         $this->authorizeOwner();
 
         try {
-            $createCompanyUser(auth()->user(), [
+            $createCompanyUser(\Illuminate\Support\Facades\Auth::user(), [
                 'name' => $this->newUserForm['name'],
                 'email' => $this->newUserForm['email'],
                 'phone' => $this->newUserForm['phone'] ?: null,
@@ -184,7 +188,7 @@ class OrganizationHierarchyPage extends Component
         }
 
         try {
-            $updateCompanyUserAssignment(auth()->user(), $subject, [
+            $updateCompanyUserAssignment(\Illuminate\Support\Facades\Auth::user(), $subject, [
                 'role' => $payload['role'],
                 'department_id' => (int) $payload['department_id'],
                 'reports_to_user_id' => $payload['reports_to_user_id'] !== '' ? (int) $payload['reports_to_user_id'] : null,
@@ -207,7 +211,7 @@ class OrganizationHierarchyPage extends Component
         $this->authorizeOwner();
 
         try {
-            $workflow = $createApprovalWorkflow(auth()->user(), [
+            $workflow = $createApprovalWorkflow(\Illuminate\Support\Facades\Auth::user(), [
                 'name' => $this->workflowForm['name'],
                 'code' => $this->workflowForm['code'] ?: null,
                 'description' => $this->workflowForm['description'] ?: null,
@@ -239,7 +243,7 @@ class OrganizationHierarchyPage extends Component
         SetApprovalWorkflowDefault $setApprovalWorkflowDefault
     ): void {
         $this->authorizeOwner();
-        $owner = auth()->user();
+        $owner = \Illuminate\Support\Facades\Auth::user();
         $presetCode = 'preset_standard_request_2step';
         $presetName = 'Standard Request Approval';
 
@@ -379,7 +383,7 @@ class OrganizationHierarchyPage extends Component
         $stepKey = $this->defaultStepKeyForApproverSource($approverSource, $approverValue);
 
         try {
-            $addApprovalWorkflowStep(auth()->user(), $workflow, [
+            $addApprovalWorkflowStep(\Illuminate\Support\Facades\Auth::user(), $workflow, [
                 'step_order' => null,
                 'step_key' => $stepKey,
                 'actor_type' => $approverSource,
@@ -436,7 +440,7 @@ class OrganizationHierarchyPage extends Component
         $workflow = ApprovalWorkflow::query()->findOrFail($workflowId);
 
         try {
-            $setApprovalWorkflowDefault(auth()->user(), $workflow);
+            $setApprovalWorkflowDefault(\Illuminate\Support\Facades\Auth::user(), $workflow);
         } catch (Throwable $exception) {
             report($exception);
             $this->setFeedbackError('Unable to set default workflow.');
@@ -453,7 +457,7 @@ class OrganizationHierarchyPage extends Component
         $workflow = ApprovalWorkflow::query()->findOrFail($workflowId);
 
         try {
-            $deleteApprovalWorkflow(auth()->user(), $workflow);
+            $deleteApprovalWorkflow(\Illuminate\Support\Facades\Auth::user(), $workflow);
         } catch (ValidationException $exception) {
             $errors = $exception->errors();
             $this->setFeedbackError((string) ($errors['workflow'][0] ?? 'Unable to delete workflow.'));
@@ -479,7 +483,7 @@ class OrganizationHierarchyPage extends Component
         SetApprovalWorkflowDefault $setApprovalWorkflowDefault
     ): void {
         $this->authorizeOwner();
-        $owner = auth()->user();
+        $owner = \Illuminate\Support\Facades\Auth::user();
 
         $workflows = ApprovalWorkflow::query()
             ->with(['steps' => fn ($query) => $query->where('is_active', true)->orderBy('step_order')])
@@ -604,9 +608,6 @@ class OrganizationHierarchyPage extends Component
             'users' => $users,
             'workflows' => $workflows,
             'roles' => UserRole::values(),
-        ])->layout('layouts.app', [
-            'title' => 'Organization Hierarchy',
-            'subtitle' => 'Manage departments, reporting lines, role ownership, and approval chains',
         ]);
     }
 
@@ -651,7 +652,7 @@ class OrganizationHierarchyPage extends Component
 
     private function authorizeOwner(): void
     {
-        if (! auth()->check() || auth()->user()->role !== UserRole::Owner->value) {
+        if (! \Illuminate\Support\Facades\Auth::check() || \Illuminate\Support\Facades\Auth::user()->role !== UserRole::Owner->value) {
             throw new AuthorizationException('Only admin (owner) can manage organization hierarchy settings.');
         }
     }
@@ -707,6 +708,7 @@ class OrganizationHierarchyPage extends Component
     private function normalizeStepOrdersAndLabels(): void
     {
         app(ApprovalWorkflowStepOrderService::class)
-            ->normalizeCompanyRequestWorkflows((int) auth()->user()->company_id);
+            ->normalizeCompanyRequestWorkflows((int) \Illuminate\Support\Facades\Auth::user()->company_id);
     }
 }
+

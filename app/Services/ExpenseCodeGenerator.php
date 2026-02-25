@@ -8,6 +8,7 @@ class ExpenseCodeGenerator
 {
     public function generateForCompany(int $companyId): string
     {
+        // Sequence is company-scoped; bypass global scope to avoid tenant context leakage.
         $latestCode = Expense::query()
             ->withoutGlobalScope('company')
             ->where('company_id', $companyId)

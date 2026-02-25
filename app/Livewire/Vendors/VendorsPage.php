@@ -3,22 +3,38 @@
 namespace App\Livewire\Vendors;
 
 use App\Actions\Vendors\CreateVendor;
+use App\Actions\Vendors\CreateVendorInvoice;
 use App\Actions\Vendors\DeleteVendor;
+use App\Actions\Vendors\RecordVendorInvoicePayment;
+use App\Actions\Vendors\UploadVendorInvoiceAttachment;
+use App\Actions\Vendors\UploadVendorInvoicePaymentAttachment;
 use App\Actions\Vendors\UpdateVendor;
+use App\Actions\Vendors\UpdateVendorInvoice;
+use App\Actions\Vendors\VoidVendorInvoice;
 use App\Domains\Expenses\Models\Expense;
+use App\Domains\Vendors\Models\VendorCommunicationLog;
 use App\Domains\Vendors\Models\Vendor;
+use App\Domains\Vendors\Models\VendorInvoice;
+use App\Domains\Vendors\Models\VendorInvoicePayment;
+use App\Domains\Company\Models\CompanyCommunicationSetting;
+use App\Services\VendorCommunicationLogger;
+use App\Services\VendorCommunicationRetryService;
 use App\Services\VendorPaymentInsights;
+use App\Services\VendorReminderService;
 use Throwable;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\View\View;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 use Livewire\WithPagination;
 
 class VendorsPage extends Component
 {
+    use WithFileUploads;
     use WithPagination;
 
     public bool $readyToLoad = false;
@@ -35,11 +51,25 @@ class VendorsPage extends Component
 
     public bool $showDetailPanel = false;
 
+    public bool $showInvoiceModal = false;
+
+    public bool $showPaymentModal = false;
+
+    public bool $showVoidInvoiceModal = false;
+
     public bool $isEditing = false;
+
+    public bool $isEditingInvoice = false;
 
     public ?int $editingVendorId = null;
 
     public ?int $selectedVendorId = null;
+
+    public ?int $editingInvoiceId = null;
+
+    public ?int $payingInvoiceId = null;
+
+    public ?int $voidingInvoiceId = null;
 
     public ?string $feedbackMessage = null;
 
@@ -53,8 +83,51 @@ class VendorsPage extends Component
 
     public ?string $vendorLastPaymentDate = null;
 
+    public string $invoiceSearch = '';
+
+    public string $invoiceStatusFilter = 'all';
+
+    public string $voidInvoiceReason = '';
+
+    public int $vendorTotalInvoiced = 0;
+
+    public int $vendorTotalInvoicePaid = 0;
+
+    public int $vendorOutstandingBalance = 0;
+
+    public int $vendorInvoicesCount = 0;
+
+    public int $vendorUnpaidInvoicesCount = 0;
+
+    public int $vendorPartPaidInvoicesCount = 0;
+
+    public int $vendorPartPaymentsCount = 0;
+
+    public int $vendorPaidInvoicesCount = 0;
+
+    public int $vendorOverdueInvoicesCount = 0;
+
+    public string $statementDateFrom = '';
+
+    public string $statementDateTo = '';
+
+    public string $statementInvoiceStatus = 'all';
+
+    public int $reminderDaysAhead = 0;
+
+    /**
+     * Keep untyped so temporary empty-string edits do not break Livewire hydration.
+     */
+    public $vendorCommQueuedOlderThanMinutes = 2;
+
     /** @var array<int, array<string, mixed>> */
     public array $vendorRecentPayments = [];
+
+    /** @var array<int, array<string, mixed>> */
+    public array $vendorInvoices = [];
+
+    /** @var array<int, array<string, mixed>> */
+    public array $vendorStatementTimeline = [];
 
     /** @var array<string, mixed> */
     public array $form = [
@@ -71,9 +144,39 @@ class VendorsPage extends Component
         'is_active' => true,
     ];
 
+    /** @var array<string, mixed> */
+    public array $invoiceForm = [
+        'invoice_number' => '',
+        'invoice_date' => '',
+        'due_date' => '',
+        'total_amount' => '',
+        'description' => '',
+        'notes' => '',
+    ];
+
+    /** @var array<string, mixed> */
+    public array $paymentForm = [
+        'amount' => '',
+        'payment_date' => '',
+        'payment_method' => '',
+        'payment_reference' => '',
+        'notes' => '',
+    ];
+
+    /** @var array<int, mixed> */
+    public array $newInvoiceAttachments = [];
+
+    /** @var array<int, mixed> */
+    public array $newPaymentAttachments = [];
+
     public function mount(): void
     {
+        $user = \Illuminate\Support\Facades\Auth::user();
+        abort_unless($user && Gate::forUser($user)->allows('viewAny', Vendor::class), 403);
+
         $this->feedbackMessage = session('status');
+        $this->invoiceForm['invoice_date'] = now()->toDateString();
+        $this->paymentForm['payment_date'] = now()->toDateString();
     }
 
     public function loadData(): void
@@ -103,6 +206,15 @@ class VendorsPage extends Component
         }
 
         $this->resetPage();
+    }
+
+    public function updatedVendorCommQueuedOlderThanMinutes(mixed $value): void
+    {
+        if ($value === null || $value === '') {
+            return;
+        }
+
+        $this->vendorCommQueuedOlderThanMinutes = max(0, (int) $value);
     }
 
     public function updated(string $propertyName, mixed $value = null): void
@@ -160,6 +272,15 @@ class VendorsPage extends Component
     {
         $this->showDetailPanel = false;
         $this->selectedVendorId = null;
+        $this->invoiceSearch = '';
+        $this->invoiceStatusFilter = 'all';
+        $this->statementDateFrom = '';
+        $this->statementDateTo = '';
+        $this->statementInvoiceStatus = 'all';
+        $this->reminderDaysAhead = 0;
+        $this->closeInvoiceModal();
+        $this->closePaymentModal();
+        $this->closeVoidInvoiceModal();
         $this->resetVendorInsights();
     }
 
@@ -169,6 +290,31 @@ class VendorsPage extends Component
         $this->resetForm();
         $this->isEditing = false;
         $this->editingVendorId = null;
+        $this->resetValidation();
+    }
+
+    public function closeInvoiceModal(): void
+    {
+        $this->showInvoiceModal = false;
+        $this->isEditingInvoice = false;
+        $this->editingInvoiceId = null;
+        $this->resetInvoiceForm();
+        $this->resetValidation();
+    }
+
+    public function closePaymentModal(): void
+    {
+        $this->showPaymentModal = false;
+        $this->payingInvoiceId = null;
+        $this->resetPaymentForm();
+        $this->resetValidation();
+    }
+
+    public function closeVoidInvoiceModal(): void
+    {
+        $this->showVoidInvoiceModal = false;
+        $this->voidingInvoiceId = null;
+        $this->voidInvoiceReason = '';
         $this->resetValidation();
     }
 
@@ -183,10 +329,10 @@ class VendorsPage extends Component
         try {
             if ($this->isEditing && $this->editingVendorId) {
                 $vendor = $this->findVendorOrFail($this->editingVendorId);
-                $updateVendor(auth()->user(), $vendor, $this->formPayload());
+                $updateVendor(\Illuminate\Support\Facades\Auth::user(), $vendor, $this->formPayload());
                 $this->setFeedback('Vendor updated successfully.');
             } else {
-                $createVendor(auth()->user(), $this->formPayload());
+                $createVendor(\Illuminate\Support\Facades\Auth::user(), $this->formPayload());
                 $this->setFeedback('Vendor created successfully.');
             }
         } catch (ValidationException $exception) {
@@ -214,7 +360,7 @@ class VendorsPage extends Component
     public function delete(int $vendorId, DeleteVendor $deleteVendor): void
     {
         $vendor = $this->findVendorOrFail($vendorId);
-        $deleteVendor(auth()->user(), $vendor);
+        $deleteVendor(\Illuminate\Support\Facades\Auth::user(), $vendor);
 
         if ($this->selectedVendorId === $vendorId) {
             $this->closeDetailPanel();
@@ -224,9 +370,249 @@ class VendorsPage extends Component
         $this->resetPage();
     }
 
-    public function getCanManageProperty(): bool
+    public function openCreateInvoiceModal(): void
+    {
+        $vendor = $this->selectedVendor;
+        if (! $vendor) {
+            return;
+        }
+
+        Gate::authorize('manageInvoices', $vendor);
+        $this->feedbackError = null;
+        $this->resetValidation();
+        $this->isEditingInvoice = false;
+        $this->editingInvoiceId = null;
+        $this->resetInvoiceForm();
+        $this->showInvoiceModal = true;
+    }
+
+    public function openEditInvoiceModal(int $invoiceId): void
+    {
+        $invoice = $this->findSelectedVendorInvoiceOrFail($invoiceId);
+        Gate::authorize('manageInvoices', $invoice->vendor);
+
+        $this->feedbackError = null;
+        $this->resetValidation();
+        $this->isEditingInvoice = true;
+        $this->editingInvoiceId = $invoice->id;
+        $this->invoiceForm = [
+            'invoice_number' => (string) $invoice->invoice_number,
+            'invoice_date' => optional($invoice->invoice_date)->toDateString() ?? now()->toDateString(),
+            'due_date' => optional($invoice->due_date)->toDateString() ?? '',
+            'total_amount' => (string) ((int) $invoice->total_amount),
+            'description' => (string) ($invoice->description ?? ''),
+            'notes' => (string) ($invoice->notes ?? ''),
+        ];
+        $this->showInvoiceModal = true;
+    }
+
+    public function saveInvoice(
+        CreateVendorInvoice $createVendorInvoice,
+        UpdateVendorInvoice $updateVendorInvoice,
+        UploadVendorInvoiceAttachment $uploadVendorInvoiceAttachment
+    ): void
+    {
+        $vendor = $this->selectedVendor;
+        if (! $vendor) {
+            return;
+        }
+
+        Gate::authorize('manageInvoices', $vendor);
+        $this->feedbackError = null;
+        $this->validate($this->invoiceRules(), $this->invoiceMessages());
+
+        try {
+            if ($this->isEditingInvoice && $this->editingInvoiceId) {
+                $invoice = $this->findSelectedVendorInvoiceOrFail($this->editingInvoiceId);
+                $updateVendorInvoice(\Illuminate\Support\Facades\Auth::user(), $invoice, $this->invoicePayload());
+                $this->attachInvoiceUploadedFiles($uploadVendorInvoiceAttachment, $invoice);
+                $this->setFeedback('Vendor invoice updated.');
+            } else {
+                $invoice = $createVendorInvoice(\Illuminate\Support\Facades\Auth::user(), $vendor, $this->invoicePayload());
+                $this->attachInvoiceUploadedFiles($uploadVendorInvoiceAttachment, $invoice);
+                $this->setFeedback('Vendor invoice created.');
+            }
+        } catch (ValidationException $exception) {
+            throw ValidationException::withMessages($this->normalizeValidationErrors($exception->errors()));
+        } catch (Throwable) {
+            $this->setFeedbackError('Unable to save invoice right now.');
+            return;
+        }
+
+        $this->closeInvoiceModal();
+        $this->refreshSelectedVendorInsights();
+    }
+
+    public function openPaymentModal(int $invoiceId): void
+    {
+        $invoice = $this->findSelectedVendorInvoiceOrFail($invoiceId);
+        Gate::authorize('recordPayments', $invoice->vendor);
+
+        $this->feedbackError = null;
+        $this->resetValidation();
+        $this->payingInvoiceId = $invoice->id;
+        $this->resetPaymentForm();
+        $this->paymentForm['amount'] = (string) ((int) $invoice->outstanding_amount);
+        $this->showPaymentModal = true;
+    }
+
+    public function recordInvoicePayment(
+        RecordVendorInvoicePayment $recordVendorInvoicePayment,
+        UploadVendorInvoicePaymentAttachment $uploadVendorInvoicePaymentAttachment,
+        VendorCommunicationLogger $vendorCommunicationLogger
+    ): void
+    {
+        if (! $this->payingInvoiceId) {
+            return;
+        }
+
+        $invoice = $this->findSelectedVendorInvoiceOrFail($this->payingInvoiceId);
+        Gate::authorize('recordPayments', $invoice->vendor);
+
+        $this->feedbackError = null;
+        $this->validate($this->paymentRules(), $this->paymentMessages());
+
+        $payment = null;
+        try {
+            $payment = $recordVendorInvoicePayment(\Illuminate\Support\Facades\Auth::user(), $invoice, $this->paymentPayload());
+            $this->attachPaymentUploadedFiles($uploadVendorInvoicePaymentAttachment, $payment);
+        } catch (ValidationException $exception) {
+            throw ValidationException::withMessages($this->normalizeValidationErrors($exception->errors()));
+        } catch (Throwable) {
+            $this->setFeedbackError('Unable to record invoice payment right now.');
+            return;
+        }
+
+        $this->setFeedback('Invoice payment recorded.');
+        $this->closePaymentModal();
+        $this->refreshSelectedVendorInsights();
+
+        if ($payment) {
+            $invoice->refresh();
+            $vendorCommunicationLogger->queueVendorPaymentEvent(
+                $invoice,
+                'vendor.invoice.payment_recorded',
+                [
+                    CompanyCommunicationSetting::CHANNEL_EMAIL,
+                    CompanyCommunicationSetting::CHANNEL_SMS,
+                ],
+                'Payment update queued.',
+                null,
+                [
+                    'invoice_number' => (string) $invoice->invoice_number,
+                    'payment_amount' => (int) $payment->amount,
+                    'payment_date' => optional($payment->payment_date)->toDateString(),
+                    'payment_reference' => (string) ($payment->payment_reference ?? ''),
+                    'outstanding_after_payment' => (int) $invoice->outstanding_amount,
+                    'currency' => strtoupper((string) ($invoice->currency ?: 'NGN')),
+                ]
+            );
+
+            $vendorCommunicationLogger->queueFinanceTeamEvent(
+                $invoice,
+                'vendor.internal.payment_recorded',
+                [
+                    CompanyCommunicationSetting::CHANNEL_IN_APP,
+                    CompanyCommunicationSetting::CHANNEL_EMAIL,
+                ],
+                'Internal finance notification queued.',
+                null,
+                [
+                    'invoice_number' => (string) $invoice->invoice_number,
+                    'payment_amount' => (int) $payment->amount,
+                    'payment_date' => optional($payment->payment_date)->toDateString(),
+                    'payment_reference' => (string) ($payment->payment_reference ?? ''),
+                    'outstanding_after_payment' => (int) $invoice->outstanding_amount,
+                    'currency' => strtoupper((string) ($invoice->currency ?: 'NGN')),
+                ]
+            );
+        }
+    }
+
+    public function openVoidInvoiceModal(int $invoiceId): void
+    {
+        $invoice = $this->findSelectedVendorInvoiceOrFail($invoiceId);
+        Gate::authorize('manageInvoices', $invoice->vendor);
+
+        $this->feedbackError = null;
+        $this->resetValidation();
+        $this->voidingInvoiceId = $invoice->id;
+        $this->voidInvoiceReason = '';
+        $this->showVoidInvoiceModal = true;
+    }
+
+    public function submitVoidInvoice(VoidVendorInvoice $voidVendorInvoice): void
+    {
+        if (! $this->voidingInvoiceId) {
+            return;
+        }
+
+        $invoice = $this->findSelectedVendorInvoiceOrFail($this->voidingInvoiceId);
+        Gate::authorize('manageInvoices', $invoice->vendor);
+        try {
+            $voidVendorInvoice(\Illuminate\Support\Facades\Auth::user(), $invoice, ['reason' => $this->voidInvoiceReason]);
+        } catch (ValidationException $exception) {
+            throw ValidationException::withMessages($this->normalizeValidationErrors($exception->errors()));
+        } catch (Throwable) {
+            $this->setFeedbackError('Unable to void invoice right now.');
+            return;
+        }
+
+        $this->setFeedback('Vendor invoice voided.');
+        $this->closeVoidInvoiceModal();
+        $this->refreshSelectedVendorInsights();
+    }
+
+    public function getCanCreateVendorProperty(): bool
     {
         return Gate::allows('create', Vendor::class);
+    }
+
+    public function getCanManageVendorProfileProperty(): bool
+    {
+        $vendor = $this->selectedVendor;
+        if (! $vendor) {
+            return false;
+        }
+
+        return Gate::allows('update', $vendor) || Gate::allows('delete', $vendor);
+    }
+
+    public function getCanManageVendorFinanceProperty(): bool
+    {
+        $vendor = $this->selectedVendor;
+
+        return $vendor ? Gate::allows('manageInvoices', $vendor) : false;
+    }
+
+    public function getCanRecordVendorPaymentsProperty(): bool
+    {
+        $vendor = $this->selectedVendor;
+
+        return $vendor ? Gate::allows('recordPayments', $vendor) : false;
+    }
+
+    public function getCanManageVendorCommunicationsProperty(): bool
+    {
+        $vendor = $this->selectedVendor;
+
+        return $vendor ? Gate::allows('manageCommunications', $vendor) : false;
+    }
+
+    public function getCanExportVendorStatementsProperty(): bool
+    {
+        $vendor = $this->selectedVendor;
+
+        return $vendor ? Gate::allows('exportStatements', $vendor) : false;
+    }
+
+    public function getCanManageProperty(): bool
+    {
+        // Legacy aggregate flag kept for older template branches that still read canManage.
+        return $this->canManageVendorProfile
+            || $this->canManageVendorFinance
+            || $this->canRecordVendorPayments
+            || $this->canManageVendorCommunications;
     }
 
     public function getSelectedVendorProperty(): ?Vendor
@@ -238,6 +624,169 @@ class VendorsPage extends Component
         return Vendor::query()->find($this->selectedVendorId);
     }
 
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    public function getVendorCommunicationLogsProperty(): array
+    {
+        if (! $this->selectedVendorId) {
+            return [];
+        }
+
+        return VendorCommunicationLog::query()
+            ->where('vendor_id', (int) $this->selectedVendorId)
+            ->with(['invoice:id,invoice_number', 'recipient:id,name,email'])
+            ->latest('id')
+            ->limit(20)
+            ->get()
+            ->map(fn (VendorCommunicationLog $log): array => [
+                'id' => (int) $log->id,
+                'event' => (string) $log->event,
+                'event_label' => $this->vendorCommunicationEventLabel((string) $log->event),
+                'audience' => (int) ($log->recipient_user_id ?? 0) > 0 ? 'internal_finance' : 'vendor_external',
+                'channel' => (string) $log->channel,
+                'status' => (string) $log->status,
+                'invoice_number' => (string) ($log->invoice?->invoice_number ?? '-'),
+                'recipient' => (string) ($log->recipient?->name ?: $log->recipient_email ?: $log->recipient_phone ?: 'Vendor contact'),
+                'message' => (string) ($log->message ?? ''),
+                'created_at' => optional($log->created_at)->format('M d, Y H:i'),
+                'sent_at' => optional($log->sent_at)->format('M d, Y H:i'),
+            ])
+            ->all();
+    }
+
+    /**
+     * @return array{failed:int,queued_stuck:int}
+     */
+    public function getVendorCommunicationSummaryProperty(): array
+    {
+        if (! $this->selectedVendorId) {
+            return ['failed' => 0, 'queued_stuck' => 0];
+        }
+
+        $vendorId = (int) $this->selectedVendorId;
+        $cutoff = now()->subMinutes(max(0, (int) $this->vendorCommQueuedOlderThanMinutes));
+
+        return [
+            'failed' => VendorCommunicationLog::query()
+                ->where('vendor_id', $vendorId)
+                ->where('status', 'failed')
+                ->count(),
+            'queued_stuck' => VendorCommunicationLog::query()
+                ->where('vendor_id', $vendorId)
+                ->where('status', 'queued')
+                ->where('created_at', '<=', $cutoff)
+                ->count(),
+        ];
+    }
+
+    public function sendDueInvoiceReminders(VendorReminderService $vendorReminderService): void
+    {
+        $vendor = $this->selectedVendor;
+        if (! $vendor) {
+            return;
+        }
+
+        Gate::authorize('manageCommunications', $vendor);
+        $this->feedbackError = null;
+
+        $this->validate([
+            'reminderDaysAhead' => ['required', 'integer', 'min:0', 'max:30'],
+        ]);
+
+        $stats = $vendorReminderService->dispatchDueInvoiceReminders(
+            companyId: (int) $vendor->company_id,
+            vendorId: (int) $vendor->id,
+            daysAhead: (int) $this->reminderDaysAhead
+        );
+
+        $this->setFeedback(
+            "Reminders queued: {$stats['queued']} (scanned {$stats['scanned']}, duplicates {$stats['duplicates']}, missing finance contacts {$stats['missing_recipient']})."
+        );
+    }
+
+    public function retryVendorCommunication(int $logId, VendorCommunicationRetryService $retryService): void
+    {
+        $vendor = $this->selectedVendor;
+        if (! $vendor) {
+            return;
+        }
+
+        Gate::authorize('manageCommunications', $vendor);
+        $log = VendorCommunicationLog::query()
+            ->where('vendor_id', (int) $vendor->id)
+            ->find($logId);
+
+        if (! $log) {
+            $this->setFeedbackError('Communication log not found.');
+
+            return;
+        }
+
+        $after = $retryService->retryLog($log);
+        $this->setFeedback('Retry completed with status: '.strtoupper((string) $after->status).'.');
+    }
+
+    public function retryFailedVendorCommunications(VendorCommunicationRetryService $retryService): void
+    {
+        $vendor = $this->selectedVendor;
+        if (! $vendor) {
+            return;
+        }
+
+        Gate::authorize('manageCommunications', $vendor);
+        $stats = $retryService->retryFailed(
+            companyId: (int) $vendor->company_id,
+            vendorId: (int) $vendor->id,
+            batchSize: 200
+        );
+
+        $this->setFeedback(
+            "Vendor retries done. Retried {$stats['retried']}, sent {$stats['sent']}, failed {$stats['failed']}, skipped {$stats['skipped']}."
+        );
+    }
+
+    public function processQueuedVendorCommunications(VendorCommunicationRetryService $retryService): void
+    {
+        $vendor = $this->selectedVendor;
+        if (! $vendor) {
+            return;
+        }
+
+        Gate::authorize('manageCommunications', $vendor);
+        $olderThan = max(0, (int) $this->vendorCommQueuedOlderThanMinutes);
+        $stats = $retryService->processStuckQueued(
+            companyId: (int) $vendor->company_id,
+            vendorId: (int) $vendor->id,
+            olderThanMinutes: $olderThan,
+            batchSize: 500
+        );
+
+        $this->setFeedback(
+            "Vendor queued processing done. Processed {$stats['processed']}, sent {$stats['sent']}, failed {$stats['failed']}, skipped {$stats['skipped']}, remaining queued {$stats['remaining_queued']}."
+        );
+    }
+
+    public function vendorStatementCsvUrl(int $vendorId): string
+    {
+        return route('vendors.statement.export.csv', [
+            'vendor' => $vendorId,
+            'from' => $this->statementDateFrom ?: null,
+            'to' => $this->statementDateTo ?: null,
+            'invoice_status' => $this->statementInvoiceStatus,
+        ]);
+    }
+
+    public function vendorStatementPrintUrl(int $vendorId): string
+    {
+        return route('vendors.statement.print', [
+            'vendor' => $vendorId,
+            'from' => $this->statementDateFrom ?: null,
+            'to' => $this->statementDateTo ?: null,
+            'invoice_status' => $this->statementInvoiceStatus,
+        ]);
+    }
+
     public function render(): View
     {
         $vendors = $this->readyToLoad
@@ -247,6 +796,8 @@ class VendorsPage extends Component
         return view('livewire.vendors.vendors-page', [
             'vendors' => $vendors,
             'vendorTypes' => ['supplier', 'contractor', 'service', 'other'],
+            'invoiceStatuses' => VendorInvoice::DISPLAY_STATUSES,
+            'paymentMethods' => ['cash', 'transfer', 'pos', 'online', 'cheque'],
         ]);
     }
 
@@ -375,6 +926,91 @@ class VendorsPage extends Component
                 ];
             })
             ->all();
+
+        $this->vendorTotalInvoiced = (int) ($insights['total_invoiced'] ?? 0);
+        $this->vendorTotalInvoicePaid = (int) ($insights['total_invoice_paid'] ?? 0);
+        $this->vendorOutstandingBalance = (int) ($insights['total_outstanding'] ?? 0);
+        $this->vendorInvoicesCount = (int) ($insights['invoices_count'] ?? 0);
+
+        $this->vendorInvoices = $insights['invoices']
+            ->map(function (VendorInvoice $invoice): array {
+                $displayStatus = $this->resolveInvoiceDisplayStatus($invoice);
+                $dueMeta = $this->resolveInvoiceDueMeta($invoice, $displayStatus);
+
+                return [
+                    'id' => (int) $invoice->id,
+                    'invoice_number' => (string) $invoice->invoice_number,
+                    'invoice_date' => optional($invoice->invoice_date)->format('M d, Y'),
+                    'invoice_date_sort' => optional($invoice->invoice_date)->toDateString(),
+                    'due_date' => optional($invoice->due_date)->format('M d, Y'),
+                    'currency' => (string) ($invoice->currency ?: 'NGN'),
+                    'total_amount' => (int) $invoice->total_amount,
+                    'paid_amount' => (int) $invoice->paid_amount,
+                    'outstanding_amount' => (int) $invoice->outstanding_amount,
+                    'status' => (string) $invoice->status,
+                    'display_status' => $displayStatus,
+                    'due_countdown' => $dueMeta['due_countdown'],
+                    'due_days_delta' => $dueMeta['due_days_delta'],
+                    'is_overdue' => $displayStatus === VendorInvoice::STATUS_OVERDUE,
+                    'description' => (string) ($invoice->description ?? ''),
+                    'notes' => (string) ($invoice->notes ?? ''),
+                    'payment_count' => (int) $invoice->payments->count(),
+                    'attachments' => $invoice->attachments
+                        ->map(fn ($attachment): array => [
+                            'id' => (int) $attachment->id,
+                            'original_name' => (string) $attachment->original_name,
+                            'mime_type' => strtoupper((string) $attachment->mime_type),
+                            'file_size_kb' => number_format(((int) $attachment->file_size) / 1024, 1),
+                            'uploaded_at' => optional($attachment->uploaded_at)->format('M d, Y H:i'),
+                        ])
+                        ->all(),
+                    'attachment_count' => (int) $invoice->attachments->count(),
+                    'payment_attachment_count' => (int) $invoice->payments->sum(
+                        fn (VendorInvoicePayment $payment): int => (int) $payment->attachments->count()
+                    ),
+                    'can_receive_payment' => (string) $invoice->status !== VendorInvoice::STATUS_VOID
+                        && (int) $invoice->outstanding_amount > 0,
+                ];
+            })
+            ->all();
+
+        $invoiceCollection = collect($this->vendorInvoices);
+        $this->vendorUnpaidInvoicesCount = (int) $invoiceCollection
+            ->where('display_status', VendorInvoice::STATUS_UNPAID)
+            ->count();
+        $this->vendorPartPaidInvoicesCount = (int) $invoiceCollection
+            ->where('display_status', VendorInvoice::STATUS_PART_PAID)
+            ->count();
+        // Count part-payment transactions (not just invoice rows) so repeated
+        // partial payments on the same invoice are visible in the summary badge.
+        $this->vendorPartPaymentsCount = (int) $invoiceCollection
+            ->where('display_status', VendorInvoice::STATUS_PART_PAID)
+            ->sum(fn (array $invoice): int => max(
+                (int) ($invoice['payment_count'] ?? 0),
+                ((int) ($invoice['paid_amount'] ?? 0) > 0 ? 1 : 0)
+            ));
+        $this->vendorOverdueInvoicesCount = (int) $invoiceCollection
+            ->where('display_status', VendorInvoice::STATUS_OVERDUE)
+            ->count();
+        $this->vendorPaidInvoicesCount = (int) $invoiceCollection
+            ->where('display_status', VendorInvoice::STATUS_PAID)
+            ->count();
+
+        $this->vendorStatementTimeline = $insights['statement_timeline']
+            ->map(function (array $event): array {
+                return [
+                    'event_type' => (string) ($event['event_type'] ?? 'event'),
+                    'event_subtype' => (string) ($event['event_subtype'] ?? ''),
+                    'title' => (string) ($event['title'] ?? 'Vendor event'),
+                    'amount' => (int) ($event['amount'] ?? 0),
+                    'happened_at' => (string) ($event['happened_at'] ?? ''),
+                    'happened_at_label' => ! empty($event['happened_at'])
+                        ? (string) \Illuminate\Support\Carbon::parse((string) $event['happened_at'])->format('M d, Y')
+                        : '-',
+                    'meta' => is_array($event['meta'] ?? null) ? $event['meta'] : [],
+                ];
+            })
+            ->all();
     }
 
     private function resetVendorInsights(): void
@@ -383,6 +1019,81 @@ class VendorsPage extends Component
         $this->vendorPaymentsCount = 0;
         $this->vendorLastPaymentDate = null;
         $this->vendorRecentPayments = [];
+        $this->vendorTotalInvoiced = 0;
+        $this->vendorTotalInvoicePaid = 0;
+        $this->vendorOutstandingBalance = 0;
+        $this->vendorInvoicesCount = 0;
+        $this->vendorUnpaidInvoicesCount = 0;
+        $this->vendorPartPaidInvoicesCount = 0;
+        $this->vendorPartPaymentsCount = 0;
+        $this->vendorPaidInvoicesCount = 0;
+        $this->vendorOverdueInvoicesCount = 0;
+        $this->vendorInvoices = [];
+        $this->vendorStatementTimeline = [];
+    }
+
+    private function resolveInvoiceDisplayStatus(VendorInvoice $invoice): string
+    {
+        if ((string) $invoice->status === VendorInvoice::STATUS_VOID) {
+            return VendorInvoice::STATUS_VOID;
+        }
+
+        if ((int) $invoice->outstanding_amount <= 0) {
+            return VendorInvoice::STATUS_PAID;
+        }
+
+        $dueDate = $invoice->due_date?->copy()->startOfDay();
+        if ($dueDate && $dueDate->lt(now()->startOfDay())) {
+            return VendorInvoice::STATUS_OVERDUE;
+        }
+
+        return (int) $invoice->paid_amount > 0
+            ? VendorInvoice::STATUS_PART_PAID
+            : VendorInvoice::STATUS_UNPAID;
+    }
+
+    /**
+     * @return array{due_countdown: ?string, due_days_delta: ?int}
+     */
+    private function resolveInvoiceDueMeta(VendorInvoice $invoice, string $displayStatus): array
+    {
+        if ((string) $invoice->status === VendorInvoice::STATUS_VOID || $displayStatus === VendorInvoice::STATUS_PAID) {
+            return ['due_countdown' => null, 'due_days_delta' => null];
+        }
+
+        $dueDate = $invoice->due_date?->copy()->startOfDay();
+        if (! $dueDate) {
+            return ['due_countdown' => null, 'due_days_delta' => null];
+        }
+
+        $daysDelta = Carbon::now()->startOfDay()->diffInDays($dueDate, false);
+        if ($daysDelta > 1) {
+            return ['due_countdown' => 'Due in '.$daysDelta.' days', 'due_days_delta' => $daysDelta];
+        }
+
+        if ($daysDelta === 1) {
+            return ['due_countdown' => 'Due tomorrow', 'due_days_delta' => $daysDelta];
+        }
+
+        if ($daysDelta === 0) {
+            return ['due_countdown' => 'Due today', 'due_days_delta' => $daysDelta];
+        }
+
+        return ['due_countdown' => 'Overdue by '.abs($daysDelta).' days', 'due_days_delta' => $daysDelta];
+    }
+
+    private function vendorCommunicationEventLabel(string $event): string
+    {
+        return match ($event) {
+            'vendor.invoice.payment_recorded' => 'Payment Posted to Vendor',
+            'vendor.internal.payment_recorded' => 'Payment Posted to Finance Inbox',
+            'vendor.internal.overdue.reminder' => 'Overdue Reminder to Finance',
+            'vendor.internal.due_today.reminder' => 'Due Today Reminder to Finance',
+            'vendor.internal.due_soon.reminder' => 'Due Soon Reminder to Finance',
+            'vendor.invoice.created' => 'Invoice Created',
+            'vendor.invoice.voided' => 'Invoice Voided',
+            default => ucwords(str_replace(['.', '_'], ' ', $event)),
+        };
     }
 
     /**
@@ -404,9 +1115,31 @@ class VendorsPage extends Component
             'notes',
             'is_active',
         ];
+        $invoiceFields = [
+            'invoice_number',
+            'invoice_date',
+            'due_date',
+            'total_amount',
+            'description',
+            'notes',
+        ];
+        $paymentFields = [
+            'amount',
+            'payment_date',
+            'payment_method',
+            'payment_reference',
+            'notes',
+        ];
 
         foreach ($errors as $key => $messages) {
-            if (str_starts_with($key, 'form.')) {
+            if (
+                str_starts_with($key, 'form.')
+                || str_starts_with($key, 'invoiceForm.')
+                || str_starts_with($key, 'paymentForm.')
+                || str_starts_with($key, 'newInvoiceAttachments.')
+                || str_starts_with($key, 'newPaymentAttachments.')
+                || $key === 'voidInvoiceReason'
+            ) {
                 $mapped[$key] = $messages;
                 continue;
             }
@@ -416,10 +1149,252 @@ class VendorsPage extends Component
                 continue;
             }
 
+            if (in_array($key, $invoiceFields, true)) {
+                $mapped['invoiceForm.'.$key] = $messages;
+                continue;
+            }
+
+            if (in_array($key, $paymentFields, true)) {
+                $mapped['paymentForm.'.$key] = $messages;
+                continue;
+            }
+
+            if ($key === 'reason') {
+                $mapped['voidInvoiceReason'] = $messages;
+                continue;
+            }
+
             $mapped[$key] = $messages;
         }
 
         return $mapped;
+    }
+
+    public function vendorInvoiceAttachmentDownloadUrlById(int $attachmentId): string
+    {
+        return route('vendors.attachments.invoices.download', ['attachment' => $attachmentId]);
+    }
+
+    public function vendorPaymentAttachmentDownloadUrlById(int $attachmentId): string
+    {
+        return route('vendors.attachments.payments.download', ['attachment' => $attachmentId]);
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    public function getFilteredVendorInvoicesProperty(): array
+    {
+        return collect($this->vendorInvoices)
+            ->filter(function (array $invoice): bool {
+                if (
+                    $this->invoiceStatusFilter !== 'all'
+                    && (string) ($invoice['display_status'] ?? '') !== $this->invoiceStatusFilter
+                ) {
+                    return false;
+                }
+
+                if ($this->invoiceSearch === '') {
+                    return true;
+                }
+
+                $needle = mb_strtolower($this->invoiceSearch);
+                $haystacks = [
+                    (string) ($invoice['invoice_number'] ?? ''),
+                    (string) ($invoice['description'] ?? ''),
+                    (string) ($invoice['notes'] ?? ''),
+                    (string) ($invoice['status'] ?? ''),
+                    (string) ($invoice['display_status'] ?? ''),
+                ];
+
+                foreach ($haystacks as $value) {
+                    if (str_contains(mb_strtolower($value), $needle)) {
+                        return true;
+                    }
+                }
+
+                return false;
+            })
+            ->sortByDesc(fn (array $invoice): string => (string) ($invoice['invoice_date_sort'] ?? ''))
+            ->values()
+            ->all();
+    }
+
+    private function refreshSelectedVendorInsights(): void
+    {
+        $vendor = $this->selectedVendor;
+        if (! $vendor) {
+            return;
+        }
+
+        $this->loadVendorInsights($vendor);
+    }
+
+    private function attachInvoiceUploadedFiles(
+        UploadVendorInvoiceAttachment $uploadVendorInvoiceAttachment,
+        VendorInvoice $invoice
+    ): void {
+        if (empty($this->newInvoiceAttachments)) {
+            return;
+        }
+
+        foreach ($this->newInvoiceAttachments as $file) {
+            if ($file) {
+                $uploadVendorInvoiceAttachment(\Illuminate\Support\Facades\Auth::user(), $invoice, $file);
+            }
+        }
+
+        $this->newInvoiceAttachments = [];
+    }
+
+    private function attachPaymentUploadedFiles(
+        UploadVendorInvoicePaymentAttachment $uploadVendorInvoicePaymentAttachment,
+        VendorInvoicePayment $payment
+    ): void {
+        if (empty($this->newPaymentAttachments)) {
+            return;
+        }
+
+        foreach ($this->newPaymentAttachments as $file) {
+            if ($file) {
+                $uploadVendorInvoicePaymentAttachment(\Illuminate\Support\Facades\Auth::user(), $payment, $file);
+            }
+        }
+
+        $this->newPaymentAttachments = [];
+    }
+
+    private function findSelectedVendorInvoiceOrFail(int $invoiceId): VendorInvoice
+    {
+        $vendor = $this->selectedVendor;
+        abort_if(! $vendor, 404);
+
+        /** @var VendorInvoice $invoice */
+        $invoice = VendorInvoice::query()
+            ->where('vendor_id', $vendor->id)
+            ->findOrFail($invoiceId);
+
+        return $invoice;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function invoicePayload(): array
+    {
+        return [
+            'invoice_number' => trim((string) ($this->invoiceForm['invoice_number'] ?? '')),
+            'invoice_date' => trim((string) ($this->invoiceForm['invoice_date'] ?? '')),
+            'due_date' => $this->nullableString($this->invoiceForm['due_date'] ?? null),
+            'total_amount' => (int) ($this->invoiceForm['total_amount'] ?: 0),
+            'description' => $this->nullableString($this->invoiceForm['description'] ?? null),
+            'notes' => $this->nullableString($this->invoiceForm['notes'] ?? null),
+        ];
+    }
+
+    private function resetInvoiceForm(): void
+    {
+        $this->invoiceForm = [
+            'invoice_number' => '',
+            'invoice_date' => now()->toDateString(),
+            'due_date' => '',
+            'total_amount' => '',
+            'description' => '',
+            'notes' => '',
+        ];
+        $this->newInvoiceAttachments = [];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function paymentPayload(): array
+    {
+        return [
+            'amount' => (int) ($this->paymentForm['amount'] ?: 0),
+            'payment_date' => trim((string) ($this->paymentForm['payment_date'] ?? '')),
+            'payment_method' => $this->nullableString($this->paymentForm['payment_method'] ?? null),
+            'payment_reference' => $this->nullableString($this->paymentForm['payment_reference'] ?? null),
+            'notes' => $this->nullableString($this->paymentForm['notes'] ?? null),
+        ];
+    }
+
+    private function resetPaymentForm(): void
+    {
+        $this->paymentForm = [
+            'amount' => '',
+            'payment_date' => now()->toDateString(),
+            'payment_method' => '',
+            'payment_reference' => '',
+            'notes' => '',
+        ];
+        $this->newPaymentAttachments = [];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function invoiceRules(): array
+    {
+        return [
+            'invoiceForm.invoice_number' => ['required', 'string', 'max:80'],
+            'invoiceForm.invoice_date' => ['required', 'date'],
+            'invoiceForm.due_date' => ['nullable', 'date', 'after_or_equal:invoiceForm.invoice_date'],
+            'invoiceForm.total_amount' => ['required', 'integer', 'min:1'],
+            'invoiceForm.description' => ['nullable', 'string', 'max:2000'],
+            'invoiceForm.notes' => ['nullable', 'string', 'max:2000'],
+            'newInvoiceAttachments.*' => ['nullable', 'file', 'max:10240', 'mimes:jpg,jpeg,png,pdf,webp'],
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function invoiceMessages(): array
+    {
+        return [
+            'invoiceForm.invoice_number.required' => 'Invoice number is required.',
+            'invoiceForm.invoice_date.required' => 'Invoice date is required.',
+            'invoiceForm.due_date.after_or_equal' => 'Due date cannot be before invoice date.',
+            'invoiceForm.total_amount.required' => 'Total amount is required.',
+            'invoiceForm.total_amount.min' => 'Total amount must be at least 1.',
+            'invoiceForm.description.max' => 'Description cannot exceed 2000 characters.',
+            'invoiceForm.notes.max' => 'Notes cannot exceed 2000 characters.',
+            'newInvoiceAttachments.*.max' => 'Each invoice attachment must be 10MB or less.',
+            'newInvoiceAttachments.*.mimes' => 'Only PDF and image files are supported.',
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function paymentRules(): array
+    {
+        return [
+            'paymentForm.amount' => ['required', 'integer', 'min:1'],
+            'paymentForm.payment_date' => ['required', 'date'],
+            'paymentForm.payment_method' => ['nullable', Rule::in(['cash', 'transfer', 'pos', 'online', 'cheque'])],
+            'paymentForm.payment_reference' => ['nullable', 'string', 'max:80'],
+            'paymentForm.notes' => ['nullable', 'string', 'max:2000'],
+            'newPaymentAttachments.*' => ['nullable', 'file', 'max:10240', 'mimes:jpg,jpeg,png,pdf,webp'],
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function paymentMessages(): array
+    {
+        return [
+            'paymentForm.amount.required' => 'Payment amount is required.',
+            'paymentForm.amount.min' => 'Payment amount must be at least 1.',
+            'paymentForm.payment_date.required' => 'Payment date is required.',
+            'paymentForm.payment_method.in' => 'Select a valid payment method.',
+            'paymentForm.payment_reference.max' => 'Payment reference cannot exceed 80 characters.',
+            'paymentForm.notes.max' => 'Notes cannot exceed 2000 characters.',
+            'newPaymentAttachments.*.max' => 'Each payment attachment must be 10MB or less.',
+            'newPaymentAttachments.*.mimes' => 'Only PDF and image files are supported.',
+        ];
     }
 
     /**

@@ -43,4 +43,19 @@ class Vendor extends Model
     {
         return $this->hasMany(Expense::class);
     }
+
+    public function invoices(): HasMany
+    {
+        return $this->hasMany(VendorInvoice::class);
+    }
+
+    public function invoicePayments(): HasMany
+    {
+        return $this->hasMany(VendorInvoicePayment::class);
+    }
+
+    public function communicationLogs(): HasMany
+    {
+        return $this->hasMany(VendorCommunicationLog::class);
+    }
 }

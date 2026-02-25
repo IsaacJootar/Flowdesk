@@ -20,6 +20,59 @@
     <div class="fd-card p-6">
         <div class="mb-4">
             <span class="inline-flex items-center rounded-full border border-slate-300 bg-slate-200 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-800">
+                Request Policies
+            </span>
+            <h2 class="mt-2 text-base font-semibold text-slate-900">Submission Guardrails</h2>
+            <p class="mt-1 text-sm text-slate-600">Set how budget and duplicate checks behave when staff submit requests.</p>
+        </div>
+
+        <form wire:submit.prevent="savePolicySettings" class="space-y-4">
+            <div class="grid gap-4 md:grid-cols-3">
+                <label class="block">
+                    <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Budget Guardrail</span>
+                    <select wire:model.defer="budget_guardrail_mode" class="w-full rounded-xl border-slate-300 text-sm focus:border-slate-500 focus:ring-slate-500">
+                        @foreach ($budgetModes as $mode)
+                            <option value="{{ $mode }}">{{ ucfirst($mode) }}</option>
+                        @endforeach
+                    </select>
+                    <p class="mt-1 text-xs text-slate-500">Off skips budget checks, Warn allows submit with warning, Block stops submit when exceeded.</p>
+                    @error('budget_guardrail_mode')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+                </label>
+
+                <label class="block">
+                    <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Duplicate Window (Days)</span>
+                    <input type="number" min="1" max="365" wire:model.defer="duplicate_window_days" class="w-full rounded-xl border-slate-300 text-sm focus:border-slate-500 focus:ring-slate-500">
+                    <p class="mt-1 text-xs text-slate-500">How far back to look for potential duplicate requests from same requester.</p>
+                    @error('duplicate_window_days')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+                </label>
+
+                <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                    <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Duplicate Detection</p>
+                    <label class="mt-3 inline-flex items-center gap-2 text-sm text-slate-700">
+                        <input type="checkbox" wire:model.defer="duplicate_detection_enabled" class="rounded border-slate-300 text-slate-700 focus:ring-slate-500">
+                        Enable duplicate warning checks
+                    </label>
+                    <p class="mt-2 text-xs text-slate-500">Duplicate checks are warning-only and do not block submit.</p>
+                </div>
+            </div>
+
+            <div class="flex justify-end">
+                <button
+                    type="submit"
+                    wire:loading.attr="disabled"
+                    wire:target="savePolicySettings"
+                    class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700 disabled:opacity-70"
+                >
+                    <span wire:loading.remove wire:target="savePolicySettings">Save Request Policies</span>
+                    <span wire:loading wire:target="savePolicySettings">Saving...</span>
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <div class="fd-card p-6">
+        <div class="mb-4">
+            <span class="inline-flex items-center rounded-full border border-slate-300 bg-slate-200 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-800">
                 Request Types
             </span>
             <h2 class="mt-2 text-base font-semibold text-slate-900">Company Request Type Rules</h2>

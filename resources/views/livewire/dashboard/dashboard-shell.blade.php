@@ -1,4 +1,4 @@
-<div wire:init="loadMetrics" class="space-y-6">
+<div class="space-y-6">
     <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         @if (! $readyToLoad)
             @for ($i = 0; $i < 6; $i++)
@@ -21,6 +21,9 @@
                 <div class="rounded-2xl p-5 shadow-sm" style="{{ $metricCardStyles[$loop->index % count($metricCardStyles)] }}">
                     <p class="text-xs font-semibold uppercase tracking-[0.16em]" style="color: rgba(255,255,255,0.82);">{{ $metric['label'] }}</p>
                     <p class="mt-2 text-2xl font-semibold">{{ $metric['value'] }}</p>
+                    @if (! empty($metric['words']))
+                        <p class="mt-1 text-[11px] leading-tight" style="color: rgba(255,255,255,0.75);">{{ $metric['words'] }}</p>
+                    @endif
                     <p class="mt-2 text-xs" style="color: rgba(255,255,255,0.82);">{{ $metric['hint'] }}</p>
                 </div>
             @endforeach

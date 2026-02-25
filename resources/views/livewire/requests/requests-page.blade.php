@@ -15,6 +15,18 @@
                 {{ $feedbackMessage }}
             </div>
         @endif
+        @if ($feedbackWarning)
+            <div
+                wire:key="request-feedback-warning-{{ $feedbackKey }}"
+                x-data="{ show: true }"
+                x-init="setTimeout(() => show = false, 5000)"
+                x-show="show"
+                x-transition.opacity.duration.250ms
+                class="pointer-events-auto rounded-xl border border-red-700 bg-red-600 px-4 py-3 text-sm text-white shadow-lg"
+            >
+                {{ $feedbackWarning }}
+            </div>
+        @endif
         @if ($feedbackError)
             <div
                 wire:key="request-feedback-error-{{ $feedbackKey }}"
@@ -73,7 +85,7 @@
             </label>
         </div>
 
-        <div class="mt-3 grid gap-3 lg:grid-cols-4">
+        <div class="mt-3 grid gap-3 lg:grid-cols-6">
             <label class="block">
                 <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Department</span>
                 <select wire:model.live="departmentFilter" class="w-full rounded-xl border-slate-300 text-sm focus:border-slate-500 focus:ring-slate-500">
@@ -82,6 +94,16 @@
                         <option value="{{ $department->id }}">{{ $department->name }}</option>
                     @endforeach
                 </select>
+            </label>
+
+            <label class="block">
+                <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">From</span>
+                <input type="date" wire:model.live="dateFrom" class="w-full rounded-xl border-slate-300 text-sm focus:border-slate-500 focus:ring-slate-500">
+            </label>
+
+            <label class="block">
+                <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">To</span>
+                <input type="date" wire:model.live="dateTo" class="w-full rounded-xl border-slate-300 text-sm focus:border-slate-500 focus:ring-slate-500">
             </label>
 
             <div class="flex items-end">
@@ -128,6 +150,51 @@
         </div>
     </div>
 
+    <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div class="rounded-2xl border border-sky-200 bg-sky-50 p-4">
+            <p class="text-xs uppercase tracking-[0.1em] text-sky-700">Total Requests</p>
+            <p class="mt-1 text-2xl font-semibold text-sky-900">{{ number_format((int) ($requestAnalytics['total_requests'] ?? 0)) }}</p>
+            <p class="mt-1 text-xs text-sky-700">Filtered amount: {{ number_format((int) ($requestAnalytics['total_amount'] ?? 0)) }}</p>
+        </div>
+        <div class="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+            <p class="text-xs uppercase tracking-[0.1em] text-amber-700">Pending My Action</p>
+            <p class="mt-1 text-2xl font-semibold text-amber-900">{{ number_format((int) ($requestAnalytics['pending_my_action'] ?? 0)) }}</p>
+            <p class="mt-1 text-xs text-amber-700">Requests currently awaiting your approval</p>
+        </div>
+        <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:col-span-2">
+            <p class="text-xs uppercase tracking-[0.1em] text-slate-500">Status Breakdown</p>
+            <div class="mt-2 flex flex-wrap gap-1.5">
+                @foreach ($statuses as $status)
+                    @php
+                        $statusCount = (int) (($requestAnalytics['status_counts'][$status] ?? 0));
+                        $statusClass = 'bg-slate-100 text-slate-700';
+                        if ($status === 'approved') {
+                            $statusClass = 'bg-emerald-100 text-emerald-700';
+                        } elseif ($status === 'rejected') {
+                            $statusClass = 'bg-red-100 text-red-700';
+                        } elseif ($status === 'in_review') {
+                            $statusClass = 'bg-amber-100 text-amber-700';
+                        } elseif ($status === 'returned') {
+                            $statusClass = 'bg-indigo-100 text-indigo-700';
+                        }
+                    @endphp
+                    <span class="inline-flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-semibold {{ $statusClass }}">
+                        <span>{{ ucfirst(str_replace('_', ' ', $status)) }}</span>
+                        <span>{{ $statusCount }}</span>
+                    </span>
+                @endforeach
+            </div>
+            <div class="mt-2 flex flex-wrap gap-1.5">
+                @foreach ($requestTypes as $type)
+                    <span class="inline-flex items-center gap-1 rounded-full bg-white px-2 py-1 text-[11px] font-semibold text-slate-700 ring-1 ring-slate-200">
+                        <span>{{ $type->name }}</span>
+                        <span>{{ (int) (($requestAnalytics['type_counts'][$type->code] ?? 0)) }}</span>
+                    </span>
+                @endforeach
+            </div>
+        </div>
+    </div>
+
     <div class="fd-card overflow-hidden">
         @if (! $readyToLoad)
             <div class="space-y-3 p-4">
@@ -136,7 +203,7 @@
                 @endfor
             </div>
         @else
-            <div wire:loading.flex wire:target="search,statusFilter,typeFilter,departmentFilter,scopeFilter,perPage,gotoPage,previousPage,nextPage" class="border-b border-slate-200 px-4 py-3 text-sm text-slate-500">
+            <div wire:loading.flex wire:target="search,statusFilter,typeFilter,departmentFilter,scopeFilter,dateFrom,dateTo,perPage,gotoPage,previousPage,nextPage" class="border-b border-slate-200 px-4 py-3 text-sm text-slate-500">
                 Loading requests...
             </div>
 
@@ -224,6 +291,9 @@
                                         <span class="inline-flex rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-700">
                                             Stage {{ $request->current_approval_step }}
                                         </span>
+                                        @if (! empty($rowApprovalContexts[$request->id]['text'] ?? null))
+                                            <p class="mt-1 text-[11px] text-slate-500">{{ $rowApprovalContexts[$request->id]['text'] }}</p>
+                                        @endif
                                     @else
                                         <span class="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
                                             Complete
@@ -492,7 +562,7 @@
                                             </label>
 
                                             <label class="block">
-                                                <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Spend Category</span>
+                                                <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500"> Category</span>
                                                 <select wire:model.defer="lineItems.{{ $index }}.category" class="w-full rounded-lg border-slate-300 text-sm focus:border-slate-500 focus:ring-slate-500">
                                                     <option value="">Select category</option>
                                                     @foreach ($spendCategories as $category)
@@ -538,6 +608,50 @@
                             </span>
                         </div>
                         @endif
+
+                        <div class="rounded-xl border border-slate-200 p-4">
+                            <div class="mb-3 flex items-center justify-between gap-2">
+                                <p class="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-800">
+                                    <svg class="h-4 w-4 text-slate-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                        <path d="M21.44 11.05l-8.49 8.49a6 6 0 1 1-8.49-8.49l8.49-8.48a4 4 0 0 1 5.66 5.65l-8.48 8.49a2 2 0 0 1-2.83-2.83l7.78-7.78"></path>
+                                    </svg>
+                                    Attachments
+                                </p>
+                                <span class="text-xs text-slate-500">PDF, JPG, PNG, WEBP (max 10MB each)</span>
+                            </div>
+
+                            <label class="block">
+                                <input
+                                    type="file"
+                                    wire:model="newAttachments"
+                                    multiple
+                                    accept=".pdf,.jpg,.jpeg,.png,.webp"
+                                    class="w-full rounded-xl border-slate-300 text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-slate-700 focus:border-slate-500 focus:ring-slate-500"
+                                >
+                            </label>
+                            <div wire:loading wire:target="newAttachments" class="mt-2 text-xs font-medium text-slate-600">
+                                Uploading...
+                            </div>
+                            @error('newAttachments')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+                            @foreach ($errors->get('newAttachments.*') as $messages)
+                                @foreach ($messages as $message)
+                                    <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+                                @endforeach
+                            @endforeach
+
+                            @if (! empty($newAttachments))
+                                <div class="mt-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                                    <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Selected Files</p>
+                                    <div class="mt-2 space-y-1">
+                                        @foreach ($newAttachments as $file)
+                                            @if ($file)
+                                                <p class="text-xs text-slate-700">{{ $file->getClientOriginalName() }}</p>
+                                            @endif
+                                        @endforeach
+                                    </div>
+                                </div>
+                            @endif
+                        </div>
 
                         <div class="sticky bottom-0 -mx-6 mt-4 flex justify-end gap-3 border-t border-slate-200 bg-white px-6 py-4">
                             <button type="button" wire:click="closeFormModal" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
@@ -646,6 +760,17 @@
                             <p class="mt-2 text-sm text-slate-800">{{ $selectedRequest['description'] }}</p>
                         </div>
 
+                        @if (! empty($selectedRequest['policy_warnings']))
+                            <div class="rounded-xl border border-amber-200 bg-amber-50 p-4">
+                                <p class="text-sm font-semibold text-amber-800">Policy Warnings</p>
+                                <div class="mt-2 space-y-1.5">
+                                    @foreach ($selectedRequest['policy_warnings'] as $warning)
+                                        <p class="text-xs text-amber-800">{{ $warning }}</p>
+                                    @endforeach
+                                </div>
+                            </div>
+                        @endif
+
                         @if (count($selectedRequest['items']) > 0)
                         <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
                             <div class="mb-3 flex items-center justify-between">
@@ -681,6 +806,93 @@
                             </div>
                         </div>
                         @endif
+
+                        <div class="rounded-xl border border-slate-200 p-4">
+                            <div class="mb-3 flex items-center justify-between gap-2">
+                                <p class="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-800">
+                                    <svg class="h-4 w-4 text-slate-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                        <path d="M21.44 11.05l-8.49 8.49a6 6 0 1 1-8.49-8.49l8.49-8.48a4 4 0 0 1 5.66 5.65l-8.48 8.49a2 2 0 0 1-2.83-2.83l7.78-7.78"></path>
+                                    </svg>
+                                    Attachments
+                                </p>
+                                <span class="text-xs text-slate-500">{{ count($selectedRequest['attachments']) }} file(s)</span>
+                            </div>
+
+                            <div class="space-y-2">
+                                @forelse ($selectedRequest['attachments'] as $attachment)
+                                    <div class="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                                        <div class="min-w-0">
+                                            <p class="truncate text-sm font-medium text-slate-800">{{ $attachment['original_name'] }}</p>
+                                            <p class="text-xs text-slate-500">
+                                                {{ $attachment['mime_type'] }} &middot; {{ $attachment['file_size_kb'] }} KB &middot; Uploaded by {{ $attachment['uploaded_by'] }} @if($attachment['uploaded_at']) on {{ $attachment['uploaded_at'] }} @endif
+                                            </p>
+                                        </div>
+                                        <a
+                                            href="{{ $this->requestAttachmentDownloadUrlById((int) $attachment['id']) }}"
+                                            class="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+                                        >
+                                            <svg class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                                <path d="M10 2a1 1 0 011 1v7.586l2.293-2.293a1 1 0 111.414 1.414l-4.007 4.007a1 1 0 01-1.414 0L5.279 9.707a1 1 0 111.414-1.414L9 10.586V3a1 1 0 011-1z"></path>
+                                                <path d="M4 14a1 1 0 011 1v1h10v-1a1 1 0 112 0v2a1 1 0 01-1 1H4a1 1 0 01-1-1v-2a1 1 0 011-1z"></path>
+                                            </svg>
+                                            Download
+                                        </a>
+                                    </div>
+                                @empty
+                                    <p class="text-sm text-slate-500">No attachments uploaded yet.</p>
+                                @endforelse
+                            </div>
+
+                            @if ($selectedRequest['can_upload_attachments'] && in_array($selectedRequest['status'], ['draft', 'returned'], true))
+                                <div class="mt-3 rounded-lg border border-slate-200 bg-white p-3">
+                                    <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Upload More Files</p>
+                                    <label class="mt-2 block">
+                                        <input
+                                            type="file"
+                                            wire:model="viewNewAttachments"
+                                            multiple
+                                            accept=".pdf,.jpg,.jpeg,.png,.webp"
+                                            class="w-full rounded-xl border-slate-300 text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-slate-700 focus:border-slate-500 focus:ring-slate-500"
+                                        >
+                                    </label>
+                                    <div wire:loading wire:target="viewNewAttachments" class="mt-2 text-xs font-medium text-slate-600">
+                                        Uploading...
+                                    </div>
+                                    @error('viewNewAttachments')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+                                    @foreach ($errors->get('viewNewAttachments.*') as $messages)
+                                        @foreach ($messages as $message)
+                                            <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+                                        @endforeach
+                                    @endforeach
+
+                                    @if (! empty($viewNewAttachments))
+                                        <div class="mt-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                                            <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Selected Files</p>
+                                            <div class="mt-1 space-y-1">
+                                                @foreach ($viewNewAttachments as $file)
+                                                    @if ($file)
+                                                        <p class="text-xs text-slate-700">{{ $file->getClientOriginalName() }}</p>
+                                                    @endif
+                                                @endforeach
+                                            </div>
+                                        </div>
+                                    @endif
+
+                                    <div class="mt-2 flex justify-end">
+                                        <button
+                                            type="button"
+                                            wire:click="uploadSelectedRequestAttachments"
+                                            wire:loading.attr="disabled"
+                                            wire:target="uploadSelectedRequestAttachments"
+                                            class="rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-70"
+                                        >
+                                            <span wire:loading.remove wire:target="uploadSelectedRequestAttachments">Upload Attachments</span>
+                                            <span wire:loading wire:target="uploadSelectedRequestAttachments">Uploading...</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            @endif
+                        </div>
 
                         <div class="rounded-xl border border-slate-200 p-4">
                             <div class="mb-3 flex items-center justify-between">
@@ -770,6 +982,26 @@
                                         @if ($step['comment'])
                                             <p class="mt-1 text-xs text-slate-700">{{ $step['comment'] }}</p>
                                         @endif
+                                        @if (! empty($step['delivery_summary']))
+                                            <div class="mt-2 flex flex-wrap items-center gap-1.5 text-[11px]">
+                                                <span class="text-slate-500">Delivery</span>
+                                                @if (($step['delivery_summary']['sent'] ?? 0) > 0)
+                                                    <span class="inline-flex rounded-full bg-emerald-100 px-2 py-0.5 font-semibold text-emerald-700">Sent {{ (int) $step['delivery_summary']['sent'] }}</span>
+                                                @endif
+                                                @if (($step['delivery_summary']['queued'] ?? 0) > 0)
+                                                    <span class="inline-flex rounded-full bg-amber-100 px-2 py-0.5 font-semibold text-amber-700">Queued {{ (int) $step['delivery_summary']['queued'] }}</span>
+                                                @endif
+                                                @if (($step['delivery_summary']['failed'] ?? 0) > 0)
+                                                    <span class="inline-flex rounded-full bg-red-100 px-2 py-0.5 font-semibold text-red-700">Failed {{ (int) $step['delivery_summary']['failed'] }}</span>
+                                                @endif
+                                                @if (($step['delivery_summary']['skipped'] ?? 0) > 0)
+                                                    <span class="inline-flex rounded-full bg-indigo-100 px-2 py-0.5 font-semibold text-indigo-700">Skipped {{ (int) $step['delivery_summary']['skipped'] }}</span>
+                                                @endif
+                                                @if (! empty($step['delivery_summary']['channels']))
+                                                    <span class="text-slate-500">{{ implode(', ', (array) $step['delivery_summary']['channels']) }}</span>
+                                                @endif
+                                            </div>
+                                        @endif
                                     </div>
                                 @empty
                                     <p class="text-sm text-slate-500">No approval steps logged yet.</p>
@@ -839,7 +1071,38 @@
                                     </button>
                                 </div>
                             </div>
+                        @elseif ($selectedRequest['status'] === 'in_review' && ! $selectedRequest['can_approve'])
+                            <div class="rounded-xl border border-sky-200 bg-sky-50 p-4">
+                                <p class="text-sm font-semibold text-sky-800">Approval Context</p>
+                                <p class="mt-1 text-xs text-sky-700">
+                                    {{ $selectedRequest['approval_context_message'] ?: 'You can monitor this request. The current step is assigned to another approver.' }}
+                                </p>
+                            </div>
                         @endif
+
+                        <div class="rounded-xl border border-slate-200 p-4">
+                            <div class="mb-2 flex items-center justify-between gap-2">
+                                <p class="text-sm font-semibold text-slate-800">Expense Handoff</p>
+                                @if ($selectedRequest['linked_expense'])
+                                    <span class="inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">Linked</span>
+                                @else
+                                    <span class="inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-700">Not linked</span>
+                                @endif
+                            </div>
+
+                            @if ($selectedRequest['linked_expense'])
+                                <p class="text-xs text-slate-600">
+                                    Expense {{ $selectedRequest['linked_expense']['expense_code'] }} |
+                                    {{ $selectedRequest['linked_expense']['currency'] }} {{ number_format((int) $selectedRequest['linked_expense']['amount']) }} |
+                                    {{ ucfirst((string) $selectedRequest['linked_expense']['status']) }}
+                                    @if (! empty($selectedRequest['linked_expense']['expense_date']))
+                                        | {{ $selectedRequest['linked_expense']['expense_date'] }}
+                                    @endif
+                                </p>
+                            @else
+                                <p class="text-xs text-slate-600">Create a posted expense record from this approved request with immutable linkage.</p>
+                            @endif
+                        </div>
 
                         <div class="rounded-xl border border-slate-200 p-4">
                             <div class="mb-3 flex items-center justify-between">
@@ -988,6 +1251,7 @@
                                     @endforeach
                                 </div>
                                 @error('submitNotificationChannels')<p class="mt-2 text-xs text-red-600">{{ $message }}</p>@enderror
+                                @error('submitPolicy')<p class="mt-2 text-xs text-red-600">{{ $message }}</p>@enderror
                             </div>
                         @endif
                     </div>
@@ -996,6 +1260,12 @@
                         @if ($selectedRequest['can_update'])
                             <button type="button" wire:click="openEditModal({{ $selectedRequest['id'] }})" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
                                 Edit Draft
+                            </button>
+                        @endif
+                        @if ($selectedRequest['can_create_expense'])
+                            <button type="button" wire:click="createExpenseFromSelectedRequest" wire:loading.attr="disabled" wire:target="createExpenseFromSelectedRequest" class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-70">
+                                <span wire:loading.remove wire:target="createExpenseFromSelectedRequest">Create Expense</span>
+                                <span wire:loading wire:target="createExpenseFromSelectedRequest">Creating...</span>
                             </button>
                         @endif
                         @if ($selectedRequest['can_submit'] && in_array($selectedRequest['status'], ['draft', 'returned'], true))

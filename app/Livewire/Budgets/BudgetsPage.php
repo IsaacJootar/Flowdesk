@@ -11,6 +11,7 @@ use App\Domains\Expenses\Models\Expense;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -158,10 +159,10 @@ class BudgetsPage extends Component
         try {
             if ($this->isEditing && $this->editingBudgetId) {
                 $budget = $this->findBudgetOrFail($this->editingBudgetId);
-                $updateBudget(auth()->user(), $budget, $this->formPayload());
+                $updateBudget(Auth::user(), $budget, $this->formPayload());
                 $this->setFeedback('Budget updated successfully.');
             } else {
-                $createBudget(auth()->user(), $this->formPayload());
+                $createBudget(Auth::user(), $this->formPayload());
                 $this->setFeedback('Budget created successfully.');
             }
         } catch (ValidationException $exception) {
@@ -193,7 +194,7 @@ class BudgetsPage extends Component
         $budget = $this->findBudgetOrFail($budgetId);
 
         try {
-            $closeBudget(auth()->user(), $budget);
+            $closeBudget(Auth::user(), $budget);
         } catch (ValidationException $exception) {
             throw ValidationException::withMessages($this->normalizeValidationErrors($exception->errors()));
         } catch (Throwable $exception) {
