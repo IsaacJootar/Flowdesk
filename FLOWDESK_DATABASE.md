@@ -363,113 +363,146 @@ Tracks partial/full payments against vendor invoices.
 
 ---
 
-## 4) Assets (Stage 1)
+## 4) Assets (Implemented Schema)
 
-### 4.1 assets
-Company asset register.
+### 4.1 asset_categories
+Category register scoped by company.
 
 **Columns**
 - id
 - company_id (FK)
-- asset_code (unique per company, e.g. FD-AST-000120)
-- name (string)                 (e.g. HP Elitebook 840)
-- asset_type (string)           (laptop|vehicle|equipment|tool|other)
-- brand (nullable string)
-- model (nullable string)
-- serial_number (nullable string)
-- tag_number (nullable string)  (internal tag/QR label)
-- purchase_date (nullable date)
-- purchase_cost (nullable bigint kobo)
-- vendor_id (nullable FK vendors.id)
-- condition (nullable string: new|good|fair|poor)
-- status (available|assigned|under_repair|retired|lost)
-- location (nullable string)    (branch/office)
-- notes (nullable text)
-- created_by (FK users.id)
+- name
+- code (nullable string, system-generated on create)
+- description (nullable text)
+- is_active (bool default true)
+- created_by (nullable FK users.id)
 - updated_by (nullable FK users.id)
 - timestamps
 - softDeletes
 
 **Indexes**
-- index(company_id)
-- index(asset_type)
-- index(status)
-- index(vendor_id)
-- unique(company_id, asset_code)
-- index(serial_number)
+- index(company_id, is_active)
+- index(company_id, name)
 
 ---
 
-### 4.2 asset_assignments
-Tracks assignment history to staff.
+### 4.2 assets
+Current asset profile + live custody fields.
+
+**Columns**
+- id
+- company_id (FK)
+- asset_category_id (nullable FK asset_categories.id)
+- asset_code (unique per company, e.g. FD-AST-000120)
+- name
+- serial_number (nullable)
+- acquisition_date (nullable date)
+- purchase_amount (nullable bigint kobo)
+- currency (default NGN)
+- status (active|assigned|in_maintenance|disposed)
+- condition
+- notes (nullable text)
+- assigned_to_user_id (nullable FK users.id)
+- assigned_department_id (nullable FK departments.id)
+- assigned_at (nullable datetime)
+- disposed_at (nullable datetime)
+- disposal_reason (nullable text)
+- salvage_amount (nullable bigint kobo)
+- last_maintenance_at (nullable date)
+- maintenance_due_date (nullable date)
+- warranty_expires_at (nullable date)
+- created_by (nullable FK users.id)
+- updated_by (nullable FK users.id)
+- timestamps
+- softDeletes
+
+**Indexes**
+- unique(company_id, asset_code)
+- index(company_id, status)
+- index(company_id, asset_category_id)
+- index(company_id, serial_number)
+- index(company_id, assigned_to_user_id)
+- index(company_id, maintenance_due_date)
+- index(company_id, warranty_expires_at)
+
+---
+
+### 4.3 asset_events
+Append-only lifecycle stream (audit-grade asset history).
 
 **Columns**
 - id
 - company_id (FK)
 - asset_id (FK assets.id)
-- assigned_to_user_id (FK users.id)
-- assigned_by_user_id (FK users.id)
-- assigned_at (datetime)
-- expected_return_at (nullable datetime)
-- returned_at (nullable datetime)
-- return_condition (nullable string)
-- status (active|returned|transferred)
-- notes (nullable text)
+- event_type (created|updated|assigned|transferred|returned|maintenance|disposed)
+- event_date (datetime)
+- actor_user_id (nullable FK users.id)
+- target_user_id (nullable FK users.id)
+- target_department_id (nullable FK departments.id)
+- amount (nullable bigint kobo; maintenance/disposal context)
+- currency (nullable)
+- summary (nullable string)
+- details (nullable text)
+- metadata (nullable json)
 - timestamps
-- softDeletes
 
 **Indexes**
-- index(company_id)
-- index(asset_id)
-- index(assigned_to_user_id)
-- index(status)
+- index(company_id, asset_id, event_date)
+- index(company_id, event_type)
 
 ---
 
-### 4.3 asset_maintenance_logs
-Repairs and maintenance.
+### 4.4 company_asset_policy_settings
+Tenant policy layer for per-action role access.
+
+**Columns**
+- id
+- company_id (FK, unique)
+- action_policies (nullable json)
+- metadata (nullable json)
+- created_by (nullable FK users.id)
+- updated_by (nullable FK users.id)
+- timestamps
+
+**Indexes**
+- unique(company_id)
+
+---
+
+### 4.5 asset_communication_logs
+Queued/sent reminder + assignment notification logs.
 
 **Columns**
 - id
 - company_id (FK)
-- asset_id (FK)
-- logged_by (FK users.id)
-- maintenance_type (nullable string: repair|service|inspection|other)
-- description (text)
-- cost (nullable bigint kobo)
-- vendor_id (nullable FK vendors.id)
-- started_at (nullable datetime)
-- completed_at (nullable datetime)
-- status (open|in_progress|done)
+- asset_id (FK assets.id)
+- recipient_user_id (nullable FK users.id)
+- event
+- channel (in_app|email|sms)
+- status (queued|sent|failed|skipped)
+- recipient_email (nullable)
+- recipient_phone (nullable)
+- reminder_date (date)
+- dedupe_key (nullable, unique per company)
+- message (nullable text)
+- metadata (nullable json)
+- sent_at (nullable datetime)
+- read_at (nullable datetime)
 - timestamps
-- softDeletes
 
 **Indexes**
 - index(company_id)
 - index(asset_id)
+- index(recipient_user_id)
+- index(event)
+- index(channel)
 - index(status)
-- index(vendor_id)
-
----
-
-### 4.4 asset_returns
-Return/offboarding checklist record (optional but recommended).
-
-**Columns**
-- id
-- company_id (FK)
-- asset_assignment_id (FK asset_assignments.id)
-- checked_by (FK users.id)
-- checklist_json (json)  (e.g. { "laptop": true, "charger": true, "bag": false })
-- notes (nullable text)
-- returned_at (datetime)
-- timestamps
-- softDeletes
-
-**Indexes**
-- index(company_id)
-- index(asset_assignment_id)
-- index(checked_by)
+- index(reminder_date)
+- index(read_at)
+- index(dedupe_key)
+- index(company_id, status, created_at)
+- index(company_id, recipient_user_id, read_at)
+- unique(company_id, dedupe_key)
 
 ---
 

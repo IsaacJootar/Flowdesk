@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Dashboard;
 
+use App\Domains\Assets\Models\Asset;
 use App\Domains\Budgets\Models\DepartmentBudget;
 use App\Domains\Company\Models\Department;
 use App\Domains\Expenses\Models\Expense;
@@ -69,6 +70,9 @@ class DashboardShell extends Component
         $activeBudgetCount = (int) (clone $activeBudgetBaseQuery)->count();
         $approvedBudgetTotal = (int) (clone $activeBudgetBaseQuery)->sum('allocated_amount');
         $budgetRemainingTotal = (int) (clone $activeBudgetBaseQuery)->sum('remaining_amount');
+        $assetTotal = (int) Asset::query()->count();
+        $assetAssigned = (int) Asset::query()->whereNotNull('assigned_to_user_id')->where('status', '!=', Asset::STATUS_DISPOSED)->count();
+        $assetDisposed = (int) Asset::query()->where('status', Asset::STATUS_DISPOSED)->count();
 
         $this->metrics = [
             'total_spend' => [
@@ -103,8 +107,8 @@ class DashboardShell extends Component
             ],
             'assets_overview' => [
                 'label' => 'Assets Overview',
-                'value' => '0 total / 0 assigned / 0 missing',
-                'hint' => 'Asset module pending',
+                'value' => sprintf('%s total / %s assigned / %s disposed', number_format($assetTotal), number_format($assetAssigned), number_format($assetDisposed)),
+                'hint' => 'Custody and lifecycle tracking live',
             ],
             'departments' => [
                 'label' => 'Departments',

@@ -195,7 +195,7 @@
                                     $channelClass = 'bg-emerald-100 text-emerald-700';
                                 }
                             @endphp
-                            <tr wire:key="request-comm-{{ $log->id }}" class="hover:bg-slate-50">
+                            <tr wire:key="request-comm-{{ $activeTab === 'inbox' ? ($log->source_section ?? 'requests') : 'requests' }}-{{ $log->id }}" class="hover:bg-slate-50">
                                 <td class="px-4 py-3">
                                     <p class="font-medium text-slate-800">{{ ucwords(str_replace(['.', '_'], ' ', (string) $log->event)) }}</p>
                                     @if ($log->message)
@@ -207,18 +207,27 @@
                                         $sourceSection = $activeTab === 'inbox'
                                             ? (string) ($log->source_section ?? 'requests')
                                             : 'requests';
-                                        $sourceClass = $sourceSection === 'vendors'
-                                            ? 'bg-indigo-100 text-indigo-700'
-                                            : 'bg-slate-100 text-slate-700';
+                                        $sourceClass = match ($sourceSection) {
+                                            'vendors' => 'bg-indigo-100 text-indigo-700',
+                                            'assets' => 'bg-sky-100 text-sky-700',
+                                            default => 'bg-slate-100 text-slate-700',
+                                        };
                                     @endphp
                                     <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold {{ $sourceClass }}">
-                                        {{ $sourceSection === 'vendors' ? 'Vendors' : 'Requests' }}
+                                        {{ match ($sourceSection) {
+                                            'vendors' => 'Vendors',
+                                            'assets' => 'Assets',
+                                            default => 'Requests',
+                                        } }}
                                     </span>
                                 </td>
                                 <td class="px-4 py-3 text-slate-700">
                                     @if ($activeTab === 'inbox' && ($log->source_section ?? 'requests') === 'vendors')
                                         <p class="font-medium text-slate-800">{{ $log->vendor_name ?? '-' }}</p>
                                         <p class="text-xs text-slate-500">Invoice: {{ $log->invoice_number ?? '-' }}</p>
+                                    @elseif ($activeTab === 'inbox' && ($log->source_section ?? 'requests') === 'assets')
+                                        <p class="font-medium text-slate-800">{{ $log->asset_name ?? '-' }}</p>
+                                        <p class="text-xs text-slate-500">Asset: {{ $log->asset_code ?? '-' }}</p>
                                     @else
                                         <p class="font-medium text-slate-800">{{ $activeTab === 'inbox' ? ($log->request_code ?? '-') : ($log->request?->request_code ?? '-') }}</p>
                                         <p class="text-xs text-slate-500">{{ $activeTab === 'inbox' ? ($log->request_title ?? '-') : ($log->request?->title ?? '-') }}</p>

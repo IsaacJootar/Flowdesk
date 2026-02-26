@@ -104,54 +104,106 @@ Create asset tracking system.
 
 ### Database
 
+asset_categories:
+- id
+- company_id
+- name
+- code (system-generated)
+- description
+- is_active
+- created_by
+- updated_by
+- timestamps
+
 assets:
 - id
 - company_id
+- asset_category_id
 - asset_code
 - name
-- type
-- brand
 - serial_number
-- purchase_cost
-- purchase_date
-- vendor_id
-- status
+- acquisition_date
+- purchase_amount
+- currency
+- status (active|assigned|in_maintenance|disposed)
 - condition
-- location
 - notes
+- assigned_to_user_id
+- assigned_department_id
+- assigned_at
+- disposed_at
+- disposal_reason
+- salvage_amount
+- maintenance_due_date
+- warranty_expires_at
+- created_by
+- updated_by
 - timestamps
 
-asset_assignments:
+asset_events:
+- id
+- company_id
 - asset_id
-- assigned_to_user_id
-- assigned_by
-- assigned_at
-- returned_at
-- status
-- notes
+- event_type (created|updated|assigned|transferred|returned|maintenance|disposed)
+- event_date
+- actor_user_id
+- target_user_id
+- target_department_id
+- amount
+- currency
+- summary
+- details
+- metadata
+- timestamps
 
-asset_maintenance_logs:
+company_asset_policy_settings:
+- id
+- company_id
+- action_policies (json)
+- metadata (json)
+- created_by
+- updated_by
+- timestamps
+
+asset_communication_logs:
+- id
+- company_id
 - asset_id
-- description
-- cost
-- vendor_id
-- date
-- status
+- recipient_user_id
+- event
+- channel (in_app|email|sms)
+- status (queued|sent|failed|skipped)
+- recipient_email
+- recipient_phone
+- reminder_date
+- dedupe_key
+- message
+- metadata
+- sent_at
+- read_at
+- timestamps
 
 ### Features
 - Asset list page
-- Add asset modal
-- Edit asset
-- Assign asset to staff
+- Add/edit asset modal
+- Create category modal
+- Assign/transfer asset to staff
 - Return asset
-- Mark lost/damaged
+- Dispose asset
 - Maintenance logs
-- Asset detail panel
+- Custody/lifecycle history modal
+- Bulk actions (assign/return/dispose)
+- Asset reports page (filters, KPIs, CSV export)
+- Asset controls policy page (owner-managed per-action role access)
+- Reminder automation + retry operations + inbox integration
 
 ### Activity logs
 asset.created  
 asset.assigned  
+asset.transferred  
 asset.returned  
+asset.maintenance.logged  
+asset.disposed  
 asset.updated  
 
 STOP after completion and report.
@@ -832,3 +884,152 @@ Implemented in this run:
 - Added quick navigation actions in reports table:
   - `Open in Expenses` deep links expense context,
   - `Open in Requests` for request-linked expense rows.
+
+12) Asset module Step 1 core workflow (implemented)
+- Added foundational data model:
+  - `asset_categories` (company-scoped category register)
+  - `assets` (asset profile + current custody + lifecycle fields)
+  - `asset_events` (append-style history for created/updated/assigned/transferred/maintenance/disposed)
+- Added asset actions:
+  - `CreateAsset`
+  - `UpdateAsset`
+  - `CreateAssetCategory`
+  - `AssignAsset`
+  - `RecordAssetMaintenance`
+  - `DisposeAsset`
+- Added policy actions for lifecycle controls:
+  - `assign`
+  - `logMaintenance`
+  - `dispose`
+- Added UI module:
+  - `Assets` page with filters + pagination
+  - register/edit asset modal
+  - category create modal
+  - assign/transfer modal
+  - maintenance log modal
+  - disposal modal
+  - custody/lifecycle history modal
+- Added dashboard metric integration:
+  - total assets
+  - assigned assets
+  - disposed assets
+
+13) Asset module Step 2 (implemented) - category-code hardening + return workflow
+- Category code creation is now fully system controlled:
+  - `Create Category` modal does not accept manual category code input.
+  - Manual code input is blocked server-side (`code` prohibited).
+  - Saved code is generated from category name with company-scoped uniqueness.
+- Added return-to-inventory lifecycle flow:
+  - New action: `ReturnAsset`
+  - New event type: `asset_events.event_type = returned`
+  - Assets UI now includes `Return` action for assigned, non-disposed assets.
+  - Added return modal (`event_date`, `summary`, `details`).
+  - Return operation clears assignee/department assignment and sets status back to `active`.
+- Test coverage extended:
+  - `manager can return assigned asset to inventory`
+  - `asset category code is auto generated and manual code is rejected`
+
+14) Asset Controls policy layer (implemented)
+- Added tenant-scoped settings model + table:
+  - `company_asset_policy_settings`
+  - `App\Domains\Assets\Models\CompanyAssetPolicySetting`
+- Added runtime resolver:
+  - `App\Services\AssetPolicyResolver`
+- Wired `AssetPolicy` to resolver-backed controls:
+  - `viewAny`
+  - `view`
+  - `create`
+  - `update`
+  - `assign`
+  - `logMaintenance`
+  - `dispose`
+- Added owner-only settings UI:
+  - `Settings > Asset Controls`
+  - page class: `App\Livewire\Settings\AssetControlsPage`
+  - view: `resources/views/livewire/settings/asset-controls-page.blade.php`
+- Added app navigation and settings links:
+  - owner sidebar entry: `Asset Controls`
+  - settings landing page card: `Asset Controls`
+- Added coverage test:
+  - `asset controls can restrict assignment by role`
+
+15) Asset Reports page (implemented)
+- Added dedicated route and page:
+  - `GET /assets/reports`
+  - Livewire: `App\Livewire\Assets\AssetReportsPage`
+- Added reports navigation:
+  - `Assets` page now includes an `Asset Reports` button.
+  - Reports page includes `Back to Assets` action.
+- Added report capabilities:
+  - filters: search, status, category, assignee, department, acquisition date range
+  - KPI cards: total assets, assigned, unassigned, maintenance cost, disposed
+  - paginated report table with maintenance totals per asset
+  - CSV export for current filtered report scope
+
+16) Asset reminder automation + communications integration (implemented)
+- Added reminder source fields on assets:
+  - `maintenance_due_date`
+  - `warranty_expires_at`
+- Added internal asset communication log pipeline:
+  - table/model: `asset_communication_logs` / `AssetCommunicationLog`
+  - queue job: `ProcessAssetCommunicationLog`
+  - delivery manager: `AssetCommunicationDeliveryManager`
+  - retry service: `AssetCommunicationRetryService`
+  - reminder dispatcher: `AssetReminderService`
+- Added scheduled/operational commands:
+  - `assets:reminders:dispatch`
+  - `assets:communications:retry-failed`
+  - `assets:communications:process-queued`
+- Added shared inbox integration:
+  - `Request Communications` inbox now includes `Assets` notifications (source-tagged)
+  - mark-read and mark-all-read now include asset notification rows
+- Added tests:
+  - `AssetReminderServiceTest` (queue + dedupe behavior)
+
+17) Asset bulk operations (implemented)
+- Added asset registry bulk selection flow:
+  - row checkboxes
+  - select-all for current visible page
+  - selected-count bulk toolbar
+- Added bulk operations modal with one unified workflow for:
+  - bulk assign/transfer
+  - bulk return to inventory
+  - bulk dispose
+- Bulk operations are executed per asset through existing action classes:
+  - `AssignAsset`
+  - `ReturnAsset`
+  - `DisposeAsset`
+- Added partial-success handling:
+  - processed vs failed counts in feedback
+  - failed asset IDs remain selected for retry
+- Added test coverage:
+  - `manager can bulk assign assets from assets page`
+
+18) Asset usage flow (implemented)
+- Register:
+  - Open `Assets` page -> `Register Asset`.
+  - Select category and complete asset profile.
+  - Save creates `asset_events.created`.
+- Assign/transfer:
+  - Use row action `Assign`/`Transfer`.
+  - Assignee department auto-populates from selected assignee profile.
+  - Save creates `asset_events.assigned` or `asset_events.transferred`.
+  - Assignment communication logs are queued for assignee on enabled channels.
+- Return:
+  - Use row action `Return` for assigned assets.
+  - Save creates `asset_events.returned` and clears current custody fields.
+- Maintenance:
+  - Use row action `Maintenance`.
+  - Save creates `asset_events.maintenance` and records optional cost/currency.
+- Dispose:
+  - Use row action `Dispose`.
+  - Save creates `asset_events.disposed` and locks assignment lifecycle actions.
+- Bulk operations:
+  - Select rows -> `Bulk Assign` / `Bulk Return` / `Bulk Dispose`.
+  - System executes each selected asset through existing action classes and reports partial successes.
+- Reporting:
+  - `Assets -> Asset Reports` provides KPI cards, filters, pagination, and CSV export.
+- Operations/automation:
+  - `php artisan assets:reminders:dispatch --company= --days-ahead=7`
+  - `php artisan assets:communications:retry-failed --company= --batch=200`
+  - `php artisan assets:communications:process-queued --company= --older-than=2 --batch=500`

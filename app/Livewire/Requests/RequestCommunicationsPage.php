@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Requests;
 
+use App\Domains\Assets\Models\AssetCommunicationLog;
 use App\Domains\Requests\Models\RequestCommunicationLog;
 use App\Domains\Requests\Models\SpendRequest;
 use App\Domains\Vendors\Models\VendorCommunicationLog;
@@ -181,7 +182,7 @@ class RequestCommunicationsPage extends Component
     public function markReadBySource(string $source, int $logId): void
     {
         $normalized = strtolower(trim($source));
-        if (! in_array($normalized, ['requests', 'vendors'], true)) {
+        if (! in_array($normalized, ['requests', 'vendors', 'assets'], true)) {
             $this->setFeedbackError('Notification source is invalid.');
 
             return;
@@ -207,6 +208,12 @@ class RequestCommunicationsPage extends Component
             ->whereNull('read_at')
             ->update(['read_at' => now()]);
 
+        AssetCommunicationLog::query()
+            ->where('channel', 'in_app')
+            ->where('recipient_user_id', $userId)
+            ->whereNull('read_at')
+            ->update(['read_at' => now()]);
+
         $this->setFeedback('All inbox notifications marked as read.');
     }
 
@@ -227,7 +234,12 @@ class RequestCommunicationsPage extends Component
             ->where('recipient_user_id', (int) \Illuminate\Support\Facades\Auth::id())
             ->whereNull('read_at')
             ->count();
-        $inboxUnreadCount = $requestInboxUnreadCount + $vendorInboxUnreadCount;
+        $assetInboxUnreadCount = AssetCommunicationLog::query()
+            ->where('channel', 'in_app')
+            ->where('recipient_user_id', (int) \Illuminate\Support\Facades\Auth::id())
+            ->whereNull('read_at')
+            ->count();
+        $inboxUnreadCount = $requestInboxUnreadCount + $vendorInboxUnreadCount + $assetInboxUnreadCount;
         $canManageDeliveryOps = $this->canExecuteDeliveryOps();
         $deliverySummary = ['failed' => 0, 'queued' => 0];
         if ($canViewDeliveryLogs) {
@@ -325,6 +337,7 @@ class RequestCommunicationsPage extends Component
                 'request_communication_logs.request_id',
                 DB::raw('NULL as vendor_id'),
                 DB::raw('NULL as vendor_invoice_id'),
+                DB::raw('NULL as asset_id'),
             ])
             ->where('request_communication_logs.channel', 'in_app')
             ->where('request_communication_logs.recipient_user_id', $userId);
@@ -344,17 +357,39 @@ class RequestCommunicationsPage extends Component
                 DB::raw('NULL as request_id'),
                 'vendor_communication_logs.vendor_id',
                 'vendor_communication_logs.vendor_invoice_id',
+                DB::raw('NULL as asset_id'),
             ])
             ->where('vendor_communication_logs.channel', 'in_app')
             ->where('vendor_communication_logs.recipient_user_id', $userId);
 
-        $combined = $requestInbox->unionAll($vendorInbox);
+        // Asset-origin in-app notifications
+        $assetInbox = DB::table('asset_communication_logs')
+            ->select([
+                DB::raw("'assets' as source_section"),
+                'asset_communication_logs.id',
+                'asset_communication_logs.event',
+                'asset_communication_logs.channel',
+                'asset_communication_logs.status',
+                'asset_communication_logs.message',
+                'asset_communication_logs.read_at',
+                'asset_communication_logs.created_at',
+                'asset_communication_logs.recipient_user_id',
+                DB::raw('NULL as request_id'),
+                DB::raw('NULL as vendor_id'),
+                DB::raw('NULL as vendor_invoice_id'),
+                'asset_communication_logs.asset_id',
+            ])
+            ->where('asset_communication_logs.channel', 'in_app')
+            ->where('asset_communication_logs.recipient_user_id', $userId);
+
+        $combined = $requestInbox->unionAll($vendorInbox)->unionAll($assetInbox);
 
         $query = DB::query()
             ->fromSub($combined, 'messages')
             ->leftJoin('requests as requests', 'requests.id', '=', 'messages.request_id')
             ->leftJoin('vendors as vendors', 'vendors.id', '=', 'messages.vendor_id')
             ->leftJoin('vendor_invoices as invoices', 'invoices.id', '=', 'messages.vendor_invoice_id')
+            ->leftJoin('assets as assets', 'assets.id', '=', 'messages.asset_id')
             ->leftJoin('users as recipients', 'recipients.id', '=', 'messages.recipient_user_id')
             ->select([
                 'messages.source_section',
@@ -369,10 +404,13 @@ class RequestCommunicationsPage extends Component
                 'messages.request_id',
                 'messages.vendor_id',
                 'messages.vendor_invoice_id',
+                'messages.asset_id',
                 'requests.request_code as request_code',
                 'requests.title as request_title',
                 'vendors.name as vendor_name',
                 'invoices.invoice_number as invoice_number',
+                'assets.asset_code as asset_code',
+                'assets.name as asset_name',
                 'recipients.name as recipient_name',
             ]);
 
@@ -386,6 +424,8 @@ class RequestCommunicationsPage extends Component
                     ->orWhere('requests.title', 'like', '%'.$search.'%')
                     ->orWhere('vendors.name', 'like', '%'.$search.'%')
                     ->orWhere('invoices.invoice_number', 'like', '%'.$search.'%')
+                    ->orWhere('assets.asset_code', 'like', '%'.$search.'%')
+                    ->orWhere('assets.name', 'like', '%'.$search.'%')
                     ->orWhere('recipients.name', 'like', '%'.$search.'%');
             });
         }
@@ -407,6 +447,11 @@ class RequestCommunicationsPage extends Component
 
         $log = match ($source) {
             'vendors' => VendorCommunicationLog::query()
+                ->where('id', $logId)
+                ->where('channel', 'in_app')
+                ->where('recipient_user_id', $userId)
+                ->first(),
+            'assets' => AssetCommunicationLog::query()
                 ->where('id', $logId)
                 ->where('channel', 'in_app')
                 ->where('recipient_user_id', $userId)

@@ -19,11 +19,14 @@ Stage 1 ships two pillars:
 
 ### B. Asset Management
 - Asset register (laptops, vehicles, equipment, tools)
-- Assign assets to staff
-- Transfer history + activity logs
+- Category-based asset register with system-generated category codes
+- Assign/transfer assets to staff
+- Return-to-inventory flow
+- Transfer history + append-only event logs
 - Maintenance logs
-- Return checklist (offboarding)
-- Missing/overdue asset alerts
+- Disposal flow with salvage/disposal reason tracking
+- Maintenance/warranty due reminders with queue + retry operations
+- Asset controls policy layer (per-action role access)
 
 Non-goals for Stage 1:
 - Virtual cards, wallets, payroll, deep ERP modules (these come later)
@@ -98,7 +101,7 @@ Flowdesk is built in “domains” so it scales without becoming messy.
 - Vendors (vendor records)
 - Budgets (department budgets)
 - Expenses (expense entries, receipts)
-- Assets (assets, assignments, maintenance, returns)
+- Assets (asset_categories, assets, asset_events, company_asset_policy_settings, asset_communication_logs)
 - Dashboard (metrics, cards, charts)
 - Reports (operational and financial analytics)
 - Notifications (in-app + email alerts)
@@ -166,11 +169,10 @@ Navigation rule:
 - void
 
 ### Asset status (canonical)
-- available
+- active
 - assigned
-- under_repair
-- retired
-- lost
+- in_maintenance
+- disposed
 
 ---
 
@@ -229,7 +231,8 @@ Every important action must be logged:
 - Created vendor
 - Assigned asset
 - Returned asset
-- Marked asset lost / repaired
+- Logged asset maintenance
+- Disposed asset
 
 Audit logs must include:
 - company_id
@@ -323,7 +326,7 @@ Routes:
 - Requests + approvals
 - Vendors + budgets
 - Expenses + receipts
-- Assets + assignments + returns
+- Assets + lifecycle events + controls + reminders
 - Dashboard + audit logs
 
 ### Stage 2 (next)

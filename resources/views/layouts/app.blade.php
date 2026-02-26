@@ -131,28 +131,26 @@
                     @endisset
 
                     @auth
-                        @unless (request()->routeIs('dashboard*'))
-                            <div class="mb-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                                <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                                    <div>
-                                        <p class="text-xs uppercase tracking-[0.1em] text-slate-500">Signed In User</p>
-                                        <p class="mt-1 text-sm font-semibold text-slate-900">{{ $user?->name }}</p>
-                                    </div>
-                                    <div>
-                                        <p class="text-xs uppercase tracking-[0.1em] text-slate-500">Role / Designation</p>
-                                        <p class="mt-1 text-sm font-semibold text-slate-900">{{ $roleLabel }}</p>
-                                    </div>
-                                    <div>
-                                        <p class="text-xs uppercase tracking-[0.1em] text-slate-500">Department</p>
-                                        <p class="mt-1 text-sm font-semibold text-slate-900">{{ $departmentLabel }}</p>
-                                    </div>
-                                    <div>
-                                        <p class="text-xs uppercase tracking-[0.1em] text-slate-500">Reporting Line</p>
-                                        <p class="mt-1 text-sm font-semibold text-slate-900">Direct Manager ({{ $reportsToLabel }})</p>
-                                    </div>
+                        <div class="mb-6 rounded-2xl border border-sky-200 bg-sky-50 p-4 shadow-sm">
+                            <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                                <div>
+                                    <p class="text-xs uppercase tracking-[0.1em] text-sky-700">Signed In User</p>
+                                    <p class="mt-1 text-sm font-semibold text-sky-900">{{ $user?->name }}</p>
+                                </div>
+                                <div>
+                                    <p class="text-xs uppercase tracking-[0.1em] text-sky-700">Role / Designation</p>
+                                    <p class="mt-1 text-sm font-semibold text-sky-900">{{ $roleLabel }}</p>
+                                </div>
+                                <div>
+                                    <p class="text-xs uppercase tracking-[0.1em] text-sky-700">Department</p>
+                                    <p class="mt-1 text-sm font-semibold text-sky-900">{{ $departmentLabel }}</p>
+                                </div>
+                                <div>
+                                    <p class="text-xs uppercase tracking-[0.1em] text-sky-700">Reporting Line</p>
+                                    <p class="mt-1 text-sm font-semibold text-sky-900">Direct Manager ({{ $reportsToLabel }})</p>
                                 </div>
                             </div>
-                        @endunless
+                        </div>
                     @endauth
 
                     {{ $slot }}

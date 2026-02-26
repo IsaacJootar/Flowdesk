@@ -35,6 +35,11 @@
             <p class="mt-2 text-sm text-slate-500">Configure who can post, edit, and void expenses by role and policy.</p>
         </a>
 
+        <a href="{{ route('settings.asset-controls') }}" class="fd-card block p-6 transition hover:border-slate-300">
+            <h2 class="text-sm font-semibold text-slate-900">Asset Controls</h2>
+            <p class="mt-2 text-sm text-slate-500">Configure who can register, assign, maintain, and dispose assets by role.</p>
+        </a>
+
         <a href="{{ route('settings.vendor-controls') }}" class="fd-card block p-6 transition hover:border-slate-300">
             <h2 class="text-sm font-semibold text-slate-900">Vendor Controls</h2>
             <p class="mt-2 text-sm text-slate-500">Configure per-action vendor permissions for profile, finance, exports, and communications.</p>

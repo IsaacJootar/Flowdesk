@@ -10,6 +10,7 @@ use App\Http\Controllers\VendorStatementCsvExportController;
 use App\Http\Controllers\VendorStatementPrintController;
 use App\Enums\UserRole;
 use App\Livewire\Dashboard\DashboardShell;
+use App\Livewire\Assets\AssetReportsPage;
 use App\Livewire\Organization\ApprovalWorkflowsPage;
 use App\Livewire\Organization\DepartmentsPage;
 use App\Livewire\Organization\TeamPage;
@@ -17,6 +18,7 @@ use App\Livewire\Requests\RequestCommunicationsPage;
 use App\Livewire\Requests\RequestReportsPage;
 use App\Livewire\Settings\CommunicationSettingsPage;
 use App\Livewire\Settings\CompanySetup;
+use App\Livewire\Settings\AssetControlsPage;
 use App\Livewire\Settings\ExpenseControlsPage;
 use App\Livewire\Settings\RequestConfigurationPage;
 use App\Livewire\Settings\VendorControlsPage;
@@ -75,6 +77,7 @@ Route::middleware(['auth', 'company.context'])->group(function (): void {
 
     Route::prefix('assets')->name('assets.')->group(function (): void {
         Route::view('/', 'app.assets.index')->name('index');
+        Route::get('/reports', AssetReportsPage::class)->name('reports');
     });
 
     Route::prefix('departments')->name('departments.')->group(function (): void {
@@ -100,6 +103,7 @@ Route::middleware(['auth', 'company.context'])->group(function (): void {
         Route::get('/communications', CommunicationSettingsPage::class)->name('communications');
         Route::get('/request-configuration', RequestConfigurationPage::class)->name('request-configuration');
         Route::get('/expense-controls', ExpenseControlsPage::class)->name('expense-controls');
+        Route::get('/asset-controls', AssetControlsPage::class)->name('asset-controls');
         Route::get('/vendor-controls', VendorControlsPage::class)->name('vendor-controls');
         Route::get('/organization', function () {
             abort_unless(\Illuminate\Support\Facades\Auth::user()?->role === UserRole::Owner->value, 403);

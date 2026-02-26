@@ -78,6 +78,7 @@ class NavAccessService
             ['route' => 'settings.communications', 'pattern' => ['settings.communications'], 'label' => 'Communications'],
             ['route' => 'settings.request-configuration', 'pattern' => ['settings.request-configuration'], 'label' => 'Request Configuration'],
             ['route' => 'settings.expense-controls', 'pattern' => ['settings.expense-controls'], 'label' => 'Expense Controls'],
+            ['route' => 'settings.asset-controls', 'pattern' => ['settings.asset-controls'], 'label' => 'Asset Controls'],
             ['route' => 'settings.vendor-controls', 'pattern' => ['settings.vendor-controls'], 'label' => 'Vendor Controls'],
             ['route' => 'settings.index', 'pattern' => ['settings.index'], 'label' => 'Settings'],
         ];
