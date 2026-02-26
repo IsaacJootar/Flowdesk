@@ -187,6 +187,46 @@ Approval trail for auditable workflow.
 
 ---
 
+### 2.3.1 company_approval_timing_settings
+Organization-level approval response timing defaults.
+
+**Columns**
+- id
+- company_id (FK, unique)
+- step_due_hours (int)
+- reminder_hours_before_due (int)
+- escalation_grace_hours (int)
+- metadata (json nullable)
+- created_by (nullable FK users.id)
+- updated_by (nullable FK users.id)
+- timestamps
+
+**Indexes**
+- unique(company_id)
+
+---
+
+### 2.3.2 department_approval_timing_overrides
+Department-specific timing overrides for approval steps.
+
+**Columns**
+- id
+- company_id (FK)
+- department_id (FK)
+- step_due_hours (int)
+- reminder_hours_before_due (int)
+- escalation_grace_hours (int)
+- metadata (json nullable)
+- created_by (nullable FK users.id)
+- updated_by (nullable FK users.id)
+- timestamps
+
+**Indexes**
+- unique(company_id, department_id)
+- index(company_id)
+
+---
+
 ### 2.4 expenses
 Records actual spending.
 Optionally linked to an approved request.

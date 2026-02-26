@@ -49,12 +49,7 @@ class NavAccessService
 
         return [
             'items' => $items,
-            'show_reports_placeholder' => in_array($role, [
-                UserRole::Owner->value,
-                UserRole::Finance->value,
-                UserRole::Manager->value,
-                UserRole::Auditor->value,
-            ], true),
+            'show_reports_placeholder' => false,
         ];
     }
 
@@ -65,6 +60,7 @@ class NavAccessService
     {
         return [
             ['route' => 'dashboard', 'pattern' => ['dashboard*'], 'label' => 'Dashboard'],
+            ['route' => 'reports.index', 'pattern' => ['reports.index'], 'label' => 'Reports'],
             ['route' => 'requests.index', 'pattern' => ['requests.index'], 'label' => 'Requests & Approvals'],
             ['route' => 'requests.communications', 'pattern' => ['requests.communications'], 'label' => 'Inbox & Logs'],
             ['route' => 'requests.reports', 'pattern' => ['requests.reports'], 'label' => 'Request Reports'],
@@ -77,6 +73,7 @@ class NavAccessService
             ['route' => 'approval-workflows.index', 'pattern' => ['approval-workflows.*'], 'label' => 'Approval Workflows'],
             ['route' => 'settings.communications', 'pattern' => ['settings.communications'], 'label' => 'Communications'],
             ['route' => 'settings.request-configuration', 'pattern' => ['settings.request-configuration'], 'label' => 'Request Configuration'],
+            ['route' => 'settings.approval-timing-controls', 'pattern' => ['settings.approval-timing-controls'], 'label' => 'Approval Timing Controls'],
             ['route' => 'settings.expense-controls', 'pattern' => ['settings.expense-controls'], 'label' => 'Expense Controls'],
             ['route' => 'settings.asset-controls', 'pattern' => ['settings.asset-controls'], 'label' => 'Asset Controls'],
             ['route' => 'settings.vendor-controls', 'pattern' => ['settings.vendor-controls'], 'label' => 'Vendor Controls'],
@@ -91,6 +88,7 @@ class NavAccessService
     {
         return [
             ['route' => 'dashboard', 'pattern' => ['dashboard*'], 'label' => 'Dashboard'],
+            ['route' => 'reports.index', 'pattern' => ['reports.index'], 'label' => 'Reports'],
             ['route' => 'requests.index', 'pattern' => ['requests.index'], 'label' => 'Requests & Approvals'],
             ['route' => 'requests.communications', 'pattern' => ['requests.communications'], 'label' => 'Inbox & Logs'],
             ['route' => 'requests.reports', 'pattern' => ['requests.reports'], 'label' => 'Request Reports'],
@@ -108,6 +106,7 @@ class NavAccessService
     {
         return [
             ['route' => 'dashboard', 'pattern' => ['dashboard*'], 'label' => 'Dashboard'],
+            ['route' => 'reports.index', 'pattern' => ['reports.index'], 'label' => 'Reports'],
             ['route' => 'requests.index', 'pattern' => ['requests.index'], 'label' => 'Requests & Approvals'],
             ['route' => 'requests.communications', 'pattern' => ['requests.communications'], 'label' => 'Inbox & Logs'],
             ['route' => 'requests.reports', 'pattern' => ['requests.reports'], 'label' => 'Request Reports'],

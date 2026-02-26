@@ -221,6 +221,33 @@ Implementation rule:
 - Expense recording remains a separate execution module.
 - Approved requests may be linked to expenses, but request approval and expense posting are distinct lifecycle stages.
 
+### 8.3 Approval Timing Controls (implemented)
+Flowdesk applies approval response deadlines per step using a policy precedence model:
+1. Step-level timing snapshot in approval metadata (if present)
+2. Department timing override
+3. Organization timing default
+4. Config fallback
+
+Timing values:
+- `step_due_hours`: response deadline window for a pending step
+- `reminder_hours_before_due`: reminder trigger before step deadline
+- `escalation_grace_hours`: escalation trigger after deadline
+
+When a step becomes `pending`, Flowdesk sets:
+- `due_at`
+- `metadata.sla` snapshot used for that step lifecycle
+
+Background automation (SLA processor):
+- Sends reminder at reminder threshold
+- Sends escalation after grace threshold
+- Writes `reminder_sent_at`, `reminder_count`, `escalated_at`
+- Logs communication events without blocking request state transitions
+
+UI/operations:
+- Settings -> Approval Timing Controls (owner-managed)
+- Organization defaults + per-department overrides
+- Request Details modal timeline shows `Due`, `Reminder sent`, `Escalated`
+
 ---
 
 ## 9) Logging / Audit (Mandatory)

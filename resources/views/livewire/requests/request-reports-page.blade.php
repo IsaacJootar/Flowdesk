@@ -88,12 +88,12 @@
         <div class="rounded-2xl border border-rose-200 bg-rose-50 p-4">
             <p class="text-xs uppercase tracking-[0.1em] text-rose-700">Overdue Steps</p>
             <p class="mt-1 text-2xl font-semibold text-rose-900">{{ number_format((int) $metrics['overdue_steps']) }}</p>
-            <p class="mt-1 text-xs text-rose-700">Pending past SLA due time</p>
+            <p class="mt-1 text-xs text-rose-700">Pending past response timing</p>
         </div>
         <div class="rounded-2xl border border-fuchsia-200 bg-fuchsia-50 p-4">
             <p class="text-xs uppercase tracking-[0.1em] text-fuchsia-700">Escalated Steps</p>
             <p class="mt-1 text-2xl font-semibold text-fuchsia-900">{{ number_format((int) $metrics['escalated_steps']) }}</p>
-            <p class="mt-1 text-xs text-fuchsia-700">Escalation triggered by SLA</p>
+            <p class="mt-1 text-xs text-fuchsia-700">Escalation triggered by response timing</p>
         </div>
     </div>
 

@@ -2,11 +2,13 @@
 
 return [
     'Dashboard' => 'Flowdesk control center skeleton',
+    'Reports Center' => 'Track cross-module metrics and activity from one command view',
     'Request Communications' => 'Track inbox notifications and delivery status across approval flows',
-    'Request Reports' => 'Analyze request volume, approval speed, and SLA health',
+    'Request Reports' => 'Analyze request volume, approval speed, and response timing health',
     'Vendor Profile' => 'View vendor profile, invoices, payments, and statement timeline',
     'Vendor Reports' => 'Track request-expense-vendor traceability and unlinked spend gaps',
     'Communications' => 'Configure organization notification channels and fallback order',
+    'Approval Timing Controls' => 'Configure approval response timing, reminder, and escalation policy',
     'Company Setup' => 'Create your company and baseline department',
     'Expense Controls' => 'Set which roles can post, edit, and void expenses per organization policy',
     'Asset Controls' => 'Set which roles can manage asset registration, custody, maintenance, and disposal',

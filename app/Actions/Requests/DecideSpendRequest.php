@@ -7,6 +7,7 @@ use App\Domains\Approvals\Models\RequestApproval;
 use App\Domains\Company\Models\CompanyCommunicationSetting;
 use App\Domains\Requests\Models\SpendRequest;
 use App\Models\User;
+use App\Services\ApprovalTimingPolicyResolver;
 use App\Services\ActivityLogger;
 use App\Services\RequestApprovalSlaService;
 use App\Services\RequestCommunicationLogger;
@@ -23,7 +24,8 @@ class DecideSpendRequest
         private readonly ActivityLogger $activityLogger,
         private readonly RequestApprovalRouter $requestApprovalRouter,
         private readonly RequestCommunicationLogger $requestCommunicationLogger,
-        private readonly RequestApprovalSlaService $requestApprovalSlaService
+        private readonly RequestApprovalSlaService $requestApprovalSlaService,
+        private readonly ApprovalTimingPolicyResolver $approvalTimingPolicyResolver
     ) {
     }
 
@@ -82,6 +84,12 @@ class DecideSpendRequest
                 $nextStep = $this->requestApprovalRouter->resolveNextStep($request, (int) $currentStep->step_order);
 
                 if ($nextStep) {
+                    $nextStepSla = $this->approvalTimingPolicyResolver->resolve(
+                        companyId: (int) $request->company_id,
+                        departmentId: $request->department_id ? (int) $request->department_id : null,
+                        stepLevelSla: (array) data_get((array) ($nextStep->metadata ?? []), 'sla', [])
+                    );
+
                     $toStatus = 'in_review';
                     $request->forceFill([
                         'status' => $toStatus,
@@ -102,7 +110,7 @@ class DecideSpendRequest
                             'step_key' => $nextStep->step_key,
                             'status' => 'pending',
                             'due_at' => $this->requestApprovalSlaService->dueAtFromNow([
-                                'sla' => $this->requestApprovalSlaService->defaultMetadata(),
+                                'sla' => $nextStepSla,
                             ]),
                             'reminder_sent_at' => null,
                             'escalated_at' => null,
@@ -110,7 +118,7 @@ class DecideSpendRequest
                             'metadata' => [
                                 'actor_type' => $nextStep->actor_type,
                                 'actor_value' => $nextStep->actor_value,
-                                'sla' => $this->requestApprovalSlaService->defaultMetadata(),
+                                'sla' => $nextStepSla,
                             ],
                         ]
                     );

@@ -8,6 +8,7 @@ use App\Domains\Requests\Models\CompanyRequestPolicySetting;
 use App\Domains\Requests\Models\CompanyRequestType;
 use App\Domains\Requests\Models\SpendRequest;
 use App\Models\User;
+use App\Services\ApprovalTimingPolicyResolver;
 use App\Services\ActivityLogger;
 use App\Services\RequestApprovalSlaService;
 use App\Services\RequestBudgetGuardrail;
@@ -25,6 +26,7 @@ class SubmitSpendRequest
         private readonly RequestApprovalRouter $requestApprovalRouter,
         private readonly RequestCommunicationLogger $requestCommunicationLogger,
         private readonly RequestApprovalSlaService $requestApprovalSlaService,
+        private readonly ApprovalTimingPolicyResolver $approvalTimingPolicyResolver,
         private readonly RequestBudgetGuardrail $requestBudgetGuardrail,
         private readonly RequestDuplicateDetector $requestDuplicateDetector
     ) {
@@ -232,7 +234,12 @@ class SubmitSpendRequest
                         $requestChannelOverride
                     ),
                     'request_channel_mode' => $requestChannelMode,
-                    'sla' => $this->requestApprovalSlaService->defaultMetadata(),
+                    // Persist resolved timing snapshot so in-flight steps stay stable after future policy edits.
+                    'sla' => $this->approvalTimingPolicyResolver->resolve(
+                        companyId: (int) $request->company_id,
+                        departmentId: $request->department_id ? (int) $request->department_id : null,
+                        stepLevelSla: (array) data_get((array) ($step->metadata ?? []), 'sla', [])
+                    ),
                 ];
 
                 RequestApproval::query()->updateOrCreate(

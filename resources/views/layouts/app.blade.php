@@ -39,7 +39,6 @@
             $reportsToLabel = $user?->reportsTo?->name ?? 'Not assigned';
             $navigation = app(\App\Services\NavAccessService::class)->forUser($user);
             $navItems = $navigation['items'];
-            $showReportsPlaceholder = (bool) ($navigation['show_reports_placeholder'] ?? false);
         @endphp
 
         <div class="min-h-screen md:flex">
@@ -63,10 +62,6 @@
                             {{ $item['label'] }}
                         </a>
                     @endforeach
-
-                    @if ($showReportsPlaceholder)
-                        <span class="fd-nav-item cursor-not-allowed opacity-60">Reports</span>
-                    @endif
                 </nav>
             </aside>
 

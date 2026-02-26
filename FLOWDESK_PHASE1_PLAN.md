@@ -1033,3 +1033,25 @@ Implemented in this run:
   - `php artisan assets:reminders:dispatch --company= --days-ahead=7`
   - `php artisan assets:communications:retry-failed --company= --batch=200`
   - `php artisan assets:communications:process-queued --company= --older-than=2 --batch=500`
+
+19) Approval timing controls (implemented)
+- Added dedicated settings module: `Settings -> Approval Timing Controls`
+- Added organization-level default timing configuration:
+  - step due hours
+  - reminder hours before due
+  - escalation grace hours
+- Added department-level timing overrides with explicit remove-to-inherit behavior.
+- Added policy resolver service:
+  - `App\Services\ApprovalTimingPolicyResolver`
+  - precedence: step metadata -> department override -> org default -> config fallback
+- Integrated resolver into request approval lifecycle:
+  - submit sets first pending step `due_at` using resolved policy
+  - approve-to-next-step sets next pending step `due_at` using resolved policy
+  - SLA processor backfills missing `metadata.sla` and `due_at` from resolved policy
+- Added policy storage tables:
+  - `company_approval_timing_settings`
+  - `department_approval_timing_overrides`
+- Added tests:
+  - owner/staff access checks for timing settings
+  - precedence validation (department override over org default)
+  - request submit timing application validation (`due_at` and metadata snapshot)

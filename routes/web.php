@@ -14,11 +14,13 @@ use App\Livewire\Assets\AssetReportsPage;
 use App\Livewire\Organization\ApprovalWorkflowsPage;
 use App\Livewire\Organization\DepartmentsPage;
 use App\Livewire\Organization\TeamPage;
+use App\Livewire\Reports\ReportsCenterPage;
 use App\Livewire\Requests\RequestCommunicationsPage;
 use App\Livewire\Requests\RequestReportsPage;
 use App\Livewire\Settings\CommunicationSettingsPage;
 use App\Livewire\Settings\CompanySetup;
 use App\Livewire\Settings\AssetControlsPage;
+use App\Livewire\Settings\ApprovalTimingControlsPage;
 use App\Livewire\Settings\ExpenseControlsPage;
 use App\Livewire\Settings\RequestConfigurationPage;
 use App\Livewire\Settings\VendorControlsPage;
@@ -38,6 +40,7 @@ Route::middleware('auth')->group(function (): void {
 
 Route::middleware(['auth', 'company.context'])->group(function (): void {
     Route::get('/dashboard', DashboardShell::class)->name('dashboard');
+    Route::get('/reports', ReportsCenterPage::class)->name('reports.index');
 
     Route::prefix('dashboard')->name('dashboard.')->group(function (): void {
         Route::get('/index', DashboardShell::class)->name('index');
@@ -102,6 +105,7 @@ Route::middleware(['auth', 'company.context'])->group(function (): void {
         })->name('index');
         Route::get('/communications', CommunicationSettingsPage::class)->name('communications');
         Route::get('/request-configuration', RequestConfigurationPage::class)->name('request-configuration');
+        Route::get('/approval-timing-controls', ApprovalTimingControlsPage::class)->name('approval-timing-controls');
         Route::get('/expense-controls', ExpenseControlsPage::class)->name('expense-controls');
         Route::get('/asset-controls', AssetControlsPage::class)->name('asset-controls');
         Route::get('/vendor-controls', VendorControlsPage::class)->name('vendor-controls');

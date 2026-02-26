@@ -5,6 +5,8 @@ namespace App\Domains\Company\Models;
 use App\Domains\Requests\Models\CompanyRequestType;
 use App\Domains\Requests\Models\CompanyRequestPolicySetting;
 use App\Domains\Requests\Models\CompanySpendCategory;
+use App\Domains\Approvals\Models\CompanyApprovalTimingSetting;
+use App\Domains\Approvals\Models\DepartmentApprovalTimingOverride;
 use App\Domains\Expenses\Models\CompanyExpensePolicySetting;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -72,5 +74,15 @@ class Company extends Model
     public function expensePolicySetting(): HasOne
     {
         return $this->hasOne(CompanyExpensePolicySetting::class);
+    }
+
+    public function approvalTimingSetting(): HasOne
+    {
+        return $this->hasOne(CompanyApprovalTimingSetting::class);
+    }
+
+    public function approvalTimingOverrides(): HasMany
+    {
+        return $this->hasMany(DepartmentApprovalTimingOverride::class);
     }
 }

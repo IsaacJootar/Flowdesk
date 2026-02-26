@@ -14,6 +14,7 @@ class RequestApprovalSlaProcessor
 {
     public function __construct(
         private readonly RequestApprovalSlaService $slaService,
+        private readonly ApprovalTimingPolicyResolver $approvalTimingPolicyResolver,
         private readonly RequestApprovalRouter $requestApprovalRouter,
         private readonly RequestCommunicationLogger $requestCommunicationLogger
     ) {
@@ -74,6 +75,15 @@ class RequestApprovalSlaProcessor
 
         $metadata = is_array($approval->metadata) ? $approval->metadata : [];
         $dirty = false;
+
+        if (! is_array(data_get($metadata, 'sla'))) {
+            $metadata['sla'] = $this->approvalTimingPolicyResolver->resolve(
+                companyId: (int) $request->company_id,
+                departmentId: $request->department_id ? (int) $request->department_id : null
+            );
+            $approval->metadata = $metadata;
+            $dirty = true;
+        }
 
         if (! $approval->due_at) {
             $approval->due_at = $this->slaService->dueAtFromNow($metadata, $now);
