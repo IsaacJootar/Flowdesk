@@ -15,6 +15,8 @@ use App\Enums\UserRole;
 use App\Models\User;
 use App\Services\PlatformAccessService;
 use App\Services\TenantAuditLogger;
+use App\Services\TenantBillingAutomationService;
+use App\Services\TenantPlanDefaultsService;
 use App\Services\TenantUsageSnapshotService;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\View\View;
@@ -96,6 +98,8 @@ class TenantManagementPage extends Component
 
     public function loadData(): void
     {
+        // Keep billing states fresh when platform operators open tenant management.
+        app(TenantBillingAutomationService::class)->evaluateAllExternal(Auth::user());
         $this->readyToLoad = true;
     }
 
@@ -138,6 +142,14 @@ class TenantManagementPage extends Component
         }
 
         $this->resetPage();
+    }
+
+    public function updatedSubscriptionFormPlanCode(string $value): void
+    {
+        // New tenants should inherit selected plan defaults immediately.
+        if (! $this->isEditingTenant) {
+            $this->applyPlanDefaultsToForm($value);
+        }
     }
 
     public function openCreateModal(): void
@@ -211,6 +223,15 @@ class TenantManagementPage extends Component
         $this->resetForms();
     }
 
+    public function applyPlanDefaults(): void
+    {
+        $this->authorizePlatformOperator();
+
+        $planCode = (string) ($this->subscriptionForm['plan_code'] ?? config('tenant_plans.default_plan', 'pilot'));
+        $this->applyPlanDefaultsToForm($planCode);
+        $this->setFeedback('Plan defaults applied. You can still adjust toggles before saving.');
+    }
+
     public function saveTenant(): void
     {
         $this->authorizePlatformOperator();
@@ -275,6 +296,16 @@ class TenantManagementPage extends Component
                 ? Company::query()->findOrFail($this->editingCompanyId)
                 : new Company();
             $isNewTenant = ! $company->exists;
+            $existingSubscription = TenantSubscription::query()
+                ->where('company_id', (int) $company->id)
+                ->first();
+            $existingEntitlements = TenantFeatureEntitlement::query()
+                ->where('company_id', (int) $company->id)
+                ->first();
+            $previousSeatLimit = $existingSubscription?->seat_limit;
+            $previousEntitlements = $existingEntitlements
+                ? $this->entitlementMapFromModel($existingEntitlements)
+                : null;
 
             $lifecycle = (string) $this->tenantForm['lifecycle_status'];
             $company->forceFill([
@@ -311,7 +342,7 @@ class TenantManagementPage extends Component
                 ]
             );
 
-            TenantFeatureEntitlement::query()->updateOrCreate(
+            $entitlementsRecord = TenantFeatureEntitlement::query()->updateOrCreate(
                 ['company_id' => $company->id],
                 [
                     'requests_enabled' => (bool) $this->entitlementsForm['requests_enabled'],
@@ -351,7 +382,43 @@ class TenantManagementPage extends Component
                 ],
             );
 
+            $currentSeatLimit = $subscription->seat_limit;
+            if ((int) ($previousSeatLimit ?? 0) !== (int) ($currentSeatLimit ?? 0)
+                || ($previousSeatLimit === null) !== ($currentSeatLimit === null)) {
+                app(TenantAuditLogger::class)->log(
+                    companyId: (int) $company->id,
+                    action: 'tenant.seat_limit.updated',
+                    actor: $user,
+                    description: 'Tenant seat policy updated.',
+                    entityType: TenantSubscription::class,
+                    entityId: (int) $subscription->id,
+                    metadata: [
+                        'previous_seat_limit' => $previousSeatLimit,
+                        'new_seat_limit' => $currentSeatLimit,
+                    ],
+                );
+            }
+
+            $currentEntitlements = $this->entitlementMapFromModel($entitlementsRecord);
+            $entitlementDiffs = $this->entitlementDifferences($previousEntitlements, $currentEntitlements);
+            if ($entitlementDiffs !== []) {
+                app(TenantAuditLogger::class)->log(
+                    companyId: (int) $company->id,
+                    action: 'tenant.entitlements.updated',
+                    actor: $user,
+                    description: 'Tenant module entitlements updated.',
+                    entityType: TenantFeatureEntitlement::class,
+                    entityId: (int) $entitlementsRecord->id,
+                    metadata: [
+                        'changes' => $entitlementDiffs,
+                    ],
+                );
+            }
+
             app(TenantUsageSnapshotService::class)->capture((int) $company->id, $user);
+
+            // Re-evaluate status after plan/dates/status edits.
+            app(TenantBillingAutomationService::class)->evaluateCompany($company, $user);
         } catch (ValidationException $exception) {
             throw $exception;
         } catch (Throwable $exception) {
@@ -530,6 +597,22 @@ class TenantManagementPage extends Component
                     'allocation_status' => $allocationStatus,
                 ],
             );
+
+            if ($subscription) {
+                $automationService = app(TenantBillingAutomationService::class);
+                $automationService->syncCoverageFromPaymentPeriod(
+                    subscription: $subscription,
+                    periodStart: $payment->period_start?->toDateString(),
+                    periodEnd: $payment->period_end?->toDateString(),
+                    actor: $user
+                );
+
+                $subscription->refresh();
+                $company = $this->tenantCompaniesBaseQuery()->find($this->paymentCompanyId);
+                if ($company) {
+                    $automationService->evaluateCompany($company, $user);
+                }
+            }
         } catch (Throwable $exception) {
             report($exception);
             $this->setFeedbackError('Unable to record manual payment right now.');
@@ -595,6 +678,8 @@ class TenantManagementPage extends Component
 
         $companies = $this->readyToLoad ? $this->companyRows() : $this->emptyPaginator();
         $stats = $this->readyToLoad ? $this->stats() : $this->emptyStats();
+        $billingDefaults = $this->billingDefaultsSummary();
+        $planDefaults = $this->planDefaultsSummary();
         $tenantCompanyIds = $this->readyToLoad ? $this->tenantCompaniesBaseQuery()->pluck('id') : collect();
         $recentPayments = $this->readyToLoad
             ? TenantManualPayment::query()
@@ -608,6 +693,8 @@ class TenantManagementPage extends Component
         return view('livewire.platform.tenant-management-page', [
             'companies' => $companies,
             'stats' => $stats,
+            'billingDefaults' => $billingDefaults,
+            'planDefaults' => $planDefaults,
             'recentPayments' => $recentPayments,
         ]);
     }
@@ -882,7 +969,7 @@ class TenantManagementPage extends Component
         ];
 
         $this->subscriptionForm = [
-            'plan_code' => 'pilot',
+            'plan_code' => (string) config('tenant_plans.default_plan', 'pilot'),
             'subscription_status' => 'current',
             'starts_at' => '',
             'ends_at' => '',
@@ -903,6 +990,8 @@ class TenantManagementPage extends Component
             'ai_enabled' => false,
             'fintech_enabled' => false,
         ];
+
+        $this->applyPlanDefaultsToForm((string) $this->subscriptionForm['plan_code']);
 
         $this->paymentForm = [
             'amount' => '',
@@ -969,6 +1058,99 @@ class TenantManagementPage extends Component
         $trimmed = trim($value);
 
         return $trimmed !== '' ? $trimmed : null;
+    }
+
+    /**
+     * @return array<string, bool>
+     */
+    private function entitlementMapFromModel(TenantFeatureEntitlement $entitlements): array
+    {
+        return [
+            'requests_enabled' => (bool) $entitlements->requests_enabled,
+            'expenses_enabled' => (bool) $entitlements->expenses_enabled,
+            'vendors_enabled' => (bool) $entitlements->vendors_enabled,
+            'budgets_enabled' => (bool) $entitlements->budgets_enabled,
+            'assets_enabled' => (bool) $entitlements->assets_enabled,
+            'reports_enabled' => (bool) $entitlements->reports_enabled,
+            'communications_enabled' => (bool) $entitlements->communications_enabled,
+            'ai_enabled' => (bool) $entitlements->ai_enabled,
+            'fintech_enabled' => (bool) $entitlements->fintech_enabled,
+        ];
+    }
+
+    /**
+     * @param  array<string,bool>|null  $previous
+     * @param  array<string,bool>  $current
+     * @return array<string,array{from:bool|null,to:bool}>
+     */
+    private function entitlementDifferences(?array $previous, array $current): array
+    {
+        $diff = [];
+        foreach ($current as $key => $value) {
+            $before = $previous[$key] ?? null;
+            if ($before === $value) {
+                continue;
+            }
+
+            $diff[$key] = [
+                'from' => $before,
+                'to' => $value,
+            ];
+        }
+
+        return $diff;
+    }
+
+    private function applyPlanDefaultsToForm(string $planCode): void
+    {
+        $defaultsService = app(TenantPlanDefaultsService::class);
+        $this->entitlementsForm = array_merge(
+            $this->entitlementsForm,
+            $defaultsService->formEntitlementsForPlan($planCode)
+        );
+
+        $defaults = $defaultsService->defaultsForPlan($planCode);
+        $seatLimit = $defaults['seat_limit'];
+        $this->subscriptionForm['seat_limit'] = $seatLimit !== null ? (string) $seatLimit : '';
+    }
+
+    /**
+     * @return array{grace_days:int,auto_suspend_days:int,automation_cadence:string}
+     */
+    private function billingDefaultsSummary(): array
+    {
+        return [
+            'grace_days' => max(0, (int) config('platform.billing_default_grace_days', 3)),
+            'auto_suspend_days' => max(1, (int) config('platform.billing_auto_suspend_after_days_overdue', 14)),
+            'automation_cadence' => 'Hourly',
+        ];
+    }
+
+    /**
+     * @return array<int,array{code:string,label:string,enabled_modules:int,total_modules:int,default_seat_limit:int|null}>
+     */
+    private function planDefaultsSummary(): array
+    {
+        $plans = (array) config('tenant_plans.plans', []);
+        $rows = [];
+
+        foreach ($plans as $code => $config) {
+            $entitlements = (array) ($config['entitlements'] ?? []);
+            $enabled = collect($entitlements)->filter(static fn (mixed $value): bool => (bool) $value)->count();
+            $total = count($entitlements);
+
+            $rows[] = [
+                'code' => (string) $code,
+                'label' => (string) ($config['label'] ?? ucfirst((string) $code)),
+                'enabled_modules' => $enabled,
+                'total_modules' => $total,
+                'default_seat_limit' => isset($config['default_seat_limit']) && $config['default_seat_limit'] !== null
+                    ? (int) $config['default_seat_limit']
+                    : null,
+            ];
+        }
+
+        return $rows;
     }
 
     private function emptyPaginator(): LengthAwarePaginator

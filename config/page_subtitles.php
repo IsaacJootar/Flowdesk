@@ -1,7 +1,7 @@
 <?php
 
 return [
-    'Dashboard' => 'Flowdesk control center skeleton',
+    'Dashboard' => 'Operations and financial visibility from one control center',
     'Reports Center' => 'Track cross-module metrics and activity from one command view',
     'Request Communications' => 'Track inbox notifications and delivery status across approval flows',
     'Request Reports' => 'Analyze request volume, approval speed, and response timing health',
@@ -13,7 +13,7 @@ return [
     'Expense Controls' => 'Set which roles can post, edit, and void expenses per organization policy',
     'Asset Controls' => 'Set which roles can manage asset registration, custody, maintenance, and disposal',
     'Vendor Controls' => 'Set which roles can manage vendor profiles, invoices, payments, exports, and communications',
-    'Tenant / Organization Management' => 'Platform-level control of tenant lifecycle, plans, entitlements, and manual billing records', // Auto billing in version 1.1, I hope so
+    'Tenant / Organization Management' => 'Tenant control center for lifecycle, plans, billing defaults, seat governance, and entitlements',
     'Tenant Details' => 'Billing ledger, reconciliation queue, plan history, usage quotas, and tenant audit timeline',
     'Platform Users' => 'Assign and manage global platform roles for tenant operations and billing governance',
     'Assets' => 'Track assets from registration to assignment, maintenance, and disposal',

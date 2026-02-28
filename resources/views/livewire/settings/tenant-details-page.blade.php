@@ -1,12 +1,16 @@
-<div wire:init="loadData" class="space-y-5">
+﻿<div wire:init="loadData" class="space-y-5">
     <div class="flex items-center justify-between">
         <div>
             <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Tenant Operations</p>
             <h2 class="mt-1 text-xl font-semibold text-slate-900">{{ $company->name }}</h2>
-            <p class="text-sm text-slate-500">{{ $company->slug }} · {{ $company->email ?: 'no email' }}</p>
+            <p class="text-sm text-slate-500">{{ $company->slug }} - {{ $company->email ?: 'no email' }}</p>
         </div>
-        <a href="{{ route('platform.tenants') }}" class="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700">
-            Back to Tenants
+        <a
+            href="{{ route('platform.tenants') }}"
+            class="inline-flex h-10 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl border border-slate-300 bg-white px-3.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+        >
+            <span aria-hidden="true">&larr;</span>
+            <span>Back to Tenants</span>
         </a>
     </div>
 
@@ -140,9 +144,9 @@
                 @forelse ($planHistory as $history)
                     <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
                         <p class="text-sm font-semibold text-slate-800">
-                            {{ strtoupper((string) ($history->previous_plan_code ?: '-')) }} → {{ strtoupper((string) $history->new_plan_code) }}
+                            {{ strtoupper((string) ($history->previous_plan_code ?: '-')) }} â†’ {{ strtoupper((string) $history->new_plan_code) }}
                         </p>
-                        <p class="text-xs text-slate-500">{{ optional($history->changed_at)->format('M d, Y H:i') }} · {{ $history->changer?->name ?: 'System' }}</p>
+                        <p class="text-xs text-slate-500">{{ optional($history->changed_at)->format('M d, Y H:i') }} - {{ $history->changer?->name ?: 'System' }}</p>
                         @if ($history->reason)
                             <p class="mt-1 text-xs text-slate-600">{{ $history->reason }}</p>
                         @endif
@@ -168,8 +172,8 @@
                     @endphp
                     <div class="rounded-xl border p-3 {{ $usageClass }}">
                         <p class="text-sm font-semibold text-slate-800">{{ optional($snapshot->snapshot_at)->format('M d, Y H:i') }}</p>
-                        <p class="text-xs text-slate-600">Users: {{ number_format((int) $snapshot->active_users) }} / {{ $snapshot->seat_limit ? number_format((int) $snapshot->seat_limit) : 'No limit' }} · {{ number_format((float) ($snapshot->seat_utilization_percent ?? 0), 2) }}%</p>
-                        <p class="text-xs text-slate-600">Req: {{ number_format((int) $snapshot->requests_count) }} · Exp: {{ number_format((int) $snapshot->expenses_count) }} · Ven: {{ number_format((int) $snapshot->vendors_count) }} · Assets: {{ number_format((int) $snapshot->assets_count) }}</p>
+                        <p class="text-xs text-slate-600">Users: {{ number_format((int) $snapshot->active_users) }} / {{ $snapshot->seat_limit ? number_format((int) $snapshot->seat_limit) : 'No limit' }} - {{ number_format((float) ($snapshot->seat_utilization_percent ?? 0), 2) }}%</p>
+                        <p class="text-xs text-slate-600">Req: {{ number_format((int) $snapshot->requests_count) }} - Exp: {{ number_format((int) $snapshot->expenses_count) }} - Ven: {{ number_format((int) $snapshot->vendors_count) }} - Assets: {{ number_format((int) $snapshot->assets_count) }}</p>
                     </div>
                 @empty
                     <p class="text-sm text-slate-500">No usage snapshots yet.</p>

@@ -197,10 +197,18 @@ All sensitive actions require:
   - usage snapshots captured after key admin mutations
 - Added automated regression coverage for tenant billing ops:
   - `tests/Feature/Settings/TenantBillingOpsTest.php`
+- Added automated billing lifecycle derivation:
+  - `current`, `grace`, `overdue`, `suspended` from coverage + grace policy
+  - command/scheduler: `tenants:billing:automate`
+  - auto-run hooks on tenant load, tenant save, and manual payment save
+- Added plan policy matrix defaults:
+  - config: `config/tenant_plans.php`
+  - service: `TenantPlanDefaultsService`
+  - tenant modal action: `Apply Plan Defaults`
+- Added seat governance enforcement:
+  - service: `TenantSeatGovernanceService`
+  - enforced in user create and user re-activation paths
+  - usage snapshots auto-captured after team changes
 
 ### Pending in Next Slice
-- dedicated tenant details page with tabs
-- billing ledger + reconciliation page
-- plan change history timeline
-- tenant usage counters and quota warnings
-- finer platform RBAC split (`platform_owner`, `platform_billing_admin`, `platform_ops_admin`)
+- tenant billing provider adapter layer (optional, if external automation is enabled)

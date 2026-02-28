@@ -30,6 +30,31 @@
         @endif
     </div>
 
+    @if ($showTenantInsights)
+        <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <div class="rounded-2xl border border-sky-200 bg-sky-50 p-4">
+                <p class="text-xs font-semibold uppercase tracking-[0.12em] text-sky-700">Subscription</p>
+                <p class="mt-1 text-lg font-semibold text-sky-900">{{ ucfirst(str_replace('_', ' ', (string) $tenantInsights['plan_code'])) }}</p>
+                <p class="text-xs text-sky-700">{{ ucfirst(str_replace('_', ' ', (string) $tenantInsights['subscription_status'])) }}</p>
+            </div>
+            <div class="rounded-2xl border border-indigo-200 bg-indigo-50 p-4">
+                <p class="text-xs font-semibold uppercase tracking-[0.12em] text-indigo-700">Seat Usage</p>
+                <p class="mt-1 text-lg font-semibold text-indigo-900">{{ number_format((int) $tenantInsights['active_users']) }} / {{ $tenantInsights['seat_limit'] !== null ? number_format((int) $tenantInsights['seat_limit']) : 'Unlimited' }}</p>
+                <p class="text-xs text-indigo-700">{{ number_format((float) $tenantInsights['seat_utilization'], 2) }}% utilization</p>
+            </div>
+            <div class="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                <p class="text-xs font-semibold uppercase tracking-[0.12em] text-amber-700">Coverage</p>
+                <p class="mt-1 text-sm font-semibold text-amber-900">Ends: {{ $tenantInsights['coverage_end'] ?: 'Not set' }}</p>
+                <p class="text-xs text-amber-700">Grace until: {{ $tenantInsights['grace_until'] ?: 'Not set' }}</p>
+            </div>
+            <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+                <p class="text-xs font-semibold uppercase tracking-[0.12em] text-emerald-700">Modules Enabled</p>
+                <p class="mt-1 text-lg font-semibold text-emerald-900">{{ number_format((int) $tenantInsights['enabled_modules']) }} / {{ number_format((int) $tenantInsights['total_modules']) }}</p>
+                <p class="text-xs text-emerald-700">From your current tenant controls</p>
+            </div>
+        </div>
+    @endif
+
     <div class="fd-card p-6">
         <h2 class="text-lg font-semibold text-slate-900">{{ $isEditMode ? 'Company Settings' : 'Set Up Your Company' }}</h2>
         <p class="mt-1 text-sm text-slate-500">

@@ -4,6 +4,7 @@ use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
 use App\Services\RequestApprovalSlaProcessor;
+use App\Services\TenantBillingAutomationService;
 use App\Services\RequestCommunicationRetryService;
 use App\Services\AssetCommunicationRetryService;
 use App\Services\AssetReminderService;
@@ -31,6 +32,19 @@ Artisan::command('requests:process-sla {--company=} {--dry-run}', function (Requ
 })->purpose('Process request approval reminders and escalations');
 
 Schedule::command('requests:process-sla')->everyTenMinutes()->withoutOverlapping();
+
+Artisan::command('tenants:billing:automate', function (TenantBillingAutomationService $service): int {
+    $updated = $service->evaluateAllExternal();
+
+    $this->info('Tenant billing automation completed.');
+    $this->line('Updated subscriptions: '.$updated);
+
+    return self::SUCCESS;
+})->purpose('Evaluate tenant billing state transitions from coverage + grace policy');
+
+Schedule::command('tenants:billing:automate')
+    ->hourly()
+    ->withoutOverlapping();
 
 Artisan::command('requests:communications:retry-failed {--company=} {--batch=200}', function (RequestCommunicationRetryService $retryService): int {
     $companyId = $this->option('company');

@@ -40,6 +40,52 @@
         @endif
     </section>
 
+    <section class="fd-card p-5">
+        <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div>
+                <h3 class="text-base font-semibold text-slate-900">Billing Defaults</h3>
+                <p class="text-sm text-slate-600">Read-only platform billing timing and plan baseline matrix.</p>
+            </div>
+            <span class="inline-flex rounded-full border border-slate-300 bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">Read only</span>
+        </div>
+
+        <div class="grid gap-3 sm:grid-cols-3">
+            <div class="rounded-xl border border-indigo-200 bg-indigo-50 p-3">
+                <p class="text-xs font-semibold uppercase tracking-[0.12em] text-indigo-700">Grace Window</p>
+                <p class="mt-1 text-lg font-semibold text-indigo-900">{{ number_format((int) $billingDefaults['grace_days']) }} days</p>
+            </div>
+            <div class="rounded-xl border border-rose-200 bg-rose-50 p-3">
+                <p class="text-xs font-semibold uppercase tracking-[0.12em] text-rose-700">Auto Suspend</p>
+                <p class="mt-1 text-lg font-semibold text-rose-900">{{ number_format((int) $billingDefaults['auto_suspend_days']) }} days overdue</p>
+            </div>
+            <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
+                <p class="text-xs font-semibold uppercase tracking-[0.12em] text-emerald-700">Automation</p>
+                <p class="mt-1 text-lg font-semibold text-emerald-900">{{ $billingDefaults['automation_cadence'] }}</p>
+            </div>
+        </div>
+
+        <div class="mt-4 overflow-x-auto">
+            <table class="min-w-full divide-y divide-slate-200 text-sm">
+                <thead class="bg-slate-50 text-xs uppercase tracking-[0.12em] text-slate-500">
+                    <tr>
+                        <th class="px-3 py-2 text-left font-semibold">Plan</th>
+                        <th class="px-3 py-2 text-left font-semibold">Enabled Modules</th>
+                        <th class="px-3 py-2 text-left font-semibold">Default Seat Limit</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    @foreach ($planDefaults as $plan)
+                        <tr>
+                            <td class="px-3 py-2 font-medium text-slate-800">{{ $plan['label'] }}</td>
+                            <td class="px-3 py-2 text-slate-700">{{ number_format((int) $plan['enabled_modules']) }} / {{ number_format((int) $plan['total_modules']) }}</td>
+                            <td class="px-3 py-2 text-slate-700">{{ $plan['default_seat_limit'] !== null ? number_format((int) $plan['default_seat_limit']) : 'Unlimited' }}</td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+    </section>
+
     <div class="fd-card p-5">
         <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
             <label class="block lg:col-span-2">
@@ -132,8 +178,8 @@
                                 <td class="px-4 py-3 text-slate-700">{{ number_format((int) $company->users_count) }}</td>
                                 <td class="px-4 py-3">
                                     <div class="flex flex-wrap gap-2">
-                                        <a href="{{ route('platform.tenants.show', $company) }}" class="rounded-lg border border-sky-300 bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700">Open</a>
-                                        <button type="button" wire:click="openEditModal({{ $company->id }})" class="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700">Edit</button>
+                                        <a href="{{ route('platform.tenants.show', $company) }}" class="rounded-lg border border-sky-300 bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700">Details</a>
+                                        <button type="button" wire:click="openEditModal({{ $company->id }})" class="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700">Update</button>
                                         @if ((int) $company->users_count === 0)
                                             <button type="button" wire:click="provisionTenantLogin({{ $company->id }})" class="rounded-lg border border-indigo-300 bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700">Provision Login</button>
                                         @endif
@@ -159,7 +205,7 @@
         <div class="fixed inset-0 z-[70] overflow-y-auto bg-slate-900/35 p-4" wire:click.self="closeTenantModal">
             <div class="mx-auto w-full max-w-4xl rounded-2xl border border-slate-200 bg-white shadow-2xl">
                 <div class="flex items-center justify-between border-b border-slate-200 px-6 py-4">
-                    <h3 class="text-lg font-semibold text-slate-900">{{ $isEditingTenant ? 'Edit Tenant' : 'Create Tenant' }}</h3>
+                    <h3 class="text-lg font-semibold text-slate-900">{{ $isEditingTenant ? 'Update Tenant' : 'Create Tenant' }}</h3>
                     <button type="button" wire:click="closeTenantModal" class="rounded-lg border border-slate-300 px-3 py-1 text-sm font-medium text-slate-600">Close</button>
                 </div>
                 <form wire:submit.prevent="saveTenant" class="space-y-4 px-6 py-5">
@@ -189,7 +235,7 @@
                         </label>
                         <label class="block">
                             <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Plan</span>
-                            <select wire:model.defer="subscriptionForm.plan_code" class="w-full rounded-xl border-slate-300 text-sm">
+                            <select wire:model.live="subscriptionForm.plan_code" class="w-full rounded-xl border-slate-300 text-sm">
                                 <option value="pilot">Pilot</option>
                                 <option value="growth">Growth</option>
                                 <option value="business">Business</option>
@@ -205,6 +251,20 @@
                                 <option value="suspended">Suspended</option>
                             </select>
                         </label>
+                        <label class="block">
+                            <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Seat Limit (Optional)</span>
+                            <input type="number" min="1" wire:model.defer="subscriptionForm.seat_limit" class="w-full rounded-xl border-slate-300 text-sm" placeholder="Leave blank for unlimited">
+                            @error('subscriptionForm.seat_limit') <span class="mt-1 block text-xs text-rose-600">{{ $message }}</span> @enderror
+                        </label>
+                    </div>
+                    <div class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                        <div class="flex flex-wrap items-center justify-between gap-2">
+                            <p class="text-xs text-slate-600">Use plan matrix defaults for modules and seat policy, then adjust only where needed.</p>
+                            <button type="button" wire:click="applyPlanDefaults" wire:loading.attr="disabled" wire:target="applyPlanDefaults" class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100">
+                                <span wire:loading.remove wire:target="applyPlanDefaults">Apply Plan Defaults</span>
+                                <span wire:loading wire:target="applyPlanDefaults">Applying...</span>
+                            </button>
+                        </div>
                     </div>
                     <div class="grid gap-2 sm:grid-cols-3">
                         <label class="inline-flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" wire:model.defer="entitlementsForm.requests_enabled" class="rounded border-slate-300"> <span>Requests</span></label>

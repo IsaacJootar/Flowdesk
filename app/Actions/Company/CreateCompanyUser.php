@@ -7,6 +7,8 @@ use App\Enums\UserRole;
 use App\Models\User;
 use App\Services\ActivityLogger;
 use App\Services\StaffOnboardingMessenger;
+use App\Services\TenantSeatGovernanceService;
+use App\Services\TenantUsageSnapshotService;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Schema;
@@ -19,7 +21,9 @@ class CreateCompanyUser
 {
     public function __construct(
         private readonly ActivityLogger $activityLogger,
-        private readonly StaffOnboardingMessenger $staffOnboardingMessenger
+        private readonly StaffOnboardingMessenger $staffOnboardingMessenger,
+        private readonly TenantSeatGovernanceService $tenantSeatGovernanceService,
+        private readonly TenantUsageSnapshotService $tenantUsageSnapshotService
     )
     {
     }
@@ -69,6 +73,9 @@ class CreateCompanyUser
         }
 
         $validated = Validator::make($input, $rules)->validate();
+
+        // Enforce tenant seat cap before creating a new active user.
+        $this->tenantSeatGovernanceService->assertCanAddActiveUser((int) $actor->company_id);
 
         $payload = [
             'company_id' => (int) $actor->company_id,
@@ -155,6 +162,8 @@ class CreateCompanyUser
         } catch (Throwable $exception) {
             report($exception);
         }
+
+        $this->tenantUsageSnapshotService->capture((int) $actor->company_id, $actor);
 
         return $createdUser;
     }

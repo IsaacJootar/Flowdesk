@@ -16,4 +16,17 @@ return [
     |
     */
     'internal_company_slugs' => $internalCompanySlugs,
+
+    /*
+    |--------------------------------------------------------------------------
+    | Billing Automation Defaults
+    |--------------------------------------------------------------------------
+    |
+    | These defaults are used when a tenant subscription has no explicit
+    | grace_until date and when deciding if overdue should auto-escalate to
+    | suspended.
+    |
+    */
+    'billing_default_grace_days' => (int) env('PLATFORM_BILLING_DEFAULT_GRACE_DAYS', 3),
+    'billing_auto_suspend_after_days_overdue' => (int) env('PLATFORM_BILLING_AUTO_SUSPEND_AFTER_DAYS_OVERDUE', 14),
 ];

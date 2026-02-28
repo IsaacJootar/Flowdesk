@@ -193,7 +193,10 @@ class TeamPage extends Component
                 'is_active' => (bool) $payload['is_active'],
             ]);
         } catch (ValidationException $exception) {
-            throw $exception;
+            $message = (string) (collect($exception->errors())->flatten()->first() ?? 'Unable to update user assignment.');
+            $this->setFeedbackError($message);
+
+            return;
         } catch (Throwable $exception) {
             report($exception);
             $this->setFeedbackError('Unable to update user assignment.');
@@ -370,6 +373,11 @@ class TeamPage extends Component
 
             if ($key === 'notification_channels' || str_starts_with($key, 'notification_channels.')) {
                 $mapped['onboardingNotificationChannels'] = $messages;
+                continue;
+            }
+
+            if ($key === 'seat_limit') {
+                $mapped['newUserForm.role'] = $messages;
                 continue;
             }
 

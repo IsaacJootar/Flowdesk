@@ -5,6 +5,8 @@ namespace App\Actions\Company;
 use App\Enums\UserRole;
 use App\Models\User;
 use App\Services\ActivityLogger;
+use App\Services\TenantSeatGovernanceService;
+use App\Services\TenantUsageSnapshotService;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
@@ -12,7 +14,11 @@ use Illuminate\Validation\ValidationException;
 
 class UpdateCompanyUserAssignment
 {
-    public function __construct(private readonly ActivityLogger $activityLogger)
+    public function __construct(
+        private readonly ActivityLogger $activityLogger,
+        private readonly TenantSeatGovernanceService $tenantSeatGovernanceService,
+        private readonly TenantUsageSnapshotService $tenantUsageSnapshotService
+    )
     {
     }
 
@@ -50,6 +56,9 @@ class UpdateCompanyUserAssignment
         ])->validate();
 
         $reportsTo = $validated['reports_to_user_id'] ? (int) $validated['reports_to_user_id'] : null;
+        $nextIsActive = array_key_exists('is_active', $validated)
+            ? (bool) $validated['is_active']
+            : (bool) $subject->is_active;
 
         if ($reportsTo && $reportsTo === (int) $subject->id) {
             throw ValidationException::withMessages([
@@ -57,11 +66,16 @@ class UpdateCompanyUserAssignment
             ]);
         }
 
+        // Activating an inactive user consumes a seat and must respect the cap.
+        if ($nextIsActive && ! (bool) $subject->is_active) {
+            $this->tenantSeatGovernanceService->assertCanAddActiveUser((int) $actor->company_id);
+        }
+
         $subject->forceFill([
             'role' => $validated['role'],
             'department_id' => (int) $validated['department_id'],
             'reports_to_user_id' => $reportsTo,
-            'is_active' => array_key_exists('is_active', $validated) ? (bool) $validated['is_active'] : (bool) $subject->is_active,
+            'is_active' => $nextIsActive,
         ])->save();
 
         $this->activityLogger->log(
@@ -77,6 +91,8 @@ class UpdateCompanyUserAssignment
             companyId: (int) $actor->company_id,
             userId: $actor->id,
         );
+
+        $this->tenantUsageSnapshotService->capture((int) $actor->company_id, $actor);
 
         return $subject;
     }

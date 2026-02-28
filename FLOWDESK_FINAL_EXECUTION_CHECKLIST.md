@@ -17,23 +17,23 @@ Ship Flowdesk to production-ready quality for small and large organizations with
 ### 0.1 Tenant Core
 - [x] Tenant registry (create/update/status/lifecycle)
 - [x] Tenant lifecycle controls (suspend, deactivate, archive)
-- [ ] Tenant-level audit trail for all admin actions
+- [x] Tenant-level audit trail for all admin actions
 
 ### 0.2 Plan and Entitlements
 - [x] Plan assignment per tenant
 - [x] Tenant feature entitlement overrides
-- [ ] Seat and usage governance
+- [x] Seat and usage governance
 
 ### 0.3 Billing Operations (Manual + Offline Support)
 - [x] Manual payment capture for cash/offline transfer tenants
 - [x] Billing ledger with allocations and balances
-- [ ] Billing status derivation (`current`, `grace`, `overdue`, `suspended`)
+- [x] Billing status derivation (`current`, `grace`, `overdue`, `suspended`)
 - [x] Reconciliation and exception queue for unapplied/mismatched payments
 
 ### Exit Criteria
-- [ ] Central admin can fully govern tenant lifecycle and plan/entitlements
-- [ ] Offline billing is auditable and reliable for subscription state decisions
-- [ ] Tenant state can be used as source-of-truth for plan gating
+- [x] Central admin can fully govern tenant lifecycle and plan/entitlements
+- [x] Offline billing is auditable and reliable for subscription state decisions
+- [x] Tenant state can be used as source-of-truth for plan gating
 
 Reference: `FLOWDESK_TENANT_ORGANIZATION_MANAGEMENT_PLAN.md`
 
@@ -106,7 +106,7 @@ There are 2 models, and orgs choose:
 ## Phase 3: Plan Gating and Billing
 ### 3.1 Feature Access Controls
 - [x] Add tenant-level feature flags
-- [ ] Map features/modules to plan tiers (Pilot/Growth/Business/Enterprise)
+- [x] Map features/modules to plan tiers (Pilot/Growth/Business/Enterprise)
 - [x] Enforce both UI and server-side authorization gates
 
 ### 3.2 Subscription/Billing
@@ -204,3 +204,14 @@ There are 2 models, and orgs choose:
   `tenant_billing_ledger_entries`, `tenant_billing_allocations`, `tenant_plan_change_histories`, `tenant_usage_counters`, `tenant_audit_events`
 - [x] Tenant billing ops regression tests added:
   `tests/Feature/Settings/TenantBillingOpsTest.php`
+- [x] Automated tenant billing status engine wired:
+  - service: `app/Services/TenantBillingAutomationService.php`
+  - scheduler/command: `tenants:billing:automate` in `routes/console.php`
+  - live hooks: tenant page load, tenant save, payment save
+- [x] Seat governance enforced at team actions:
+  - blocks user create/activation when tenant seat cap is reached
+  - files: `CreateCompanyUser`, `UpdateCompanyUserAssignment`, `TenantSeatGovernanceService`
+- [x] Plan matrix defaults added:
+  - config: `config/tenant_plans.php`
+  - service: `app/Services/TenantPlanDefaultsService.php`
+  - tenant modal action: `Apply Plan Defaults`

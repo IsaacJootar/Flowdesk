@@ -6,6 +6,11 @@ use App\Models\User;
 
 class TenantModuleAccessService
 {
+    public function __construct(
+        private readonly TenantPlanDefaultsService $tenantPlanDefaultsService
+    ) {
+    }
+
     /**
      * @param  string|array<int, string>  $modules
      */
@@ -82,10 +87,17 @@ class TenantModuleAccessService
             return $defaults;
         }
 
-        $user->loadMissing('company.featureEntitlements');
+        $user->loadMissing('company.featureEntitlements', 'company.subscription');
         $entitlements = $user->company?->featureEntitlements;
 
         if (! $entitlements) {
+            $planCode = $user->company?->subscription?->plan_code;
+            if ($planCode) {
+                $planDefaults = $this->tenantPlanDefaultsService->defaultsForPlan((string) $planCode);
+
+                return $planDefaults['entitlements'];
+            }
+
             return $defaults;
         }
 
@@ -102,4 +114,3 @@ class TenantModuleAccessService
         ];
     }
 }
-

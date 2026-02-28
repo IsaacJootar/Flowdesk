@@ -5,6 +5,7 @@ namespace Tests\Feature\Settings;
 use App\Domains\Company\Models\Company;
 use App\Domains\Company\Models\Department;
 use App\Domains\Company\Models\TenantFeatureEntitlement;
+use App\Domains\Company\Models\TenantSubscription;
 use App\Enums\UserRole;
 use App\Models\User;
 use App\Services\NavAccessService;
@@ -81,6 +82,29 @@ class TenantModuleEntitlementTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_plan_defaults_apply_when_entitlements_row_is_missing(): void
+    {
+        [$company, $department] = $this->createCompanyContext('Plan Defaults Missing Entitlements');
+        $owner = $this->createUser($company, $department, UserRole::Owner->value);
+
+        TenantSubscription::query()->create([
+            'company_id' => $company->id,
+            'plan_code' => 'pilot',
+            'subscription_status' => 'current',
+            'created_by' => $owner->id,
+            'updated_by' => $owner->id,
+        ]);
+
+        // Pilot default matrix keeps requests enabled, but vendors disabled.
+        $this->actingAs($owner)
+            ->get(route('requests.index'))
+            ->assertOk();
+
+        $this->actingAs($owner)
+            ->get(route('vendors.index'))
+            ->assertForbidden();
+    }
+
     /**
      * @return array{0: Company, 1: Department}
      */
@@ -113,4 +137,3 @@ class TenantModuleEntitlementTest extends TestCase
         ]);
     }
 }
-

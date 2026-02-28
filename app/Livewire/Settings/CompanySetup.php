@@ -4,6 +4,9 @@ namespace App\Livewire\Settings;
 
 use App\Actions\Company\CreateCompanyForUser;
 use App\Domains\Company\Models\Company;
+use App\Domains\Company\Models\TenantFeatureEntitlement;
+use App\Domains\Company\Models\TenantSubscription;
+use App\Domains\Company\Models\TenantUsageCounter;
 use App\Enums\UserRole;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -33,6 +36,21 @@ class CompanySetup extends Component
     public bool $isEditMode = false;
     public ?int $companyId = null;
 
+    public bool $showTenantInsights = false;
+
+    /** @var array{plan_code:string,subscription_status:string,seat_limit:int|null,active_users:int,seat_utilization:float,coverage_end:?string,grace_until:?string,enabled_modules:int,total_modules:int} */
+    public array $tenantInsights = [
+        'plan_code' => 'not_set',
+        'subscription_status' => 'not_set',
+        'seat_limit' => null,
+        'active_users' => 0,
+        'seat_utilization' => 0.0,
+        'coverage_end' => null,
+        'grace_until' => null,
+        'enabled_modules' => 0,
+        'total_modules' => 9,
+    ];
+
     public function mount(): void
     {
         $user = \Illuminate\Support\Facades\Auth::user();
@@ -52,6 +70,8 @@ class CompanySetup extends Component
         if (! $company) {
             return;
         }
+
+        $this->hydrateTenantInsights($company);
 
         $this->isEditMode = true;
         $this->companyId = (int) $company->id;
@@ -132,6 +152,8 @@ class CompanySetup extends Component
                 $user->setRelation('company', $company);
             }
 
+            $this->hydrateTenantInsights($company);
+
             $this->dispatch('company-name-updated', name: (string) $company->name);
             $this->setFeedback('Company settings updated.');
 
@@ -178,6 +200,58 @@ class CompanySetup extends Component
         }
 
         return $slug;
+    }
+
+    private function hydrateTenantInsights(Company $company): void
+    {
+        $subscription = TenantSubscription::query()
+            ->where('company_id', (int) $company->id)
+            ->first();
+
+        $latestUsage = TenantUsageCounter::query()
+            ->where('company_id', (int) $company->id)
+            ->latest('snapshot_at')
+            ->first();
+
+        $activeUsers = (int) $company->users()->where('is_active', true)->count();
+        $seatLimit = $subscription?->seat_limit !== null ? (int) $subscription->seat_limit : null;
+        $seatUtilization = $latestUsage?->seat_utilization_percent !== null
+            ? (float) $latestUsage->seat_utilization_percent
+            : ($seatLimit && $seatLimit > 0 ? round(($activeUsers / $seatLimit) * 100, 2) : 0.0);
+
+        $entitlements = TenantFeatureEntitlement::query()
+            ->where('company_id', (int) $company->id)
+            ->first();
+
+        $enabledModules = 0;
+        $totalModules = 9;
+        if ($entitlements) {
+            $enabledModules = collect([
+                (bool) $entitlements->requests_enabled,
+                (bool) $entitlements->expenses_enabled,
+                (bool) $entitlements->vendors_enabled,
+                (bool) $entitlements->budgets_enabled,
+                (bool) $entitlements->assets_enabled,
+                (bool) $entitlements->reports_enabled,
+                (bool) $entitlements->communications_enabled,
+                (bool) $entitlements->ai_enabled,
+                (bool) $entitlements->fintech_enabled,
+            ])->filter()->count();
+        }
+
+        $this->tenantInsights = [
+            'plan_code' => (string) ($subscription?->plan_code ?? 'not_set'),
+            'subscription_status' => (string) ($subscription?->subscription_status ?? 'not_set'),
+            'seat_limit' => $seatLimit,
+            'active_users' => $activeUsers,
+            'seat_utilization' => (float) $seatUtilization,
+            'coverage_end' => $subscription?->ends_at?->toDateString(),
+            'grace_until' => $subscription?->grace_until?->toDateString(),
+            'enabled_modules' => $enabledModules,
+            'total_modules' => $totalModules,
+        ];
+
+        $this->showTenantInsights = true;
     }
 
     public function render()
