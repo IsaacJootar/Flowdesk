@@ -23,11 +23,16 @@ class DashboardShell extends Component
 
     public function mount(): void
     {
-        $this->loadMetrics();
+        // Keep initial render light; metrics are loaded via wire:init.
+        $this->metrics = $this->defaultMetrics();
     }
 
     public function loadMetrics(): void
     {
+        if ($this->readyToLoad) {
+            return;
+        }
+
         $this->readyToLoad = true;
 
         $user = \Illuminate\Support\Facades\Auth::user();
@@ -113,12 +118,12 @@ class DashboardShell extends Component
             'departments' => [
                 'label' => 'Departments',
                 'value' => (string) $departmentCount,
-                'hint' => 'Company structure ready',
+                'hint' => 'Departments configured in your organization',
             ],
             'users' => [
                 'label' => 'Users',
                 'value' => (string) $userCount,
-                'hint' => 'Identity base ready',
+                'hint' => 'Active users in your organization',
             ],
         ];
     }

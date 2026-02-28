@@ -1,4 +1,4 @@
-<div class="space-y-6">
+<div wire:init="loadMetrics" class="space-y-6">
     <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         @if (! $readyToLoad)
             @for ($i = 0; $i < 6; $i++)

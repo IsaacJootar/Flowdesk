@@ -30,6 +30,9 @@ class Company extends Model
         'timezone',
         'address',
         'is_active',
+        'lifecycle_status',
+        'status_reason',
+        'status_updated_at',
         'created_by',
         'updated_by',
     ];
@@ -38,6 +41,7 @@ class Company extends Model
     {
         return [
             'is_active' => 'boolean',
+            'status_updated_at' => 'datetime',
         ];
     }
 
@@ -84,5 +88,45 @@ class Company extends Model
     public function approvalTimingOverrides(): HasMany
     {
         return $this->hasMany(DepartmentApprovalTimingOverride::class);
+    }
+
+    public function subscription(): HasOne
+    {
+        return $this->hasOne(TenantSubscription::class);
+    }
+
+    public function featureEntitlements(): HasOne
+    {
+        return $this->hasOne(TenantFeatureEntitlement::class);
+    }
+
+    public function manualPayments(): HasMany
+    {
+        return $this->hasMany(TenantManualPayment::class);
+    }
+
+    public function planChangeHistory(): HasMany
+    {
+        return $this->hasMany(TenantPlanChangeHistory::class);
+    }
+
+    public function billingLedgerEntries(): HasMany
+    {
+        return $this->hasMany(TenantBillingLedgerEntry::class);
+    }
+
+    public function billingAllocations(): HasMany
+    {
+        return $this->hasMany(TenantBillingAllocation::class);
+    }
+
+    public function usageCounters(): HasMany
+    {
+        return $this->hasMany(TenantUsageCounter::class);
+    }
+
+    public function tenantAuditEvents(): HasMany
+    {
+        return $this->hasMany(TenantAuditEvent::class);
     }
 }

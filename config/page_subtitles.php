@@ -13,6 +13,9 @@ return [
     'Expense Controls' => 'Set which roles can post, edit, and void expenses per organization policy',
     'Asset Controls' => 'Set which roles can manage asset registration, custody, maintenance, and disposal',
     'Vendor Controls' => 'Set which roles can manage vendor profiles, invoices, payments, exports, and communications',
+    'Tenant / Organization Management' => 'Platform-level control of tenant lifecycle, plans, entitlements, and manual billing records', // Auto billing in version 1.1, I hope so
+    'Tenant Details' => 'Billing ledger, reconciliation queue, plan history, usage quotas, and tenant audit timeline',
+    'Platform Users' => 'Assign and manage global platform roles for tenant operations and billing governance',
     'Assets' => 'Track assets from registration to assignment, maintenance, and disposal',
     'Asset Reports' => 'Analyze asset distribution, maintenance spend, and disposal trends',
     'Organization Hierarchy' => 'Manage departments, reporting lines, role ownership, and approval chains',

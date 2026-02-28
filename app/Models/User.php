@@ -28,6 +28,7 @@ class User extends Authenticatable
         'gender',
         'password',
         'role',
+        'platform_role',
         'reports_to_user_id',
         'is_active',
         'last_login_at',

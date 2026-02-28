@@ -73,41 +73,51 @@
     </div>
 
     <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-        <div class="rounded-2xl border border-sky-200 bg-sky-50 p-4">
-            <p class="text-xs uppercase tracking-[0.1em] text-sky-700">Requests</p>
-            <p class="mt-1 text-2xl font-semibold text-sky-900">{{ number_format((int) $metrics['requests']['total']) }}</p>
-            <p class="mt-1 text-xs text-sky-700">In review: {{ number_format((int) $metrics['requests']['in_review']) }}</p>
-            <p class="text-xs text-sky-700">{{ $currencyCode }} {{ number_format((int) $metrics['requests']['amount']) }}</p>
-        </div>
-        <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
-            <p class="text-xs uppercase tracking-[0.1em] text-emerald-700">Posted Expenses</p>
-            <p class="mt-1 text-2xl font-semibold text-emerald-900">{{ number_format((int) $metrics['expenses']['posted']) }}</p>
-            <p class="mt-1 text-xs text-emerald-700">Void: {{ number_format((int) $metrics['expenses']['void']) }}</p>
-            <p class="text-xs text-emerald-700">{{ $currencyCode }} {{ number_format((int) $metrics['expenses']['amount']) }}</p>
-        </div>
-        <div class="rounded-2xl border border-amber-200 bg-amber-50 p-4">
-            <p class="text-xs uppercase tracking-[0.1em] text-amber-700">Vendor Outstanding</p>
-            @if ($canViewVendors)
-                <p class="mt-1 text-2xl font-semibold text-amber-900">{{ number_format((int) $metrics['vendors']['outstanding_count']) }}</p>
-                <p class="mt-1 text-xs text-amber-700">Overdue: {{ number_format((int) $metrics['vendors']['overdue_count']) }}</p>
-                <p class="text-xs text-amber-700">{{ $currencyCode }} {{ number_format((int) $metrics['vendors']['outstanding_amount']) }}</p>
-            @else
-                <p class="mt-1 text-sm font-semibold text-amber-900">Access restricted</p>
-                <p class="mt-1 text-xs text-amber-700">Vendor invoice metrics are available to finance, auditor, and owner roles.</p>
-            @endif
-        </div>
-        <div class="rounded-2xl border border-indigo-200 bg-indigo-50 p-4">
-            <p class="text-xs uppercase tracking-[0.1em] text-indigo-700">Assets</p>
-            <p class="mt-1 text-2xl font-semibold text-indigo-900">{{ number_format((int) $metrics['assets']['total']) }}</p>
-            <p class="mt-1 text-xs text-indigo-700">Assigned: {{ number_format((int) $metrics['assets']['assigned']) }}</p>
-            <p class="text-xs text-indigo-700">Maintenance: {{ number_format((int) $metrics['assets']['in_maintenance']) }}</p>
-        </div>
-        <div class="rounded-2xl border border-slate-300 bg-slate-100 p-4">
-            <p class="text-xs uppercase tracking-[0.1em] text-slate-700">Active Budgets</p>
-            <p class="mt-1 text-2xl font-semibold text-slate-900">{{ number_format((int) $metrics['budgets']['active_count']) }}</p>
-            <p class="mt-1 text-xs text-slate-700">Remaining: {{ $currencyCode }} {{ number_format((int) $metrics['budgets']['remaining']) }}</p>
-            <p class="text-xs text-slate-700">Allocated: {{ $currencyCode }} {{ number_format((int) $metrics['budgets']['allocated']) }}</p>
-        </div>
+        @if (! $readyToLoad)
+            @for ($i = 0; $i < 5; $i++)
+                <div class="rounded-2xl border border-slate-200 bg-white p-4">
+                    <div class="mb-2 h-3 w-24 animate-pulse rounded bg-slate-200"></div>
+                    <div class="mb-2 h-7 w-20 animate-pulse rounded bg-slate-200"></div>
+                    <div class="h-3 w-28 animate-pulse rounded bg-slate-200"></div>
+                </div>
+            @endfor
+        @else
+            <div class="rounded-2xl border border-sky-200 bg-sky-50 p-4">
+                <p class="text-xs uppercase tracking-[0.1em] text-sky-700">Requests</p>
+                <p class="mt-1 text-2xl font-semibold text-sky-900">{{ number_format((int) $metrics['requests']['total']) }}</p>
+                <p class="mt-1 text-xs text-sky-700">In review: {{ number_format((int) $metrics['requests']['in_review']) }}</p>
+                <p class="text-xs text-sky-700">{{ $currencyCode }} {{ number_format((int) $metrics['requests']['amount']) }}</p>
+            </div>
+            <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+                <p class="text-xs uppercase tracking-[0.1em] text-emerald-700">Posted Expenses</p>
+                <p class="mt-1 text-2xl font-semibold text-emerald-900">{{ number_format((int) $metrics['expenses']['posted']) }}</p>
+                <p class="mt-1 text-xs text-emerald-700">Void: {{ number_format((int) $metrics['expenses']['void']) }}</p>
+                <p class="text-xs text-emerald-700">{{ $currencyCode }} {{ number_format((int) $metrics['expenses']['amount']) }}</p>
+            </div>
+            <div class="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                <p class="text-xs uppercase tracking-[0.1em] text-amber-700">Vendor Outstanding</p>
+                @if ($canViewVendors)
+                    <p class="mt-1 text-2xl font-semibold text-amber-900">{{ number_format((int) $metrics['vendors']['outstanding_count']) }}</p>
+                    <p class="mt-1 text-xs text-amber-700">Overdue: {{ number_format((int) $metrics['vendors']['overdue_count']) }}</p>
+                    <p class="text-xs text-amber-700">{{ $currencyCode }} {{ number_format((int) $metrics['vendors']['outstanding_amount']) }}</p>
+                @else
+                    <p class="mt-1 text-sm font-semibold text-amber-900">Access restricted</p>
+                    <p class="mt-1 text-xs text-amber-700">Vendor invoice metrics are available to finance, auditor, and owner roles.</p>
+                @endif
+            </div>
+            <div class="rounded-2xl border border-indigo-200 bg-indigo-50 p-4">
+                <p class="text-xs uppercase tracking-[0.1em] text-indigo-700">Assets</p>
+                <p class="mt-1 text-2xl font-semibold text-indigo-900">{{ number_format((int) $metrics['assets']['total']) }}</p>
+                <p class="mt-1 text-xs text-indigo-700">Assigned: {{ number_format((int) $metrics['assets']['assigned']) }}</p>
+                <p class="text-xs text-indigo-700">Maintenance: {{ number_format((int) $metrics['assets']['in_maintenance']) }}</p>
+            </div>
+            <div class="rounded-2xl border border-slate-300 bg-slate-100 p-4">
+                <p class="text-xs uppercase tracking-[0.1em] text-slate-700">Active Budgets</p>
+                <p class="mt-1 text-2xl font-semibold text-slate-900">{{ number_format((int) $metrics['budgets']['active_count']) }}</p>
+                <p class="mt-1 text-xs text-slate-700">Remaining: {{ $currencyCode }} {{ number_format((int) $metrics['budgets']['remaining']) }}</p>
+                <p class="text-xs text-slate-700">Allocated: {{ $currencyCode }} {{ number_format((int) $metrics['budgets']['allocated']) }}</p>
+            </div>
+        @endif
     </div>
 
     <div class="fd-card overflow-hidden">

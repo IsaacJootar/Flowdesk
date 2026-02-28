@@ -91,12 +91,16 @@ class ReportsCenterPage extends Component
 
     public function render(): View
     {
-        $departments = Department::query()
-            ->where('is_active', true)
-            ->orderBy('name')
-            ->get(['id', 'name']);
+        $departments = $this->readyToLoad
+            ? Department::query()
+                ->where('is_active', true)
+                ->orderBy('name')
+                ->get(['id', 'name'])
+            : collect();
 
-        $metrics = $this->buildMetrics();
+        $metrics = $this->readyToLoad
+            ? $this->buildMetrics()
+            : $this->emptyMetrics();
         $activities = $this->readyToLoad
             ? $this->buildUnifiedActivityFeed()
             : $this->emptyPaginator();
@@ -617,5 +621,25 @@ class ReportsCenterPage extends Component
                 'query' => request()->query(),
             ]
         );
+    }
+
+    /**
+     * @return array{
+     *   requests: array{total:int, in_review:int, approved:int, amount:int},
+     *   expenses: array{total:int, posted:int, void:int, amount:int},
+     *   vendors: array{outstanding_count:int, outstanding_amount:int, overdue_count:int},
+     *   assets: array{total:int, assigned:int, in_maintenance:int, disposed:int},
+     *   budgets: array{active_count:int, allocated:int, used:int, remaining:int}
+     * }
+     */
+    private function emptyMetrics(): array
+    {
+        return [
+            'requests' => ['total' => 0, 'in_review' => 0, 'approved' => 0, 'amount' => 0],
+            'expenses' => ['total' => 0, 'posted' => 0, 'void' => 0, 'amount' => 0],
+            'vendors' => ['outstanding_count' => 0, 'outstanding_amount' => 0, 'overdue_count' => 0],
+            'assets' => ['total' => 0, 'assigned' => 0, 'in_maintenance' => 0, 'disposed' => 0],
+            'budgets' => ['active_count' => 0, 'allocated' => 0, 'used' => 0, 'remaining' => 0],
+        ];
     }
 }

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="188" height="44" viewBox="0 0 188 44" fill="none" role="img" aria-label="Flowdesk control grid logo core blue">
+  <rect x="2" y="2" width="40" height="40" rx="12" fill="#0F2747"/>
+  <rect x="11" y="11" width="9" height="9" rx="2.4" fill="#8FB6EC"/>
+  <rect x="24" y="11" width="9" height="9" rx="2.4" fill="#8FB6EC"/>
+  <rect x="11" y="24" width="9" height="9" rx="2.4" fill="#8FB6EC"/>
+  <rect x="24" y="24" width="9" height="9" rx="2.4" fill="#ffffff"/>
+  <text x="54" y="28" font-family="Urbanist, Inter, Segoe UI, Arial, sans-serif" font-size="24" font-weight="700" fill="#0F2747">flowdesk</text>
+</svg>

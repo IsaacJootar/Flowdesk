@@ -7,6 +7,11 @@ use App\Models\User;
 
 class NavAccessService
 {
+    public function __construct(
+        private readonly TenantModuleAccessService $tenantModuleAccessService,
+    ) {
+    }
+
     /**
      * @return array{
      *   items: array<int, array{route: string, pattern: array<int, string>, label: string}>,
@@ -22,6 +27,13 @@ class NavAccessService
             ];
         }
 
+        if (app(PlatformAccessService::class)->isPlatformOperator($user)) {
+            return [
+                'items' => $this->platformItems(),
+                'show_reports_placeholder' => false,
+            ];
+        }
+
         $role = (string) $user->role;
         $items = match ($role) {
             UserRole::Owner->value => $this->ownerItems(),
@@ -31,6 +43,12 @@ class NavAccessService
             default => $this->staffItems(),
         };
 
+        // Tenant entitlements are enforced at nav layer to avoid showing disabled modules.
+        $items = array_values(array_filter(
+            $items,
+            fn (array $item): bool => $this->tenantModuleAccessService->routeEnabled($user, (string) ($item['route'] ?? ''))
+        ));
+
         // Expense nav is policy-driven so staff visibility follows Expense Controls.
         $canAccessExpenses = in_array($role, [
             UserRole::Owner->value,
@@ -39,7 +57,11 @@ class NavAccessService
             UserRole::Auditor->value,
         ], true) || app(ExpensePolicyResolver::class)->canCreateAny($user);
 
-        if ($canAccessExpenses && ! $this->containsRoute($items, 'expenses.index')) {
+        if (
+            $this->tenantModuleAccessService->moduleEnabled($user, 'expenses')
+            && $canAccessExpenses
+            && ! $this->containsRoute($items, 'expenses.index')
+        ) {
             $this->insertAfter($items, 'requests.reports', [
                 'route' => 'expenses.index',
                 'pattern' => ['expenses.*'],
@@ -144,6 +166,18 @@ class NavAccessService
             ['route' => 'vendors.index', 'pattern' => ['vendors.index', 'vendors.show', 'vendors.reports'], 'label' => 'Vendors'],
             ['route' => 'budgets.index', 'pattern' => ['budgets.*'], 'label' => 'Budgets'],
             ['route' => 'assets.index', 'pattern' => ['assets.*'], 'label' => 'Assets'],
+        ];
+    }
+
+    /**
+     * @return array<int, array{route: string, pattern: array<int, string>, label: string}>
+     */
+    private function platformItems(): array
+    {
+        return [
+            ['route' => 'platform.dashboard', 'pattern' => ['platform.dashboard'], 'label' => 'Dashboard'],
+            ['route' => 'platform.tenants', 'pattern' => ['platform.tenants'], 'label' => 'Tenant / Org Management'],
+            ['route' => 'platform.users', 'pattern' => ['platform.users'], 'label' => 'Platform Users'],
         ];
     }
 

@@ -6,6 +6,8 @@
         <meta name="csrf-token" content="{{ csrf_token() }}">
 
         <title>{{ $title ?? config('app.name', 'Flowdesk') }}</title>
+        <link rel="icon" type="image/svg+xml" href="{{ asset('brand-mark.svg') }}">
+        <link rel="shortcut icon" href="{{ asset('brand-mark.svg') }}">
 
         <link rel="preconnect" href="https://fonts.bunny.net">
         <link href="https://fonts.bunny.net/css?family=inter:400,500,600,700&display=swap" rel="stylesheet" />
@@ -26,17 +28,21 @@
                     'reportsTo:id,name',
                 ]);
             }
+            $platformAccess = app(\App\Services\PlatformAccessService::class);
+            $isPlatformOperator = $platformAccess->isPlatformOperator($user);
             $companyName = $user?->company?->name ?? 'Flowdesk';
             $role = $user?->role ?? 'staff';
-            $roleLabel = match ((string) $role) {
-                'owner' => 'Admin (Owner)',
-                'finance' => 'Finance',
-                'manager' => 'Manager',
-                'auditor' => 'Auditor',
-                default => 'Staff',
-            };
-            $departmentLabel = $user?->department?->name ?? 'No department';
-            $reportsToLabel = $user?->reportsTo?->name ?? 'Not assigned';
+            $roleLabel = $isPlatformOperator
+                ? 'Flowdesk Platform Control Center'
+                : match ((string) $role) {
+                    'owner' => 'Admin (Owner)',
+                    'finance' => 'Finance',
+                    'manager' => 'Manager',
+                    'auditor' => 'Auditor',
+                    default => 'Staff',
+                };
+            $departmentLabel = $isPlatformOperator ? 'Platform Control' : ($user?->department?->name ?? 'No department');
+            $reportsToLabel = $isPlatformOperator ? 'N/A' : ($user?->reportsTo?->name ?? 'Not assigned');
             $navigation = app(\App\Services\NavAccessService::class)->forUser($user);
             $navItems = $navigation['items'];
         @endphp
@@ -45,8 +51,10 @@
             <aside class="fixed inset-y-0 left-0 z-40 w-64 transform overflow-y-auto border-r border-slate-200 bg-white transition md:translate-x-0" :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'">
                 <div class="flex h-16 items-center border-b border-slate-200 px-5">
                     <div>
-                        <p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Flowdesk</p>
-                        <p class="text-sm font-semibold text-slate-800" x-text="companyName">{{ $companyName }}</p>
+                        <img src="{{ asset('brand-logo.svg') }}" alt="Flowdesk" class="mt-1 h-6 w-auto">
+                        @if (! $isPlatformOperator)
+                            <p class="text-sm font-semibold text-slate-800" x-text="companyName">{{ $companyName }}</p>
+                        @endif
                     </div>
                 </div>
 
@@ -81,15 +89,21 @@
                         <div class="flex items-center gap-3">
                             @auth
                                 <div class="hidden items-center gap-2 lg:flex">
-                                    <span class="inline-flex items-center rounded-full border border-slate-300 bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-700">
-                                        {{ $roleLabel }}
-                                    </span>
-                                    <span class="inline-flex items-center rounded-full border border-slate-300 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-600">
-                                        {{ $departmentLabel }}
-                                    </span>
-                                    <span class="inline-flex items-center rounded-full border border-slate-300 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-600">
-                                        Reports to: {{ $reportsToLabel }}
-                                    </span>
+                                    @if ($isPlatformOperator)
+                                        <span class="inline-flex items-center rounded-full border border-slate-300 bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-700">
+                                            {{ $roleLabel }}
+                                        </span>
+                                    @else
+                                        <span class="inline-flex items-center rounded-full border border-slate-300 bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-700">
+                                            {{ $roleLabel }}
+                                        </span>
+                                        <span class="inline-flex items-center rounded-full border border-slate-300 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-600">
+                                            {{ $departmentLabel }}
+                                        </span>
+                                        <span class="inline-flex items-center rounded-full border border-slate-300 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-600">
+                                            Reports to: {{ $reportsToLabel }}
+                                        </span>
+                                    @endif
                                 </div>
 
                                 <a href="{{ route('profile.edit') }}" class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600">Profile</a>
@@ -142,7 +156,9 @@
                                 </div>
                                 <div>
                                     <p class="text-xs uppercase tracking-[0.1em] text-sky-700">Reporting Line</p>
-                                    <p class="mt-1 text-sm font-semibold text-sky-900">Direct Manager ({{ $reportsToLabel }})</p>
+                                    <p class="mt-1 text-sm font-semibold text-sky-900">
+                                        {{ $isPlatformOperator ? 'Global tenant oversight' : 'Direct Manager ('.$reportsToLabel.')' }}
+                                    </p>
                                 </div>
                             </div>
                         </div>

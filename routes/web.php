@@ -23,7 +23,11 @@ use App\Livewire\Settings\AssetControlsPage;
 use App\Livewire\Settings\ApprovalTimingControlsPage;
 use App\Livewire\Settings\ExpenseControlsPage;
 use App\Livewire\Settings\RequestConfigurationPage;
+use App\Livewire\Settings\TenantDetailsPage;
+use App\Livewire\Settings\TenantManagementPage;
 use App\Livewire\Settings\VendorControlsPage;
+use App\Livewire\Platform\PlatformUsersPage;
+use App\Livewire\Platform\PlatformDashboardPage;
 use App\Livewire\Vendors\VendorDetailsPage;
 use App\Livewire\Vendors\VendorReportsPage;
 use Illuminate\Support\Facades\Route;
@@ -38,31 +42,38 @@ Route::middleware('auth')->group(function (): void {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 
+Route::middleware(['auth', 'platform.access'])->prefix('platform')->name('platform.')->group(function (): void {
+    Route::get('/', PlatformDashboardPage::class)->name('dashboard');
+    Route::get('/tenants', TenantManagementPage::class)->name('tenants');
+    Route::get('/tenants/{company}', TenantDetailsPage::class)->name('tenants.show');
+    Route::get('/users', PlatformUsersPage::class)->name('users');
+});
+
 Route::middleware(['auth', 'company.context'])->group(function (): void {
     Route::get('/dashboard', DashboardShell::class)->name('dashboard');
-    Route::get('/reports', ReportsCenterPage::class)->name('reports.index');
+    Route::get('/reports', ReportsCenterPage::class)->middleware('module.enabled:reports')->name('reports.index');
 
     Route::prefix('dashboard')->name('dashboard.')->group(function (): void {
         Route::get('/index', DashboardShell::class)->name('index');
     });
 
-    Route::prefix('requests')->name('requests.')->group(function (): void {
+    Route::prefix('requests')->middleware('module.enabled:requests')->name('requests.')->group(function (): void {
         Route::view('/', 'app.requests.index')->name('index');
-        Route::get('/communications', RequestCommunicationsPage::class)->name('communications');
-        Route::get('/reports', RequestReportsPage::class)->name('reports');
+        Route::get('/communications', RequestCommunicationsPage::class)->middleware('module.enabled:communications')->name('communications');
+        Route::get('/reports', RequestReportsPage::class)->middleware('module.enabled:reports')->name('reports');
         Route::get('/attachments/{attachment}/download', RequestAttachmentDownloadController::class)
             ->name('attachments.download');
     });
 
-    Route::prefix('expenses')->name('expenses.')->group(function (): void {
+    Route::prefix('expenses')->middleware('module.enabled:expenses')->name('expenses.')->group(function (): void {
         Route::view('/', 'app.expenses.index')->name('index');
         Route::get('/attachments/{attachment}/download', ExpenseAttachmentDownloadController::class)
             ->name('attachments.download');
     });
 
-    Route::prefix('vendors')->name('vendors.')->group(function (): void {
+    Route::prefix('vendors')->middleware('module.enabled:vendors')->name('vendors.')->group(function (): void {
         Route::view('/', 'app.vendors.index')->name('index');
-        Route::get('/reports', VendorReportsPage::class)->name('reports');
+        Route::get('/reports', VendorReportsPage::class)->middleware('module.enabled:reports')->name('reports');
         Route::get('/{vendor}/statement/export.csv', VendorStatementCsvExportController::class)
             ->name('statement.export.csv');
         Route::get('/{vendor}/statement/print', VendorStatementPrintController::class)
@@ -74,13 +85,13 @@ Route::middleware(['auth', 'company.context'])->group(function (): void {
         Route::get('/{vendor}', VendorDetailsPage::class)->name('show');
     });
 
-    Route::prefix('budgets')->name('budgets.')->group(function (): void {
+    Route::prefix('budgets')->middleware('module.enabled:budgets')->name('budgets.')->group(function (): void {
         Route::view('/', 'app.budgets.index')->name('index');
     });
 
-    Route::prefix('assets')->name('assets.')->group(function (): void {
+    Route::prefix('assets')->middleware('module.enabled:assets')->name('assets.')->group(function (): void {
         Route::view('/', 'app.assets.index')->name('index');
-        Route::get('/reports', AssetReportsPage::class)->name('reports');
+        Route::get('/reports', AssetReportsPage::class)->middleware('module.enabled:reports')->name('reports');
     });
 
     Route::prefix('departments')->name('departments.')->group(function (): void {
@@ -93,7 +104,7 @@ Route::middleware(['auth', 'company.context'])->group(function (): void {
 
     Route::get('/users/{user}/avatar', UserAvatarController::class)->name('users.avatar');
 
-    Route::prefix('approval-workflows')->name('approval-workflows.')->group(function (): void {
+    Route::prefix('approval-workflows')->middleware('module.enabled:requests')->name('approval-workflows.')->group(function (): void {
         Route::get('/', ApprovalWorkflowsPage::class)->name('index');
     });
 
@@ -103,12 +114,12 @@ Route::middleware(['auth', 'company.context'])->group(function (): void {
 
             return view('app.settings.index');
         })->name('index');
-        Route::get('/communications', CommunicationSettingsPage::class)->name('communications');
-        Route::get('/request-configuration', RequestConfigurationPage::class)->name('request-configuration');
-        Route::get('/approval-timing-controls', ApprovalTimingControlsPage::class)->name('approval-timing-controls');
-        Route::get('/expense-controls', ExpenseControlsPage::class)->name('expense-controls');
-        Route::get('/asset-controls', AssetControlsPage::class)->name('asset-controls');
-        Route::get('/vendor-controls', VendorControlsPage::class)->name('vendor-controls');
+        Route::get('/communications', CommunicationSettingsPage::class)->middleware('module.enabled:communications')->name('communications');
+        Route::get('/request-configuration', RequestConfigurationPage::class)->middleware('module.enabled:requests')->name('request-configuration');
+        Route::get('/approval-timing-controls', ApprovalTimingControlsPage::class)->middleware('module.enabled:requests')->name('approval-timing-controls');
+        Route::get('/expense-controls', ExpenseControlsPage::class)->middleware('module.enabled:expenses')->name('expense-controls');
+        Route::get('/asset-controls', AssetControlsPage::class)->middleware('module.enabled:assets')->name('asset-controls');
+        Route::get('/vendor-controls', VendorControlsPage::class)->middleware('module.enabled:vendors')->name('vendor-controls');
         Route::get('/organization', function () {
             abort_unless(\Illuminate\Support\Facades\Auth::user()?->role === UserRole::Owner->value, 403);
 
