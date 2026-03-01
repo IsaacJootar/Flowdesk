@@ -19,6 +19,7 @@ class RequestApproval extends Model
     protected $fillable = [
         'company_id',
         'request_id',
+        'scope',
         'workflow_step_id',
         'step_order',
         'step_key',

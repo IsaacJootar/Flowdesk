@@ -129,4 +129,13 @@ class Company extends Model
     {
         return $this->hasMany(TenantAuditEvent::class);
     }
+    public function subscriptionBillingAttempts(): HasMany
+    {
+        return $this->hasMany(TenantSubscriptionBillingAttempt::class);
+    }
+
+    public function executionWebhookEvents(): HasMany
+    {
+        return $this->hasMany(ExecutionWebhookEvent::class);
+    }
 }

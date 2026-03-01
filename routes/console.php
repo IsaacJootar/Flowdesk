@@ -5,6 +5,8 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
 use App\Services\RequestApprovalSlaProcessor;
 use App\Services\TenantBillingAutomationService;
+use App\Services\Execution\SubscriptionAutoBillingOrchestrator;
+use App\Services\Execution\SubscriptionBillingAttemptProcessor;
 use App\Services\RequestCommunicationRetryService;
 use App\Services\AssetCommunicationRetryService;
 use App\Services\AssetReminderService;
@@ -44,6 +46,50 @@ Artisan::command('tenants:billing:automate', function (TenantBillingAutomationSe
 
 Schedule::command('tenants:billing:automate')
     ->hourly()
+    ->withoutOverlapping();
+Artisan::command('tenants:billing:auto-charge {--company=} {--no-queue}', function (SubscriptionAutoBillingOrchestrator $orchestrator): int {
+    $companyId = $this->option('company');
+    $companyId = is_numeric($companyId) ? (int) $companyId : null;
+    $queueJobs = ! (bool) $this->option('no-queue');
+
+    $stats = $orchestrator->dispatchDueBilling(
+        companyId: $companyId,
+        actor: null,
+        queueJobs: $queueJobs
+    );
+
+    $this->info('Subscription auto-billing orchestration completed.');
+    $this->line('Scanned: '.$stats['scanned']);
+    $this->line('Queued: '.$stats['queued']);
+    $this->line('Already exists: '.$stats['already_exists']);
+    $this->line('Skipped (provider): '.$stats['skipped_provider']);
+    $this->line('Skipped (zero amount): '.$stats['skipped_zero_amount']);
+
+    return self::SUCCESS;
+})->purpose('Queue subscription billing attempts for execution-enabled tenants');
+
+Artisan::command('tenants:billing:process-queued {--company=} {--batch=200}', function (SubscriptionBillingAttemptProcessor $processor): int {
+    $companyId = $this->option('company');
+    $companyId = is_numeric($companyId) ? (int) $companyId : null;
+    $batch = is_numeric($this->option('batch')) ? (int) $this->option('batch') : 200;
+
+    $stats = $processor->processQueued(
+        companyId: $companyId,
+        batchSize: max(1, $batch)
+    );
+
+    $this->info('Queued billing attempts processor completed.');
+    $this->line('Processed: '.$stats['processed']);
+
+    return self::SUCCESS;
+})->purpose('Process queued tenant subscription billing attempts');
+
+Schedule::command('tenants:billing:auto-charge')
+    ->dailyAt('02:10')
+    ->withoutOverlapping();
+
+Schedule::command('tenants:billing:process-queued --batch=500')
+    ->everyTenMinutes()
     ->withoutOverlapping();
 
 Artisan::command('requests:communications:retry-failed {--company=} {--batch=200}', function (RequestCommunicationRetryService $retryService): int {

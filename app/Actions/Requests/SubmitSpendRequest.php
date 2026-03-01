@@ -204,8 +204,16 @@ class SubmitSpendRequest
         }
 
         DB::transaction(function () use ($user, $request, $workflow, $steps, $firstStep, $organizationChannels, $requestChannelMode, $requestChannelOverride, $policyWarnings, $policyChecks): void {
+            // New submission always starts from request-approval scope.
+            RequestApproval::query()
+                ->where('company_id', (int) $request->company_id)
+                ->where('request_id', (int) $request->id)
+                ->where('scope', RequestApprovalRouter::SCOPE_PAYMENT_AUTHORIZATION)
+                ->delete();
+
             // Persist request state and approval rows atomically to avoid half-submitted records.
             $metadata = array_merge((array) ($request->metadata ?? []), [
+                'approval_scope' => RequestApprovalRouter::SCOPE_REQUEST,
                 'channel_mode' => $requestChannelMode,
                 'notification_channels' => $requestChannelOverride,
                 'policy_warnings' => array_values($policyWarnings),
@@ -246,6 +254,7 @@ class SubmitSpendRequest
                     [
                         'company_id' => (int) $request->company_id,
                         'request_id' => $request->id,
+                        'scope' => RequestApprovalRouter::SCOPE_REQUEST,
                         'step_order' => (int) $step->step_order,
                     ],
                     [
@@ -290,7 +299,10 @@ class SubmitSpendRequest
 
         $fresh = $request->fresh(['workflow', 'items', 'approvals.workflowStep']) ?? $request;
         $firstApproval = $fresh->approvals
-            ->firstWhere('step_order', (int) $firstStep->step_order);
+            ->first(fn (RequestApproval $approval): bool =>
+                (string) ($approval->scope ?: RequestApprovalRouter::SCOPE_REQUEST) === RequestApprovalRouter::SCOPE_REQUEST
+                && (int) $approval->step_order === (int) $firstStep->step_order
+            );
         $firstStepChannels = (array) (($firstApproval?->metadata ?? [])['notification_channels'] ?? []);
         $firstRecipients = $this->requestApprovalRouter
             ->resolveEligibleApprovers($firstStep, $fresh)

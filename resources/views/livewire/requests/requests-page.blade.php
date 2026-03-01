@@ -168,14 +168,20 @@
                     @php
                         $statusCount = (int) (($requestAnalytics['status_counts'][$status] ?? 0));
                         $statusClass = 'bg-slate-100 text-slate-700';
-                        if ($status === 'approved') {
+                        if (in_array($status, ['approved', 'settled'], true)) {
                             $statusClass = 'bg-emerald-100 text-emerald-700';
-                        } elseif ($status === 'rejected') {
+                        } elseif (in_array($status, ['rejected', 'failed', 'reversed'], true)) {
                             $statusClass = 'bg-red-100 text-red-700';
                         } elseif ($status === 'in_review') {
                             $statusClass = 'bg-amber-100 text-amber-700';
                         } elseif ($status === 'returned') {
                             $statusClass = 'bg-indigo-100 text-indigo-700';
+                        } elseif ($status === 'approved_for_execution') {
+                            $statusClass = 'bg-cyan-100 text-cyan-700';
+                        } elseif ($status === 'execution_queued') {
+                            $statusClass = 'bg-sky-100 text-sky-700';
+                        } elseif ($status === 'execution_processing') {
+                            $statusClass = 'bg-violet-100 text-violet-700';
                         }
                     @endphp
                     <span class="inline-flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-semibold {{ $statusClass }}">
@@ -224,14 +230,20 @@
                         @forelse ($requests as $request)
                             @php
                                 $statusClass = 'bg-slate-100 text-slate-700';
-                                if ($request->status === 'approved') {
+                                if (in_array((string) $request->status, ['approved', 'settled'], true)) {
                                     $statusClass = 'bg-emerald-100 text-emerald-700';
-                                } elseif ($request->status === 'rejected') {
+                                } elseif (in_array((string) $request->status, ['rejected', 'failed', 'reversed'], true)) {
                                     $statusClass = 'bg-red-100 text-red-700';
                                 } elseif ($request->status === 'in_review') {
                                     $statusClass = 'bg-amber-100 text-amber-700';
                                 } elseif ($request->status === 'returned') {
                                     $statusClass = 'bg-indigo-100 text-indigo-700';
+                                } elseif ($request->status === 'approved_for_execution') {
+                                    $statusClass = 'bg-cyan-100 text-cyan-700';
+                                } elseif ($request->status === 'execution_queued') {
+                                    $statusClass = 'bg-sky-100 text-sky-700';
+                                } elseif ($request->status === 'execution_processing') {
+                                    $statusClass = 'bg-violet-100 text-violet-700';
                                 }
                             @endphp
                             <tr wire:key="request-{{ $request->id }}" class="hover:bg-slate-50">
@@ -689,14 +701,20 @@
                         <div class="grid gap-3 sm:grid-cols-3">
                             @php
                                 $statusClass = 'bg-slate-100 text-slate-700';
-                                if ($selectedRequest['status'] === 'approved') {
+                                if (in_array((string) ($selectedRequest['status'] ?? ''), ['approved', 'settled'], true)) {
                                     $statusClass = 'bg-emerald-100 text-emerald-700';
-                                } elseif ($selectedRequest['status'] === 'rejected') {
+                                } elseif (in_array((string) ($selectedRequest['status'] ?? ''), ['rejected', 'failed', 'reversed'], true)) {
                                     $statusClass = 'bg-red-100 text-red-700';
-                                } elseif ($selectedRequest['status'] === 'in_review') {
+                                } elseif (($selectedRequest['status'] ?? '') === 'in_review') {
                                     $statusClass = 'bg-amber-100 text-amber-700';
-                                } elseif ($selectedRequest['status'] === 'returned') {
+                                } elseif (($selectedRequest['status'] ?? '') === 'returned') {
                                     $statusClass = 'bg-indigo-100 text-indigo-700';
+                                } elseif (($selectedRequest['status'] ?? '') === 'approved_for_execution') {
+                                    $statusClass = 'bg-cyan-100 text-cyan-700';
+                                } elseif (($selectedRequest['status'] ?? '') === 'execution_queued') {
+                                    $statusClass = 'bg-sky-100 text-sky-700';
+                                } elseif (($selectedRequest['status'] ?? '') === 'execution_processing') {
+                                    $statusClass = 'bg-violet-100 text-violet-700';
                                 }
                             @endphp
                             <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
@@ -937,7 +955,12 @@
                                             }
                                         @endphp
                                         <div class="flex items-center justify-between gap-2">
-                                            <p class="text-sm font-medium text-slate-800">{{ $step['step_label'] }}</p>
+                                            <div class="flex items-center gap-2">
+                                                <span class="inline-flex rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.06em] text-slate-700">
+                                                    {{ $step['scope_label'] ?? 'Request Approval' }}
+                                                </span>
+                                                <p class="text-sm font-medium text-slate-800">{{ $step['step_label'] }}</p>
+                                            </div>
                                             <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold {{ $timelineStatusClass }}">
                                                 {{ $step['status_label'] }}
                                             </span>

@@ -4,6 +4,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ExpenseAttachmentDownloadController;
 use App\Http\Controllers\RequestAttachmentDownloadController;
 use App\Http\Controllers\UserAvatarController;
+use App\Http\Controllers\ExecutionWebhookController;
 use App\Http\Controllers\VendorInvoiceAttachmentDownloadController;
 use App\Http\Controllers\VendorInvoicePaymentAttachmentDownloadController;
 use App\Http\Controllers\VendorStatementCsvExportController;
@@ -35,8 +36,13 @@ use App\Livewire\Platform\TenantProfilePage;
 use App\Livewire\Vendors\VendorDetailsPage;
 use App\Livewire\Vendors\VendorReportsPage;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 
 Route::redirect('/', '/dashboard');
+// Provider webhooks are external callbacks, so CSRF is intentionally disabled for this endpoint.
+Route::post('/webhooks/execution/{provider}', ExecutionWebhookController::class)
+    ->withoutMiddleware([VerifyCsrfToken::class])
+    ->name('webhooks.execution');
 
 Route::middleware('auth')->group(function (): void {
     Route::get('/settings/company/setup', CompanySetup::class)->name('settings.company.setup');

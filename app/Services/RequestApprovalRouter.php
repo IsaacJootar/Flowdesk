@@ -10,8 +10,13 @@ use Illuminate\Support\Collection;
 
 class RequestApprovalRouter
 {
+    public const SCOPE_REQUEST = 'request';
+
+    public const SCOPE_PAYMENT_AUTHORIZATION = 'payment_authorization';
+
     public function __construct(
-        private readonly OrganizationHierarchyResolver $organizationHierarchyResolver
+        private readonly OrganizationHierarchyResolver $organizationHierarchyResolver,
+        private readonly PaymentAuthorizationWorkflowResolver $paymentAuthorizationWorkflowResolver,
     ) {
     }
 
@@ -23,9 +28,9 @@ class RequestApprovalRouter
             return false;
         }
 
-        return ApprovalWorkflowStep::query()
-            ->where('company_id', $request->company_id)
-            ->where('workflow_id', $workflow->id)
+        return ApprovalWorkflowStep::withoutGlobalScopes()
+            ->where('company_id', (int) $request->company_id)
+            ->where('workflow_id', (int) $workflow->id)
             ->where('is_active', true)
             ->exists();
     }
@@ -47,28 +52,20 @@ class RequestApprovalRouter
         return $eligibleUsers->contains(fn (User $user): bool => (int) $user->id === (int) $actor->id);
     }
 
+    public function currentScope(SpendRequest $request): string
+    {
+        $scope = strtolower(trim((string) data_get((array) ($request->metadata ?? []), 'approval_scope', self::SCOPE_REQUEST)));
+
+        return in_array($scope, [self::SCOPE_REQUEST, self::SCOPE_PAYMENT_AUTHORIZATION], true)
+            ? $scope
+            : self::SCOPE_REQUEST;
+    }
+
     public function resolveActiveWorkflow(SpendRequest $request): ?ApprovalWorkflow
     {
-        if ($request->workflow_id) {
-            $workflow = ApprovalWorkflow::query()
-                ->where('company_id', $request->company_id)
-                ->where('id', (int) $request->workflow_id)
-                ->where('is_active', true)
-                ->first();
-
-            if ($workflow) {
-                return $workflow;
-            }
-        }
-
-        // Fallback keeps requests routable when a draft has no explicit workflow_id.
-        return ApprovalWorkflow::query()
-            ->where('company_id', $request->company_id)
-            ->where('applies_to', 'request')
-            ->where('is_active', true)
-            ->orderByDesc('is_default')
-            ->orderBy('id')
-            ->first();
+        return $this->currentScope($request) === self::SCOPE_PAYMENT_AUTHORIZATION
+            ? $this->resolveActivePaymentAuthorizationWorkflow($request)
+            : $this->resolveActiveRequestWorkflow($request);
     }
 
     public function resolveCurrentStep(SpendRequest $request): ?ApprovalWorkflowStep
@@ -102,7 +99,14 @@ class RequestApprovalRouter
      */
     public function resolveApplicableSteps(SpendRequest $request): Collection
     {
-        $workflow = $this->resolveActiveWorkflow($request);
+        if ($this->currentScope($request) === self::SCOPE_PAYMENT_AUTHORIZATION) {
+            return $this->paymentAuthorizationWorkflowResolver->resolveApplicableSteps(
+                companyId: (int) $request->company_id,
+                amount: (int) ($request->approved_amount ?: $request->amount)
+            );
+        }
+
+        $workflow = $this->resolveActiveRequestWorkflow($request);
         if (! $workflow) {
             return collect();
         }
@@ -110,14 +114,44 @@ class RequestApprovalRouter
         $amount = (int) $request->amount;
 
         // Amount thresholds are enforced here so approval chains adapt per request value.
-        return ApprovalWorkflowStep::query()
-            ->where('company_id', $request->company_id)
-            ->where('workflow_id', $workflow->id)
+        return ApprovalWorkflowStep::withoutGlobalScopes()
+            ->where('company_id', (int) $request->company_id)
+            ->where('workflow_id', (int) $workflow->id)
             ->where('is_active', true)
             ->orderBy('step_order')
             ->get()
             ->filter(fn (ApprovalWorkflowStep $step): bool => $this->stepAppliesToAmount($step, $amount))
             ->values();
+    }
+
+    private function resolveActiveRequestWorkflow(SpendRequest $request): ?ApprovalWorkflow
+    {
+        if ($request->workflow_id) {
+            $workflow = ApprovalWorkflow::withoutGlobalScopes()
+                ->where('company_id', (int) $request->company_id)
+                ->where('id', (int) $request->workflow_id)
+                ->where('applies_to', ApprovalWorkflow::APPLIES_TO_REQUEST)
+                ->where('is_active', true)
+                ->first();
+
+            if ($workflow) {
+                return $workflow;
+            }
+        }
+
+        // Fallback keeps requests routable when a draft has no explicit workflow_id.
+        return ApprovalWorkflow::withoutGlobalScopes()
+            ->where('company_id', (int) $request->company_id)
+            ->where('applies_to', ApprovalWorkflow::APPLIES_TO_REQUEST)
+            ->where('is_active', true)
+            ->orderByDesc('is_default')
+            ->orderBy('id')
+            ->first();
+    }
+
+    private function resolveActivePaymentAuthorizationWorkflow(SpendRequest $request): ?ApprovalWorkflow
+    {
+        return $this->paymentAuthorizationWorkflowResolver->resolveDefaultWorkflow((int) $request->company_id);
     }
 
     private function stepAppliesToAmount(ApprovalWorkflowStep $step, int $amount): bool
@@ -186,7 +220,7 @@ class RequestApprovalRouter
         }
 
         return User::query()
-            ->where('company_id', $request->company_id)
+            ->where('company_id', (int) $request->company_id)
             ->where('role', $role)
             ->where('is_active', true)
             ->get();
@@ -202,7 +236,7 @@ class RequestApprovalRouter
         }
 
         $user = User::query()
-            ->where('company_id', $request->company_id)
+            ->where('company_id', (int) $request->company_id)
             ->where('id', (int) $userId)
             ->where('is_active', true)
             ->first();

@@ -90,4 +90,8 @@ class TenantSubscription extends Model
     {
         return $this->hasMany(TenantBillingAllocation::class, 'tenant_subscription_id');
     }
+    public function billingAttempts(): HasMany
+    {
+        return $this->hasMany(TenantSubscriptionBillingAttempt::class, 'tenant_subscription_id');
+    }
 }

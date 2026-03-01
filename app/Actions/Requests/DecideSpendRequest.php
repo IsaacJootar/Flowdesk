@@ -9,9 +9,11 @@ use App\Domains\Requests\Models\SpendRequest;
 use App\Models\User;
 use App\Services\ApprovalTimingPolicyResolver;
 use App\Services\ActivityLogger;
+use App\Services\Execution\RequestPayoutExecutionOrchestrator;
 use App\Services\RequestApprovalSlaService;
 use App\Services\RequestCommunicationLogger;
 use App\Services\RequestApprovalRouter;
+use App\Services\TenantExecutionModeService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Validator;
@@ -25,7 +27,8 @@ class DecideSpendRequest
         private readonly RequestApprovalRouter $requestApprovalRouter,
         private readonly RequestCommunicationLogger $requestCommunicationLogger,
         private readonly RequestApprovalSlaService $requestApprovalSlaService,
-        private readonly ApprovalTimingPolicyResolver $approvalTimingPolicyResolver
+        private readonly ApprovalTimingPolicyResolver $approvalTimingPolicyResolver,
+        private readonly RequestPayoutExecutionOrchestrator $requestPayoutExecutionOrchestrator
     ) {
     }
 
@@ -53,6 +56,7 @@ class DecideSpendRequest
             ]);
         }
 
+        $currentScope = $this->requestApprovalRouter->currentScope($request);
         $currentStep = $this->requestApprovalRouter->resolveCurrentStep($request);
 
         if (! $currentStep) {
@@ -74,7 +78,10 @@ class DecideSpendRequest
         $comment = $this->nullableString($validated['comment'] ?? null);
         $notificationChannels = $this->resolveDecisionChannels($request, $currentStep, $selectedChannels);
 
-        DB::transaction(function () use ($request, $user, $currentStep, $action, $comment): void {
+        $transitionedToPaymentAuthorization = false;
+        $shouldQueueExecution = false;
+
+        DB::transaction(function () use ($request, $user, $currentStep, $action, $comment, $currentScope, &$transitionedToPaymentAuthorization, &$shouldQueueExecution): void {
             // This block is the request decision state machine (approve/reject/return).
             $fromStatus = (string) $request->status;
             $nextStep = null;
@@ -103,6 +110,7 @@ class DecideSpendRequest
                         [
                             'company_id' => (int) $request->company_id,
                             'request_id' => $request->id,
+                            'scope' => $currentScope,
                             'step_order' => (int) $nextStep->step_order,
                         ],
                         [
@@ -118,20 +126,52 @@ class DecideSpendRequest
                             'metadata' => [
                                 'actor_type' => $nextStep->actor_type,
                                 'actor_value' => $nextStep->actor_value,
+                                'notification_channels' => (array) ($nextStep->notification_channels ?? []),
                                 'sla' => $nextStepSla,
                             ],
                         ]
                     );
                 } else {
-                    $toStatus = 'approved';
-                    $request->forceFill([
-                        'status' => $toStatus,
-                        'current_approval_step' => null,
-                        'approved_amount' => (int) $request->amount,
-                        'decision_note' => $comment,
-                        'decided_at' => now(),
-                        'updated_by' => $user->id,
-                    ])->save();
+                    if ($currentScope === RequestApprovalRouter::SCOPE_REQUEST && $this->usesExecutionEnabledMode($request)) {
+                        $transitionedToPaymentAuthorization = $this->startPaymentAuthorizationPhase($request, $user);
+
+                        if ($transitionedToPaymentAuthorization) {
+                            $toStatus = 'in_review';
+                        } else {
+                            // Missing/empty payment-authorization flow falls back to execution queue path.
+                            $toStatus = 'approved_for_execution';
+                            $request->forceFill([
+                                'status' => $toStatus,
+                                'current_approval_step' => null,
+                                'approved_amount' => (int) ($request->approved_amount ?: $request->amount),
+                                'decision_note' => $comment,
+                                'decided_at' => now(),
+                                'updated_by' => $user->id,
+                            ])->save();
+                            $shouldQueueExecution = true;
+                        }
+                    } elseif ($currentScope === RequestApprovalRouter::SCOPE_PAYMENT_AUTHORIZATION && $this->usesExecutionEnabledMode($request)) {
+                        $toStatus = 'approved_for_execution';
+                        $request->forceFill([
+                            'status' => $toStatus,
+                            'current_approval_step' => null,
+                            'approved_amount' => (int) ($request->approved_amount ?: $request->amount),
+                            'decision_note' => $comment,
+                            'decided_at' => now(),
+                            'updated_by' => $user->id,
+                        ])->save();
+                        $shouldQueueExecution = true;
+                    } else {
+                        $toStatus = 'approved';
+                        $request->forceFill([
+                            'status' => $toStatus,
+                            'current_approval_step' => null,
+                            'approved_amount' => (int) ($request->approved_amount ?: $request->amount),
+                            'decision_note' => $comment,
+                            'decided_at' => now(),
+                            'updated_by' => $user->id,
+                        ])->save();
+                    }
                 }
             } elseif ($action === 'reject') {
                 $toStatus = 'rejected';
@@ -158,6 +198,7 @@ class DecideSpendRequest
                 [
                     'company_id' => (int) $request->company_id,
                     'request_id' => $request->id,
+                    'scope' => $currentScope,
                     'step_order' => (int) $currentStep->step_order,
                 ],
                 [
@@ -178,10 +219,23 @@ class DecideSpendRequest
             );
         });
 
-        $fresh = $request->fresh(['workflow', 'items', 'approvals.workflowStep']) ?? $request;
+        $fresh = $request->fresh(['workflow', 'items', 'approvals.workflowStep', 'company.subscription']) ?? $request;
+
+        if ($action === 'approve' && $shouldQueueExecution) {
+            $this->requestPayoutExecutionOrchestrator->queueForApprovedRequest($fresh, $user->id);
+            $fresh = $fresh->fresh(['workflow', 'items', 'approvals.workflowStep', 'company.subscription']) ?? $fresh;
+        }
 
         $event = match ($action) {
-            'approve' => ((string) $fresh->status === 'approved') ? 'request.approved' : 'request.step.approved',
+            'approve' => $transitionedToPaymentAuthorization
+                ? 'request.payment_authorization.started'
+                : match ((string) $fresh->status) {
+                    'approved' => 'request.approved',
+                    'approved_for_execution' => 'request.approved_for_execution',
+                    'execution_queued' => 'request.execution.queued',
+                    'execution_processing' => 'request.execution.processing',
+                    default => 'request.step.approved',
+                },
             'reject' => 'request.rejected',
             default => 'request.returned',
         };
@@ -195,15 +249,21 @@ class DecideSpendRequest
                 'action' => $action,
                 'status' => $fresh->status,
                 'current_approval_step' => $fresh->current_approval_step,
+                'scope' => $this->requestApprovalRouter->currentScope($fresh),
                 'comment' => $comment,
             ],
             companyId: (int) $fresh->company_id,
             userId: $user->id,
         );
 
-        $currentApproval = $fresh->approvals->firstWhere('step_order', (int) $currentStep->step_order);
+        $freshScope = $this->requestApprovalRouter->currentScope($fresh);
+        $currentApproval = $fresh->approvals->first(fn (RequestApproval $approval): bool =>
+            (string) ($approval->scope ?: RequestApprovalRouter::SCOPE_REQUEST) === $currentScope
+            && (int) $approval->step_order === (int) $currentStep->step_order
+        );
+
         if ($action === 'approve' && (string) $fresh->status === 'in_review') {
-            // Mid-chain approval notifies next step approvers.
+            // Mid-chain approval notifies next step approvers (including scope transitions).
             $nextStep = $this->requestApprovalRouter->resolveCurrentStep($fresh);
             $nextRecipients = $nextStep
                 ? $this->requestApprovalRouter->resolveEligibleApprovers($nextStep, $fresh)
@@ -215,34 +275,45 @@ class DecideSpendRequest
 
             $this->requestCommunicationLogger->log(
                 request: $fresh,
-                event: 'request.step.approved',
+                event: $transitionedToPaymentAuthorization ? 'request.payment_authorization.started' : 'request.step.approved',
                 channels: $notificationChannels,
                 recipientUserIds: $nextRecipients,
                 requestApprovalId: $currentApproval?->id ? (int) $currentApproval->id : null,
                 metadata: [
                     'request_code' => (string) $fresh->request_code,
                     'status' => (string) $fresh->status,
+                    'scope' => $freshScope,
                     'action' => $action,
                     'audience' => 'next_step_approvers',
                 ]
             );
         } else {
             // Final decisions notify the original requester.
-            $event = match ($action) {
-                'approve' => 'request.approved',
+            $requesterEvent = match ($action) {
+                'approve' => match ((string) $fresh->status) {
+                    'approved' => 'request.approved',
+                    'approved_for_execution' => 'request.approved_for_execution',
+                    'execution_queued' => 'request.execution.queued',
+                    'execution_processing' => 'request.execution.processing',
+                    'settled' => 'request.execution.settled',
+                    'failed' => 'request.execution.failed',
+                    'reversed' => 'request.execution.reversed',
+                    default => 'request.approved',
+                },
                 'reject' => 'request.rejected',
                 default => 'request.returned',
             };
 
             $this->requestCommunicationLogger->log(
                 request: $fresh,
-                event: $event,
+                event: $requesterEvent,
                 channels: $notificationChannels,
                 recipientUserIds: [(int) $fresh->requested_by],
                 requestApprovalId: $currentApproval?->id ? (int) $currentApproval->id : null,
                 metadata: [
                     'request_code' => (string) $fresh->request_code,
                     'status' => (string) $fresh->status,
+                    'scope' => $freshScope,
                     'action' => $action,
                     'audience' => 'requester',
                 ]
@@ -268,10 +339,12 @@ class DecideSpendRequest
                 CompanyCommunicationSetting::defaultAttributes()
             );
         $organizationChannels = $settings->selectableChannels();
+        $currentScope = $this->requestApprovalRouter->currentScope($request);
 
         $currentApproval = RequestApproval::query()
             ->where('company_id', (int) $request->company_id)
             ->where('request_id', (int) $request->id)
+            ->where('scope', $currentScope)
             ->where('step_order', (int) $currentStep->step_order)
             ->first();
 
@@ -309,6 +382,86 @@ class DecideSpendRequest
         }
 
         return $selectedChannels;
+    }
+
+    private function usesExecutionEnabledMode(SpendRequest $request): bool
+    {
+        $request->loadMissing('company.subscription');
+
+        return (string) ($request->company?->subscription?->payment_execution_mode ?? '') === TenantExecutionModeService::MODE_EXECUTION_ENABLED;
+    }
+
+    private function startPaymentAuthorizationPhase(SpendRequest $request, User $user): bool
+    {
+        $metadata = array_merge((array) ($request->metadata ?? []), [
+            'approval_scope' => RequestApprovalRouter::SCOPE_PAYMENT_AUTHORIZATION,
+        ]);
+
+        $probe = clone $request;
+        $probe->setAttribute('metadata', $metadata);
+        $probe->setAttribute('approved_amount', (int) ($request->approved_amount ?: $request->amount));
+
+        $steps = $this->requestApprovalRouter->resolveApplicableSteps($probe);
+        if ($steps->isEmpty()) {
+            return false;
+        }
+
+        $firstStep = $steps->first();
+
+        $request->forceFill([
+            'status' => 'in_review',
+            'current_approval_step' => (int) $firstStep->step_order,
+            'approved_amount' => (int) ($request->approved_amount ?: $request->amount),
+            'decision_note' => null,
+            'decided_at' => null,
+            'metadata' => array_merge($metadata, [
+                'payment_authorization_started_at' => now()->toDateTimeString(),
+            ]),
+            'updated_by' => $user->id,
+        ])->save();
+
+        foreach ($steps as $step) {
+            $isFirstStep = (int) $step->step_order === (int) $firstStep->step_order;
+            $stepSla = $this->approvalTimingPolicyResolver->resolve(
+                companyId: (int) $request->company_id,
+                departmentId: $request->department_id ? (int) $request->department_id : null,
+                stepLevelSla: (array) data_get((array) ($step->metadata ?? []), 'sla', [])
+            );
+
+            RequestApproval::query()->updateOrCreate(
+                [
+                    'company_id' => (int) $request->company_id,
+                    'request_id' => (int) $request->id,
+                    'scope' => RequestApprovalRouter::SCOPE_PAYMENT_AUTHORIZATION,
+                    'step_order' => (int) $step->step_order,
+                ],
+                [
+                    'workflow_step_id' => $step->id,
+                    'step_key' => $step->step_key,
+                    'status' => $isFirstStep ? 'pending' : 'queued',
+                    'action' => null,
+                    'acted_by' => null,
+                    'acted_at' => null,
+                    'due_at' => $isFirstStep
+                        ? $this->requestApprovalSlaService->dueAtFromNow(['sla' => $stepSla])
+                        : null,
+                    'reminder_sent_at' => null,
+                    'escalated_at' => null,
+                    'reminder_count' => 0,
+                    'comment' => null,
+                    'from_status' => null,
+                    'to_status' => null,
+                    'metadata' => [
+                        'actor_type' => $step->actor_type,
+                        'actor_value' => $step->actor_value,
+                        'notification_channels' => (array) ($step->notification_channels ?? []),
+                        'sla' => $stepSla,
+                    ],
+                ]
+            );
+        }
+
+        return true;
     }
 
     private function nullableString(mixed $value): ?string

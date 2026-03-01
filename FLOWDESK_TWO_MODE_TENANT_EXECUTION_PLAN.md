@@ -220,6 +220,38 @@ Thread/timeline must show both approval events and execution events clearly.
 5. Reconcile billing ledger + tenant subscription status (`current/grace/overdue/suspended`).
 6. Add retries + dead-letter handling for failed billing jobs.
 
+
+#### Phase 3 Skeleton Status: Implemented (March 1, 2026)
+1. Added orchestration service:
+   - `SubscriptionAutoBillingOrchestrator`
+   - Queues one monthly billing attempt per eligible execution-enabled tenant subscription.
+2. Added billing attempt processor + queue job:
+   - `SubscriptionBillingAttemptProcessor`
+   - `RunSubscriptionBillingAttemptJob`
+3. Added webhook reconciliation pipeline:
+   - `ExecutionWebhookController`
+   - `SubscriptionBillingWebhookReconciliationService`
+4. Added persistence tables:
+   - `tenant_subscription_billing_attempts`
+   - `execution_webhook_events`
+5. Added manual provider webhook verifier skeleton:
+   - `ManualOpsWebhookVerifier`
+6. Added console entry points:
+   - `tenants:billing:auto-charge`
+   - `tenants:billing:process-queued`
+7. Added test coverage for queue/process/webhook flows:
+   - `SubscriptionAutoBillingPhaseThreeTest`
+
+#### Phase 3 Usage (Current Skeleton)
+1. Platform sets tenant to `execution_enabled` and provider key.
+2. Scheduler/ops runs `tenants:billing:auto-charge` to queue cycle attempts.
+3. Queue worker (or `tenants:billing:process-queued`) processes queued attempts.
+4. Adapter result marks attempt as:
+   - `webhook_pending` (for async provider confirmation),
+   - or terminal statuses (`settled`, `failed`, `skipped`, `reversed`).
+5. Provider webhook calls `POST /webhooks/execution/{provider}`.
+6. Webhook verifier validates payload/signature and reconciles attempt status.
+7. On settled webhook, system posts a debit ledger entry and re-evaluates tenant billing status.
 ### Phase 4: Request Payout Execution
 1. On final approval, transition request to `approved_for_execution`.
 2. Queue payout job with idempotency key.
@@ -228,6 +260,29 @@ Thread/timeline must show both approval events and execution events clearly.
 5. Update request lifecycle: `execution_queued`, `execution_processing`, `settled/failed/reversed`.
 6. Reflect execution events in request timeline/thread.
 
+
+#### Phase 4 Status: Implemented (March 1, 2026)
+1. Request approvals are now scope-aware (`request` and `payment_authorization`) using `request_approvals.scope`.
+2. Request submission explicitly initializes `approval_scope=request` and writes scoped approval rows.
+3. Final request approval in execution-enabled tenants now transitions to payment-authorization scope instead of immediately finalizing.
+4. Final payment-authorization approval now transitions request to execution lifecycle and queues payout attempt orchestration.
+5. Added payout execution persistence:
+   - `request_payout_execution_attempts`
+   - webhook linkage via `execution_webhook_events.request_payout_execution_attempt_id`
+6. Webhook reconciliation now supports fallback from billing reconciliation to payout reconciliation on the same endpoint.
+7. Request UI now supports execution statuses (`approved_for_execution`, `execution_queued`, `execution_processing`, `settled`, `failed`, `reversed`) and timeline scope labels.
+8. Added Phase 4 tests:
+   - `tests/Feature/Execution/RequestPayoutExecutionPhaseFourTest.php`
+
+#### Phase 4 Usage (Current)
+1. Tenant remains `Decision-only`: final request approval ends at `approved` (no payout execution).
+2. Tenant is `Execution-enabled` with payment-authorization workflow:
+   - request scope approvals complete,
+   - request enters payment-authorization scope,
+   - final payment authorization queues payout execution.
+3. Provider callbacks still use `POST /webhooks/execution/{provider}`;
+   billing reconciliation runs first, then payout reconciliation fallback if payload matches payout attempts.
+4. With null/manual adapters, payout can resolve to `approved_for_execution`/non-terminal execution states depending on adapter response and queue processing mode.
 ### Phase 5: Operations Center
 1. Add platform ops screen for execution failures/stuck jobs.
 2. Add resend/retry controls with reason capture.

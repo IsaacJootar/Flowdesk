@@ -668,7 +668,7 @@ class RequestsPage extends Component
             'requestTypes' => $requestTypes,
             'spendCategories' => $spendCategories,
             'users' => $users,
-            'statuses' => ['draft', 'in_review', 'approved', 'rejected', 'returned'],
+            'statuses' => ['draft', 'in_review', 'approved_for_execution', 'execution_queued', 'execution_processing', 'settled', 'failed', 'reversed', 'approved', 'rejected', 'returned'],
             'approvableRequestIds' => $approvableRequestIds,
             'requestAnalytics' => $requestAnalytics,
             'rowApprovalContexts' => $rowApprovalContexts,
@@ -724,7 +724,16 @@ class RequestsPage extends Component
 
         $this->decisionComment = '';
         $message = match ($action) {
-            'approve' => $updated->status === 'approved' ? 'Request fully approved.' : 'Step approved. Request moved to next approver.',
+            'approve' => match ((string) $updated->status) {
+                'approved' => 'Request fully approved.',
+                'approved_for_execution' => 'Payment authorization completed. Request is approved for execution.',
+                'execution_queued' => 'Payment authorization completed. Execution has been queued.',
+                'execution_processing' => 'Execution is processing.',
+                'settled' => 'Execution settled successfully.',
+                'failed' => 'Execution failed. Review execution details.',
+                'reversed' => 'Execution was reversed.',
+                default => 'Step approved. Request moved to next approver.',
+            },
             'reject' => 'Request rejected.',
             default => 'Request returned for update.',
         };
@@ -1429,8 +1438,12 @@ class RequestsPage extends Component
             return $organizationChannels;
         }
 
+        $currentScope = app(RequestApprovalRouter::class)->currentScope($request);
         $approvalRow = $request->approvals
-            ->firstWhere('step_order', $currentStepOrder);
+            ->first(fn (RequestApproval $approval): bool =>
+                (string) ($approval->scope ?: RequestApprovalRouter::SCOPE_REQUEST) === $currentScope
+                && (int) $approval->step_order === (int) $currentStepOrder
+            );
         $rowChannels = array_values(array_unique(array_map(
             'strval',
             (array) (($approvalRow?->metadata ?? [])['notification_channels'] ?? [])

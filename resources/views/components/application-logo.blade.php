@@ -1,4 +1,4 @@
-﻿<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" {{ $attributes }} role="img" aria-label="Flowdesk mark">
+<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" {{ $attributes }} role="img" aria-label="Flowdesk mark">
     <defs>
         <linearGradient id="flowdeskMarkGradient" x1="6" y1="6" x2="58" y2="58" gradientUnits="userSpaceOnUse">
             <stop offset="0" stop-color="#fb923c" />

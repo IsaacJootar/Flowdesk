@@ -20,7 +20,16 @@ class ExecutionAdapterRegistry
         $provider = $this->normalizedProvider($providerKey);
         $class = (string) ($this->providerConfig($provider)['subscription_billing_adapter'] ?? NullSubscriptionBillingAdapter::class);
 
-        return $this->resolve($class, SubscriptionBillingAdapterInterface::class);
+        $instance = app($class);
+        if (! $instance instanceof SubscriptionBillingAdapterInterface) {
+            throw new InvalidArgumentException(sprintf(
+                'Configured adapter [%s] must implement [%s].',
+                $class,
+                SubscriptionBillingAdapterInterface::class
+            ));
+        }
+
+        return $instance;
     }
 
     public function resolvePayoutExecutionAdapter(?string $providerKey): PayoutExecutionAdapterInterface
@@ -28,7 +37,16 @@ class ExecutionAdapterRegistry
         $provider = $this->normalizedProvider($providerKey);
         $class = (string) ($this->providerConfig($provider)['payout_execution_adapter'] ?? NullPayoutExecutionAdapter::class);
 
-        return $this->resolve($class, PayoutExecutionAdapterInterface::class);
+        $instance = app($class);
+        if (! $instance instanceof PayoutExecutionAdapterInterface) {
+            throw new InvalidArgumentException(sprintf(
+                'Configured adapter [%s] must implement [%s].',
+                $class,
+                PayoutExecutionAdapterInterface::class
+            ));
+        }
+
+        return $instance;
     }
 
     public function resolveWebhookVerifier(?string $providerKey): ProviderWebhookVerifierInterface
@@ -36,7 +54,16 @@ class ExecutionAdapterRegistry
         $provider = $this->normalizedProvider($providerKey);
         $class = (string) ($this->providerConfig($provider)['webhook_verifier'] ?? NullProviderWebhookVerifier::class);
 
-        return $this->resolve($class, ProviderWebhookVerifierInterface::class);
+        $instance = app($class);
+        if (! $instance instanceof ProviderWebhookVerifierInterface) {
+            throw new InvalidArgumentException(sprintf(
+                'Configured adapter [%s] must implement [%s].',
+                $class,
+                ProviderWebhookVerifierInterface::class
+            ));
+        }
+
+        return $instance;
     }
 
     /**
@@ -71,25 +98,5 @@ class ExecutionAdapterRegistry
         $trimmed = trim((string) $providerKey);
 
         return $trimmed !== '' ? strtolower($trimmed) : (string) config('execution.fallback_provider', 'null');
-    }
-
-    /**
-     * @template T of object
-     * @param  class-string<T>  $expectedInterface
-     * @return T
-     */
-    private function resolve(string $class, string $expectedInterface): object
-    {
-        $instance = app($class);
-
-        if (! $instance instanceof $expectedInterface) {
-            throw new InvalidArgumentException(sprintf(
-                'Configured adapter [%s] must implement [%s].',
-                $class,
-                $expectedInterface
-            ));
-        }
-
-        return $instance;
     }
 }
