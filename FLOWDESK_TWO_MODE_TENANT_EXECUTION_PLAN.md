@@ -161,3 +161,151 @@ Thread/timeline must show both approval events and execution events clearly.
 4. Request payout execution second
 5. Retry/reconciliation hardening
 
+
+---
+
+## 7-Phase Implementation Plan
+
+### Phase 1: Tenant Mode Foundation
+1. Add tenant mode fields: `payment_execution_mode`, `execution_provider`, `execution_enabled_at`, `execution_enabled_by`.
+2. Add execution policy fields per tenant: max transaction, daily cap, monthly cap, checker threshold, allowed channels.
+3. Add platform UI in Tenant Details: mode selector + policy form.
+4. Add guardrails: mode cannot be enabled without required platform checks.
+5. Add audit events for every mode/policy change.
+6. Add feature gating service so app behavior branches cleanly by mode.
+
+### Phase 2: Adapter Contracts (Provider-Agnostic)
+1. Define interfaces:
+   - `SubscriptionBillingAdapterInterface`
+   - `PayoutExecutionAdapterInterface`
+   - `ProviderWebhookVerifierInterface`
+2. Build internal adapter registry/factory by `execution_provider`.
+3. Create `null` adapter for decision-only tenants.
+4. Add standardized DTOs for request, response, error, retry metadata.
+5. Add test doubles/mocks for adapters in feature tests.
+
+
+#### Phase 2 Status: Implemented (March 1, 2026)
+1. Contracts implemented under:
+   - `app/Services/Execution/Contracts/*`
+2. Standard DTO layer implemented under:
+   - `app/Services/Execution/DTO/*`
+3. Null adapters implemented for safe decision-only fallback:
+   - `NullSubscriptionBillingAdapter`
+   - `NullPayoutExecutionAdapter`
+   - `NullProviderWebhookVerifier`
+4. Provider-agnostic resolution implemented:
+   - `ExecutionAdapterRegistry`
+   - `TenantExecutionAdapterFactory`
+5. Adapter config map implemented:
+   - `config/execution.php`
+6. Container wiring implemented:
+   - `AppServiceProvider` binds registry and factory singletons.
+7. Unit tests implemented and passing:
+   - `tests/Unit/Execution/ExecutionAdapterRegistryTest.php`
+
+#### Phase 2 Usage (Current)
+1. `Decision-only` tenants are forced to null adapters even when `execution_provider` is set.
+2. `Execution-enabled` tenants resolve adapters from `execution_provider`.
+3. If provider is unknown or missing, registry falls back to configured fallback provider (`null` by default).
+4. Real providers can be added later by:
+   - Implementing the three contracts,
+   - Registering adapter classes in `config/execution.php`,
+   - Reusing existing factory/orchestration entry points.
+### Phase 3: Subscription Auto-Billing
+1. Implement auto-billing orchestration service.
+2. Trigger billing jobs by cadence and coverage windows.
+3. Persist billing attempts, provider refs, and outcomes.
+4. Add webhook endpoint for billing settlement/failure sync.
+5. Reconcile billing ledger + tenant subscription status (`current/grace/overdue/suspended`).
+6. Add retries + dead-letter handling for failed billing jobs.
+
+### Phase 4: Request Payout Execution
+1. On final approval, transition request to `approved_for_execution`.
+2. Queue payout job with idempotency key.
+3. Call payout adapter and persist execution log.
+4. Add webhook reconciliation for payout events.
+5. Update request lifecycle: `execution_queued`, `execution_processing`, `settled/failed/reversed`.
+6. Reflect execution events in request timeline/thread.
+
+### Phase 5: Operations Center
+1. Add platform ops screen for execution failures/stuck jobs.
+2. Add resend/retry controls with reason capture.
+3. Add filters: provider, tenant, status, age.
+4. Add dead-letter visibility and manual reconcile actions.
+5. Add correlation IDs across request, billing, and execution logs.
+6. Add alert hooks for repeated failures.
+
+### Phase 6: Security + Compliance Hardening
+1. Encrypt provider credentials/secrets at rest.
+2. Enforce signed webhook verification.
+3. Add replay protection (nonce/timestamp checks).
+4. Tighten role permissions for mode enablement and retries.
+5. Add immutable audit trail for execution-critical actions.
+6. Add rate limits and abuse guards on sensitive endpoints.
+
+### Phase 7: QA + Release Readiness
+1. End-to-end tests per mode:
+   - Decision-only: no external execution.
+   - Execution-enabled: full payout lifecycle.
+2. Failure-path tests: timeout, duplicate webhook, partial settlement.
+3. Load tests on queue/webhook throughput.
+4. UAT checklist for platform ops and tenant admins.
+5. Rollback plan and kill-switch for execution mode.
+6. Production runbook + monitoring dashboard sign-off.
+
+---
+
+## Architecture Clarification (Approved)
+
+The platform model is locked to the following governance rules:
+
+1. Default mode for every tenant is `Decision-only`.
+2. `Execution-enabled` is configured only from central platform Tenant Management, not from tenant-side settings.
+3. Request approval and money movement approval are separate control layers:
+   - Layer A: request approval workflow (existing request chain)
+   - Layer B: payment authorization workflow (runs after request is finally approved and before payout execution)
+4. When `Execution-enabled` is active, final payout/payment must pass payment-authorization policy steps tied to hierarchy, roles, and designations.
+5. Execution policy applies only after request reaches final approval, and does not bypass standard request approvals.
+
+This means Flowdesk remains safe by default (`Decision-only`) while allowing strict, policy-driven execution controls per tenant when enabled by platform operators.
+
+
+---
+
+## Phase 1.5: Payment-Authorization Policy Skeleton (Implemented)
+
+### What is now implemented
+1. Approval Workflows now supports two policy scopes:
+   - `Request Approval`
+   - `Payment Authorization`
+2. Owners can switch scope on the same workflow page and manage each scope independently.
+3. Preset workflow creation is scope-aware:
+   - Request preset: `Direct Manager -> Finance`
+   - Payment authorization preset: `Finance -> Admin (Owner)`
+4. Duplicate cleanup, default-setting, creation, and step management are all scoped per policy type.
+5. Platform execution guardrail now enforces this rule:
+   - A tenant cannot move to `Execution-enabled` mode unless it has an active default `Payment Authorization` workflow.
+6. Added skeleton resolver service:
+   - `PaymentAuthorizationWorkflowResolver`
+   - Resolves default payment-authorization workflow and amount-applicable steps for future execution engine integration.
+
+### Current operational flow (approved)
+1. Request goes through request-approval workflow.
+2. If tenant is `Decision-only`, flow ends at approval decision (no payout execution).
+3. If tenant is `Execution-enabled`, system requires payment-authorization workflow before any payout execution stage.
+4. Payment execution integration remains phase-gated and comes after this policy layer.
+
+### Where this is configured
+1. Organization owner side:
+   - `Approval Workflows` page
+   - Use scope switch to configure `Request Approval` or `Payment Authorization` chains.
+2. Platform operator side:
+   - `Platform -> Tenants -> Update Tenant`
+   - `Execution Mode` can only be enabled when payment-authorization default policy exists.
+
+### Why this matters
+This preserves separation of concerns:
+- Request approval decides business intent.
+- Payment authorization decides release-of-funds authority.
+- Execution (provider calls) remains a later controlled phase.

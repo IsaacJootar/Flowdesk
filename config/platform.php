@@ -28,5 +28,7 @@ return [
     |
     */
     'billing_default_grace_days' => (int) env('PLATFORM_BILLING_DEFAULT_GRACE_DAYS', 3),
+    'billing_default_trial_days' => (int) env('PLATFORM_BILLING_DEFAULT_TRIAL_DAYS', 14),
     'billing_auto_suspend_after_days_overdue' => (int) env('PLATFORM_BILLING_AUTO_SUSPEND_AFTER_DAYS_OVERDUE', 14),
 ];
+

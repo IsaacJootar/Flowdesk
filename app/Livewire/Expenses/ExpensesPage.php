@@ -12,6 +12,7 @@ use App\Domains\Vendors\Models\Vendor;
 use App\Services\ExpensePolicyResolver;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\View\View;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -89,7 +90,7 @@ class ExpensesPage extends Component
     public function mount(): void
     {
         $this->feedbackMessage = session('status');
-        $this->form['expense_date'] = now()->toDateString();
+         $this->form['expense_date'] = $this->companyToday();
         $this->form['paid_by_user_id'] = \Illuminate\Support\Facades\Auth::id();
 
         // Supports deep-link navigation from reports/modules into a pre-filtered expense list.
@@ -444,7 +445,7 @@ class ExpensesPage extends Component
             'title' => '',
             'description' => '',
             'amount' => '',
-            'expense_date' => now()->toDateString(),
+            'expense_date' => $this->companyToday(),
             'payment_method' => '',
             'paid_by_user_id' => \Illuminate\Support\Facades\Auth::id() ?? '',
         ];
@@ -460,7 +461,7 @@ class ExpensesPage extends Component
             'title' => (string) $expense->title,
             'description' => (string) ($expense->description ?? ''),
             'amount' => (string) $expense->amount,
-            'expense_date' => $expense->expense_date?->format('Y-m-d') ?? now()->toDateString(),
+            'expense_date' => $expense->expense_date?->format('Y-m-d') ?? $this->companyToday(),
             'payment_method' => (string) ($expense->payment_method ?? ''),
             'paid_by_user_id' => $expense->paid_by_user_id ? (string) $expense->paid_by_user_id : '',
         ];
@@ -533,6 +534,18 @@ class ExpensesPage extends Component
         return $value === '' ? null : $value;
     }
 
+
+    private function companyTimezone(): string
+    {
+        $timezone = trim((string) (\Illuminate\Support\Facades\Auth::user()?->company?->timezone ?? config('app.timezone', 'Africa/Lagos')));
+
+        return $timezone !== '' ? $timezone : 'Africa/Lagos';
+    }
+
+    private function companyToday(): string
+    {
+        return Carbon::now($this->companyTimezone())->toDateString();
+    }
     private function setFeedback(string $message): void
     {
         $this->feedbackError = null;
@@ -636,3 +649,6 @@ class ExpensesPage extends Component
         ];
     }
 }
+
+
+

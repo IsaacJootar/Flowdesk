@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Services\Execution\ExecutionAdapterRegistry;
+use App\Services\Execution\TenantExecutionAdapterFactory;
 use App\Services\RequestCommunication\Sms\NullSmsProvider;
 use App\Services\RequestCommunication\Sms\SmsProvider;
 use App\Services\RequestCommunication\Sms\TermiiSmsProvider;
@@ -24,6 +26,10 @@ class AppServiceProvider extends ServiceProvider
                 default => new NullSmsProvider(),
             };
         });
+
+        // Provider-agnostic execution adapters are resolved once and reused by orchestration layers.
+        $this->app->singleton(ExecutionAdapterRegistry::class);
+        $this->app->singleton(TenantExecutionAdapterFactory::class);
     }
 
     /**

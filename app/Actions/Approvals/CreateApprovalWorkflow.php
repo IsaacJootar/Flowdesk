@@ -40,7 +40,7 @@ class CreateApprovalWorkflow
             ],
             'description' => ['nullable', 'string', 'max:1000'],
             'is_default' => ['nullable', 'boolean'],
-            'applies_to' => ['nullable', Rule::in(['request'])],
+            'applies_to' => ['nullable', Rule::in(ApprovalWorkflow::supportedAppliesTo())],
         ])->validate();
 
         $workflow = DB::transaction(function () use ($actor, $validated): ApprovalWorkflow {
@@ -49,7 +49,7 @@ class CreateApprovalWorkflow
             if ($isDefault) {
                 ApprovalWorkflow::query()
                     ->where('company_id', $actor->company_id)
-                    ->where('applies_to', $validated['applies_to'] ?? 'request')
+                    ->where('applies_to', $validated['applies_to'] ?? ApprovalWorkflow::APPLIES_TO_REQUEST)
                     ->update(['is_default' => false]);
             }
             $code = $validated['code']
@@ -60,7 +60,7 @@ class CreateApprovalWorkflow
                 'company_id' => (int) $actor->company_id,
                 'name' => trim($validated['name']),
                 'code' => $code,
-                'applies_to' => $validated['applies_to'] ?? 'request',
+                'applies_to' => $validated['applies_to'] ?? ApprovalWorkflow::APPLIES_TO_REQUEST,
                 'description' => $validated['description'] ?? null,
                 'is_active' => true,
                 'is_default' => $isDefault,

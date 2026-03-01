@@ -16,10 +16,22 @@ class TenantSubscription extends Model
         'company_id',
         'plan_code',
         'subscription_status',
+        'payment_execution_mode',
         'starts_at',
         'ends_at',
         'grace_until',
+        'trial_started_at',
+        'trial_ends_at',
         'seat_limit',
+        'execution_provider',
+        'execution_enabled_at',
+        'execution_enabled_by',
+        'execution_max_transaction_amount',
+        'execution_daily_cap_amount',
+        'execution_monthly_cap_amount',
+        'execution_maker_checker_threshold_amount',
+        'execution_allowed_channels',
+        'execution_policy_notes',
         'billing_reference',
         'notes',
         'created_by',
@@ -32,7 +44,15 @@ class TenantSubscription extends Model
             'starts_at' => 'date',
             'ends_at' => 'date',
             'grace_until' => 'date',
+            'trial_started_at' => 'datetime',
+            'trial_ends_at' => 'datetime',
             'seat_limit' => 'integer',
+            'execution_enabled_at' => 'datetime',
+            'execution_max_transaction_amount' => 'decimal:2',
+            'execution_daily_cap_amount' => 'decimal:2',
+            'execution_monthly_cap_amount' => 'decimal:2',
+            'execution_maker_checker_threshold_amount' => 'decimal:2',
+            'execution_allowed_channels' => 'array',
         ];
     }
 
@@ -49,6 +69,11 @@ class TenantSubscription extends Model
     public function updater(): BelongsTo
     {
         return $this->belongsTo(User::class, 'updated_by');
+    }
+
+    public function executionEnabler(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'execution_enabled_by');
     }
 
     public function planHistory(): HasMany

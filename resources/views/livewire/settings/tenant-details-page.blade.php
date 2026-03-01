@@ -1,18 +1,45 @@
-﻿<div wire:init="loadData" class="space-y-5">
-    <div class="flex items-center justify-between">
+<div wire:init="loadData" class="space-y-5">
+    @if ($feedbackMessage || $feedbackError)
+        <div
+            x-data="{ show: true }"
+            x-init="setTimeout(() => show = false, 3200)"
+            x-show="show"
+            x-transition.opacity.duration.250ms
+            wire:key="tenant-billing-feedback-{{ $feedbackKey }}"
+            class="pointer-events-none fixed z-[90]"
+            style="right: 16px; top: 72px; width: 360px; max-width: calc(100vw - 24px);"
+        >
+            <div class="pointer-events-auto rounded-xl border px-4 py-3 text-sm shadow-lg {{ $feedbackError ? 'border-red-200 bg-red-50 text-red-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700' }}">
+                {{ $feedbackError ?: $feedbackMessage }}
+            </div>
+        </div>
+    @endif
+
+    <div class="flex items-center justify-between gap-3">
         <div>
-            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Tenant Operations</p>
+            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Tenant Billing</p>
             <h2 class="mt-1 text-xl font-semibold text-slate-900">{{ $company->name }}</h2>
             <p class="text-sm text-slate-500">{{ $company->slug }} - {{ $company->email ?: 'no email' }}</p>
         </div>
-        <a
-            href="{{ route('platform.tenants') }}"
-            class="inline-flex h-10 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl border border-slate-300 bg-white px-3.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-        >
-            <span aria-hidden="true">&larr;</span>
-            <span>Back to Tenants</span>
-        </a>
+        <div class="flex items-center gap-2">
+            <button
+                type="button"
+                wire:click="openPaymentModal"
+                class="inline-flex h-10 shrink-0 items-center rounded-xl bg-slate-900 px-3.5 text-sm font-semibold text-white transition hover:bg-slate-800"
+            >
+                + Record Payment
+            </button>
+            <a
+                href="{{ route('platform.tenants') }}"
+                class="inline-flex h-10 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl border border-slate-300 bg-white px-3.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+            >
+                <span aria-hidden="true">&larr;</span>
+                <span>Back to Tenants</span>
+            </a>
+        </div>
     </div>
+
+    @include('livewire.platform.partials.tenant-section-tabs', ['company' => $company])
 
     <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <div class="rounded-2xl border border-sky-200 bg-sky-50 p-5">
@@ -144,9 +171,9 @@
                 @forelse ($planHistory as $history)
                     <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
                         <p class="text-sm font-semibold text-slate-800">
-                            {{ strtoupper((string) ($history->previous_plan_code ?: '-')) }} â†’ {{ strtoupper((string) $history->new_plan_code) }}
+                            {{ strtoupper((string) ($history->previous_plan_code ?: '-')) }} -> {{ strtoupper((string) $history->new_plan_code) }}
                         </p>
-                        <p class="text-xs text-slate-500">{{ optional($history->changed_at)->format('M d, Y H:i') }} - {{ $history->changer?->name ?: 'System' }}</p>
+                        <p class="text-xs text-slate-500">{{ $this->formatInCompanyTimezone($history->changed_at) }} - {{ $history->changer?->name ?: 'System' }}</p>
                         @if ($history->reason)
                             <p class="mt-1 text-xs text-slate-600">{{ $history->reason }}</p>
                         @endif
@@ -171,7 +198,7 @@
                         };
                     @endphp
                     <div class="rounded-xl border p-3 {{ $usageClass }}">
-                        <p class="text-sm font-semibold text-slate-800">{{ optional($snapshot->snapshot_at)->format('M d, Y H:i') }}</p>
+                        <p class="text-sm font-semibold text-slate-800">{{ $this->formatInCompanyTimezone($snapshot->snapshot_at) }}</p>
                         <p class="text-xs text-slate-600">Users: {{ number_format((int) $snapshot->active_users) }} / {{ $snapshot->seat_limit ? number_format((int) $snapshot->seat_limit) : 'No limit' }} - {{ number_format((float) ($snapshot->seat_utilization_percent ?? 0), 2) }}%</p>
                         <p class="text-xs text-slate-600">Req: {{ number_format((int) $snapshot->requests_count) }} - Exp: {{ number_format((int) $snapshot->expenses_count) }} - Ven: {{ number_format((int) $snapshot->vendors_count) }} - Assets: {{ number_format((int) $snapshot->assets_count) }}</p>
                     </div>
@@ -199,7 +226,7 @@
                 <tbody class="divide-y divide-slate-100">
                     @forelse ($auditEvents as $event)
                         <tr>
-                            <td class="px-4 py-3 text-slate-700">{{ optional($event->event_at)->format('M d, Y H:i') ?: '-' }}</td>
+                            <td class="px-4 py-3 text-slate-700">{{ $this->formatInCompanyTimezone($event->event_at) }}</td>
                             <td class="px-4 py-3 text-slate-800">{{ $event->action }}</td>
                             <td class="px-4 py-3 text-slate-700">{{ $event->actor?->name ?: 'System' }}</td>
                             <td class="px-4 py-3 text-slate-600">{{ $event->description ?: '-' }}</td>
@@ -212,5 +239,65 @@
         </div>
         <div class="border-t border-slate-200 px-4 py-3">{{ $auditEvents->links() }}</div>
     </div>
+
+    @if ($showPaymentModal)
+        <div class="fixed inset-0 z-[70] overflow-y-auto bg-slate-900/35 p-4" wire:click.self="closePaymentModal">
+            <div class="mx-auto w-full max-w-2xl rounded-2xl border border-slate-200 bg-white shadow-2xl">
+                <div class="flex items-center justify-between border-b border-slate-200 px-6 py-4">
+                    <h3 class="text-lg font-semibold text-slate-900">Record Offline Payment</h3>
+                    <button type="button" wire:click="closePaymentModal" class="rounded-lg border border-slate-300 px-3 py-1 text-sm font-medium text-slate-600">Close</button>
+                </div>
+                <form wire:submit.prevent="saveManualPayment" class="space-y-4 px-6 py-5">
+                    <div class="grid gap-4 sm:grid-cols-2">
+                        <label class="block">
+                            <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Amount</span>
+                            <input type="number" step="0.01" min="0.01" wire:model.defer="paymentForm.amount" class="w-full rounded-xl border-slate-300 text-sm">
+                        </label>
+                        <label class="block">
+                            <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Currency</span>
+                            <input type="text" maxlength="3" wire:model.defer="paymentForm.currency_code" class="w-full rounded-xl border-slate-300 text-sm">
+                        </label>
+                        <label class="block">
+                            <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Method</span>
+                            <select wire:model.defer="paymentForm.payment_method" class="w-full rounded-xl border-slate-300 text-sm">
+                                <option value="offline_transfer">Offline Transfer</option>
+                                <option value="cash">Cash</option>
+                                <option value="cheque">Cheque</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </label>
+                        <label class="block">
+                            <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Received At ({{ $this->companyTimezoneLabel() }})</span>
+                            <input type="datetime-local" wire:model.defer="paymentForm.received_at" class="w-full rounded-xl border-slate-300 text-sm">
+                        </label>
+                        <label class="block">
+                            <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Period Start (Optional)</span>
+                            <input type="date" wire:model.defer="paymentForm.period_start" class="w-full rounded-xl border-slate-300 text-sm">
+                        </label>
+                        <label class="block">
+                            <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Period End (Optional)</span>
+                            <input type="date" wire:model.defer="paymentForm.period_end" class="w-full rounded-xl border-slate-300 text-sm">
+                        </label>
+                    </div>
+                    <label class="block">
+                        <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Reference (Optional)</span>
+                        <input type="text" wire:model.defer="paymentForm.reference" class="w-full rounded-xl border-slate-300 text-sm">
+                    </label>
+                    <label class="block">
+                        <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Note (Optional)</span>
+                        <textarea rows="2" wire:model.defer="paymentForm.note" class="w-full rounded-xl border-slate-300 text-sm"></textarea>
+                    </label>
+                    <div class="flex justify-end gap-2 border-t border-slate-200 pt-3">
+                        <button type="button" wire:click="closePaymentModal" class="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700">Cancel</button>
+                        <button type="submit" wire:loading.attr="disabled" wire:target="saveManualPayment" class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white">
+                            <span wire:loading.remove wire:target="saveManualPayment">Record Payment</span>
+                            <span wire:loading wire:target="saveManualPayment">Recording...</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    @endif
 </div>
+
 

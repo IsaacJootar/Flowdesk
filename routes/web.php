@@ -28,6 +28,10 @@ use App\Livewire\Settings\TenantManagementPage;
 use App\Livewire\Settings\VendorControlsPage;
 use App\Livewire\Platform\PlatformUsersPage;
 use App\Livewire\Platform\PlatformDashboardPage;
+use App\Livewire\Platform\TenantExecutionModePage;
+use App\Livewire\Platform\TenantExecutionPolicyPage;
+use App\Livewire\Platform\TenantPlanEntitlementsPage;
+use App\Livewire\Platform\TenantProfilePage;
 use App\Livewire\Vendors\VendorDetailsPage;
 use App\Livewire\Vendors\VendorReportsPage;
 use Illuminate\Support\Facades\Route;
@@ -45,7 +49,11 @@ Route::middleware('auth')->group(function (): void {
 Route::middleware(['auth', 'platform.access'])->prefix('platform')->name('platform.')->group(function (): void {
     Route::get('/', PlatformDashboardPage::class)->name('dashboard');
     Route::get('/tenants', TenantManagementPage::class)->name('tenants');
-    Route::get('/tenants/{company}', TenantDetailsPage::class)->name('tenants.show');
+    Route::get('/tenants/{company}/plan-entitlements', TenantPlanEntitlementsPage::class)->name('tenants.plan-entitlements');
+    Route::get('/tenants/{company}/billing', TenantDetailsPage::class)->name('tenants.billing');
+    Route::get('/tenants/{company}/execution-mode', TenantExecutionModePage::class)->name('tenants.execution-mode');
+    Route::get('/tenants/{company}/execution-policy', TenantExecutionPolicyPage::class)->name('tenants.execution-policy');
+    Route::get('/tenants/{company}', TenantProfilePage::class)->name('tenants.show');
     Route::get('/users', PlatformUsersPage::class)->name('users');
 });
 
@@ -129,3 +137,6 @@ Route::middleware(['auth', 'company.context'])->group(function (): void {
 });
 
 require __DIR__.'/auth.php';
+
+
+

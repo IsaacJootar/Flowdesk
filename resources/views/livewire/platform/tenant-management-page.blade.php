@@ -17,7 +17,7 @@
 
     <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         @if (! $readyToLoad)
-            @for ($i = 0; $i < 6; $i++)
+            @for ($i = 0; $i < 3; $i++)
                 <div class="fd-card animate-pulse p-5">
                     <div class="mb-3 h-4 w-28 rounded bg-slate-200"></div>
                     <div class="mb-3 h-8 w-24 rounded bg-slate-200"></div>
@@ -38,52 +38,6 @@
                 <p class="mt-2 text-2xl font-semibold text-amber-900">{{ number_format((int) $stats['current']) }} current / {{ number_format((int) $stats['overdue']) }} overdue</p>
             </div>
         @endif
-    </section>
-
-    <section class="fd-card p-5">
-        <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <div>
-                <h3 class="text-base font-semibold text-slate-900">Billing Defaults</h3>
-                <p class="text-sm text-slate-600">Read-only platform billing timing and plan baseline matrix.</p>
-            </div>
-            <span class="inline-flex rounded-full border border-slate-300 bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">Read only</span>
-        </div>
-
-        <div class="grid gap-3 sm:grid-cols-3">
-            <div class="rounded-xl border border-indigo-200 bg-indigo-50 p-3">
-                <p class="text-xs font-semibold uppercase tracking-[0.12em] text-indigo-700">Grace Window</p>
-                <p class="mt-1 text-lg font-semibold text-indigo-900">{{ number_format((int) $billingDefaults['grace_days']) }} days</p>
-            </div>
-            <div class="rounded-xl border border-rose-200 bg-rose-50 p-3">
-                <p class="text-xs font-semibold uppercase tracking-[0.12em] text-rose-700">Auto Suspend</p>
-                <p class="mt-1 text-lg font-semibold text-rose-900">{{ number_format((int) $billingDefaults['auto_suspend_days']) }} days overdue</p>
-            </div>
-            <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
-                <p class="text-xs font-semibold uppercase tracking-[0.12em] text-emerald-700">Automation</p>
-                <p class="mt-1 text-lg font-semibold text-emerald-900">{{ $billingDefaults['automation_cadence'] }}</p>
-            </div>
-        </div>
-
-        <div class="mt-4 overflow-x-auto">
-            <table class="min-w-full divide-y divide-slate-200 text-sm">
-                <thead class="bg-slate-50 text-xs uppercase tracking-[0.12em] text-slate-500">
-                    <tr>
-                        <th class="px-3 py-2 text-left font-semibold">Plan</th>
-                        <th class="px-3 py-2 text-left font-semibold">Enabled Modules</th>
-                        <th class="px-3 py-2 text-left font-semibold">Default Seat Limit</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-slate-100">
-                    @foreach ($planDefaults as $plan)
-                        <tr>
-                            <td class="px-3 py-2 font-medium text-slate-800">{{ $plan['label'] }}</td>
-                            <td class="px-3 py-2 text-slate-700">{{ number_format((int) $plan['enabled_modules']) }} / {{ number_format((int) $plan['total_modules']) }}</td>
-                            <td class="px-3 py-2 text-slate-700">{{ $plan['default_seat_limit'] !== null ? number_format((int) $plan['default_seat_limit']) : 'Unlimited' }}</td>
-                        </tr>
-                    @endforeach
-                </tbody>
-            </table>
-        </div>
     </section>
 
     <div class="fd-card p-5">
@@ -151,6 +105,8 @@
                             <th class="px-4 py-3 text-left font-semibold">Tenant</th>
                             <th class="px-4 py-3 text-left font-semibold">Lifecycle</th>
                             <th class="px-4 py-3 text-left font-semibold">Plan / Billing</th>
+                            <th class="px-4 py-3 text-left font-semibold">Created At</th>
+                            <th class="px-4 py-3 text-left font-semibold">Trial Period</th>
                             <th class="px-4 py-3 text-left font-semibold">Users</th>
                             <th class="px-4 py-3 text-left font-semibold">Actions</th>
                         </tr>
@@ -175,15 +131,37 @@
                                     <p class="font-medium">{{ ucfirst((string) ($company->subscription?->plan_code ?: 'pilot')) }}</p>
                                     <p class="text-xs text-slate-500">{{ ucfirst((string) ($company->subscription?->subscription_status ?: 'current')) }}</p>
                                 </td>
+                                <td class="px-4 py-3 text-slate-700">
+                                    @php
+                                        $timezone = trim((string) ($company->timezone ?: config('app.timezone', 'Africa/Lagos')));
+                                        $createdAt = $company->created_at
+                                            ? $company->created_at->timezone($timezone)->format('M d, Y H:i')
+                                            : '-';
+                                        $trialStart = $company->subscription?->trial_started_at
+                                            ? $company->subscription->trial_started_at->timezone($timezone)->format('M d, Y H:i')
+                                            : null;
+                                        $trialEnd = $company->subscription?->trial_ends_at
+                                            ? $company->subscription->trial_ends_at->timezone($timezone)->format('M d, Y H:i')
+                                            : null;
+                                    @endphp
+                                    <p class="font-medium">{{ $createdAt }}</p>
+                                </td>
+                                <td class="px-4 py-3 text-slate-700">
+                                    <p class="font-medium">{{ $trialStart ?: '-' }}</p>
+                                    <p class="text-xs text-slate-500">{{ $trialEnd ? 'Ends: '.$trialEnd : 'No trial end set' }}</p>
+                                </td>
                                 <td class="px-4 py-3 text-slate-700">{{ number_format((int) $company->users_count) }}</td>
                                 <td class="px-4 py-3">
                                     <div class="flex flex-wrap gap-2">
                                         <a href="{{ route('platform.tenants.show', $company) }}" class="rounded-lg border border-sky-300 bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700">Details</a>
                                         <button type="button" wire:click="openEditModal({{ $company->id }})" class="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700">Update</button>
+                                        <a href="{{ route('platform.tenants.plan-entitlements', $company) }}" class="rounded-lg border border-indigo-300 bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700">Plan & Modules</a>
+                                        <a href="{{ route('platform.tenants.billing', $company) }}" class="rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">Billing</a>
+                                        <a href="{{ route('platform.tenants.execution-mode', $company) }}" class="rounded-lg border border-violet-300 bg-violet-50 px-2.5 py-1 text-xs font-semibold text-violet-700">Execution Mode</a>
+                                        <a href="{{ route('platform.tenants.execution-policy', $company) }}" class="rounded-lg border border-fuchsia-300 bg-fuchsia-50 px-2.5 py-1 text-xs font-semibold text-fuchsia-700">Execution Policy</a>
                                         @if ((int) $company->users_count === 0)
                                             <button type="button" wire:click="provisionTenantLogin({{ $company->id }})" class="rounded-lg border border-indigo-300 bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700">Provision Login</button>
                                         @endif
-                                        <button type="button" wire:click="openPaymentModal({{ $company->id }})" class="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700">Record Payment</button>
                                         @if ($company->lifecycle_status === 'active')
                                             <button type="button" wire:click="suspendTenant({{ $company->id }})" class="rounded-lg border border-amber-300 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">Suspend</button>
                                         @else
@@ -193,7 +171,7 @@
                                 </td>
                             </tr>
                         @empty
-                            <tr><td colspan="5" class="px-4 py-10 text-center text-sm text-slate-500">No tenants found for selected filters.</td></tr>
+                            <tr><td colspan="7" class="px-4 py-10 text-center text-sm text-slate-500">No tenants found for selected filters.</td></tr>
                         @endforelse
                     </tbody>
                 </table>
@@ -201,6 +179,7 @@
             <div class="border-t border-slate-200 px-4 py-3">{{ $companies->links() }}</div>
         @endif
     </div>
+
     @if ($showTenantModal)
         <div class="fixed inset-0 z-[70] overflow-y-auto bg-slate-900/35 p-4" wire:click.self="closeTenantModal">
             <div class="mx-auto w-full max-w-4xl rounded-2xl border border-slate-200 bg-white shadow-2xl">
@@ -223,6 +202,23 @@
                         <label class="block">
                             <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Email</span>
                             <input type="email" wire:model.defer="tenantForm.email" class="w-full rounded-xl border-slate-300 text-sm">
+                            @error('tenantForm.email') <span class="mt-1 block text-xs text-rose-600">{{ $message }}</span> @enderror
+                        </label>
+                        <label class="block">
+                            <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Phone</span>
+                            <input type="text" wire:model.defer="tenantForm.phone" class="w-full rounded-xl border-slate-300 text-sm">
+                        </label>
+                        <label class="block">
+                            <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Industry</span>
+                            <input type="text" wire:model.defer="tenantForm.industry" class="w-full rounded-xl border-slate-300 text-sm">
+                        </label>
+                        <label class="block">
+                            <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Currency</span>
+                            <input type="text" maxlength="3" wire:model.defer="tenantForm.currency_code" class="w-full rounded-xl border-slate-300 text-sm">
+                        </label>
+                        <label class="block">
+                            <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Timezone</span>
+                            <input type="text" wire:model.defer="tenantForm.timezone" class="w-full rounded-xl border-slate-300 text-sm">
                         </label>
                         <label class="block">
                             <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Lifecycle</span>
@@ -233,47 +229,13 @@
                                 <option value="archived">Archived</option>
                             </select>
                         </label>
-                        <label class="block">
-                            <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Plan</span>
-                            <select wire:model.live="subscriptionForm.plan_code" class="w-full rounded-xl border-slate-300 text-sm">
-                                <option value="pilot">Pilot</option>
-                                <option value="growth">Growth</option>
-                                <option value="business">Business</option>
-                                <option value="enterprise">Enterprise</option>
-                            </select>
-                        </label>
-                        <label class="block">
-                            <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Billing Status</span>
-                            <select wire:model.defer="subscriptionForm.subscription_status" class="w-full rounded-xl border-slate-300 text-sm">
-                                <option value="current">Current</option>
-                                <option value="grace">Grace</option>
-                                <option value="overdue">Overdue</option>
-                                <option value="suspended">Suspended</option>
-                            </select>
-                        </label>
-                        <label class="block">
-                            <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Seat Limit (Optional)</span>
-                            <input type="number" min="1" wire:model.defer="subscriptionForm.seat_limit" class="w-full rounded-xl border-slate-300 text-sm" placeholder="Leave blank for unlimited">
-                            @error('subscriptionForm.seat_limit') <span class="mt-1 block text-xs text-rose-600">{{ $message }}</span> @enderror
-                        </label>
                     </div>
-                    <div class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                        <div class="flex flex-wrap items-center justify-between gap-2">
-                            <p class="text-xs text-slate-600">Use plan matrix defaults for modules and seat policy, then adjust only where needed.</p>
-                            <button type="button" wire:click="applyPlanDefaults" wire:loading.attr="disabled" wire:target="applyPlanDefaults" class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100">
-                                <span wire:loading.remove wire:target="applyPlanDefaults">Apply Plan Defaults</span>
-                                <span wire:loading wire:target="applyPlanDefaults">Applying...</span>
-                            </button>
-                        </div>
-                    </div>
-                    <div class="grid gap-2 sm:grid-cols-3">
-                        <label class="inline-flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" wire:model.defer="entitlementsForm.requests_enabled" class="rounded border-slate-300"> <span>Requests</span></label>
-                        <label class="inline-flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" wire:model.defer="entitlementsForm.expenses_enabled" class="rounded border-slate-300"> <span>Expenses</span></label>
-                        <label class="inline-flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" wire:model.defer="entitlementsForm.vendors_enabled" class="rounded border-slate-300"> <span>Vendors</span></label>
-                        <label class="inline-flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" wire:model.defer="entitlementsForm.budgets_enabled" class="rounded border-slate-300"> <span>Budgets</span></label>
-                        <label class="inline-flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" wire:model.defer="entitlementsForm.assets_enabled" class="rounded border-slate-300"> <span>Assets</span></label>
-                        <label class="inline-flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" wire:model.defer="entitlementsForm.reports_enabled" class="rounded border-slate-300"> <span>Reports</span></label>
-                    </div>
+
+                    <label class="block">
+                        <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Address</span>
+                        <textarea rows="2" wire:model.defer="tenantForm.address" class="w-full rounded-xl border-slate-300 text-sm"></textarea>
+                    </label>
+
                     <div class="flex justify-end gap-2 border-t border-slate-200 pt-3">
                         <button type="button" wire:click="closeTenantModal" class="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700">Cancel</button>
                         <button type="submit" wire:loading.attr="disabled" wire:target="saveTenant" class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white">
@@ -285,47 +247,8 @@
             </div>
         </div>
     @endif
-
-    @if ($showPaymentModal)
-        <div class="fixed inset-0 z-[70] overflow-y-auto bg-slate-900/35 p-4" wire:click.self="closePaymentModal">
-            <div class="mx-auto w-full max-w-2xl rounded-2xl border border-slate-200 bg-white shadow-2xl">
-                <div class="flex items-center justify-between border-b border-slate-200 px-6 py-4">
-                    <h3 class="text-lg font-semibold text-slate-900">Record Offline Payment</h3>
-                    <button type="button" wire:click="closePaymentModal" class="rounded-lg border border-slate-300 px-3 py-1 text-sm font-medium text-slate-600">Close</button>
-                </div>
-                <form wire:submit.prevent="saveManualPayment" class="space-y-4 px-6 py-5">
-                    <div class="grid gap-4 sm:grid-cols-2">
-                        <label class="block">
-                            <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Amount</span>
-                            <input type="number" step="0.01" min="0.01" wire:model.defer="paymentForm.amount" class="w-full rounded-xl border-slate-300 text-sm">
-                        </label>
-                        <label class="block">
-                            <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Currency</span>
-                            <input type="text" maxlength="3" wire:model.defer="paymentForm.currency_code" class="w-full rounded-xl border-slate-300 text-sm">
-                        </label>
-                        <label class="block">
-                            <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Method</span>
-                            <select wire:model.defer="paymentForm.payment_method" class="w-full rounded-xl border-slate-300 text-sm">
-                                <option value="offline_transfer">Offline Transfer</option>
-                                <option value="cash">Cash</option>
-                                <option value="cheque">Cheque</option>
-                                <option value="other">Other</option>
-                            </select>
-                        </label>
-                        <label class="block">
-                            <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Received At</span>
-                            <input type="datetime-local" wire:model.defer="paymentForm.received_at" class="w-full rounded-xl border-slate-300 text-sm">
-                        </label>
-                    </div>
-                    <div class="flex justify-end gap-2 border-t border-slate-200 pt-3">
-                        <button type="button" wire:click="closePaymentModal" class="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700">Cancel</button>
-                        <button type="submit" wire:loading.attr="disabled" wire:target="saveManualPayment" class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white">
-                            <span wire:loading.remove wire:target="saveManualPayment">Record Payment</span>
-                            <span wire:loading wire:target="saveManualPayment">Recording...</span>
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    @endif
 </div>
+
+
+
+

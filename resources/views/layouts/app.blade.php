@@ -45,6 +45,7 @@
             $reportsToLabel = $isPlatformOperator ? 'N/A' : ($user?->reportsTo?->name ?? 'Not assigned');
             $navigation = app(\App\Services\NavAccessService::class)->forUser($user);
             $navItems = $navigation['items'];
+            $showBackToSettings = request()->routeIs('settings.*') && ! request()->routeIs('settings.index');
         @endphp
 
         <div class="min-h-screen md:flex">
@@ -62,12 +63,66 @@
                     @foreach ($navItems as $item)
                         @php
                             $patterns = (array) ($item['pattern'] ?? []);
+                            $icon = (string) ($item['icon'] ?? 'dot');
+                            $params = (array) ($item['params'] ?? []);
                         @endphp
                         <a
-                            href="{{ route($item['route']) }}"
+                            href="{{ route($item['route'], $params) }}"
                             class="fd-nav-item {{ request()->routeIs(...$patterns) ? 'fd-nav-item-active' : '' }}"
                         >
-                            {{ $item['label'] }}
+                            <span class="inline-flex h-4 w-4 shrink-0 items-center justify-center text-slate-500">
+                                @switch($icon)
+                                    @case('home')
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="h-4 w-4"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10.75 12 4l9 6.75V20a1 1 0 0 1-1 1h-5.5v-6h-5v6H4a1 1 0 0 1-1-1v-9.25Z"/></svg>
+                                        @break
+                                    @case('chart')
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="h-4 w-4"><path stroke-linecap="round" stroke-linejoin="round" d="M4 20h16M7 16V9m5 7V5m5 11v-4"/></svg>
+                                        @break
+                                    @case('clipboard')
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="h-4 w-4"><path stroke-linecap="round" stroke-linejoin="round" d="M9 4h6a2 2 0 0 1 2 2v1h2a1 1 0 0 1 1 1v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a1 1 0 0 1 1-1h2V6a2 2 0 0 1 2-2Z"/></svg>
+                                        @break
+                                    @case('inbox')
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="h-4 w-4"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13V7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v6M3 13l2.2 4.4a1 1 0 0 0 .9.6h11.8a1 1 0 0 0 .9-.6L21 13m-18 0h5l1.5 2h5L16 13h5"/></svg>
+                                        @break
+                                    @case('receipt')
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="h-4 w-4"><path stroke-linecap="round" stroke-linejoin="round" d="M6 3h12v18l-3-2-3 2-3-2-3 2V3Zm3 5h6m-6 4h6m-6 4h4"/></svg>
+                                        @break
+                                    @case('building')
+                                    @case('office')
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="h-4 w-4"><path stroke-linecap="round" stroke-linejoin="round" d="M4 21h16M6 21V5a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v16M9 8h2m2 0h2M9 12h2m2 0h2M10 21v-4h4v4"/></svg>
+                                        @break
+                                    @case('wallet')
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="h-4 w-4"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8h18v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8Zm0 0 2-3h14l2 3M16 13h3"/></svg>
+                                        @break
+                                    @case('cube')
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="h-4 w-4"><path stroke-linecap="round" stroke-linejoin="round" d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3Zm0 0v18m8-13.5-8 4.5-8-4.5"/></svg>
+                                        @break
+                                    @case('users')
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="h-4 w-4"><path stroke-linecap="round" stroke-linejoin="round" d="M16 21v-1a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v1m20 0v-1a4 4 0 0 0-3-3.87M14 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0Zm8 2a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/></svg>
+                                        @break
+                                    @case('flow')
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="h-4 w-4"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h6v4H4V6Zm10 8h6v4h-6v-4ZM14 4h6v4h-6V4ZM10 8h4m0 0v8m0-8 0 0M10 16H4"/></svg>
+                                        @break
+                                    @case('chat')
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="h-4 w-4"><path stroke-linecap="round" stroke-linejoin="round" d="M21 12a8 8 0 0 1-8 8H7l-4 2 1.5-4.5A8 8 0 1 1 21 12Z"/></svg>
+                                        @break
+                                    @case('sliders')
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="h-4 w-4"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M8 6v12M4 12h16m-6 0v6M4 18h16"/></svg>
+                                        @break
+                                    @case('clock')
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="h-4 w-4"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 7v6l4 2"/></svg>
+                                        @break
+                                    @case('shield')
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="h-4 w-4"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3 5 6v6c0 4.2 2.7 8 7 9 4.3-1 7-4.8 7-9V6l-7-3Z"/></svg>
+                                        @break
+                                    @case('cog')
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="h-4 w-4"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15.5A3.5 3.5 0 1 0 12 8.5a3.5 3.5 0 0 0 0 7Zm7.4-3.5a7.3 7.3 0 0 0-.1-1l2-1.6-2-3.4-2.5 1a7.8 7.8 0 0 0-1.7-1l-.4-2.6H9.3L9 6a7.8 7.8 0 0 0-1.7 1l-2.5-1-2 3.4 2 1.6a7.3 7.3 0 0 0 0 2l-2 1.6 2 3.4 2.5-1a7.8 7.8 0 0 0 1.7 1l.4 2.6h4.4l.4-2.6a7.8 7.8 0 0 0 1.7-1l2.5 1 2-3.4-2-1.6c.1-.3.1-.7.1-1Z"/></svg>
+                                        @break
+                                    @default
+                                        <svg viewBox="0 0 24 24" fill="currentColor" class="h-2.5 w-2.5"><circle cx="12" cy="12" r="3"/></svg>
+                                @endswitch
+                            </span>
+                            <span>{{ $item['label'] }}</span>
                         </a>
                     @endforeach
                 </nav>
@@ -87,6 +142,9 @@
                         </div>
 
                         <div class="flex items-center gap-3">
+                            @if ($showBackToSettings)
+                                <a href="{{ route('settings.index') }}" class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50">Back to Settings</a>
+                            @endif
                             @auth
                                 <div class="hidden items-center gap-2 lg:flex">
                                     @if ($isPlatformOperator)

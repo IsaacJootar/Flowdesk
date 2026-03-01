@@ -17,15 +17,18 @@ use App\Services\PlatformAccessService;
 use App\Services\TenantAuditLogger;
 use App\Services\TenantBillingAutomationService;
 use App\Services\TenantPlanDefaultsService;
+use App\Services\TenantExecutionModeService;
 use App\Services\TenantUsageSnapshotService;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use DateTimeZone;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -70,10 +73,10 @@ class TenantManagementPage extends Component
 
     public ?string $originalSubscriptionStatus = null;
 
-    /** @var array{name:string,slug:string,email:string,phone:string,industry:string,currency_code:string,timezone:string,address:string,lifecycle_status:string,status_reason:string} */
+    /** @var array{name:string,slug:string,email:string,phone:string,industry:string,currency_code:string,timezone:string,address:string,lifecycle_status:string} */
     public array $tenantForm = [];
 
-    /** @var array{plan_code:string,subscription_status:string,starts_at:string,ends_at:string,grace_until:string,seat_limit:string,billing_reference:string,notes:string} */
+    /** @var array{plan_code:string,subscription_status:string,payment_execution_mode:string,execution_provider:string,execution_max_transaction_amount:string,execution_daily_cap_amount:string,execution_monthly_cap_amount:string,execution_maker_checker_threshold_amount:string,execution_allowed_channels:array<int,string>,execution_policy_notes:string,starts_at:string,ends_at:string,grace_until:string,seat_limit:string,billing_reference:string,notes:string} */
     public array $subscriptionForm = [];
 
     /** @var array{requests_enabled:bool,expenses_enabled:bool,vendors_enabled:bool,budgets_enabled:bool,assets_enabled:bool,reports_enabled:bool,communications_enabled:bool,ai_enabled:bool,fintech_enabled:bool} */
@@ -98,9 +101,19 @@ class TenantManagementPage extends Component
 
     public function loadData(): void
     {
-        // Keep billing states fresh when platform operators open tenant management.
-        app(TenantBillingAutomationService::class)->evaluateAllExternal(Auth::user());
+        if ($this->readyToLoad) {
+            return;
+        }
+
+        // Never block UI rendering on billing automation refresh.
         $this->readyToLoad = true;
+
+        try {
+            app(TenantBillingAutomationService::class)->evaluateAllExternal(Auth::user());
+        } catch (Throwable $exception) {
+            report($exception);
+            $this->setFeedbackError('Tenant list loaded, but billing automation sync failed.');
+        }
     }
 
     public function updatingSearch(): void
@@ -152,6 +165,19 @@ class TenantManagementPage extends Component
         }
     }
 
+    public function updatedSubscriptionFormPaymentExecutionMode(string $value): void
+    {
+        if ($value !== TenantExecutionModeService::MODE_EXECUTION_ENABLED) {
+            $this->subscriptionForm['execution_provider'] = '';
+            $this->subscriptionForm['execution_max_transaction_amount'] = '';
+            $this->subscriptionForm['execution_daily_cap_amount'] = '';
+            $this->subscriptionForm['execution_monthly_cap_amount'] = '';
+            $this->subscriptionForm['execution_maker_checker_threshold_amount'] = '';
+            $this->subscriptionForm['execution_allowed_channels'] = [];
+            $this->subscriptionForm['execution_policy_notes'] = '';
+        }
+    }
+
     public function openCreateModal(): void
     {
         $this->authorizePlatformOperator();
@@ -182,10 +208,9 @@ class TenantManagementPage extends Component
             'phone' => (string) ($company->phone ?? ''),
             'industry' => (string) ($company->industry ?? ''),
             'currency_code' => strtoupper((string) ($company->currency_code ?? 'NGN')),
-            'timezone' => (string) ($company->timezone ?? 'Africa/Lagos'),
+            'timezone' => $this->normalizedTimezone($company->timezone),
             'address' => (string) ($company->address ?? ''),
             'lifecycle_status' => (string) ($company->lifecycle_status ?: ($company->is_active ? 'active' : 'inactive')),
-            'status_reason' => (string) ($company->status_reason ?? ''),
         ];
 
         $subscription = $company->subscription;
@@ -194,6 +219,14 @@ class TenantManagementPage extends Component
         $this->subscriptionForm = [
             'plan_code' => (string) ($subscription?->plan_code ?? 'pilot'),
             'subscription_status' => (string) ($subscription?->subscription_status ?? 'current'),
+            'payment_execution_mode' => (string) ($subscription?->payment_execution_mode ?? TenantExecutionModeService::MODE_DECISION_ONLY),
+            'execution_provider' => (string) ($subscription?->execution_provider ?? ''),
+            'execution_max_transaction_amount' => $subscription?->execution_max_transaction_amount !== null ? (string) $subscription->execution_max_transaction_amount : '',
+            'execution_daily_cap_amount' => $subscription?->execution_daily_cap_amount !== null ? (string) $subscription->execution_daily_cap_amount : '',
+            'execution_monthly_cap_amount' => $subscription?->execution_monthly_cap_amount !== null ? (string) $subscription->execution_monthly_cap_amount : '',
+            'execution_maker_checker_threshold_amount' => $subscription?->execution_maker_checker_threshold_amount !== null ? (string) $subscription->execution_maker_checker_threshold_amount : '',
+            'execution_allowed_channels' => array_values((array) ($subscription?->execution_allowed_channels ?? [])),
+            'execution_policy_notes' => (string) ($subscription?->execution_policy_notes ?? ''),
             'starts_at' => (string) optional($subscription?->starts_at)->toDateString(),
             'ends_at' => (string) optional($subscription?->ends_at)->toDateString(),
             'grace_until' => (string) optional($subscription?->grace_until)->toDateString(),
@@ -264,9 +297,17 @@ class TenantManagementPage extends Component
             'tenantForm.timezone' => ['required', 'string', 'max:100'],
             'tenantForm.address' => ['nullable', 'string', 'max:1000'],
             'tenantForm.lifecycle_status' => ['required', Rule::in(['active', 'suspended', 'inactive', 'archived'])],
-            'tenantForm.status_reason' => ['nullable', 'string', 'max:1000'],
             'subscriptionForm.plan_code' => ['required', Rule::in(['pilot', 'growth', 'business', 'enterprise'])],
             'subscriptionForm.subscription_status' => ['required', Rule::in(['current', 'grace', 'overdue', 'suspended'])],
+            'subscriptionForm.payment_execution_mode' => ['required', Rule::in(app(TenantExecutionModeService::class)->supportedModes())],
+            'subscriptionForm.execution_provider' => ['nullable', 'string', 'max:80'],
+            'subscriptionForm.execution_max_transaction_amount' => ['nullable', 'numeric', 'min:0.01'],
+            'subscriptionForm.execution_daily_cap_amount' => ['nullable', 'numeric', 'min:0.01'],
+            'subscriptionForm.execution_monthly_cap_amount' => ['nullable', 'numeric', 'min:0.01'],
+            'subscriptionForm.execution_maker_checker_threshold_amount' => ['nullable', 'numeric', 'min:0.01'],
+            'subscriptionForm.execution_allowed_channels' => ['array'],
+            'subscriptionForm.execution_allowed_channels.*' => ['string', Rule::in(app(TenantExecutionModeService::class)->supportedChannels())],
+            'subscriptionForm.execution_policy_notes' => ['nullable', 'string', 'max:1000'],
             'subscriptionForm.starts_at' => ['nullable', 'date'],
             'subscriptionForm.ends_at' => ['nullable', 'date'],
             'subscriptionForm.grace_until' => ['nullable', 'date'],
@@ -306,8 +347,27 @@ class TenantManagementPage extends Component
             $previousEntitlements = $existingEntitlements
                 ? $this->entitlementMapFromModel($existingEntitlements)
                 : null;
+            $previousExecutionPolicy = $existingSubscription
+                ? $this->executionPolicyMapFromSubscription($existingSubscription)
+                : null;
+
+            $executionPolicy = app(TenantExecutionModeService::class)->normalizeForSave(
+                lifecycleStatus: (string) $this->tenantForm['lifecycle_status'],
+                subscriptionStatus: (string) $this->subscriptionForm['subscription_status'],
+                entitlements: $this->entitlementsForm,
+                paymentExecutionMode: (string) ($this->subscriptionForm['payment_execution_mode'] ?? TenantExecutionModeService::MODE_DECISION_ONLY),
+                provider: (string) ($this->subscriptionForm['execution_provider'] ?? ''),
+                allowedChannels: $this->subscriptionForm['execution_allowed_channels'] ?? [],
+                maxTransaction: $this->subscriptionForm['execution_max_transaction_amount'] ?? null,
+                dailyCap: $this->subscriptionForm['execution_daily_cap_amount'] ?? null,
+                monthlyCap: $this->subscriptionForm['execution_monthly_cap_amount'] ?? null,
+                makerCheckerThreshold: $this->subscriptionForm['execution_maker_checker_threshold_amount'] ?? null,
+                policyNotes: (string) ($this->subscriptionForm['execution_policy_notes'] ?? ''),
+                companyId: $company->exists ? (int) $company->id : null,
+            );
 
             $lifecycle = (string) $this->tenantForm['lifecycle_status'];
+            $companyTimezone = $this->normalizedTimezone((string) ($this->tenantForm['timezone'] ?? ''));
             $company->forceFill([
                 'name' => trim((string) $this->tenantForm['name']),
                 'slug' => $this->resolveUniqueSlug((string) $this->tenantForm['slug'], $company->exists ? (int) $company->id : null),
@@ -315,29 +375,54 @@ class TenantManagementPage extends Component
                 'phone' => trim((string) $this->tenantForm['phone']) !== '' ? trim((string) $this->tenantForm['phone']) : null,
                 'industry' => trim((string) $this->tenantForm['industry']) !== '' ? trim((string) $this->tenantForm['industry']) : null,
                 'currency_code' => strtoupper((string) $this->tenantForm['currency_code']),
-                'timezone' => trim((string) $this->tenantForm['timezone']),
+                'timezone' => $companyTimezone,
                 'address' => trim((string) $this->tenantForm['address']) !== '' ? trim((string) $this->tenantForm['address']) : null,
                 'lifecycle_status' => $lifecycle,
                 'is_active' => $lifecycle === 'active',
-                'status_reason' => trim((string) $this->tenantForm['status_reason']) !== '' ? trim((string) $this->tenantForm['status_reason']) : null,
+                'status_reason' => $company->exists ? $company->status_reason : null,
                 'status_updated_at' => now(),
                 'created_by' => $company->exists ? $company->created_by : $user->id,
                 'updated_by' => $user->id,
             ]);
             $company->save();
 
+            $previousMode = (string) ($existingSubscription?->payment_execution_mode ?? TenantExecutionModeService::MODE_DECISION_ONLY);
+            $newMode = (string) $executionPolicy['payment_execution_mode'];
+            $isEnablingExecution = $previousMode !== TenantExecutionModeService::MODE_EXECUTION_ENABLED
+                && $newMode === TenantExecutionModeService::MODE_EXECUTION_ENABLED;
+            $isDisablingExecution = $previousMode === TenantExecutionModeService::MODE_EXECUTION_ENABLED
+                && $newMode !== TenantExecutionModeService::MODE_EXECUTION_ENABLED;
+
+            $trialDefaults = $this->trialWindowDefaultsForTimezone($companyTimezone);
+
             $subscription = TenantSubscription::query()->updateOrCreate(
                 ['company_id' => $company->id],
                 [
                     'plan_code' => (string) $this->subscriptionForm['plan_code'],
                     'subscription_status' => (string) $this->subscriptionForm['subscription_status'],
+                    'payment_execution_mode' => $newMode,
                     'starts_at' => $this->normalizeDate($this->subscriptionForm['starts_at']),
                     'ends_at' => $this->normalizeDate($this->subscriptionForm['ends_at']),
                     'grace_until' => $this->normalizeDate($this->subscriptionForm['grace_until']),
+                    'trial_started_at' => $existingSubscription?->trial_started_at ?? $trialDefaults['start'],
+                    'trial_ends_at' => $existingSubscription?->trial_ends_at ?? $trialDefaults['end'],
                     'seat_limit' => $this->normalizeInteger($this->subscriptionForm['seat_limit']),
+                    'execution_provider' => $executionPolicy['execution_provider'],
+                    'execution_enabled_at' => $isEnablingExecution
+                        ? now()
+                        : ($isDisablingExecution ? null : $existingSubscription?->execution_enabled_at),
+                    'execution_enabled_by' => $isEnablingExecution
+                        ? $user->id
+                        : ($isDisablingExecution ? null : $existingSubscription?->execution_enabled_by),
+                    'execution_max_transaction_amount' => $executionPolicy['execution_max_transaction_amount'],
+                    'execution_daily_cap_amount' => $executionPolicy['execution_daily_cap_amount'],
+                    'execution_monthly_cap_amount' => $executionPolicy['execution_monthly_cap_amount'],
+                    'execution_maker_checker_threshold_amount' => $executionPolicy['execution_maker_checker_threshold_amount'],
+                    'execution_allowed_channels' => $executionPolicy['execution_allowed_channels'],
+                    'execution_policy_notes' => $executionPolicy['execution_policy_notes'],
                     'billing_reference' => $this->nullableString($this->subscriptionForm['billing_reference']),
                     'notes' => $this->nullableString($this->subscriptionForm['notes']),
-                    'created_by' => $user->id,
+                    'created_by' => $existingSubscription?->created_by ?? $user->id,
                     'updated_by' => $user->id,
                 ]
             );
@@ -415,10 +500,46 @@ class TenantManagementPage extends Component
                 );
             }
 
+            $currentExecutionPolicy = $this->executionPolicyMapFromSubscription($subscription);
+            $executionPolicyDiffs = $this->executionPolicyDifferences($previousExecutionPolicy, $currentExecutionPolicy);
+            if ($executionPolicyDiffs !== []) {
+                app(TenantAuditLogger::class)->log(
+                    companyId: (int) $company->id,
+                    action: 'tenant.execution_policy.updated',
+                    actor: $user,
+                    description: 'Tenant execution policy updated from platform control center.',
+                    entityType: TenantSubscription::class,
+                    entityId: (int) $subscription->id,
+                    metadata: [
+                        'changes' => $executionPolicyDiffs,
+                    ],
+                );
+            }
+
+            $previousMode = (string) ($previousExecutionPolicy['payment_execution_mode'] ?? TenantExecutionModeService::MODE_DECISION_ONLY);
+            $currentMode = (string) ($currentExecutionPolicy['payment_execution_mode'] ?? TenantExecutionModeService::MODE_DECISION_ONLY);
+            if ($previousMode !== $currentMode) {
+                app(TenantAuditLogger::class)->log(
+                    companyId: (int) $company->id,
+                    action: 'tenant.execution_mode.updated',
+                    actor: $user,
+                    description: 'Tenant payment execution mode updated.',
+                    entityType: TenantSubscription::class,
+                    entityId: (int) $subscription->id,
+                    metadata: [
+                        'from' => $previousMode,
+                        'to' => $currentMode,
+                    ],
+                );
+            }
+
             app(TenantUsageSnapshotService::class)->capture((int) $company->id, $user);
 
             // Re-evaluate status after plan/dates/status edits.
             app(TenantBillingAutomationService::class)->evaluateCompany($company, $user);
+
+            // Keep platform sidebar/context aligned to the last tenant touched.
+            session(['platform_active_tenant_id' => (int) $company->id]);
         } catch (ValidationException $exception) {
             throw $exception;
         } catch (Throwable $exception) {
@@ -469,7 +590,7 @@ class TenantManagementPage extends Component
             'currency_code' => strtoupper((string) ($company->currency_code ?: 'NGN')),
             'payment_method' => 'offline_transfer',
             'reference' => '',
-            'received_at' => now()->format('Y-m-d\TH:i'),
+            'received_at' => Carbon::now($this->normalizedTimezone($company->timezone))->format('Y-m-d\\TH:i'),
             'period_start' => '',
             'period_end' => '',
             'note' => '',
@@ -678,24 +799,10 @@ class TenantManagementPage extends Component
 
         $companies = $this->readyToLoad ? $this->companyRows() : $this->emptyPaginator();
         $stats = $this->readyToLoad ? $this->stats() : $this->emptyStats();
-        $billingDefaults = $this->billingDefaultsSummary();
-        $planDefaults = $this->planDefaultsSummary();
-        $tenantCompanyIds = $this->readyToLoad ? $this->tenantCompaniesBaseQuery()->pluck('id') : collect();
-        $recentPayments = $this->readyToLoad
-            ? TenantManualPayment::query()
-                ->with(['company:id,name', 'recorder:id,name'])
-                ->whereIn('company_id', $tenantCompanyIds)
-                ->latest('received_at')
-                ->limit(10)
-                ->get()
-            : collect();
 
         return view('livewire.platform.tenant-management-page', [
             'companies' => $companies,
             'stats' => $stats,
-            'billingDefaults' => $billingDefaults,
-            'planDefaults' => $planDefaults,
-            'recentPayments' => $recentPayments,
         ]);
     }
 
@@ -965,12 +1072,19 @@ class TenantManagementPage extends Component
             'timezone' => 'Africa/Lagos',
             'address' => '',
             'lifecycle_status' => 'active',
-            'status_reason' => '',
         ];
 
         $this->subscriptionForm = [
             'plan_code' => (string) config('tenant_plans.default_plan', 'pilot'),
             'subscription_status' => 'current',
+            'payment_execution_mode' => TenantExecutionModeService::MODE_DECISION_ONLY,
+            'execution_provider' => '',
+            'execution_max_transaction_amount' => '',
+            'execution_daily_cap_amount' => '',
+            'execution_monthly_cap_amount' => '',
+            'execution_maker_checker_threshold_amount' => '',
+            'execution_allowed_channels' => [],
+            'execution_policy_notes' => '',
             'starts_at' => '',
             'ends_at' => '',
             'grace_until' => '',
@@ -1101,6 +1215,58 @@ class TenantManagementPage extends Component
         return $diff;
     }
 
+    /**
+     * @return array<string, mixed>
+     */
+    private function executionPolicyMapFromSubscription(TenantSubscription $subscription): array
+    {
+        return [
+            'payment_execution_mode' => (string) ($subscription->payment_execution_mode ?? TenantExecutionModeService::MODE_DECISION_ONLY),
+            'execution_provider' => (string) ($subscription->execution_provider ?? ''),
+            'execution_max_transaction_amount' => $subscription->execution_max_transaction_amount !== null ? (float) $subscription->execution_max_transaction_amount : null,
+            'execution_daily_cap_amount' => $subscription->execution_daily_cap_amount !== null ? (float) $subscription->execution_daily_cap_amount : null,
+            'execution_monthly_cap_amount' => $subscription->execution_monthly_cap_amount !== null ? (float) $subscription->execution_monthly_cap_amount : null,
+            'execution_maker_checker_threshold_amount' => $subscription->execution_maker_checker_threshold_amount !== null ? (float) $subscription->execution_maker_checker_threshold_amount : null,
+            'execution_allowed_channels' => array_values((array) ($subscription->execution_allowed_channels ?? [])),
+            'execution_policy_notes' => (string) ($subscription->execution_policy_notes ?? ''),
+        ];
+    }
+
+    /**
+     * @param  array<string,mixed>|null  $previous
+     * @param  array<string,mixed>  $current
+     * @return array<string,array{from:mixed,to:mixed}>
+     */
+    private function executionPolicyDifferences(?array $previous, array $current): array
+    {
+        $diff = [];
+        foreach ($current as $key => $value) {
+            $before = $previous[$key] ?? null;
+            if (is_array($before) || is_array($value)) {
+                $beforeNormalized = array_values((array) $before);
+                $valueNormalized = array_values((array) $value);
+                sort($beforeNormalized);
+                sort($valueNormalized);
+                if ($beforeNormalized === $valueNormalized) {
+                    continue;
+                }
+                $diff[$key] = ['from' => $beforeNormalized, 'to' => $valueNormalized];
+                continue;
+            }
+
+            if ($before === $value) {
+                continue;
+            }
+
+            $diff[$key] = [
+                'from' => $before,
+                'to' => $value,
+            ];
+        }
+
+        return $diff;
+    }
+
     private function applyPlanDefaultsToForm(string $planCode): void
     {
         $defaultsService = app(TenantPlanDefaultsService::class);
@@ -1161,8 +1327,57 @@ class TenantManagementPage extends Component
         ]);
     }
 
+    private function normalizedTimezone(?string $timezone): string
+    {
+        $candidate = trim((string) $timezone);
+        $fallback = (string) config('app.timezone', 'Africa/Lagos');
+        if ($candidate === '') {
+            return $fallback;
+        }
+        return in_array($candidate, DateTimeZone::listIdentifiers(), true)
+            ? $candidate
+            : $fallback;
+    }
+    /**
+     * @return array{start: Carbon, end: Carbon}
+     */
+    private function trialWindowDefaultsForTimezone(string $timezone): array
+    {
+        $tz = $this->normalizedTimezone($timezone);
+        $start = Carbon::now($tz);
+        $days = max(1, (int) config('platform.billing_default_trial_days', 14));
+        return [
+            'start' => $start->copy(),
+            'end' => $start->copy()->addDays($days),
+        ];
+    }
     private function authorizePlatformOperator(): void
     {
         app(PlatformAccessService::class)->authorizePlatformOperator();
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

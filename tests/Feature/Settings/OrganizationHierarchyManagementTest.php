@@ -45,6 +45,7 @@ class OrganizationHierarchyManagementTest extends TestCase
             'role' => UserRole::Finance->value,
             'department_id' => $operationsDepartment->id,
             'reports_to_user_id' => $owner->id,
+            'notification_channels' => ['in_app'],
         ]);
 
         app(UpdateCompanyUserAssignment::class)($owner, $financeUser, [
@@ -66,12 +67,14 @@ class OrganizationHierarchyManagementTest extends TestCase
             'actor_type' => 'reports_to',
             'actor_value' => null,
             'step_key' => 'line_manager',
+            'notification_channels' => ['in_app'],
         ]);
 
         app(AddApprovalWorkflowStep::class)($owner, $workflow, [
             'actor_type' => 'role',
             'actor_value' => UserRole::Finance->value,
             'step_key' => 'finance_signoff',
+            'notification_channels' => ['in_app'],
         ]);
 
         $this->assertDatabaseHas('departments', [

@@ -1,0 +1,41 @@
+<?php
+
+namespace App\Livewire\Platform;
+
+use App\Domains\Company\Models\Company;
+use App\Livewire\Platform\Concerns\InteractsWithTenantCompanies;
+use Illuminate\Contracts\View\View;
+use Livewire\Attributes\Layout;
+use Livewire\Attributes\Title;
+use Livewire\Component;
+
+#[Layout('layouts.app')]
+#[Title('Tenant Profile')]
+class TenantProfilePage extends Component
+{
+    use InteractsWithTenantCompanies;
+
+    public Company $company;
+
+    public function mount(Company $company): void
+    {
+        $this->authorizePlatformOperator();
+        $this->assertTenantIsExternal($company);
+        $this->company = $company;
+        session(['platform_active_tenant_id' => (int) $company->id]);
+    }
+
+    public function render(): View
+    {
+        $this->authorizePlatformOperator();
+        $this->assertTenantIsExternal($this->company);
+
+        $company = $this->tenantCompaniesBaseQuery()
+            ->with(['subscription', 'featureEntitlements'])
+            ->findOrFail((int) $this->company->id);
+
+        return view('livewire.platform.tenant-profile-page', [
+            'company' => $company,
+        ]);
+    }
+}

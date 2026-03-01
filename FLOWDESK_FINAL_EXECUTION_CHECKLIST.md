@@ -215,3 +215,10 @@ There are 2 models, and orgs choose:
   - config: `config/tenant_plans.php`
   - service: `app/Services/TenantPlanDefaultsService.php`
   - tenant modal action: `Apply Plan Defaults`
+- [x] Approval workflow policy split implemented for two-layer controls:
+  - `request` scope and `payment_authorization` scope in `ApprovalWorkflowsPage`
+  - scope-aware presets and duplicate cleanup
+  - file: `app/Livewire/Organization/ApprovalWorkflowsPage.php`
+- [x] Execution-mode guardrail hardened to require default payment-authorization policy before enabling:
+  - service: `app/Services/TenantExecutionModeService.php`
+  - skeleton resolver: `app/Services/PaymentAuthorizationWorkflowResolver.php`

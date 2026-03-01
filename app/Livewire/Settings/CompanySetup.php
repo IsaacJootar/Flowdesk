@@ -8,6 +8,7 @@ use App\Domains\Company\Models\TenantFeatureEntitlement;
 use App\Domains\Company\Models\TenantSubscription;
 use App\Domains\Company\Models\TenantUsageCounter;
 use App\Enums\UserRole;
+use App\Models\User;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
@@ -55,7 +56,7 @@ class CompanySetup extends Component
     {
         $user = \Illuminate\Support\Facades\Auth::user();
 
-        if (! $user) {
+        if (! $user instanceof User) {
             return;
         }
 
@@ -113,8 +114,14 @@ class CompanySetup extends Component
 
         $user = \Illuminate\Support\Facades\Auth::user();
 
+        if (! $user instanceof User) {
+            throw ValidationException::withMessages([
+                'name' => 'Unable to resolve authenticated user context.',
+            ]);
+        }
+
         if ($this->isEditMode) {
-            if (! $user || ! $user->hasRole(UserRole::Owner)) {
+            if (! $user->hasRole(UserRole::Owner)) {
                 throw ValidationException::withMessages([
                     'name' => 'Only admin (owner) can update company settings.',
                 ]);
@@ -148,9 +155,7 @@ class CompanySetup extends Component
             $this->timezone = (string) ($company->timezone ?: 'Africa/Lagos');
             $this->address = $company->address;
 
-            if ($user) {
-                $user->setRelation('company', $company);
-            }
+            $user->setRelation('company', $company);
 
             $this->hydrateTenantInsights($company);
 
@@ -160,7 +165,7 @@ class CompanySetup extends Component
             return;
         }
 
-        $createCompanyForUser(\Illuminate\Support\Facades\Auth::user(), [
+        $createCompanyForUser($user, [
             'name' => $this->name,
             'slug' => $this->slug,
             'email' => $this->email,
@@ -264,4 +269,3 @@ class CompanySetup extends Component
             ]);
     }
 }
-

@@ -35,11 +35,22 @@
             <span class="inline-flex items-center rounded-full border border-slate-300 bg-slate-200 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-800">
                 Workflow Governance
             </span>
-            <h2 class="mt-2 text-base font-semibold text-slate-900">Approval Chains for Requests</h2>
-            <p class="mt-1 text-sm text-slate-600">Easily Create and maintain policy chains across department and teams operations</p>
+            <h2 class="mt-2 text-base font-semibold text-slate-900">{{ $workflowScopeLabel }} Workflows</h2>
+            <p class="mt-1 text-sm text-slate-600">{{ $workflowScopeDescription }}</p>
         </div>
 
         <div class="mb-4 rounded-xl border border-slate-200 bg-white p-4">
+            <div class="mb-3 flex flex-wrap items-center gap-2">
+                @foreach ($workflowScopeOptions as $scopeOption)
+                    <button
+                        type="button"
+                        wire:click="$set('workflowScope', '{{ $scopeOption['value'] }}')"
+                        class="rounded-lg border px-3 py-1.5 text-xs font-semibold {{ $workflowScope === $scopeOption['value'] ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50' }}"
+                    >
+                        {{ $scopeOption['label'] }}
+                    </button>
+                @endforeach
+            </div>
             <div class="flex flex-wrap items-center justify-between gap-3">
                 <div>
                     <p class="text-sm font-semibold text-slate-900">Organization Communication Policy</p>
@@ -133,7 +144,11 @@
             </div>
 
             <p class="mt-1 text-xs text-slate-600">
-                Preset creates a standard 2-step chain in one click: Step 1 is Direct Manager (Reports To), Step 2 is Finance role approval.
+                @if ($workflowScope === 'payment_authorization')
+                    Preset creates a standard 2-step payment authorization chain: Step 1 is Finance, Step 2 is Admin (Owner).
+                @else
+                    Preset creates a standard 2-step request chain: Step 1 is Direct Manager (Reports To), Step 2 is Finance role approval.
+                @endif
             </p>
         </div>
     </div>
@@ -142,7 +157,7 @@
         <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
             <div>
                 <h3 class="text-base font-semibold text-slate-900">Configured Workflows</h3>
-                <p class="text-sm text-slate-600">Review default/secondary workflows and active step chains.</p>
+                <p class="text-sm text-slate-600">Review default/secondary {{ strtolower($workflowScopeLabel) }} chains and active steps.</p>
             </div>
             <div class="flex items-center gap-2">
                 <input
@@ -296,7 +311,7 @@
                             <span class="inline-flex items-center rounded-full border border-slate-300 bg-slate-200 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-800">
                                 Workflow Governance
                             </span>
-                            <h2 class="mt-2 text-base font-semibold text-slate-900">Create Workflow</h2>
+                            <h2 class="mt-2 text-base font-semibold text-slate-900">Create {{ $workflowScopeLabel }} Workflow</h2>
                         </div>
                         <button type="button" wire:click="closeCreateWorkflowModal" class="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50">
                             Close
@@ -306,7 +321,7 @@
                     <form wire:submit.prevent="createWorkflow" class="space-y-3">
                         <label class="block">
                             <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Workflow Name</span>
-                            <input type="text" wire:model.defer="workflowForm.name" class="w-full rounded-xl border-slate-300 text-sm focus:border-slate-500 focus:ring-slate-500" placeholder="Default Request Chain">
+                            <input type="text" wire:model.defer="workflowForm.name" class="w-full rounded-xl border-slate-300 text-sm focus:border-slate-500 focus:ring-slate-500" placeholder="Default {{ $workflowScopeLabel }} Chain">
                             @error('workflowForm.name')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
                         </label>
 
@@ -356,7 +371,7 @@
                             <span class="inline-flex items-center rounded-full border border-slate-300 bg-slate-200 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-800">
                                 Workflow Governance
                             </span>
-                            <h2 class="mt-2 text-base font-semibold text-slate-900">Add Workflow Step</h2>
+                            <h2 class="mt-2 text-base font-semibold text-slate-900">Add {{ $workflowScopeLabel }} Step</h2>
                         </div>
                         <button type="button" wire:click="closeAddStepModal" class="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50">
                             Close

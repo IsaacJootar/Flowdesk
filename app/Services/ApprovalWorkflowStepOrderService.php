@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Services;
 
@@ -11,7 +11,7 @@ class ApprovalWorkflowStepOrderService
     {
         $this->purgeDeletedSteps($companyId, $workflowId);
 
-        $steps = ApprovalWorkflowStep::query()
+        $steps = ApprovalWorkflowStep::withoutGlobalScopes()
             ->where('company_id', $companyId)
             ->where('workflow_id', $workflowId)
             ->where('is_active', true)
@@ -44,9 +44,14 @@ class ApprovalWorkflowStepOrderService
 
     public function normalizeCompanyRequestWorkflows(int $companyId): void
     {
-        $workflowIds = ApprovalWorkflow::query()
+        $this->normalizeCompanyWorkflowsByAppliesTo($companyId, ApprovalWorkflow::APPLIES_TO_REQUEST);
+    }
+
+    public function normalizeCompanyWorkflowsByAppliesTo(int $companyId, string $appliesTo): void
+    {
+        $workflowIds = ApprovalWorkflow::withoutGlobalScopes()
             ->where('company_id', $companyId)
-            ->where('applies_to', 'request')
+            ->where('applies_to', $appliesTo)
             ->pluck('id');
 
         foreach ($workflowIds as $workflowId) {
@@ -58,7 +63,7 @@ class ApprovalWorkflowStepOrderService
     {
         $this->purgeDeletedSteps($companyId, $workflowId);
 
-        return (int) ApprovalWorkflowStep::query()
+        return (int) ApprovalWorkflowStep::withoutGlobalScopes()
             ->where('company_id', $companyId)
             ->where('workflow_id', $workflowId)
             ->where('is_active', true)
@@ -67,7 +72,9 @@ class ApprovalWorkflowStepOrderService
 
     private function purgeDeletedSteps(int $companyId, int $workflowId): void
     {
-        ApprovalWorkflowStep::withTrashed()
+        // withoutGlobalScopes keeps this safe for both tenant-owner and platform-operator contexts.
+        ApprovalWorkflowStep::withoutGlobalScopes()
+            ->withTrashed()
             ->where('company_id', $companyId)
             ->where('workflow_id', $workflowId)
             ->whereNotNull('deleted_at')
@@ -85,4 +92,3 @@ class ApprovalWorkflowStepOrderService
         };
     }
 }
-

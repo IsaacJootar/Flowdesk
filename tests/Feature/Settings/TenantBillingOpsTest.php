@@ -2,6 +2,8 @@
 
 namespace Tests\Feature\Settings;
 
+use App\Domains\Approvals\Models\ApprovalWorkflow;
+use App\Domains\Approvals\Models\ApprovalWorkflowStep;
 use App\Domains\Company\Models\Company;
 use App\Domains\Company\Models\TenantFeatureEntitlement;
 use App\Domains\Company\Models\TenantSubscription;
@@ -121,6 +123,11 @@ class TenantBillingOpsTest extends TestCase
         $this->actingAs($platformOwner)
             ->get(route('platform.tenants.show', $externalCompany))
             ->assertOk()
+            ->assertSee('Tenant Identity');
+
+        $this->actingAs($platformOwner)
+            ->get(route('platform.tenants.billing', $externalCompany))
+            ->assertOk()
             ->assertSee('Billing Ledger');
 
         $this->actingAs($platformOwner)
@@ -220,6 +227,114 @@ class TenantBillingOpsTest extends TestCase
         Carbon::setTestNow();
     }
 
+
+    public function test_execution_mode_guardrail_requires_current_billing_status(): void
+    {
+        $platformOwner = $this->createPlatformOwner();
+        $company = $this->createTenantCompany('Execution Guardrail Tenant');
+        TenantSubscription::query()->create([
+            'company_id' => $company->id,
+            'plan_code' => 'growth',
+            'subscription_status' => 'overdue',
+            'created_by' => $platformOwner->id,
+            'updated_by' => $platformOwner->id,
+        ]);
+        TenantFeatureEntitlement::query()->create([
+            'company_id' => $company->id,
+            'requests_enabled' => true,
+            'expenses_enabled' => true,
+            'created_by' => $platformOwner->id,
+            'updated_by' => $platformOwner->id,
+        ]);
+
+        $this->actingAs($platformOwner);
+
+        Livewire::test(TenantManagementPage::class)
+            ->call('loadData')
+            ->call('openEditModal', $company->id)
+            ->set('subscriptionForm.subscription_status', 'overdue')
+            ->set('subscriptionForm.payment_execution_mode', 'execution_enabled')
+            ->set('subscriptionForm.execution_provider', 'manual_ops')
+            ->set('subscriptionForm.execution_allowed_channels', ['bank_transfer'])
+            ->call('saveTenant')
+            ->assertHasErrors(['subscriptionForm.payment_execution_mode']);
+
+        $this->assertDatabaseHas('tenant_subscriptions', [
+            'company_id' => $company->id,
+            'payment_execution_mode' => 'decision_only',
+        ]);
+    }
+
+    public function test_execution_mode_guardrail_requires_default_payment_authorization_workflow(): void
+    {
+        $platformOwner = $this->createPlatformOwner();
+        $company = $this->createTenantCompany('Execution Policy Workflow Tenant');
+
+        TenantSubscription::query()->create([
+            'company_id' => $company->id,
+            'plan_code' => 'growth',
+            'subscription_status' => 'current',
+            'created_by' => $platformOwner->id,
+            'updated_by' => $platformOwner->id,
+        ]);
+
+        TenantFeatureEntitlement::query()->create([
+            'company_id' => $company->id,
+            'requests_enabled' => true,
+            'expenses_enabled' => true,
+            'created_by' => $platformOwner->id,
+            'updated_by' => $platformOwner->id,
+        ]);
+
+        $this->actingAs($platformOwner);
+
+        Livewire::test(TenantManagementPage::class)
+            ->call('loadData')
+            ->call('openEditModal', $company->id)
+            ->set('subscriptionForm.subscription_status', 'current')
+            ->set('subscriptionForm.payment_execution_mode', 'execution_enabled')
+            ->set('subscriptionForm.execution_provider', 'manual_ops')
+            ->set('subscriptionForm.execution_allowed_channels', ['bank_transfer'])
+            ->call('saveTenant')
+            ->assertHasErrors(['subscriptionForm.payment_execution_mode']);
+
+        $workflow = ApprovalWorkflow::query()->create([
+            'company_id' => $company->id,
+            'name' => 'Default Payment Authorization',
+            'code' => 'default_payment_authorization',
+            'applies_to' => ApprovalWorkflow::APPLIES_TO_PAYMENT_AUTHORIZATION,
+            'description' => 'Execution authorization chain',
+            'is_active' => true,
+            'is_default' => true,
+            'created_by' => $platformOwner->id,
+            'updated_by' => $platformOwner->id,
+        ]);
+
+        ApprovalWorkflowStep::query()->create([
+            'company_id' => $company->id,
+            'workflow_id' => $workflow->id,
+            'step_order' => 1,
+            'step_key' => 'finance_payment_authorization',
+            'actor_type' => 'role',
+            'actor_value' => UserRole::Finance->value,
+            'is_active' => true,
+        ]);
+
+        Livewire::test(TenantManagementPage::class)
+            ->call('loadData')
+            ->call('openEditModal', $company->id)
+            ->set('subscriptionForm.subscription_status', 'current')
+            ->set('subscriptionForm.payment_execution_mode', 'execution_enabled')
+            ->set('subscriptionForm.execution_provider', 'manual_ops')
+            ->set('subscriptionForm.execution_allowed_channels', ['bank_transfer'])
+            ->call('saveTenant')
+            ->assertHasNoErrors();
+
+        $this->assertDatabaseHas('tenant_subscriptions', [
+            'company_id' => $company->id,
+            'payment_execution_mode' => 'execution_enabled',
+        ]);
+    }
     private function createPlatformOwner(): User
     {
         return User::factory()->create([
@@ -242,3 +357,4 @@ class TenantBillingOpsTest extends TestCase
         ]);
     }
 }
+

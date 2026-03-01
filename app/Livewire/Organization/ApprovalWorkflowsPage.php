@@ -14,6 +14,7 @@ use App\Models\User;
 use App\Services\ApprovalWorkflowStepOrderService;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\View\View;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
@@ -42,6 +43,8 @@ class ApprovalWorkflowsPage extends Component
 
     public int $perPage = 10;
 
+    public string $workflowScope = ApprovalWorkflow::APPLIES_TO_REQUEST;
+
     /** @var array{name: string, code: string, description: string, is_default: bool} */
     public array $workflowForm = [
         'name' => '',
@@ -63,11 +66,13 @@ class ApprovalWorkflowsPage extends Component
     protected array $queryString = [
         'search' => ['except' => ''],
         'perPage' => ['except' => 10],
+        'workflowScope' => ['except' => ApprovalWorkflow::APPLIES_TO_REQUEST],
     ];
 
     public function mount(): void
     {
         $this->authorizeOwner();
+        $this->ensureWorkflowScopeSupported();
         $this->normalizeStepOrdersAndLabels();
         $this->stepForm['notification_channels'] = $this->defaultSelectableChannels();
     }
@@ -84,6 +89,16 @@ class ApprovalWorkflowsPage extends Component
         }
 
         $this->resetPage();
+    }
+
+    public function updatedWorkflowScope(): void
+    {
+        $this->ensureWorkflowScopeSupported();
+        $this->resetPage();
+        $this->stepForm['workflow_id'] = '';
+        $this->stepForm['approver_source'] = '';
+        $this->stepForm['approver_value'] = '';
+        $this->normalizeStepOrdersAndLabels();
     }
 
     public function openCreateWorkflowModal(): void
@@ -130,12 +145,12 @@ class ApprovalWorkflowsPage extends Component
         $this->authorizeOwner();
 
         try {
-            $workflow = $createApprovalWorkflow(\Illuminate\Support\Facades\Auth::user(), [
+            $workflow = $createApprovalWorkflow(Auth::user(), [
                 'name' => $this->workflowForm['name'],
                 'code' => $this->workflowForm['code'] ?: null,
                 'description' => $this->workflowForm['description'] ?: null,
                 'is_default' => (bool) $this->workflowForm['is_default'],
-                'applies_to' => 'request',
+                'applies_to' => $this->workflowScope,
             ]);
         } catch (ValidationException $exception) {
             throw $exception;
@@ -155,7 +170,7 @@ class ApprovalWorkflowsPage extends Component
 
         $this->stepForm['workflow_id'] = (string) $workflow->id;
         $this->normalizeStepOrdersAndLabels();
-        $this->setFeedback('Approval workflow created.');
+        $this->setFeedback($this->scopeLabel().' workflow created.');
         $this->showCreateWorkflowModal = false;
     }
 
@@ -165,18 +180,17 @@ class ApprovalWorkflowsPage extends Component
         SetApprovalWorkflowDefault $setApprovalWorkflowDefault
     ): void {
         $this->authorizeOwner();
-        $owner = \Illuminate\Support\Facades\Auth::user();
-        $presetCode = 'preset_standard_request_2step';
-        $presetName = 'Standard Request Approval';
+        $owner = Auth::user();
+        $preset = $this->presetDefinitionForScope();
 
         try {
             $matchingWorkflows = ApprovalWorkflow::withoutGlobalScopes()
                 ->with(['steps' => fn ($query) => $query->where('is_active', true)->orderBy('step_order')])
                 ->where('company_id', $owner->company_id)
-                ->where('applies_to', 'request')
-                ->where(function ($query) use ($presetCode, $presetName): void {
-                    $query->where('code', $presetCode)
-                        ->orWhere('name', $presetName);
+                ->where('applies_to', $this->workflowScope)
+                ->where(function ($query) use ($preset): void {
+                    $query->where('code', (string) $preset['code'])
+                        ->orWhere('name', (string) $preset['name']);
                 })
                 ->orderBy('id')
                 ->get();
@@ -198,61 +212,47 @@ class ApprovalWorkflowsPage extends Component
 
             if (! $workflow) {
                 $workflow = $createApprovalWorkflow($owner, [
-                    'name' => $presetName,
-                    'code' => $presetCode,
-                    'description' => 'Preset chain: direct manager approval followed by finance approval.',
+                    'name' => $preset['name'],
+                    'code' => $preset['code'],
+                    'description' => $preset['description'],
                     'is_default' => true,
-                    'applies_to' => 'request',
+                    'applies_to' => $this->workflowScope,
                 ]);
 
-                $addApprovalWorkflowStep($owner, $workflow, [
-                    'actor_type' => 'reports_to',
-                    'actor_value' => null,
-                    'step_key' => 'direct_manager_review',
-                    'step_order' => 1,
-                    'notification_channels' => $this->defaultSelectableChannels(),
-                ]);
-
-                $addApprovalWorkflowStep($owner, $workflow, [
-                    'actor_type' => 'role',
-                    'actor_value' => UserRole::Finance->value,
-                    'step_key' => 'finance_signoff',
-                    'step_order' => 2,
-                    'notification_channels' => $this->defaultSelectableChannels(),
-                ]);
+                foreach ($preset['steps'] as $index => $step) {
+                    $addApprovalWorkflowStep($owner, $workflow, [
+                        'actor_type' => $step['actor_type'],
+                        'actor_value' => $step['actor_value'],
+                        'step_key' => $step['step_key'],
+                        'step_order' => $index + 1,
+                        'notification_channels' => $this->defaultSelectableChannels(),
+                    ]);
+                }
 
                 $this->applyDefaultLabelsToWorkflowSteps($workflow);
                 $this->normalizeStepOrdersAndLabels();
                 $this->stepForm['workflow_id'] = (string) $workflow->id;
-                $this->setFeedback('Preset workflow created: Direct Manager -> Finance.');
+                $this->setFeedback((string) $preset['created_message']);
 
                 return;
             }
 
             $workflow->load(['steps' => fn ($query) => $query->where('is_active', true)->orderBy('step_order')]);
 
-            $hasReportsTo = $workflow->steps->contains(
-                fn ($step): bool => $step->actor_type === 'reports_to'
-            );
-            $hasFinanceRole = $workflow->steps->contains(
-                fn ($step): bool => $step->actor_type === 'role' && $step->actor_value === UserRole::Finance->value
-            );
+            foreach ($preset['steps'] as $step) {
+                $exists = $workflow->steps->contains(function ($existingStep) use ($step): bool {
+                    return $existingStep->actor_type === $step['actor_type']
+                        && (string) ($existingStep->actor_value ?? '') === (string) ($step['actor_value'] ?? '');
+                });
 
-            if (! $hasReportsTo) {
-                $addApprovalWorkflowStep($owner, $workflow, [
-                    'actor_type' => 'reports_to',
-                    'actor_value' => null,
-                    'step_key' => 'direct_manager_review',
-                    'step_order' => null,
-                    'notification_channels' => $this->defaultSelectableChannels(),
-                ]);
-            }
+                if ($exists) {
+                    continue;
+                }
 
-            if (! $hasFinanceRole) {
                 $addApprovalWorkflowStep($owner, $workflow, [
-                    'actor_type' => 'role',
-                    'actor_value' => UserRole::Finance->value,
-                    'step_key' => 'finance_signoff',
+                    'actor_type' => $step['actor_type'],
+                    'actor_value' => $step['actor_value'],
+                    'step_key' => $step['step_key'],
                     'step_order' => null,
                     'notification_channels' => $this->defaultSelectableChannels(),
                 ]);
@@ -267,11 +267,7 @@ class ApprovalWorkflowsPage extends Component
             }
 
             $this->stepForm['workflow_id'] = (string) $workflow->id;
-            if ($hasReportsTo && $hasFinanceRole && $workflow->is_default) {
-                $this->setFeedback('Preset workflow already exists and is already set as default.');
-            } else {
-                $this->setFeedback('Preset workflow is ready and set as default.');
-            }
+            $this->setFeedback((string) $preset['ready_message']);
         } catch (ValidationException $exception) {
             $errors = $exception->errors();
             $this->setFeedbackError((string) ($errors['code'][0] ?? $errors['name'][0] ?? 'Unable to create preset workflow.'));
@@ -299,7 +295,10 @@ class ApprovalWorkflowsPage extends Component
             return;
         }
 
-        $workflow = ApprovalWorkflow::query()->findOrFail((int) $this->stepForm['workflow_id']);
+        $workflow = ApprovalWorkflow::query()
+            ->where('applies_to', $this->workflowScope)
+            ->findOrFail((int) $this->stepForm['workflow_id']);
+
         $approverSource = $this->stepForm['approver_source'];
         $approverValue = null;
 
@@ -330,7 +329,7 @@ class ApprovalWorkflowsPage extends Component
                 return;
             }
 
-            $addApprovalWorkflowStep(\Illuminate\Support\Facades\Auth::user(), $workflow, [
+            $addApprovalWorkflowStep(Auth::user(), $workflow, [
                 'step_order' => null,
                 'step_key' => $this->defaultStepKeyForApproverSource($approverSource, $approverValue),
                 'actor_type' => $approverSource,
@@ -403,10 +402,12 @@ class ApprovalWorkflowsPage extends Component
     public function setDefaultWorkflow(int $workflowId, SetApprovalWorkflowDefault $setApprovalWorkflowDefault): void
     {
         $this->authorizeOwner();
-        $workflow = ApprovalWorkflow::query()->findOrFail($workflowId);
+        $workflow = ApprovalWorkflow::query()
+            ->where('applies_to', $this->workflowScope)
+            ->findOrFail($workflowId);
 
         try {
-            $setApprovalWorkflowDefault(\Illuminate\Support\Facades\Auth::user(), $workflow);
+            $setApprovalWorkflowDefault(Auth::user(), $workflow);
         } catch (Throwable $exception) {
             report($exception);
             $this->setFeedbackError('Unable to set default workflow.');
@@ -420,10 +421,12 @@ class ApprovalWorkflowsPage extends Component
     public function deleteWorkflow(int $workflowId, DeleteApprovalWorkflow $deleteApprovalWorkflow): void
     {
         $this->authorizeOwner();
-        $workflow = ApprovalWorkflow::query()->findOrFail($workflowId);
+        $workflow = ApprovalWorkflow::query()
+            ->where('applies_to', $this->workflowScope)
+            ->findOrFail($workflowId);
 
         try {
-            $deleteApprovalWorkflow(\Illuminate\Support\Facades\Auth::user(), $workflow);
+            $deleteApprovalWorkflow(Auth::user(), $workflow);
         } catch (ValidationException $exception) {
             $errors = $exception->errors();
             $this->setFeedbackError((string) ($errors['workflow'][0] ?? 'Unable to delete workflow.'));
@@ -449,11 +452,11 @@ class ApprovalWorkflowsPage extends Component
         SetApprovalWorkflowDefault $setApprovalWorkflowDefault
     ): void {
         $this->authorizeOwner();
-        $owner = \Illuminate\Support\Facades\Auth::user();
+        $owner = Auth::user();
 
         $workflows = ApprovalWorkflow::query()
             ->with(['steps' => fn ($query) => $query->where('is_active', true)->orderBy('step_order')])
-            ->where('applies_to', 'request')
+            ->where('applies_to', $this->workflowScope)
             ->orderBy('id')
             ->get();
 
@@ -481,12 +484,7 @@ class ApprovalWorkflowsPage extends Component
                     continue;
                 }
 
-                $linkedRequests = SpendRequest::query()
-                    ->where('company_id', $workflow->company_id)
-                    ->where('workflow_id', $workflow->id)
-                    ->exists();
-
-                if ($linkedRequests) {
+                if ($this->isWorkflowProtectedByLinkedRecords($workflow)) {
                     $skippedCount++;
                     continue;
                 }
@@ -557,14 +555,14 @@ class ApprovalWorkflowsPage extends Component
         $this->authorizeOwner();
 
         $workflowsForStepForm = ApprovalWorkflow::query()
-            ->where('applies_to', 'request')
+            ->where('applies_to', $this->workflowScope)
             ->orderByDesc('is_default')
             ->orderBy('name')
             ->get(['id', 'name', 'is_default']);
 
         $workflows = ApprovalWorkflow::query()
             ->with(['steps' => fn ($query) => $query->where('is_active', true)->orderBy('step_order')])
-            ->where('applies_to', 'request')
+            ->where('applies_to', $this->workflowScope)
             ->when(
                 $this->search !== '',
                 fn ($query) => $query->where(function ($inner): void {
@@ -582,10 +580,10 @@ class ApprovalWorkflowsPage extends Component
 
         $communicationSetting = CompanyCommunicationSetting::query()
             ->firstOrCreate(
-                ['company_id' => (int) \Illuminate\Support\Facades\Auth::user()->company_id],
+                ['company_id' => (int) Auth::user()->company_id],
                 array_merge(
                     CompanyCommunicationSetting::defaultAttributes(),
-                    ['created_by' => \Illuminate\Support\Facades\Auth::id()]
+                    ['created_by' => Auth::id()]
                 )
             );
 
@@ -597,6 +595,9 @@ class ApprovalWorkflowsPage extends Component
             'communicationSetting' => $communicationSetting,
             'channelPolicies' => $this->channelPolicies($communicationSetting),
             'defaultStepChannels' => $this->defaultSelectableChannels(),
+            'workflowScopeLabel' => $this->scopeLabel(),
+            'workflowScopeDescription' => $this->scopeDescription(),
+            'workflowScopeOptions' => $this->workflowScopeOptions(),
         ]);
     }
 
@@ -616,9 +617,93 @@ class ApprovalWorkflowsPage extends Component
 
     private function authorizeOwner(): void
     {
-        if (! \Illuminate\Support\Facades\Auth::check() || \Illuminate\Support\Facades\Auth::user()->role !== UserRole::Owner->value) {
+        if (! Auth::check() || Auth::user()->role !== UserRole::Owner->value) {
             throw new AuthorizationException('Only admin (owner) can manage approval workflow settings.');
         }
+    }
+
+    private function ensureWorkflowScopeSupported(): void
+    {
+        if (in_array($this->workflowScope, ApprovalWorkflow::supportedAppliesTo(), true)) {
+            return;
+        }
+
+        $this->workflowScope = ApprovalWorkflow::APPLIES_TO_REQUEST;
+    }
+
+    private function scopeLabel(): string
+    {
+        return ApprovalWorkflow::labelForAppliesTo($this->workflowScope);
+    }
+
+    private function scopeDescription(): string
+    {
+        return match ($this->workflowScope) {
+            ApprovalWorkflow::APPLIES_TO_PAYMENT_AUTHORIZATION => 'Controls final payment authorization after request approvals are complete.',
+            default => 'Controls request-stage approvals for submitted requests.',
+        };
+    }
+
+    /**
+     * @return array<int, array{value: string, label: string}>
+     */
+    private function workflowScopeOptions(): array
+    {
+        return collect(ApprovalWorkflow::supportedAppliesTo())
+            ->map(fn (string $appliesTo): array => [
+                'value' => $appliesTo,
+                'label' => ApprovalWorkflow::labelForAppliesTo($appliesTo),
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array{name:string,code:string,description:string,created_message:string,ready_message:string,steps:array<int,array{actor_type:string,actor_value:?string,step_key:string}>}
+     */
+    private function presetDefinitionForScope(): array
+    {
+        if ($this->workflowScope === ApprovalWorkflow::APPLIES_TO_PAYMENT_AUTHORIZATION) {
+            return [
+                'name' => 'Standard Payment Authorization',
+                'code' => 'preset_standard_payment_authorization_2step',
+                'description' => 'Preset chain: finance authorization followed by admin (owner) sign-off.',
+                'created_message' => 'Preset workflow created: Finance -> Admin (Owner).',
+                'ready_message' => 'Preset payment-authorization workflow is ready and set as default.',
+                'steps' => [
+                    [
+                        'actor_type' => 'role',
+                        'actor_value' => UserRole::Finance->value,
+                        'step_key' => 'finance_payment_authorization',
+                    ],
+                    [
+                        'actor_type' => 'role',
+                        'actor_value' => UserRole::Owner->value,
+                        'step_key' => 'owner_payment_signoff',
+                    ],
+                ],
+            ];
+        }
+
+        return [
+            'name' => 'Standard Request Approval',
+            'code' => 'preset_standard_request_2step',
+            'description' => 'Preset chain: direct manager approval followed by finance approval.',
+            'created_message' => 'Preset workflow created: Direct Manager -> Finance.',
+            'ready_message' => 'Preset request workflow is ready and set as default.',
+            'steps' => [
+                [
+                    'actor_type' => 'reports_to',
+                    'actor_value' => null,
+                    'step_key' => 'direct_manager_review',
+                ],
+                [
+                    'actor_type' => 'role',
+                    'actor_value' => UserRole::Finance->value,
+                    'step_key' => 'finance_signoff',
+                ],
+            ],
+        ];
     }
 
     private function defaultStepKeyForApproverSource(string $source, ?string $value): string
@@ -652,27 +737,52 @@ class ApprovalWorkflowsPage extends Component
 
     private function removeDuplicatePresetStepTypes(ApprovalWorkflow $workflow): void
     {
+        $presetSignatures = collect($this->presetDefinitionForScope()['steps'])
+            ->map(fn (array $step): string => $this->presetStepSignature(
+                (string) $step['actor_type'],
+                $step['actor_value'] !== null ? (string) $step['actor_value'] : null
+            ))
+            ->all();
+
         $workflow->load(['steps' => fn ($query) => $query->where('is_active', true)->orderBy('step_order')]);
 
-        $reportsToSteps = $workflow->steps
-            ->filter(fn ($step): bool => $step->actor_type === 'reports_to')
-            ->values();
-        if ($reportsToSteps->count() > 1) {
-            $reportsToSteps->slice(1)->each(fn ($step) => $step->delete());
-        }
+        foreach ($presetSignatures as $signature) {
+            $steps = $workflow->steps
+                ->filter(fn ($step): bool => $this->presetStepSignature(
+                    (string) $step->actor_type,
+                    $step->actor_value ? (string) $step->actor_value : null
+                ) === $signature)
+                ->values();
 
-        $financeRoleSteps = $workflow->steps
-            ->filter(fn ($step): bool => $step->actor_type === 'role' && $step->actor_value === UserRole::Finance->value)
-            ->values();
-        if ($financeRoleSteps->count() > 1) {
-            $financeRoleSteps->slice(1)->each(fn ($step) => $step->delete());
+            if ($steps->count() <= 1) {
+                continue;
+            }
+
+            $steps->slice(1)->each(fn ($step) => $step->delete());
         }
     }
 
     private function normalizeStepOrdersAndLabels(): void
     {
         app(ApprovalWorkflowStepOrderService::class)
-            ->normalizeCompanyRequestWorkflows((int) \Illuminate\Support\Facades\Auth::user()->company_id);
+            ->normalizeCompanyWorkflowsByAppliesTo((int) Auth::user()->company_id, $this->workflowScope);
+    }
+
+    private function isWorkflowProtectedByLinkedRecords(ApprovalWorkflow $workflow): bool
+    {
+        if ($workflow->applies_to !== ApprovalWorkflow::APPLIES_TO_REQUEST) {
+            return false;
+        }
+
+        return SpendRequest::query()
+            ->where('company_id', $workflow->company_id)
+            ->where('workflow_id', $workflow->id)
+            ->exists();
+    }
+
+    private function presetStepSignature(string $actorType, ?string $actorValue): string
+    {
+        return $actorType.'::'.($actorValue ?? '');
     }
 
     /**
@@ -709,14 +819,13 @@ class ApprovalWorkflowsPage extends Component
     {
         $setting = CompanyCommunicationSetting::query()
             ->firstOrCreate(
-                ['company_id' => (int) \Illuminate\Support\Facades\Auth::user()->company_id],
+                ['company_id' => (int) Auth::user()->company_id],
                 array_merge(
                     CompanyCommunicationSetting::defaultAttributes(),
-                    ['created_by' => \Illuminate\Support\Facades\Auth::id()]
+                    ['created_by' => Auth::id()]
                 )
             );
 
         return $setting->selectableChannels();
     }
 }
-

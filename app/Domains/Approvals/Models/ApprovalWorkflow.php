@@ -15,6 +15,10 @@ class ApprovalWorkflow extends Model
     use HasFactory;
     use SoftDeletes;
 
+    public const APPLIES_TO_REQUEST = 'request';
+
+    public const APPLIES_TO_PAYMENT_AUTHORIZATION = 'payment_authorization';
+
     protected $table = 'approval_workflows';
 
     protected $fillable = [
@@ -37,6 +41,25 @@ class ApprovalWorkflow extends Model
         ];
     }
 
+    /**
+     * @return array<int, string>
+     */
+    public static function supportedAppliesTo(): array
+    {
+        return [
+            self::APPLIES_TO_REQUEST,
+            self::APPLIES_TO_PAYMENT_AUTHORIZATION,
+        ];
+    }
+
+    public static function labelForAppliesTo(string $appliesTo): string
+    {
+        return match ($appliesTo) {
+            self::APPLIES_TO_PAYMENT_AUTHORIZATION => 'Payment Authorization',
+            default => 'Request Approval',
+        };
+    }
+
     public function steps(): HasMany
     {
         return $this->hasMany(ApprovalWorkflowStep::class, 'workflow_id')
@@ -48,4 +71,3 @@ class ApprovalWorkflow extends Model
         return $this->hasMany(SpendRequest::class, 'workflow_id');
     }
 }
-
