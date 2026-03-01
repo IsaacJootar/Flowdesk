@@ -181,6 +181,7 @@ class NavAccessService
             ['route' => 'platform.dashboard', 'pattern' => ['platform.dashboard'], 'label' => 'Dashboard'],
             ['route' => 'platform.tenants', 'pattern' => ['platform.tenants'], 'label' => 'Tenant / Org Management'],
             ['route' => 'platform.users', 'pattern' => ['platform.users'], 'label' => 'Platform Users'],
+            ['route' => 'platform.operations.execution', 'pattern' => ['platform.operations.execution'], 'label' => 'Execution Operations'],
         ];
 
         $activeTenantId = $this->currentPlatformTenantId() ?? $this->firstExternalTenantId();
@@ -223,6 +224,7 @@ class NavAccessService
             'assets.index' => 'cube',
             'departments.index' => 'office',
             'team.index', 'platform.users' => 'users',
+            'platform.operations.execution' => 'flow',
             'approval-workflows.index', 'platform.tenants.execution-mode' => 'flow',
             'settings.communications' => 'chat',
             'settings.request-configuration', 'platform.tenants.plan-entitlements' => 'sliders',

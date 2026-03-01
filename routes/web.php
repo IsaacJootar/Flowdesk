@@ -33,6 +33,7 @@ use App\Livewire\Platform\TenantExecutionModePage;
 use App\Livewire\Platform\TenantExecutionPolicyPage;
 use App\Livewire\Platform\TenantPlanEntitlementsPage;
 use App\Livewire\Platform\TenantProfilePage;
+use App\Livewire\Platform\ExecutionOperationsPage;
 use App\Livewire\Vendors\VendorDetailsPage;
 use App\Livewire\Vendors\VendorReportsPage;
 use Illuminate\Support\Facades\Route;
@@ -61,6 +62,7 @@ Route::middleware(['auth', 'platform.access'])->prefix('platform')->name('platfo
     Route::get('/tenants/{company}/execution-policy', TenantExecutionPolicyPage::class)->name('tenants.execution-policy');
     Route::get('/tenants/{company}', TenantProfilePage::class)->name('tenants.show');
     Route::get('/users', PlatformUsersPage::class)->name('users');
+    Route::get('/operations/execution', ExecutionOperationsPage::class)->name('operations.execution');
 });
 
 Route::middleware(['auth', 'company.context'])->group(function (): void {
@@ -143,6 +145,3 @@ Route::middleware(['auth', 'company.context'])->group(function (): void {
 });
 
 require __DIR__.'/auth.php';
-
-
-

@@ -16,6 +16,7 @@ return [
     'Tenant / Organization Management' => 'Tenant control center for lifecycle, plans, billing defaults, seat governance, and entitlements',
     'Tenant Details' => 'Billing ledger, reconciliation queue, plan history, usage quotas, and tenant audit timeline',
     'Platform Users' => 'Assign and manage global platform roles for tenant operations and billing governance',
+    'Execution Operations' => 'Retry failures, process stuck queues, and reconcile webhook dead-letter events',
     'Assets' => 'Track assets from registration to assignment, maintenance, and disposal',
     'Asset Reports' => 'Analyze asset distribution, maintenance spend, and disposal trends',
     'Organization Hierarchy' => 'Manage departments, reporting lines, role ownership, and approval chains',

@@ -1,4 +1,4 @@
-# Flowdesk Two-Mode Tenant Execution Plan
+﻿# Flowdesk Two-Mode Tenant Execution Plan
 
 ## Objective
 Allow each tenant organization to choose one of two operating modes:
@@ -10,6 +10,10 @@ This keeps Flowdesk safe for conservative organizations while enabling full end-
 
 ---
 
+## Related Integration Docs
+1. [FLOWDESK_REAL_PROVIDER_INTEGRATION_GUIDE.md](FLOWDESK_REAL_PROVIDER_INTEGRATION_GUIDE.md) - Step-by-step guide for adding real billing/payout providers, webhook wiring, and runtime commands.
+
+---
 ## Mode Definitions
 
 ### Mode A: Decision-only
@@ -291,6 +295,44 @@ Thread/timeline must show both approval events and execution events clearly.
 5. Add correlation IDs across request, billing, and execution logs.
 6. Add alert hooks for repeated failures.
 
+#### Phase 5 Status: Implemented (March 1, 2026)
+1. Added dedicated platform page:
+   - platform.operations.execution
+   - Livewire component: ExecutionOperationsPage
+2. Added unified filters across execution pipelines:
+   - tenant, provider, pipeline, status, and age threshold.
+3. Added retry controls with mandatory reason capture:
+   - billing attempt retry
+   - payout attempt retry
+4. Added stuck queue processing actions:
+   - billing queued processor
+   - payout queued processor
+   - webhook queued processor
+5. Added manual webhook reconcile service:
+   - ExecutionWebhookManualReconciliationService
+   - supports billing and payout-linked webhook events.
+6. Added audit logging on all manual operations actions.
+7. Added alert-hook skeleton service:
+   - ExecutionOpsAlertService
+   - command: execution:ops:alert-summary
+   - scheduler: every 15 minutes.
+8. Added Phase 5 test coverage:
+   - tests/Feature/Execution/ExecutionOperationsCenterPhaseFiveTest.php
+
+#### Phase 5 Usage (Current)
+1. Platform operator opens Platform -> Execution Operations.
+2. Select tenant/provider/pipeline/status filters and optional age window.
+3. For failed attempts:
+   - enter reason,
+   - run per-row retry (billing or payout).
+4. For dead-letter/stuck webhooks:
+   - enter reconcile reason,
+   - run per-row manual reconciliation.
+5. For queued backlog:
+   - enter batch reason,
+   - run stuck-queue processors by pipeline.
+6. Every manual action writes tenant audit events for traceability.
+
 ### Phase 6: Security + Compliance Hardening
 1. Encrypt provider credentials/secrets at rest.
 2. Enforce signed webhook verification.
@@ -364,3 +406,6 @@ This preserves separation of concerns:
 - Request approval decides business intent.
 - Payment authorization decides release-of-funds authority.
 - Execution (provider calls) remains a later controlled phase.
+
+
+

@@ -36,7 +36,7 @@
         @endif
     </section>
 
-    <div class="grid gap-4 md:grid-cols-2">
+    <div class="grid gap-4 md:grid-cols-3">
         <a href="{{ route('platform.tenants') }}" class="fd-card block p-5 transition hover:border-slate-300">
             <p class="text-sm font-semibold text-slate-900">Tenant / Org Management</p>
             <p class="mt-1 text-sm text-slate-500">Manage lifecycle, plans, entitlements, and manual billing records.</p>
@@ -45,6 +45,9 @@
             <p class="text-sm font-semibold text-slate-900">Platform Users</p>
             <p class="mt-1 text-sm text-slate-500">Assign global roles for platform owner, billing admin, and ops admin.</p>
         </a>
+        <a href="{{ route('platform.operations.execution') }}" class="fd-card block p-5 transition hover:border-slate-300">
+            <p class="text-sm font-semibold text-slate-900">Execution Operations</p>
+            <p class="mt-1 text-sm text-slate-500">Retry failures, process stuck queues, and reconcile webhook dead-letter events.</p>
+        </a>
     </div>
 </div>
-

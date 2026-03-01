@@ -7,6 +7,7 @@ use App\Services\RequestApprovalSlaProcessor;
 use App\Services\TenantBillingAutomationService;
 use App\Services\Execution\SubscriptionAutoBillingOrchestrator;
 use App\Services\Execution\SubscriptionBillingAttemptProcessor;
+use App\Services\Execution\ExecutionOpsAlertService;
 use App\Services\RequestCommunicationRetryService;
 use App\Services\AssetCommunicationRetryService;
 use App\Services\AssetReminderService;
@@ -90,6 +91,24 @@ Schedule::command('tenants:billing:auto-charge')
 
 Schedule::command('tenants:billing:process-queued --batch=500')
     ->everyTenMinutes()
+    ->withoutOverlapping();
+
+Artisan::command('execution:ops:alert-summary {--window=}', function (ExecutionOpsAlertService $service): int {
+    $window = $this->option('window');
+    $window = is_numeric($window) ? (int) $window : null;
+
+    $summary = $service->emitWarnings($window);
+
+    $this->info('Execution operations alert summary completed.');
+    $this->line('Window (minutes): '. $summary['window_minutes']);
+    $this->line('Failure threshold: '. $summary['threshold']);
+    $this->line('Alerts emitted: '. count($summary['alerts']));
+
+    return self::SUCCESS;
+})->purpose('Emit warning logs for repeated execution failures by provider and tenant');
+
+Schedule::command('execution:ops:alert-summary')
+    ->everyFifteenMinutes()
     ->withoutOverlapping();
 
 Artisan::command('requests:communications:retry-failed {--company=} {--batch=200}', function (RequestCommunicationRetryService $retryService): int {
