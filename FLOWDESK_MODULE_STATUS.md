@@ -195,7 +195,7 @@ Source files:
 
 ## 7) Ground Rule
 
-Before proposing “new” module work, check this file plus route map (`routes/web.php`, `routes/console.php`) to avoid suggesting already-implemented capabilities.
+Before proposing Ã¢â‚¬Å“newÃ¢â‚¬Â module work, check this file plus route map (`routes/web.php`, `routes/console.php`) to avoid suggesting already-implemented capabilities.
 
 
 ## 8) Procurement and Treasury (In Progress)
@@ -277,3 +277,33 @@ Before proposing “new” module work, check this file plus route map (`routes/web.
 ### Sprint 2 tests
 - `tests/Feature/Finance/ProcurementRequestToPoFlowTest.php`
 - `tests/Feature/Settings/TenantModuleEntitlementTest.php` (procurement route case)
+
+## Sprint 3 Progress (In Progress)
+
+### Goods Receipt Workflow
+- New tenant route: `/procurement/receipts` (`procurement.receipts`) with dedicated receipts table and detail modal.
+- New service: `app/Services/Procurement/CreateGoodsReceiptService.php`
+- Procurement Orders detail modal now supports recording receipts with line-level quantities and unit costs.
+- PO line received balances are updated on each receipt and PO status auto-progresses:
+  - `issued` -> `part_received`
+  - `part_received` -> `received`
+- Tenant audit event: `tenant.procurement.goods_receipt.created`.
+
+### Vendor Invoice to PO Linking
+- New migration: `2026_03_03_000700_add_purchase_order_link_to_vendor_invoices_table.php`.
+- `vendor_invoices` now has optional `purchase_order_id` for traceable PO linkage.
+- New service: `app/Services/Procurement/LinkVendorInvoiceToPurchaseOrderService.php`.
+- Linking invoice to PO can transition PO to `invoiced` where applicable.
+- Tenant audit events:
+  - `tenant.procurement.vendor_invoice.linked`
+  - `tenant.procurement.purchase_order.invoiced`
+
+### Procurement Controls Expanded
+- Added tenant-configurable controls:
+  - `receipt_allowed_roles`
+  - `invoice_link_allowed_roles`
+  - `allow_over_receipt`
+- Updated settings page: `/settings/procurement-controls`.
+
+### Sprint 3 tests
+- `tests/Feature/Finance/ProcurementReceiptAndInvoiceLinkingTest.php`

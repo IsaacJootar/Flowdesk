@@ -119,6 +119,7 @@ Route::middleware(['auth', 'company.context'])->group(function (): void {
     });
     Route::prefix('procurement')->middleware('module.enabled:procurement')->name('procurement.')->group(function (): void {
         Route::view('/orders', 'app.procurement.orders')->name('orders');
+        Route::view('/receipts', 'app.procurement.receipts')->name('receipts');
     });
 
     Route::prefix('departments')->name('departments.')->group(function (): void {

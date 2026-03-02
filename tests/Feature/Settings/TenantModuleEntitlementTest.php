@@ -104,6 +104,7 @@ class TenantModuleEntitlementTest extends TestCase
             ->get(route('vendors.index'))
             ->assertForbidden();
     }
+
     public function test_disabled_procurement_module_is_hidden_and_blocked(): void
     {
         [$company, $department] = $this->createCompanyContext('Entitlement Procurement');
@@ -120,9 +121,14 @@ class TenantModuleEntitlementTest extends TestCase
         $routes = array_column($items, 'route');
 
         $this->assertNotContains('procurement.orders', $routes);
+        $this->assertNotContains('procurement.receipts', $routes);
 
         $this->actingAs($owner)
             ->get(route('procurement.orders'))
+            ->assertForbidden();
+
+        $this->actingAs($owner)
+            ->get(route('procurement.receipts'))
             ->assertForbidden();
     }
 
@@ -142,9 +148,14 @@ class TenantModuleEntitlementTest extends TestCase
         $routes = array_column($items, 'route');
 
         $this->assertContains('procurement.orders', $routes);
+        $this->assertContains('procurement.receipts', $routes);
 
         $this->actingAs($owner)
             ->get(route('procurement.orders'))
+            ->assertOk();
+
+        $this->actingAs($owner)
+            ->get(route('procurement.receipts'))
             ->assertOk();
     }
 

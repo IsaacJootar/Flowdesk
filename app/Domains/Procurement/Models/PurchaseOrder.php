@@ -5,6 +5,7 @@ namespace App\Domains\Procurement\Models;
 use App\Domains\Budgets\Models\DepartmentBudget;
 use App\Domains\Requests\Models\SpendRequest;
 use App\Domains\Vendors\Models\Vendor;
+use App\Domains\Vendors\Models\VendorInvoice;
 use App\Models\User;
 use App\Traits\CompanyScoped;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -123,5 +124,10 @@ class PurchaseOrder extends Model
     public function matchExceptions(): HasMany
     {
         return $this->hasMany(InvoiceMatchException::class, 'purchase_order_id');
+    }
+
+    public function vendorInvoices(): HasMany
+    {
+        return $this->hasMany(VendorInvoice::class, 'purchase_order_id');
     }
 }

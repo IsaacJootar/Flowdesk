@@ -14,6 +14,7 @@ return [
     'Asset Controls' => 'Set which roles can manage asset registration, custody, maintenance, and disposal',
     'Vendor Controls' => 'Set which roles can manage vendor profiles, invoices, payments, exports, and communications',
     'Procurement Orders' => 'Track purchase order drafts, issuance, and commitment posting for approved requests',
+    'Procurement Receipts' => 'Review goods receipt history with line-level receipt and linked invoice context',
     'Procurement Controls' => 'Configure request-to-PO conversion, issue roles, and commitment posting guardrails',
     'Treasury Controls' => 'Configure statement import and reconciliation tolerances for treasury operations',
     'Tenant / Organization Management' => 'Tenant control center for lifecycle, plans, billing defaults, seat governance, and entitlements',

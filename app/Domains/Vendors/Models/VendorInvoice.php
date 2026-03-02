@@ -2,6 +2,7 @@
 
 namespace App\Domains\Vendors\Models;
 
+use App\Domains\Procurement\Models\PurchaseOrder;
 use App\Traits\CompanyScoped;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -47,6 +48,7 @@ class VendorInvoice extends Model
     protected $fillable = [
         'company_id',
         'vendor_id',
+        'purchase_order_id',
         'invoice_number',
         'invoice_date',
         'due_date',
@@ -76,6 +78,11 @@ class VendorInvoice extends Model
     public function vendor(): BelongsTo
     {
         return $this->belongsTo(Vendor::class);
+    }
+
+    public function purchaseOrder(): BelongsTo
+    {
+        return $this->belongsTo(PurchaseOrder::class, 'purchase_order_id');
     }
 
     public function payments(): HasMany

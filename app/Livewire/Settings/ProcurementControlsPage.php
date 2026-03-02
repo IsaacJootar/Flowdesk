@@ -24,7 +24,16 @@ class ProcurementControlsPage extends Component
     public int $feedbackKey = 0;
 
     /**
-     * @var array{conversion_allowed_statuses:string,require_vendor_on_conversion:bool,default_expected_delivery_days:string,auto_post_commitment_on_issue:bool,issue_allowed_roles:array<int,string>}
+     * @var array{
+     *   conversion_allowed_statuses:string,
+     *   require_vendor_on_conversion:bool,
+     *   default_expected_delivery_days:string,
+     *   auto_post_commitment_on_issue:bool,
+     *   issue_allowed_roles:array<int,string>,
+     *   receipt_allowed_roles:array<int,string>,
+     *   invoice_link_allowed_roles:array<int,string>,
+     *   allow_over_receipt:bool
+     * }
      */
     public array $controlsForm = [];
 
@@ -47,6 +56,11 @@ class ProcurementControlsPage extends Component
             'controlsForm.auto_post_commitment_on_issue' => ['boolean'],
             'controlsForm.issue_allowed_roles' => ['required', 'array', 'min:1'],
             'controlsForm.issue_allowed_roles.*' => ['string', Rule::in(UserRole::values())],
+            'controlsForm.receipt_allowed_roles' => ['required', 'array', 'min:1'],
+            'controlsForm.receipt_allowed_roles.*' => ['string', Rule::in(UserRole::values())],
+            'controlsForm.invoice_link_allowed_roles' => ['required', 'array', 'min:1'],
+            'controlsForm.invoice_link_allowed_roles.*' => ['string', Rule::in(UserRole::values())],
+            'controlsForm.allow_over_receipt' => ['boolean'],
         ]);
 
         $statuses = array_values(array_filter(array_map(
@@ -68,6 +82,9 @@ class ProcurementControlsPage extends Component
             'default_expected_delivery_days' => (int) $validated['controlsForm']['default_expected_delivery_days'],
             'auto_post_commitment_on_issue' => (bool) $validated['controlsForm']['auto_post_commitment_on_issue'],
             'issue_allowed_roles' => array_values((array) $validated['controlsForm']['issue_allowed_roles']),
+            'receipt_allowed_roles' => array_values((array) $validated['controlsForm']['receipt_allowed_roles']),
+            'invoice_link_allowed_roles' => array_values((array) $validated['controlsForm']['invoice_link_allowed_roles']),
+            'allow_over_receipt' => (bool) $validated['controlsForm']['allow_over_receipt'],
         ];
 
         $setting->forceFill([
@@ -121,6 +138,9 @@ class ProcurementControlsPage extends Component
             'default_expected_delivery_days' => (string) ((int) $controls['default_expected_delivery_days']),
             'auto_post_commitment_on_issue' => (bool) $controls['auto_post_commitment_on_issue'],
             'issue_allowed_roles' => array_values((array) $controls['issue_allowed_roles']),
+            'receipt_allowed_roles' => array_values((array) $controls['receipt_allowed_roles']),
+            'invoice_link_allowed_roles' => array_values((array) $controls['invoice_link_allowed_roles']),
+            'allow_over_receipt' => (bool) $controls['allow_over_receipt'],
         ];
     }
 

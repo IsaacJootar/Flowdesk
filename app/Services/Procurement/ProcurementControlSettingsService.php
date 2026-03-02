@@ -20,7 +20,10 @@ class ProcurementControlSettingsService
      *   require_vendor_on_conversion:bool,
      *   default_expected_delivery_days:int,
      *   auto_post_commitment_on_issue:bool,
-     *   issue_allowed_roles:array<int,string>
+     *   issue_allowed_roles:array<int,string>,
+     *   receipt_allowed_roles:array<int,string>,
+     *   invoice_link_allowed_roles:array<int,string>,
+     *   allow_over_receipt:bool
      * }
      */
     public function effectiveControls(int $companyId): array
@@ -38,14 +41,20 @@ class ProcurementControlSettingsService
             $statuses = (array) $defaults['conversion_allowed_statuses'];
         }
 
-        $issueRoles = array_values(array_filter(array_map(
-            static fn (mixed $role): string => strtolower(trim((string) $role)),
-            (array) ($configured['issue_allowed_roles'] ?? $defaults['issue_allowed_roles'])
-        )));
+        $issueRoles = $this->sanitizeRoles(
+            (array) ($configured['issue_allowed_roles'] ?? $defaults['issue_allowed_roles']),
+            (array) $defaults['issue_allowed_roles']
+        );
 
-        if ($issueRoles === []) {
-            $issueRoles = (array) $defaults['issue_allowed_roles'];
-        }
+        $receiptRoles = $this->sanitizeRoles(
+            (array) ($configured['receipt_allowed_roles'] ?? $defaults['receipt_allowed_roles']),
+            (array) $defaults['receipt_allowed_roles']
+        );
+
+        $invoiceLinkRoles = $this->sanitizeRoles(
+            (array) ($configured['invoice_link_allowed_roles'] ?? $defaults['invoice_link_allowed_roles']),
+            (array) $defaults['invoice_link_allowed_roles']
+        );
 
         return [
             'conversion_allowed_statuses' => $statuses,
@@ -53,6 +62,31 @@ class ProcurementControlSettingsService
             'default_expected_delivery_days' => max(1, (int) ($configured['default_expected_delivery_days'] ?? $defaults['default_expected_delivery_days'])),
             'auto_post_commitment_on_issue' => (bool) ($configured['auto_post_commitment_on_issue'] ?? $defaults['auto_post_commitment_on_issue']),
             'issue_allowed_roles' => $issueRoles,
+            'receipt_allowed_roles' => $receiptRoles,
+            'invoice_link_allowed_roles' => $invoiceLinkRoles,
+            'allow_over_receipt' => (bool) ($configured['allow_over_receipt'] ?? $defaults['allow_over_receipt']),
         ];
+    }
+
+    /**
+     * @param  array<int, mixed>  $roles
+     * @param  array<int, mixed>  $fallback
+     * @return array<int, string>
+     */
+    private function sanitizeRoles(array $roles, array $fallback): array
+    {
+        $normalized = array_values(array_filter(array_map(
+            static fn (mixed $role): string => strtolower(trim((string) $role)),
+            $roles
+        )));
+
+        if ($normalized !== []) {
+            return $normalized;
+        }
+
+        return array_values(array_filter(array_map(
+            static fn (mixed $role): string => strtolower(trim((string) $role)),
+            $fallback
+        )));
     }
 }

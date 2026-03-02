@@ -54,6 +54,9 @@ class CompanyProcurementControlSetting extends Model
             'default_expected_delivery_days' => max(1, (int) ($defaults['default_expected_delivery_days'] ?? 14)),
             'auto_post_commitment_on_issue' => (bool) ($defaults['auto_post_commitment_on_issue'] ?? true),
             'issue_allowed_roles' => array_values((array) ($defaults['issue_allowed_roles'] ?? ['owner', 'finance'])),
+            'receipt_allowed_roles' => array_values((array) ($defaults['receipt_allowed_roles'] ?? ['owner', 'finance', 'manager'])),
+            'invoice_link_allowed_roles' => array_values((array) ($defaults['invoice_link_allowed_roles'] ?? ['owner', 'finance'])),
+            'allow_over_receipt' => (bool) ($defaults['allow_over_receipt'] ?? false),
         ];
     }
 

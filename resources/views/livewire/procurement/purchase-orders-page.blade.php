@@ -45,7 +45,11 @@
         </div>
     </div>
 
-    <div class="grid gap-3 sm:grid-cols-3">
+    <div class="flex justify-end">
+        <a href="{{ route('procurement.receipts') }}" class="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50">Open Receipts Table</a>
+    </div>
+
+    <div class="grid gap-3 sm:grid-cols-4">
         <div class="rounded-2xl border border-sky-200 bg-sky-50 p-4">
             <p class="text-xs uppercase tracking-[0.1em] text-sky-700">Total Orders</p>
             <p class="mt-1 text-2xl font-semibold text-sky-900">{{ number_format((int) $summary['total']) }}</p>
@@ -57,6 +61,10 @@
         <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
             <p class="text-xs uppercase tracking-[0.1em] text-emerald-700">Issued</p>
             <p class="mt-1 text-2xl font-semibold text-emerald-900">{{ number_format((int) $summary['issued']) }}</p>
+        </div>
+        <div class="rounded-2xl border border-indigo-200 bg-indigo-50 p-4">
+            <p class="text-xs uppercase tracking-[0.1em] text-indigo-700">Part Received</p>
+            <p class="mt-1 text-2xl font-semibold text-indigo-900">{{ number_format((int) $summary['receiving']) }}</p>
         </div>
     </div>
 
@@ -77,15 +85,21 @@
                             <th class="px-4 py-3 text-left font-semibold">Vendor</th>
                             <th class="px-4 py-3 text-left font-semibold">Amount</th>
                             <th class="px-4 py-3 text-left font-semibold">Status</th>
+                            <th class="px-4 py-3 text-left font-semibold">Progress</th>
                             <th class="px-4 py-3 text-right font-semibold">Action</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100">
                         @forelse ($orders as $order)
                             @php
-                                $statusClass = (string) $order->po_status === 'issued'
-                                    ? 'bg-emerald-100 text-emerald-700'
-                                    : ((string) $order->po_status === 'draft' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-700');
+                                $statusClass = match ((string) $order->po_status) {
+                                    'issued' => 'bg-emerald-100 text-emerald-700',
+                                    'draft' => 'bg-amber-100 text-amber-700',
+                                    'part_received' => 'bg-indigo-100 text-indigo-700',
+                                    'received' => 'bg-sky-100 text-sky-700',
+                                    'invoiced' => 'bg-violet-100 text-violet-700',
+                                    default => 'bg-slate-100 text-slate-700',
+                                };
                             @endphp
                             <tr class="hover:bg-slate-50">
                                 <td class="px-4 py-3">
@@ -103,13 +117,17 @@
                                         {{ ucfirst(str_replace('_', ' ', (string) $order->po_status)) }}
                                     </span>
                                 </td>
+                                <td class="px-4 py-3 text-xs text-slate-600">
+                                    <p>{{ (int) $order->receipts_count }} receipt(s)</p>
+                                    <p>{{ (int) $order->vendor_invoices_count }} linked invoice(s)</p>
+                                </td>
                                 <td class="px-4 py-3 text-right">
                                     <button type="button" wire:click="openDetails({{ $order->id }})" class="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50">View</button>
                                 </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="6" class="px-4 py-10 text-center text-sm text-slate-500">No procurement orders found for the selected filters.</td>
+                                <td colspan="7" class="px-4 py-10 text-center text-sm text-slate-500">No procurement orders found for the selected filters.</td>
                             </tr>
                         @endforelse
                     </tbody>
@@ -128,12 +146,16 @@
     @if ($showDetailsModal && $selectedOrder)
         <div wire:click="closeDetails" class="fixed inset-0 z-40 overflow-y-auto bg-slate-900/40 p-3">
             <div class="flex items-start justify-center pt-1">
-                <div wire:click.stop class="fd-card w-full max-w-4xl p-6" style="max-height: calc(100vh - 3rem); overflow-y: auto;">
+                <div wire:click.stop class="fd-card w-full max-w-5xl p-6" style="max-height: calc(100vh - 3rem); overflow-y: auto;">
                     <div class="mb-4 flex items-start justify-between">
                         <div>
                             <span class="inline-flex items-center rounded-full border border-indigo-200 bg-indigo-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-indigo-700">Procurement Order</span>
                             <h2 class="text-lg font-semibold text-slate-900">{{ $selectedOrder['po_number'] }}</h2>
-                            <p class="text-sm text-slate-500">Issue roles: {{ implode(', ', array_map('ucfirst', $issueRoles)) }}</p>
+                            <p class="text-sm text-slate-500">
+                                Issue roles: {{ implode(', ', array_map('ucfirst', $issueRoles)) }} |
+                                Receipt roles: {{ implode(', ', array_map('ucfirst', $receiptRoles)) }} |
+                                Invoice-link roles: {{ implode(', ', array_map('ucfirst', $invoiceLinkRoles)) }}
+                            </p>
                         </div>
                         <button type="button" wire:click="closeDetails" class="rounded-lg border border-slate-200 px-3 py-1 text-sm text-slate-600 hover:bg-slate-50">Close</button>
                     </div>
@@ -155,14 +177,16 @@
                     </div>
 
                     <div class="mt-4 rounded-xl border border-slate-200 p-4">
-                        <p class="text-sm font-semibold text-slate-800">Line Items</p>
+                        <p class="text-sm font-semibold text-slate-800">Line Items and Receipt Progress</p>
                         <div class="mt-2 overflow-x-auto">
                             <table class="min-w-full text-xs">
                                 <thead class="text-slate-500">
                                     <tr>
                                         <th class="py-1 text-left">#</th>
                                         <th class="py-1 text-left">Description</th>
-                                        <th class="py-1 text-right">Qty</th>
+                                        <th class="py-1 text-right">Ordered Qty</th>
+                                        <th class="py-1 text-right">Received Qty</th>
+                                        <th class="py-1 text-right">Remaining Qty</th>
                                         <th class="py-1 text-right">Unit Price</th>
                                         <th class="py-1 text-right">Line Total</th>
                                     </tr>
@@ -173,6 +197,8 @@
                                             <td class="py-1 text-slate-700">{{ $item['line_number'] }}</td>
                                             <td class="py-1 text-slate-700">{{ $item['item_description'] }}</td>
                                             <td class="py-1 text-right text-slate-600">{{ number_format((float) $item['quantity'], 2) }}</td>
+                                            <td class="py-1 text-right text-slate-600">{{ number_format((float) $item['received_quantity'], 2) }}</td>
+                                            <td class="py-1 text-right text-slate-700">{{ number_format((float) $item['remaining_quantity'], 2) }}</td>
                                             <td class="py-1 text-right text-slate-600">{{ number_format((int) $item['unit_price']) }}</td>
                                             <td class="py-1 text-right text-slate-700">{{ number_format((int) $item['line_total']) }}</td>
                                         </tr>
@@ -192,6 +218,116 @@
                                 <p class="text-xs text-slate-600">{{ ucfirst((string) $commitment['status']) }} | {{ number_format((int) $commitment['amount']) }} | {{ $commitment['effective_at'] ?? '-' }}</p>
                             @empty
                                 <p class="text-xs text-slate-500">No commitments posted yet.</p>
+                            @endforelse
+                        </div>
+                    </div>
+
+                    <div class="mt-4 grid gap-4 lg:grid-cols-2">
+                        <div class="rounded-xl border border-slate-200 p-4">
+                            <p class="text-sm font-semibold text-slate-800">Goods Receipts</p>
+                            <p class="mt-1 text-xs text-slate-500">Recorded receipts: {{ (int) $selectedOrder['receipt_count'] }}</p>
+
+                            @if ($selectedOrder['can_receive'])
+                                <div class="mt-3 rounded-lg border border-indigo-100 bg-indigo-50 p-3">
+                                    <p class="text-xs font-semibold uppercase tracking-[0.08em] text-indigo-700">New receipt entry</p>
+                                    <p class="mt-1 text-xs text-indigo-700">Over-receipt allowed: {{ $selectedOrder['allow_over_receipt'] ? 'Yes' : 'No' }}</p>
+
+                                    <div class="mt-2 space-y-2">
+                                        <label class="block">
+                                            <span class="mb-1 block text-xs text-slate-600">Received At</span>
+                                            <input type="datetime-local" wire:model.defer="receiptForm.received_at" class="w-full rounded-lg border-slate-300 text-xs focus:border-slate-500 focus:ring-slate-500">
+                                        </label>
+                                        <label class="block">
+                                            <span class="mb-1 block text-xs text-slate-600">Notes</span>
+                                            <textarea wire:model.defer="receiptForm.notes" rows="2" class="w-full rounded-lg border-slate-300 text-xs focus:border-slate-500 focus:ring-slate-500" placeholder="Optional receiving notes"></textarea>
+                                        </label>
+                                    </div>
+
+                                    <div class="mt-3 space-y-2">
+                                        @foreach ($receiptForm['items'] as $index => $line)
+                                            <div class="rounded-lg border border-slate-200 bg-white p-2">
+                                                <p class="text-xs font-medium text-slate-700">Line {{ $line['line_number'] }}: {{ $line['item_description'] }}</p>
+                                                <p class="text-[11px] text-slate-500">Remaining: {{ number_format((float) $line['remaining_quantity'], 2) }}</p>
+                                                <div class="mt-2 grid grid-cols-2 gap-2">
+                                                    <label class="block">
+                                                        <span class="mb-1 block text-[11px] text-slate-500">Receive Qty</span>
+                                                        <input type="number" min="0" step="0.01" wire:model.defer="receiptForm.items.{{ $index }}.receive_quantity" class="w-full rounded-lg border-slate-300 text-xs focus:border-slate-500 focus:ring-slate-500">
+                                                    </label>
+                                                    <label class="block">
+                                                        <span class="mb-1 block text-[11px] text-slate-500">Unit Cost</span>
+                                                        <input type="number" min="1" step="1" wire:model.defer="receiptForm.items.{{ $index }}.received_unit_cost" class="w-full rounded-lg border-slate-300 text-xs focus:border-slate-500 focus:ring-slate-500">
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        @endforeach
+                                    </div>
+
+                                    <div class="mt-3 flex justify-end">
+                                        <button type="button" wire:click="submitGoodsReceipt" wire:loading.attr="disabled" wire:target="submitGoodsReceipt" class="rounded-lg border border-indigo-200 bg-indigo-100 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-200">
+                                            <span wire:loading.remove wire:target="submitGoodsReceipt">Record Goods Receipt</span>
+                                            <span wire:loading wire:target="submitGoodsReceipt">Recording...</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            @endif
+
+                            <div class="mt-3 space-y-1">
+                                @forelse ($selectedOrder['receipts'] as $receipt)
+                                    <div class="rounded-lg border border-slate-200 p-2 text-xs text-slate-600">
+                                        <p class="font-medium text-slate-800">{{ $receipt['receipt_number'] }} | {{ $receipt['received_at'] }}</p>
+                                        <p>Lines: {{ $receipt['line_count'] }} | Qty: {{ number_format((float) $receipt['received_quantity'], 2) }} | Value: {{ number_format((int) $receipt['received_total']) }}</p>
+                                        @if ($receipt['notes'])
+                                            <p class="text-slate-500">{{ $receipt['notes'] }}</p>
+                                        @endif
+                                    </div>
+                                @empty
+                                    <p class="text-xs text-slate-500">No goods receipts yet.</p>
+                                @endforelse
+                            </div>
+                        </div>
+
+                        <div class="rounded-xl border border-slate-200 p-4">
+                            <p class="text-sm font-semibold text-slate-800">Vendor Invoices</p>
+                            <p class="mt-1 text-xs text-slate-500">Linked invoices: {{ (int) $selectedOrder['linked_invoice_count'] }}</p>
+
+                            @if ($selectedOrder['can_link_invoice'])
+                                <div class="mt-3 rounded-lg border border-emerald-100 bg-emerald-50 p-3">
+                                    <p class="text-xs font-semibold uppercase tracking-[0.08em] text-emerald-700">Link invoice to this PO</p>
+                                    <div class="mt-2 grid gap-2 sm:grid-cols-[1fr,auto]">
+                                        <select wire:model="selectedVendorInvoiceId" class="w-full rounded-lg border-slate-300 text-xs focus:border-slate-500 focus:ring-slate-500">
+                                            @foreach ($selectedOrder['selectable_invoices'] as $invoiceOption)
+                                                <option value="{{ $invoiceOption['id'] }}">{{ $invoiceOption['label'] }}</option>
+                                            @endforeach
+                                        </select>
+                                        <button type="button" wire:click="linkSelectedVendorInvoice" wire:loading.attr="disabled" wire:target="linkSelectedVendorInvoice" class="rounded-lg border border-emerald-200 bg-emerald-100 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-200">
+                                            <span wire:loading.remove wire:target="linkSelectedVendorInvoice">Link</span>
+                                            <span wire:loading wire:target="linkSelectedVendorInvoice">Linking...</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            @endif
+
+                            <div class="mt-3 space-y-1">
+                                @forelse ($selectedOrder['linked_invoices'] as $invoice)
+                                    <div class="rounded-lg border border-slate-200 p-2 text-xs text-slate-600">
+                                        <p class="font-medium text-slate-800">{{ $invoice['invoice_number'] }} | {{ $invoice['invoice_date'] ?? '-' }}</p>
+                                        <p>{{ strtoupper((string) $invoice['currency']) }} {{ number_format((int) $invoice['total_amount']) }} | Outstanding {{ number_format((int) $invoice['outstanding_amount']) }}</p>
+                                        <p class="text-slate-500">Status: {{ ucfirst(str_replace('_', ' ', (string) $invoice['status'])) }}</p>
+                                    </div>
+                                @empty
+                                    <p class="text-xs text-slate-500">No invoices linked yet.</p>
+                                @endforelse
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 rounded-xl border border-slate-200 p-4">
+                        <p class="text-sm font-semibold text-slate-800">Procurement Timeline</p>
+                        <div class="mt-2 space-y-1">
+                            @forelse ($selectedOrder['timeline'] as $event)
+                                <p class="text-xs text-slate-600">{{ $event['at'] ?? '-' }} | {{ $event['label'] }} @if (! empty($event['meta'])) | {{ $event['meta'] }} @endif</p>
+                            @empty
+                                <p class="text-xs text-slate-500">No timeline events yet.</p>
                             @endforelse
                         </div>
                     </div>

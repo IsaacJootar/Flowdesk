@@ -25,7 +25,7 @@
                 </span>
                 <h2 class="mt-2 text-base font-semibold text-slate-900">Tenant Procurement Guardrails</h2>
                 <p class="mt-1 text-sm text-slate-600">
-                    Configure request-to-PO conversion scope, vendor requirements, issuance roles, and commitment behavior.
+                    Configure conversion scope, issuance/receiving roles, invoice-link controls, and receipt tolerance behavior.
                 </p>
             </div>
 
@@ -87,6 +87,44 @@
                 @error('controlsForm.issue_allowed_roles')<p class="mt-2 text-xs text-red-600">{{ $message }}</p>@enderror
             </div>
 
+            <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Receipt Allowed Roles</p>
+                <p class="mt-1 text-xs text-slate-500">Only these roles can record goods receipts on purchase orders.</p>
+                <div class="mt-2 grid gap-2 sm:grid-cols-3 lg:grid-cols-5">
+                    @foreach ($roles as $role)
+                        <label class="inline-flex items-center gap-2 text-sm text-slate-700">
+                            <input
+                                type="checkbox"
+                                value="{{ $role }}"
+                                wire:model.defer="controlsForm.receipt_allowed_roles"
+                                class="rounded border-slate-300 text-slate-700 focus:ring-slate-500"
+                            >
+                            {{ ucfirst($role) }}
+                        </label>
+                    @endforeach
+                </div>
+                @error('controlsForm.receipt_allowed_roles')<p class="mt-2 text-xs text-red-600">{{ $message }}</p>@enderror
+            </div>
+
+            <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Invoice Link Allowed Roles</p>
+                <p class="mt-1 text-xs text-slate-500">Only these roles can bind vendor invoices to purchase orders.</p>
+                <div class="mt-2 grid gap-2 sm:grid-cols-3 lg:grid-cols-5">
+                    @foreach ($roles as $role)
+                        <label class="inline-flex items-center gap-2 text-sm text-slate-700">
+                            <input
+                                type="checkbox"
+                                value="{{ $role }}"
+                                wire:model.defer="controlsForm.invoice_link_allowed_roles"
+                                class="rounded border-slate-300 text-slate-700 focus:ring-slate-500"
+                            >
+                            {{ ucfirst($role) }}
+                        </label>
+                    @endforeach
+                </div>
+                @error('controlsForm.invoice_link_allowed_roles')<p class="mt-2 text-xs text-red-600">{{ $message }}</p>@enderror
+            </div>
+
             <div class="grid gap-3 sm:grid-cols-2">
                 <label class="inline-flex items-center gap-2 text-sm text-slate-700">
                     <input type="checkbox" wire:model.defer="controlsForm.require_vendor_on_conversion" class="rounded border-slate-300 text-slate-700 focus:ring-slate-500">
@@ -96,6 +134,11 @@
                 <label class="inline-flex items-center gap-2 text-sm text-slate-700">
                     <input type="checkbox" wire:model.defer="controlsForm.auto_post_commitment_on_issue" class="rounded border-slate-300 text-slate-700 focus:ring-slate-500">
                     Auto-post budget commitment when PO is issued
+                </label>
+
+                <label class="inline-flex items-center gap-2 text-sm text-slate-700 sm:col-span-2">
+                    <input type="checkbox" wire:model.defer="controlsForm.allow_over_receipt" class="rounded border-slate-300 text-slate-700 focus:ring-slate-500">
+                    Allow over-receipt quantities above PO ordered quantity (not recommended for strict control tenants)
                 </label>
             </div>
 

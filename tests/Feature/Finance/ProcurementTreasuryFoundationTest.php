@@ -43,6 +43,10 @@ class ProcurementTreasuryFoundationTest extends TestCase
             'exception_status',
             'severity',
         ]));
+
+        $this->assertTrue(Schema::hasColumns('vendor_invoices', [
+            'purchase_order_id',
+        ]));
     }
 
     public function test_treasury_foundation_tables_and_columns_exist(): void

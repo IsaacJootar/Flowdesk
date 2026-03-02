@@ -139,7 +139,8 @@ class ProcurementRequestToPoFlowTest extends TestCase
             'spend_request_id' => $request->id,
         ]);
     }
-    public function test_procurement_orders_route_is_accessible_when_module_enabled(): void
+
+    public function test_procurement_routes_are_accessible_when_module_enabled(): void
     {
         [$company, $department] = $this->createCompanyContext('Procurement Route Tenant');
         $owner = $this->createUser($company, $department, UserRole::Owner->value);
@@ -155,7 +156,13 @@ class ProcurementRequestToPoFlowTest extends TestCase
             ->get(route('procurement.orders'))
             ->assertOk()
             ->assertSee('Procurement Orders');
+
+        $this->actingAs($owner)
+            ->get(route('procurement.receipts'))
+            ->assertOk()
+            ->assertSee('Procurement Receipts');
     }
+
     /**
      * @return array{0: Company, 1: Department}
      */
@@ -201,4 +208,3 @@ class ProcurementRequestToPoFlowTest extends TestCase
         ]);
     }
 }
-
