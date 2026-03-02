@@ -49,7 +49,7 @@ class CompanySetup extends Component
         'coverage_end' => null,
         'grace_until' => null,
         'enabled_modules' => 0,
-        'total_modules' => 9,
+        'total_modules' => 11,
     ];
 
     public function mount(): void
@@ -229,7 +229,7 @@ class CompanySetup extends Component
             ->first();
 
         $enabledModules = 0;
-        $totalModules = 9;
+        $totalModules = 11;
         if ($entitlements) {
             $enabledModules = collect([
                 (bool) $entitlements->requests_enabled,
@@ -241,6 +241,8 @@ class CompanySetup extends Component
                 (bool) $entitlements->communications_enabled,
                 (bool) $entitlements->ai_enabled,
                 (bool) $entitlements->fintech_enabled,
+                (bool) $entitlements->procurement_enabled,
+                (bool) $entitlements->treasury_enabled,
             ])->filter()->count();
         }
 
@@ -269,3 +271,5 @@ class CompanySetup extends Component
             ]);
     }
 }
+
+

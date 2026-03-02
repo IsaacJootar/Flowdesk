@@ -99,7 +99,7 @@ class TenantExecutionModeService
             }
 
             if ($channels === []) {
-                $errors['subscriptionForm.execution_allowed_channels'] = 'Select at least one allowed channel for execution-enabled mode.';
+                $errors['subscriptionForm.execution_allowed_channels'] = 'No execution channel is configured. Go to Tenant Execution Policy and enable at least one channel.';
             }
 
             if ($maxAmount !== null && $checkerAmount !== null && $checkerAmount > $maxAmount) {
@@ -115,13 +115,8 @@ class TenantExecutionModeService
         }
 
         if ($mode === self::MODE_DECISION_ONLY) {
-            $normalizedProvider = null;
-            $channels = [];
-            $maxAmount = null;
-            $dailyAmount = null;
-            $monthlyAmount = null;
-            $checkerAmount = null;
-            $notes = null;
+            // Preserve configured execution policy while mode is disabled.
+            // This lets operators pre-configure channels/caps and switch to execution_enabled later without re-entry.
         }
 
         if ($errors !== []) {
@@ -184,3 +179,5 @@ class TenantExecutionModeService
         return $trimmed !== '' ? $trimmed : null;
     }
 }
+
+

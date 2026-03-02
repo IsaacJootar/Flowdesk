@@ -1128,6 +1128,27 @@
                         </div>
 
                         <div class="rounded-xl border border-slate-200 p-4">
+                            <div class="mb-2 flex items-center justify-between gap-2">
+                                <p class="text-sm font-semibold text-slate-800">Procurement Handoff</p>
+                                @if ($selectedRequest['linked_purchase_order'])
+                                    <span class="inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">Linked</span>
+                                @else
+                                    <span class="inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-700">Not linked</span>
+                                @endif
+                            </div>
+
+                            @if ($selectedRequest['linked_purchase_order'])
+                                <p class="text-xs text-slate-600">
+                                    PO {{ $selectedRequest['linked_purchase_order']['po_number'] }} |
+                                    {{ $selectedRequest['linked_purchase_order']['currency'] }} {{ number_format((int) $selectedRequest['linked_purchase_order']['amount']) }} |
+                                    {{ ucfirst(str_replace('_', ' ', (string) $selectedRequest['linked_purchase_order']['status'])) }}
+                                </p>
+                            @else
+                                <p class="text-xs text-slate-600">Convert approved request to procurement order for pre-payment control and commitment posting.</p>
+                            @endif
+                        </div>
+
+                        <div class="rounded-xl border border-slate-200 p-4">
                             <div class="mb-3 flex items-center justify-between">
                                 <p class="text-sm font-semibold text-slate-800">Request Thread</p>
                                 <span class="text-xs text-slate-500">{{ count($selectedRequest['comments']) }} message(s)</span>
@@ -1285,6 +1306,12 @@
                                 Edit Draft
                             </button>
                         @endif
+                        @if ($selectedRequest['can_convert_to_po'])
+                            <button type="button" wire:click="convertSelectedRequestToPurchaseOrder" wire:loading.attr="disabled" wire:target="convertSelectedRequestToPurchaseOrder" class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-700 hover:bg-amber-100 disabled:opacity-70">
+                                <span wire:loading.remove wire:target="convertSelectedRequestToPurchaseOrder">Convert to PO</span>
+                                <span wire:loading wire:target="convertSelectedRequestToPurchaseOrder">Converting...</span>
+                            </button>
+                        @endif
                         @if ($selectedRequest['can_create_expense'])
                             <button type="button" wire:click="createExpenseFromSelectedRequest" wire:loading.attr="disabled" wire:target="createExpenseFromSelectedRequest" class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-70">
                                 <span wire:loading.remove wire:target="createExpenseFromSelectedRequest">Create Expense</span>
@@ -1306,6 +1333,7 @@
         </div>
     @endif
 </div>
+
 
 
 

@@ -35,7 +35,7 @@ class TenantPlanEntitlementsPage extends Component
     /** @var array{plan_code:string,subscription_status:string,seat_limit:string,starts_at:string,ends_at:string,grace_until:string,billing_reference:string,notes:string} */
     public array $planForm = [];
 
-    /** @var array{requests_enabled:bool,expenses_enabled:bool,vendors_enabled:bool,budgets_enabled:bool,assets_enabled:bool,reports_enabled:bool,communications_enabled:bool,ai_enabled:bool,fintech_enabled:bool} */
+    /** @var array{requests_enabled:bool,expenses_enabled:bool,vendors_enabled:bool,budgets_enabled:bool,assets_enabled:bool,reports_enabled:bool,communications_enabled:bool,ai_enabled:bool,fintech_enabled:bool,procurement_enabled:bool,treasury_enabled:bool} */
     public array $entitlementsForm = [];
 
     public function mount(Company $company): void
@@ -85,6 +85,8 @@ class TenantPlanEntitlementsPage extends Component
             'entitlementsForm.communications_enabled' => ['boolean'],
             'entitlementsForm.ai_enabled' => ['boolean'],
             'entitlementsForm.fintech_enabled' => ['boolean'],
+            'entitlementsForm.procurement_enabled' => ['boolean'],
+            'entitlementsForm.treasury_enabled' => ['boolean'],
         ]);
 
         $actor = Auth::user();
@@ -128,6 +130,8 @@ class TenantPlanEntitlementsPage extends Component
                     'communications_enabled' => (bool) $this->entitlementsForm['communications_enabled'],
                     'ai_enabled' => (bool) $this->entitlementsForm['ai_enabled'],
                     'fintech_enabled' => (bool) $this->entitlementsForm['fintech_enabled'],
+                    'procurement_enabled' => (bool) $this->entitlementsForm['procurement_enabled'],
+                    'treasury_enabled' => (bool) $this->entitlementsForm['treasury_enabled'],
                     'created_by' => $entitlements?->created_by ?? $actor->id,
                     'updated_by' => $actor->id,
                 ]
@@ -213,6 +217,8 @@ class TenantPlanEntitlementsPage extends Component
             'communications_enabled' => (bool) ($entitlements?->communications_enabled ?? true),
             'ai_enabled' => (bool) ($entitlements?->ai_enabled ?? false),
             'fintech_enabled' => (bool) ($entitlements?->fintech_enabled ?? false),
+            'procurement_enabled' => (bool) ($entitlements?->procurement_enabled ?? false),
+            'treasury_enabled' => (bool) ($entitlements?->treasury_enabled ?? false),
         ];
     }
 
@@ -251,3 +257,5 @@ class TenantPlanEntitlementsPage extends Component
         $this->feedbackKey++;
     }
 }
+
+

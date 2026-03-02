@@ -5,6 +5,7 @@ namespace App\Livewire\Platform;
 use App\Domains\Company\Models\Company;
 use App\Domains\Company\Models\TenantSubscription;
 use App\Livewire\Platform\Concerns\InteractsWithTenantCompanies;
+use App\Services\Execution\ExecutionAdapterRegistry;
 use App\Services\TenantAuditLogger;
 use App\Services\TenantExecutionModeService;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -34,6 +35,9 @@ class TenantExecutionModePage extends Component
     /** @var array{payment_execution_mode:string,execution_provider:string} */
     public array $modeForm = [];
 
+    /** @var array<int, string> */
+    public array $providerOptions = [];
+
     public function mount(Company $company): void
     {
         $this->authorizePlatformOperator();
@@ -43,15 +47,34 @@ class TenantExecutionModePage extends Component
         $this->hydrateForm();
     }
 
+    public function useManualOperationsProvider(): void
+    {
+        $this->authorizePlatformOperator();
+
+        $this->modeForm['execution_provider'] = 'manual_ops';
+        $this->setFeedback('Execution provider set to manual_ops. Click Save Execution Mode to apply.');
+    }
+
     public function save(): void
     {
         $this->authorizePlatformOperator();
 
         $service = app(TenantExecutionModeService::class);
+        $allowedProviders = array_merge([''], $this->providerValidationOptions());
 
         $this->validate([
             'modeForm.payment_execution_mode' => ['required', Rule::in($service->supportedModes())],
-            'modeForm.execution_provider' => ['nullable', 'string', 'max:80'],
+            'modeForm.execution_provider' => [
+                Rule::requiredIf(fn (): bool => ((string) ($this->modeForm['payment_execution_mode'] ?? '')) === TenantExecutionModeService::MODE_EXECUTION_ENABLED),
+                'nullable',
+                'string',
+                'max:80',
+                Rule::in($allowedProviders),
+            ],
+        ], [
+            'modeForm.execution_provider.required' => 'Execution provider is required when mode is execution-enabled.',
+            'modeForm.execution_provider.required_if' => 'Execution provider is required when mode is execution-enabled.',
+            'modeForm.execution_provider.in' => 'Selected execution provider is not supported.',
         ]);
 
         $actor = Auth::user();
@@ -151,9 +174,16 @@ class TenantExecutionModePage extends Component
 
         $company = $this->tenantCompaniesBaseQuery()->findOrFail((int) $this->company->id);
 
+        $providerHelperKeys = array_values(array_unique(array_filter(array_merge(
+            $this->providerOptions,
+            ['manual_ops', 'paystack', 'flutterwave']
+        ))));
+
         return view('livewire.platform.tenant-execution-mode-page', [
             'company' => $company,
             'modes' => app(TenantExecutionModeService::class)->supportedModes(),
+            'providerOptions' => $this->providerOptions,
+            'providerHelperKeys' => $providerHelperKeys,
         ]);
     }
 
@@ -169,6 +199,39 @@ class TenantExecutionModePage extends Component
             'payment_execution_mode' => (string) ($subscription?->payment_execution_mode ?? TenantExecutionModeService::MODE_DECISION_ONLY),
             'execution_provider' => (string) ($subscription?->execution_provider ?? ''),
         ];
+
+        $this->loadProviderOptions();
+    }
+
+    private function loadProviderOptions(): void
+    {
+        $keys = app(ExecutionAdapterRegistry::class)->providerKeys();
+
+        $normalized = array_values(array_unique(array_filter(array_map(
+            static fn (mixed $key): string => strtolower(trim((string) $key)),
+            $keys
+        ), static fn (string $key): bool => $key !== '' && $key !== 'null')));
+
+        $current = strtolower(trim((string) ($this->modeForm['execution_provider'] ?? '')));
+        if ($current !== '' && ! in_array($current, $normalized, true)) {
+            $normalized[] = $current;
+        }
+
+        sort($normalized);
+
+        $this->providerOptions = array_values($normalized);
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function providerValidationOptions(): array
+    {
+        if ($this->providerOptions === []) {
+            $this->loadProviderOptions();
+        }
+
+        return $this->providerOptions;
     }
 
     private function setFeedback(string $message): void
@@ -185,3 +248,7 @@ class TenantExecutionModePage extends Component
         $this->feedbackKey++;
     }
 }
+
+
+
+

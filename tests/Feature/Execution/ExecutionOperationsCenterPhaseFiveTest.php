@@ -3,9 +3,12 @@
 namespace Tests\Feature\Execution;
 
 use App\Domains\Company\Models\Company;
+use App\Domains\Company\Models\Department;
 use App\Domains\Company\Models\ExecutionWebhookEvent;
 use App\Domains\Company\Models\TenantSubscription;
 use App\Domains\Company\Models\TenantSubscriptionBillingAttempt;
+use App\Domains\Requests\Models\RequestPayoutExecutionAttempt;
+use App\Domains\Requests\Models\SpendRequest;
 use App\Enums\PlatformUserRole;
 use App\Enums\UserRole;
 use App\Livewire\Platform\ExecutionOperationsPage;
@@ -17,7 +20,6 @@ use Livewire\Livewire;
 use Tests\Fakes\Execution\FakeSubscriptionBillingAdapter;
 use Tests\Fakes\Execution\FakeWebhookVerifier;
 use Tests\TestCase;
-
 class ExecutionOperationsCenterPhaseFiveTest extends TestCase
 {
     use RefreshDatabase;
@@ -29,7 +31,11 @@ class ExecutionOperationsCenterPhaseFiveTest extends TestCase
         $this->actingAs($platformUser)
             ->get(route('platform.operations.execution'))
             ->assertOk()
-            ->assertSee('Execution Operations Center');
+            ->assertSee('Execution Operations Center')
+            ->assertSee('Failure Rate')
+            ->assertSee('Runbook Hints')
+            ->assertSee('Auto Recovery Runs')
+            ->assertSee('Alert Summaries');
     }
 
     public function test_non_platform_user_cannot_view_operations_center(): void
@@ -102,6 +108,83 @@ class ExecutionOperationsCenterPhaseFiveTest extends TestCase
             'entity_type' => TenantSubscriptionBillingAttempt::class,
             'entity_id' => $attempt->id,
         ]);
+    }
+
+
+    public function test_platform_recovery_processes_queued_payout_when_request_exists_but_actor_is_platform_scoped(): void
+    {
+        $platformUser = $this->createPlatformUser(PlatformUserRole::PlatformOpsAdmin->value);
+        $tenant = $this->createTenantCompany('Ops Payout Scope Tenant');
+
+        $requester = User::factory()->create([
+            'company_id' => $tenant->id,
+            'role' => UserRole::Staff->value,
+            'is_active' => true,
+        ]);
+
+        $department = Department::query()->create([
+            'company_id' => $tenant->id,
+            'name' => 'Finance',
+            'code' => 'FIN',
+            'is_active' => true,
+        ]);
+
+        $request = SpendRequest::query()->create([
+            'company_id' => $tenant->id,
+            'request_code' => 'FD-REQ-SCOPE-0001',
+            'requested_by' => $requester->id,
+            'department_id' => $department->id,
+            'title' => 'Scope-safe payout request',
+            'amount' => 150000,
+            'currency' => 'NGN',
+            'status' => 'execution_queued',
+            'approved_amount' => 150000,
+            'created_by' => $requester->id,
+            'updated_by' => $requester->id,
+        ]);
+
+        $subscription = TenantSubscription::query()->create([
+            'company_id' => $tenant->id,
+            'plan_code' => 'growth',
+            'subscription_status' => 'current',
+            'payment_execution_mode' => 'execution_enabled',
+            'execution_provider' => 'manual_ops',
+            'execution_allowed_channels' => ['bank_transfer'],
+            'created_by' => $platformUser->id,
+            'updated_by' => $platformUser->id,
+        ]);
+
+        $attempt = RequestPayoutExecutionAttempt::query()->create([
+            'company_id' => $tenant->id,
+            'request_id' => $request->id,
+            'tenant_subscription_id' => $subscription->id,
+            'provider_key' => 'manual_ops',
+            'execution_channel' => 'bank_transfer',
+            'idempotency_key' => 'request:'.$request->id.':scope-test',
+            'execution_status' => 'queued',
+            'amount' => 150000,
+            'currency_code' => 'NGN',
+            'queued_at' => now()->subMinutes(45),
+            'attempt_count' => 1,
+            'created_by' => $platformUser->id,
+            'updated_by' => $platformUser->id,
+        ]);
+
+        $this->actingAs($platformUser);
+
+        Livewire::test(ExecutionOperationsPage::class)
+            ->call('loadData')
+            ->set('batchReason', 'Run payout recovery under platform scope')
+            ->set('batchOlderThanMinutes', '30')
+            ->call('processStuckPayoutQueued')
+            ->assertSet('feedbackError', null)
+            ->assertSet('feedbackMessage', 'Processed 1 of 1 queued payout attempts older than 30 mins. 1 ended as skipped (no-op provider).');
+
+        $attempt->refresh();
+        $request->refresh();
+
+        $this->assertSame('skipped', (string) $attempt->execution_status);
+        $this->assertSame('approved_for_execution', (string) $request->status);
     }
 
     public function test_manual_reconcile_webhook_updates_linked_attempt_and_event(): void
@@ -201,3 +284,9 @@ class ExecutionOperationsCenterPhaseFiveTest extends TestCase
         ]);
     }
 }
+
+
+
+
+
+

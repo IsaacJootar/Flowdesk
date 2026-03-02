@@ -43,7 +43,7 @@ class TenantExecutionAdapterFactory
             return null;
         }
 
-        $mode = (string) ($subscription->payment_execution_mode ?? TenantExecutionModeService::MODE_DECISION_ONLY);
+        $mode = (string) ($subscription->payment_execution_mode ?? TenantExecutionModeService::MODE_DECISION_ONLY); // if execution mode is not set, default to decision-only for safety.
         if ($mode !== TenantExecutionModeService::MODE_EXECUTION_ENABLED) {
             // Decision-only tenants are always forced through the null adapter.
             return null;

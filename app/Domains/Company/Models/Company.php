@@ -2,17 +2,19 @@
 
 namespace App\Domains\Company\Models;
 
-use App\Domains\Requests\Models\CompanyRequestType;
-use App\Domains\Requests\Models\CompanyRequestPolicySetting;
-use App\Domains\Requests\Models\CompanySpendCategory;
 use App\Domains\Approvals\Models\CompanyApprovalTimingSetting;
 use App\Domains\Approvals\Models\DepartmentApprovalTimingOverride;
 use App\Domains\Expenses\Models\CompanyExpensePolicySetting;
+use App\Domains\Procurement\Models\CompanyProcurementControlSetting;
+use App\Domains\Requests\Models\CompanyRequestPolicySetting;
+use App\Domains\Requests\Models\CompanyRequestType;
+use App\Domains\Requests\Models\CompanySpendCategory;
+use App\Domains\Treasury\Models\CompanyTreasuryControlSetting;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Company extends Model
@@ -80,6 +82,16 @@ class Company extends Model
         return $this->hasOne(CompanyExpensePolicySetting::class);
     }
 
+    public function procurementControlSetting(): HasOne
+    {
+        return $this->hasOne(CompanyProcurementControlSetting::class);
+    }
+
+    public function treasuryControlSetting(): HasOne
+    {
+        return $this->hasOne(CompanyTreasuryControlSetting::class);
+    }
+
     public function approvalTimingSetting(): HasOne
     {
         return $this->hasOne(CompanyApprovalTimingSetting::class);
@@ -129,6 +141,7 @@ class Company extends Model
     {
         return $this->hasMany(TenantAuditEvent::class);
     }
+
     public function subscriptionBillingAttempts(): HasMany
     {
         return $this->hasMany(TenantSubscriptionBillingAttempt::class);

@@ -79,7 +79,7 @@ class TenantManagementPage extends Component
     /** @var array{plan_code:string,subscription_status:string,payment_execution_mode:string,execution_provider:string,execution_max_transaction_amount:string,execution_daily_cap_amount:string,execution_monthly_cap_amount:string,execution_maker_checker_threshold_amount:string,execution_allowed_channels:array<int,string>,execution_policy_notes:string,starts_at:string,ends_at:string,grace_until:string,seat_limit:string,billing_reference:string,notes:string} */
     public array $subscriptionForm = [];
 
-    /** @var array{requests_enabled:bool,expenses_enabled:bool,vendors_enabled:bool,budgets_enabled:bool,assets_enabled:bool,reports_enabled:bool,communications_enabled:bool,ai_enabled:bool,fintech_enabled:bool} */
+    /** @var array{requests_enabled:bool,expenses_enabled:bool,vendors_enabled:bool,budgets_enabled:bool,assets_enabled:bool,reports_enabled:bool,communications_enabled:bool,ai_enabled:bool,fintech_enabled:bool,procurement_enabled:bool,treasury_enabled:bool} */
     public array $entitlementsForm = [];
 
     /** @var array{amount:string,currency_code:string,payment_method:string,reference:string,received_at:string,period_start:string,period_end:string,note:string} */
@@ -246,6 +246,8 @@ class TenantManagementPage extends Component
             'communications_enabled' => (bool) ($entitlements?->communications_enabled ?? true),
             'ai_enabled' => (bool) ($entitlements?->ai_enabled ?? false),
             'fintech_enabled' => (bool) ($entitlements?->fintech_enabled ?? false),
+            'procurement_enabled' => (bool) ($entitlements?->procurement_enabled ?? false),
+            'treasury_enabled' => (bool) ($entitlements?->treasury_enabled ?? false),
         ];
     }
 
@@ -323,6 +325,8 @@ class TenantManagementPage extends Component
             'entitlementsForm.communications_enabled' => ['boolean'],
             'entitlementsForm.ai_enabled' => ['boolean'],
             'entitlementsForm.fintech_enabled' => ['boolean'],
+            'entitlementsForm.procurement_enabled' => ['boolean'],
+            'entitlementsForm.treasury_enabled' => ['boolean'],
         ]);
 
         $user = Auth::user();
@@ -439,6 +443,8 @@ class TenantManagementPage extends Component
                     'communications_enabled' => (bool) $this->entitlementsForm['communications_enabled'],
                     'ai_enabled' => (bool) $this->entitlementsForm['ai_enabled'],
                     'fintech_enabled' => (bool) $this->entitlementsForm['fintech_enabled'],
+                    'procurement_enabled' => (bool) $this->entitlementsForm['procurement_enabled'],
+                    'treasury_enabled' => (bool) $this->entitlementsForm['treasury_enabled'],
                     'created_by' => $user->id,
                     'updated_by' => $user->id,
                 ]
@@ -1103,6 +1109,8 @@ class TenantManagementPage extends Component
             'communications_enabled' => true,
             'ai_enabled' => false,
             'fintech_enabled' => false,
+            'procurement_enabled' => false,
+            'treasury_enabled' => false,
         ];
 
         $this->applyPlanDefaultsToForm((string) $this->subscriptionForm['plan_code']);
@@ -1189,6 +1197,8 @@ class TenantManagementPage extends Component
             'communications_enabled' => (bool) $entitlements->communications_enabled,
             'ai_enabled' => (bool) $entitlements->ai_enabled,
             'fintech_enabled' => (bool) $entitlements->fintech_enabled,
+            'procurement_enabled' => (bool) $entitlements->procurement_enabled,
+            'treasury_enabled' => (bool) $entitlements->treasury_enabled,
         ];
     }
 
@@ -1356,6 +1366,9 @@ class TenantManagementPage extends Component
         app(PlatformAccessService::class)->authorizePlatformOperator();
     }
 }
+
+
+
 
 
 

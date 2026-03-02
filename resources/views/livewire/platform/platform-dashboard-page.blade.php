@@ -36,18 +36,26 @@
         @endif
     </section>
 
-    <div class="grid gap-4 md:grid-cols-3">
-        <a href="{{ route('platform.tenants') }}" class="fd-card block p-5 transition hover:border-slate-300">
-            <p class="text-sm font-semibold text-slate-900">Tenant / Org Management</p>
-            <p class="mt-1 text-sm text-slate-500">Manage lifecycle, plans, entitlements, and manual billing records.</p>
+    <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+        <a href="{{ route('platform.tenants') }}" class="block rounded-2xl border border-sky-200 bg-sky-50 p-5 transition hover:border-sky-300 hover:bg-sky-100">
+            <p class="text-sm font-semibold text-sky-900">Tenant / Org Management</p>
+            <p class="mt-1 text-sm text-sky-700">Manage lifecycle, plans, entitlements, and manual billing records.</p>
         </a>
-        <a href="{{ route('platform.users') }}" class="fd-card block p-5 transition hover:border-slate-300">
-            <p class="text-sm font-semibold text-slate-900">Platform Users</p>
-            <p class="mt-1 text-sm text-slate-500">Assign global roles for platform owner, billing admin, and ops admin.</p>
+        <a href="{{ route('platform.users') }}" class="block rounded-2xl border border-indigo-200 bg-indigo-50 p-5 transition hover:border-indigo-300 hover:bg-indigo-100">
+            <p class="text-sm font-semibold text-indigo-900">Platform Users</p>
+            <p class="mt-1 text-sm text-indigo-700">Assign global roles for platform owner, billing admin, and ops admin.</p>
         </a>
-        <a href="{{ route('platform.operations.execution') }}" class="fd-card block p-5 transition hover:border-slate-300">
-            <p class="text-sm font-semibold text-slate-900">Execution Operations</p>
-            <p class="mt-1 text-sm text-slate-500">Retry failures, process stuck queues, and reconcile webhook dead-letter events.</p>
+        <a href="{{ route('platform.operations.execution') }}" class="block rounded-2xl border border-emerald-200 bg-emerald-50 p-5 transition hover:border-emerald-300 hover:bg-emerald-100">
+            <p class="text-sm font-semibold text-emerald-900">Execution Operations</p>
+            <p class="mt-1 text-sm text-emerald-700">Retry failures, process stuck queues, and reconcile webhook dead-letter events.</p>
+        </a>
+        <a href="{{ route('platform.operations.execution-checklist') }}" class="block rounded-2xl border border-amber-200 bg-amber-50 p-5 transition hover:border-amber-300 hover:bg-amber-100">
+            <p class="text-sm font-semibold text-amber-900">Execution Test Checklist</p>
+            <p class="mt-1 text-sm text-amber-700">Run end-to-end dry-runs from UI for execution mode, retries, and reconciliation.</p>
+        </a>
+        <a href="{{ route('platform.operations.incident-history') }}" class="block rounded-2xl border border-violet-200 bg-violet-50 p-5 transition hover:border-violet-300 hover:bg-violet-100">
+            <p class="text-sm font-semibold text-violet-900">Incident History</p>
+            <p class="mt-1 text-sm text-violet-700">Review recovery and execution incident timelines with filters, trends, and exports.</p>
         </a>
     </div>
 </div>

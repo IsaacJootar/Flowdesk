@@ -30,7 +30,7 @@
         </a>
     </div>
 
-    @include('livewire.platform.partials.tenant-section-tabs', ['company' => $company])
+    @include('livewire.platform.partials.tenant-section-tabs', ['company' => $company, 'tenantContextRoute' => 'platform.tenants.execution-policy'])
 
     <form wire:submit.prevent="save" class="fd-card space-y-4 p-5">
         <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -77,3 +77,7 @@
         </div>
     </form>
 </div>
+
+
+
+

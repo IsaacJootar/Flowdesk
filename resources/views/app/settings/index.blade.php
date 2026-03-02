@@ -80,7 +80,22 @@
             <p class="mt-2 text-sm text-slate-500">Configure per-action vendor permissions for profile, finance, exports, and communications.</p>
         </a>
 
-        <a href="{{ route('profile.edit') }}" class="fd-card block p-6 transition hover:border-slate-300" style="background-color: #fafafa;">
+        <a href="{{ route('settings.procurement-controls') }}" class="fd-card block p-6 transition hover:border-slate-300" style="background-color: #fff7ed;">
+            <h2 class="flex items-center gap-2 text-sm font-semibold text-slate-900">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="h-4 w-4 text-orange-700"><path stroke-linecap="round" stroke-linejoin="round" d="M3 7h18M6 7V5a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v2m-1 4H7m12 0v8a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-8h14Z"/></svg>
+                Procurement Controls
+            </h2>
+            <p class="mt-2 text-sm text-slate-500">Configure request-to-PO conversion and commitment issue guardrails.</p>
+        </a>
+
+        <a href="{{ route('settings.treasury-controls') }}" class="fd-card block p-6 transition hover:border-slate-300" style="background-color: #f5f3ff;">
+            <h2 class="flex items-center gap-2 text-sm font-semibold text-slate-900">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="h-4 w-4 text-violet-700"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16v12H4zM8 10h8m-8 4h5"/></svg>
+                Treasury Controls
+            </h2>
+            <p class="mt-2 text-sm text-slate-500">Configure statement import and reconciliation matching tolerances.</p>
+        </a>
+<a href="{{ route('profile.edit') }}" class="fd-card block p-6 transition hover:border-slate-300" style="background-color: #fafafa;">
             <h2 class="flex items-center gap-2 text-sm font-semibold text-slate-900">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="h-4 w-4 text-zinc-700"><path stroke-linecap="round" stroke-linejoin="round" d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-7 9a7 7 0 0 1 14 0"/></svg>
                 Profile
@@ -89,3 +104,6 @@
         </a>
     </div>
 </x-app-layout>
+
+
+

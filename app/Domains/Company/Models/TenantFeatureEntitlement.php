@@ -22,6 +22,8 @@ class TenantFeatureEntitlement extends Model
         'communications_enabled',
         'ai_enabled',
         'fintech_enabled',
+        'procurement_enabled',
+        'treasury_enabled',
         'created_by',
         'updated_by',
     ];
@@ -38,6 +40,8 @@ class TenantFeatureEntitlement extends Model
             'communications_enabled' => 'boolean',
             'ai_enabled' => 'boolean',
             'fintech_enabled' => 'boolean',
+            'procurement_enabled' => 'boolean',
+            'treasury_enabled' => 'boolean',
         ];
     }
 
@@ -56,4 +60,5 @@ class TenantFeatureEntitlement extends Model
         return $this->belongsTo(User::class, 'updated_by');
     }
 }
+
 

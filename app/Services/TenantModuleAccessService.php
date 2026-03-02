@@ -57,11 +57,14 @@ class TenantModuleAccessService
             'vendors.index', 'vendors.show', 'vendors.reports' => $this->moduleEnabled($user, 'vendors'),
             'budgets.index' => $this->moduleEnabled($user, 'budgets'),
             'assets.index', 'assets.reports' => $this->moduleEnabled($user, 'assets'),
+            'procurement.orders' => $this->moduleEnabled($user, 'procurement'),
             'approval-workflows.index', 'settings.request-configuration', 'settings.approval-timing-controls' => $this->moduleEnabled($user, 'requests'),
             'settings.communications' => $this->moduleEnabled($user, 'communications'),
             'settings.expense-controls' => $this->moduleEnabled($user, 'expenses'),
             'settings.vendor-controls' => $this->moduleEnabled($user, 'vendors'),
             'settings.asset-controls' => $this->moduleEnabled($user, 'assets'),
+            'settings.procurement-controls' => $this->moduleEnabled($user, 'procurement'),
+            'settings.treasury-controls' => $this->moduleEnabled($user, 'treasury'),
             default => true,
         };
     }
@@ -81,6 +84,8 @@ class TenantModuleAccessService
             'communications' => true,
             'ai' => false,
             'fintech' => false,
+            'procurement' => false,
+            'treasury' => false,
         ];
 
         if (! $user || ! $user->company_id) {
@@ -111,6 +116,8 @@ class TenantModuleAccessService
             'communications' => (bool) $entitlements->communications_enabled,
             'ai' => (bool) $entitlements->ai_enabled,
             'fintech' => (bool) $entitlements->fintech_enabled,
+            'procurement' => (bool) $entitlements->procurement_enabled,
+            'treasury' => (bool) $entitlements->treasury_enabled,
         ];
     }
 }

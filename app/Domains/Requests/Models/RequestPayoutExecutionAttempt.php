@@ -64,7 +64,9 @@ class RequestPayoutExecutionAttempt extends Model
 
     public function request(): BelongsTo
     {
-        return $this->belongsTo(SpendRequest::class, 'request_id');
+        return $this->belongsTo(SpendRequest::class, 'request_id')
+            ->withoutGlobalScopes()
+            ->withTrashed();
     }
 
     public function subscription(): BelongsTo
@@ -87,3 +89,4 @@ class RequestPayoutExecutionAttempt extends Model
         return $this->hasMany(ExecutionWebhookEvent::class, 'request_payout_execution_attempt_id');
     }
 }
+

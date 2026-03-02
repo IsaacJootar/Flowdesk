@@ -1,202 +1,249 @@
 # Flowdesk Real Provider Integration Guide
 
-This guide shows exactly where to plug in a real execution provider (for example Paystack, Flutterwave, Stripe), and which commands to run.
+This guide explains provider plug points, adapter usage, manual operations flow, and where each status/toast appears in UI.
+For full module-level implementation inventory, see `FLOWDESK_MODULE_STATUS.md`.
 
-## 1) Integration Surface (Core Files)
+## 1) Exact Plug Points (Files)
 
-### Contracts (what your provider must implement)
-- `app/Services/Execution/Contracts/SubscriptionBillingAdapterInterface.php`
-- `app/Services/Execution/Contracts/PayoutExecutionAdapterInterface.php`
-- `app/Services/Execution/Contracts/ProviderWebhookVerifierInterface.php`
+## Core interfaces (provider contract)
+1. `app/Services/Execution/Contracts/SubscriptionBillingAdapterInterface.php`
+2. `app/Services/Execution/Contracts/PayoutExecutionAdapterInterface.php`
+3. `app/Services/Execution/Contracts/ProviderWebhookVerifierInterface.php`
 
-### Provider resolution and runtime wiring
-- `app/Services/Execution/ExecutionAdapterRegistry.php`
-- `app/Services/Execution/TenantExecutionAdapterFactory.php`
-- `config/execution.php`
+## DTO payload/result layer
+1. `app/Services/Execution/DTO/SubscriptionBillingRequestData.php`
+2. `app/Services/Execution/DTO/PayoutExecutionRequestData.php`
+3. `app/Services/Execution/DTO/ProviderWebhookPayloadData.php`
+4. `app/Services/Execution/DTO/SubscriptionBillingResponseData.php`
+5. `app/Services/Execution/DTO/PayoutExecutionResponseData.php`
+6. `app/Services/Execution/DTO/AdapterOperationResult.php`
+7. `app/Services/Execution/DTO/AdapterOperationStatus.php`
+8. `app/Services/Execution/DTO/AdapterErrorData.php`
+9. `app/Services/Execution/DTO/WebhookVerificationResultData.php`
+10. `app/Services/Execution/DTO/ExecutionRetryMetadata.php`
 
-### Processing and orchestration
-- `app/Services/Execution/SubscriptionAutoBillingOrchestrator.php`
-- `app/Services/Execution/SubscriptionBillingAttemptProcessor.php`
-- `app/Services/Execution/RequestPayoutExecutionAttemptProcessor.php`
-- `app/Services/Execution/SubscriptionBillingWebhookReconciliationService.php`
-- `app/Services/Execution/RequestPayoutWebhookReconciliationService.php`
+## Provider resolution and runtime wiring
+1. `app/Services/Execution/ExecutionAdapterRegistry.php`
+2. `app/Services/Execution/TenantExecutionAdapterFactory.php`
+3. `config/execution.php`
 
-### Webhook endpoint
-- `routes/web.php` (`POST /webhooks/execution/{provider}`)
-- `app/Http/Controllers/ExecutionWebhookController.php`
+`TenantExecutionAdapterFactory` selects adapter implementation by tenant mode/provider.
 
-### Platform setup UI
-- `app/Livewire/Platform/TenantExecutionModePage.php`
-- `resources/views/livewire/platform/tenant-execution-mode-page.blade.php`
+## Execution processors and reconciliation
+1. `app/Services/Execution/SubscriptionAutoBillingOrchestrator.php`
+2. `app/Services/Execution/SubscriptionBillingAttemptProcessor.php`
+3. `app/Services/Execution/RequestPayoutExecutionAttemptProcessor.php`
+4. `app/Services/Execution/SubscriptionBillingWebhookReconciliationService.php`
+5. `app/Services/Execution/RequestPayoutWebhookReconciliationService.php`
 
-### Ops center (retry/reconcile)
-- `app/Livewire/Platform/ExecutionOperationsPage.php`
-- `resources/views/livewire/platform/execution-operations-page.blade.php`
-- `app/Services/Execution/ExecutionWebhookManualReconciliationService.php`
+## Webhook endpoint
+1. Route: `routes/web.php` (`POST /webhooks/execution/{provider}`)
+2. Controller: `app/Http/Controllers/ExecutionWebhookController.php`
+
+## Platform setup UI and Ops
+1. `app/Livewire/Platform/TenantExecutionModePage.php`
+2. `resources/views/livewire/platform/tenant-execution-mode-page.blade.php`
+3. `app/Livewire/Platform/ExecutionOperationsPage.php`
+4. `resources/views/livewire/platform/execution-operations-page.blade.php`
+5. `app/Livewire/Platform/IncidentHistoryPage.php`
+6. `resources/views/livewire/platform/incident-history-page.blade.php`
+
+---
+
+## 2) Adapter Usage vs Guardrails
+
+## What adapters do
+1. Transform internal DTOs to provider API calls.
+2. Return normalized operation results (`settled`, `failed`, `queued`, `skipped`, etc).
+3. Verify/normalize webhook payloads.
+
+## What adapters do not do
+1. Global queue monitoring across tenants.
+2. Recovery batching policy (up to 200 per click).
+3. Operations-center reasoning toasts and breakdown summaries.
+4. Alerting/reporting (`execution:ops:alert-summary`).
+
+## Where guardrails live
+1. Processors/reconciliation services apply state transitions.
+2. `ExecutionOperationsPage` performs manual recovery, batch filters, and toast messaging.
+3. Console/reporting commands provide cross-system reliability visibility.
 
 ---
 
-## Prebuilt Provider Plugin Files (Added)
+## 3) End-to-End Runtime Flow
 
-The following adapter plugins are already created in code and currently disabled by config comments:
-
-### Paystack
-1. pp/Services/Execution/Adapters/PaystackSubscriptionBillingAdapter.php
-2. pp/Services/Execution/Adapters/PaystackPayoutExecutionAdapter.php
-3. pp/Services/Execution/Adapters/PaystackWebhookVerifier.php
-
-### Flutterwave
-1. pp/Services/Execution/Adapters/FlutterwaveSubscriptionBillingAdapter.php
-2. pp/Services/Execution/Adapters/FlutterwavePayoutExecutionAdapter.php
-3. pp/Services/Execution/Adapters/FlutterwaveWebhookVerifier.php
-
-To activate either provider, uncomment its block in config/execution.php under providers.
+1. Request/billing event queues an execution attempt.
+2. Processor builds DTO and resolves adapter via `TenantExecutionAdapterFactory`.
+3. Adapter executes provider call and returns normalized result DTO.
+4. Processor maps result to internal lifecycle (`queued`, `processing`, `webhook_pending`, `settled`, `failed`, `reversed`, `skipped`).
+5. Webhook verifier validates callbacks and reconciliation services finalize attempt/request states.
+6. Platform Ops can manually retry/recover/reconcile from Execution Operations UI.
 
 ---
-## 2) Step-by-Step: Add a Real Provider
 
-## Step A: Create provider adapters
-Create 3 classes in `app/Services/Execution/Adapters/`:
-1. `YourProviderSubscriptionBillingAdapter.php`
-2. `YourProviderPayoutExecutionAdapter.php`
-3. `YourProviderWebhookVerifier.php`
+## 4) Manual Ops Flow (Execution Operations)
 
-They must implement:
-1. `SubscriptionBillingAdapterInterface`
-2. `PayoutExecutionAdapterInterface`
-3. `ProviderWebhookVerifierInterface`
+Route: `http://127.0.0.1:8000/platform/operations/execution`
+Incident timeline route: `http://127.0.0.1:8000/platform/operations/incident-history`
 
-Map provider payloads to Flowdesk DTO responses:
-1. `AdapterOperationResult`
-2. `SubscriptionBillingResponseData`
-3. `PayoutExecutionResponseData`
-4. `WebhookVerificationResultData`
+## Filter row layout (3 + 3)
+1. Row 1: `Tenant`, `Provider`, `Pipeline`
+2. Row 2: `Status`, `Display Age Filter (mins)`, `Display Scope`
 
-Use existing adapters as references:
-1. `app/Services/Execution/Adapters/NullSubscriptionBillingAdapter.php`
-2. `app/Services/Execution/Adapters/NullPayoutExecutionAdapter.php`
-3. `app/Services/Execution/Adapters/ManualOpsWebhookVerifier.php`
+## Recovery controls
+1. `Recovery Note`
+2. `Recovery Age Threshold (mins)`
+3. Buttons:
+   - `Run Billing Recovery`
+   - `Run Payout Recovery`
+   - `Run Webhook Recovery`
 
-## Step B: Register provider in config
-Update `config/execution.php` under `providers`:
+Helper note in UI:
+`Recovery runs process up to 200 queued records per click. Age threshold uses queued time, not record creation time.`
 
-```php
-'your_provider_key' => [
-    'subscription_billing_adapter' => \App\Services\Execution\Adapters\YourProviderSubscriptionBillingAdapter::class,
-    'payout_execution_adapter' => \App\Services\Execution\Adapters\YourProviderPayoutExecutionAdapter::class,
-    'webhook_verifier' => \App\Services\Execution\Adapters\YourProviderWebhookVerifier::class,
-    'webhook_secret' => env('FLOWDESK_YOUR_PROVIDER_WEBHOOK_SECRET', ''),
-],
-```
+## Incident dashboard cards in UI
+1. `Failure Rate (Xm)`
+2. `Skipped Rate (Xm)`
+3. `Oldest Queue Age`
+4. `Last Recovery Outcome`
+5. `Auto Recovery Runs` table (timestamp, tenant, pipeline, provider, matched, processed, skipped, rejected)
 
-## Step C: Add environment secrets
-Update `.env`:
+## Runbook links in UI
+1. Provider/config checks
+2. Missing request
+3. Missing subscription
+4. State changed
+5. Invalid verification
+6. Missing linked attempt
+
+## Recovery toast logic (matched vs processed)
+1. `matched = 0`
+   - `No queued <pipeline records> matched the recovery age threshold (X mins).`
+2. `matched > 0 && processed = 0`
+   - `Found N queued <pipeline records> older than X mins, but none were processed. Check provider/config/state and retry. Breakdown: ...`
+3. `processed > 0`
+   - `Processed P of N queued <pipeline records> older than X mins.`
+   - If no-op provider caused skip outcomes: append `Y ended as skipped (no-op provider).`
+
+## Breakdown keys by pipeline
+1. Billing: `missing subscription`, `state changed`, `other`
+2. Payout: `missing request`, `missing subscription`, `state changed`, `other`
+3. Webhook: `invalid verification`, `missing linked attempt`, `state changed`, `other`
+
+---
+
+## 5) Why `skipped` Happens in Manual Recovery
+
+`manual_ops`/null-style provider adapters intentionally avoid real transfer/billing side-effects.
+A queued recovery can be successfully processed by the system but finalized as `skipped` to indicate no external provider execution was performed.
+
+---
+
+## 6) Enable a Real Provider (When Ready)
+
+## Step A: Uncomment provider block
+In `config/execution.php`, uncomment either `paystack` or `flutterwave` block under `providers`.
+
+## Step B: Set env values
+Example:
 
 ```env
 FLOWDESK_EXECUTION_FALLBACK_PROVIDER=null
-FLOWDESK_YOUR_PROVIDER_WEBHOOK_SECRET=replace_me
-FLOWDESK_YOUR_PROVIDER_API_KEY=replace_me
-FLOWDESK_YOUR_PROVIDER_BASE_URL=https://api.provider.com
+
+# Paystack
+FLOWDESK_PAYSTACK_BASE_URL=https://api.paystack.co
+FLOWDESK_PAYSTACK_SECRET_KEY=...
+
+# Flutterwave
+FLOWDESK_FLUTTERWAVE_BASE_URL=https://api.flutterwave.com/v3
+FLOWDESK_FLUTTERWAVE_SECRET_KEY=...
+FLOWDESK_FLUTTERWAVE_WEBHOOK_SECRET_HASH=...
+FLOWDESK_FLUTTERWAVE_REDIRECT_URL=https://your-domain.com/payments/flutterwave/redirect
 ```
 
-If you add new config keys, run:
+Then run:
 
 ```bash
 php artisan config:clear
 ```
 
-## Step D: Enable provider per tenant
-In platform UI:
+## Step C: Set tenant execution provider in UI
 1. Open `Platform -> Tenant Execution Mode`
 2. Set `Payment Execution Mode = execution_enabled`
-3. Set `Execution Provider = your_provider_key`
+3. Set `Execution Provider = paystack` or `flutterwave`
 4. Save
 
-If mode cannot enable, verify tenant guardrails are satisfied:
-1. active tenant lifecycle
-2. current billing/subscription status
-3. required module entitlements
-4. default payment authorization workflow exists
-
-## Step E: Provider webhook setup
-Set provider callback URL to:
+## Step D: Configure provider webhook callback
+Set callback URL at provider dashboard:
 
 ```text
-https://your-domain.com/webhooks/execution/your_provider_key
+https://your-domain.com/webhooks/execution/{provider}
 ```
 
-Flowdesk route:
-- `POST /webhooks/execution/{provider}`
-
-Webhook flow:
-1. `ExecutionWebhookController` accepts payload/signature
-2. `SubscriptionBillingWebhookReconciliationService` verifies and reconciles
-3. falls back to `RequestPayoutWebhookReconciliationService` when payload matches payout attempts
+Examples:
+1. `/webhooks/execution/paystack`
+2. `/webhooks/execution/flutterwave`
 
 ---
 
-## 3) Commands for Local/Server Operations
+## 7) End-to-End Test From UI (No Live Provider Yet)
 
-## App runtime
+Use default `manual_ops` to validate internal execution flow and operations tooling safely.
+
+1. In `Platform -> Tenant Execution Mode`, set mode `execution_enabled`, provider `manual_ops`.
+2. Create and approve a request through both approval scopes.
+3. Open `Platform -> Execution Operations`, filter `Pipeline = payout`.
+4. Run recovery/retry and verify toast + breakdown behavior.
+
+Optional webhook simulation:
+
+```bash
+curl -X POST http://127.0.0.1:8000/webhooks/execution/manual_ops \
+  -H "Content-Type: application/json" \
+  -d "{\"event_id\":\"evt-local-001\",\"event_type\":\"payout.settled\",\"payout_attempt_id\":1,\"status\":\"settled\"}"
+```
+
+---
+
+## 8) Local Commands
+
 ```bash
 php artisan serve
 php artisan queue:work
 php artisan schedule:work
-```
 
-## Billing and execution pipelines
-```bash
 php artisan tenants:billing:auto-charge
 php artisan tenants:billing:process-queued --batch=500
 php artisan execution:ops:alert-summary
-```
+php artisan execution:ops:auto-recover --dry-run
+php artisan execution:ops:auto-recover --batch=100
 
-## Tests (execution tracks)
-```bash
 php artisan test tests/Feature/Execution/SubscriptionAutoBillingPhaseThreeTest.php
 php artisan test tests/Feature/Execution/RequestPayoutExecutionPhaseFourTest.php
 php artisan test tests/Feature/Execution/ExecutionOperationsCenterPhaseFiveTest.php
 ```
 
-## Route check
-```bash
-php artisan route:list | findstr execution
-```
+---
+
+## 9) Production Hardening Notes
+
+1. Keep secrets in env/secret manager; do not store raw keys in DB.
+2. Enforce webhook signature/hash verification per provider.
+3. Keep idempotency keys stable per operation.
+4. Use Ops Center retry/reconcile with reasons for audit traceability.
+5. Monitor repeated failures with `execution:ops:alert-summary`.
+
+
+
 
 ---
 
-## 4) Quick Smoke Test Sequence
+## 10) Incident History UI
 
-1. Configure tenant as `execution_enabled` with your provider key.
-2. Trigger billing orchestration (`tenants:billing:auto-charge`).
-3. Process queue (`tenants:billing:process-queued`).
-4. Confirm attempt row created in `tenant_subscription_billing_attempts`.
-5. Send webhook callback from provider/sandbox to `/webhooks/execution/{provider}`.
-6. Confirm status changes in billing/payout attempt tables.
-7. Open `Platform -> Execution Operations` and verify pipeline rows.
-8. If needed, use retry/reconcile actions with reason.
+The dedicated Incident History page provides a cross-tenant incident ledger for execution operations.
 
----
-
-## 5) Where Provider Dropdown Values Come From Today
-
-In `Platform -> Execution Operations`, the Provider filter is built from distinct `provider_key` values already present in:
-1. billing attempts
-2. payout attempts
-3. webhook events
-
-Source:
-- `app/Livewire/Platform/ExecutionOperationsPage.php` (`providerOptions()`)
-
-This means providers appear after records exist. If you want config-driven provider options, add a second source from `config('execution.providers')`.
-
----
-
-## 6) Recommended Production Hardening
-
-1. Use provider idempotency keys for both billing and payouts.
-2. Enforce strict signature verification in webhook verifier.
-3. Store only credential references in DB; keep secrets in env/secret manager.
-4. Keep retries controlled via Ops Center and queue policies.
-5. Monitor repeated failures with `execution:ops:alert-summary` and central logs.
+1. Filters: tenant, pipeline, incident type, actor, date range.
+2. Trend: seven-day pipeline chart (billing, payout, webhook, system).
+3. Table: timestamp, tenant, pipeline, type, action, actor, details, metadata drill-down.
+4. Export: CSV download using the active filters.
 

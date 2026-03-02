@@ -2,8 +2,8 @@
 
 namespace App\Policies;
 
-use App\Domains\Requests\Models\SpendRequest;
 use App\Domains\Approvals\Models\RequestApproval;
+use App\Domains\Requests\Models\SpendRequest;
 use App\Enums\UserRole;
 use App\Models\User;
 use App\Services\RequestApprovalRouter;
@@ -106,11 +106,35 @@ class RequestPolicy
             || ($user->role === UserRole::Manager->value && (int) $user->department_id === (int) $request->department_id);
     }
 
+    public function convertToPurchaseOrder(User $user, SpendRequest $request): bool
+    {
+        if (! $this->sameCompany($user, $request)) {
+            return false;
+        }
+
+        if (! in_array((string) $request->status, ['approved', 'approved_for_execution'], true)) {
+            return false;
+        }
+
+        if ($this->hasAnyRole($user, [UserRole::Owner, UserRole::Finance])) {
+            return true;
+        }
+
+        if ($user->role === UserRole::Manager->value) {
+            return (int) $user->department_id === (int) $request->department_id;
+        }
+
+        return false;
+    }
+
     private function sameCompany(User $user, object $model): bool
     {
         return (int) $user->company_id === (int) ($model->company_id ?? 0);
     }
 
+    /**
+     * @param  array<int, UserRole>  $roles
+     */
     private function hasAnyRole(User $user, array $roles): bool
     {
         return in_array($user->role, array_map(fn (UserRole $role): string => $role->value, $roles), true);

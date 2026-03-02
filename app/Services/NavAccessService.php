@@ -86,11 +86,13 @@ class NavAccessService
         return [
             ['route' => 'dashboard', 'pattern' => ['dashboard*'], 'label' => 'Dashboard'],
             ['route' => 'reports.index', 'pattern' => ['reports.index'], 'label' => 'Reports'],
+            ['route' => 'execution.health', 'pattern' => ['execution.health'], 'label' => 'Execution Health'],
             ['route' => 'requests.index', 'pattern' => ['requests.index'], 'label' => 'Requests & Approvals'],
             ['route' => 'requests.communications', 'pattern' => ['requests.communications'], 'label' => 'Inbox & Logs'],
             ['route' => 'requests.reports', 'pattern' => ['requests.reports'], 'label' => 'Request Reports'],
             ['route' => 'expenses.index', 'pattern' => ['expenses.*'], 'label' => 'Expenses'],
             ['route' => 'vendors.index', 'pattern' => ['vendors.index', 'vendors.show', 'vendors.reports'], 'label' => 'Manage Vendors'],
+            ['route' => 'procurement.orders', 'pattern' => ['procurement.orders'], 'label' => 'Procurement'],
             ['route' => 'budgets.index', 'pattern' => ['budgets.*'], 'label' => 'Budgets'],
             ['route' => 'assets.index', 'pattern' => ['assets.*'], 'label' => 'Assets'],
             ['route' => 'departments.index', 'pattern' => ['departments.*'], 'label' => 'Departments'],
@@ -102,6 +104,8 @@ class NavAccessService
             ['route' => 'settings.expense-controls', 'pattern' => ['settings.expense-controls'], 'label' => 'Expense Controls'],
             ['route' => 'settings.asset-controls', 'pattern' => ['settings.asset-controls'], 'label' => 'Asset Controls'],
             ['route' => 'settings.vendor-controls', 'pattern' => ['settings.vendor-controls'], 'label' => 'Vendor Controls'],
+            ['route' => 'settings.procurement-controls', 'pattern' => ['settings.procurement-controls'], 'label' => 'Procurement Controls'],
+            ['route' => 'settings.treasury-controls', 'pattern' => ['settings.treasury-controls'], 'label' => 'Treasury Controls'],
             ['route' => 'settings.index', 'pattern' => ['settings.index'], 'label' => 'Settings'],
         ];
     }
@@ -114,11 +118,13 @@ class NavAccessService
         return [
             ['route' => 'dashboard', 'pattern' => ['dashboard*'], 'label' => 'Dashboard'],
             ['route' => 'reports.index', 'pattern' => ['reports.index'], 'label' => 'Reports'],
+            ['route' => 'execution.health', 'pattern' => ['execution.health'], 'label' => 'Execution Health'],
             ['route' => 'requests.index', 'pattern' => ['requests.index'], 'label' => 'Requests & Approvals'],
             ['route' => 'requests.communications', 'pattern' => ['requests.communications'], 'label' => 'Inbox & Logs'],
             ['route' => 'requests.reports', 'pattern' => ['requests.reports'], 'label' => 'Request Reports'],
             ['route' => 'expenses.index', 'pattern' => ['expenses.*'], 'label' => 'Expenses'],
             ['route' => 'vendors.index', 'pattern' => ['vendors.index', 'vendors.show', 'vendors.reports'], 'label' => 'Vendors'],
+            ['route' => 'procurement.orders', 'pattern' => ['procurement.orders'], 'label' => 'Procurement'],
             ['route' => 'budgets.index', 'pattern' => ['budgets.*'], 'label' => 'Budgets'],
             ['route' => 'assets.index', 'pattern' => ['assets.*'], 'label' => 'Assets'],
         ];
@@ -132,10 +138,12 @@ class NavAccessService
         return [
             ['route' => 'dashboard', 'pattern' => ['dashboard*'], 'label' => 'Dashboard'],
             ['route' => 'reports.index', 'pattern' => ['reports.index'], 'label' => 'Reports'],
+            ['route' => 'execution.health', 'pattern' => ['execution.health'], 'label' => 'Execution Health'],
             ['route' => 'requests.index', 'pattern' => ['requests.index'], 'label' => 'Requests & Approvals'],
             ['route' => 'requests.communications', 'pattern' => ['requests.communications'], 'label' => 'Inbox & Logs'],
             ['route' => 'requests.reports', 'pattern' => ['requests.reports'], 'label' => 'Request Reports'],
             ['route' => 'expenses.index', 'pattern' => ['expenses.*'], 'label' => 'Expenses'],
+            ['route' => 'procurement.orders', 'pattern' => ['procurement.orders'], 'label' => 'Procurement'],
             ['route' => 'budgets.index', 'pattern' => ['budgets.*'], 'label' => 'Budgets'],
             ['route' => 'assets.index', 'pattern' => ['assets.*'], 'label' => 'Assets'],
         ];
@@ -162,11 +170,13 @@ class NavAccessService
     {
         return [
             ['route' => 'dashboard', 'pattern' => ['dashboard*'], 'label' => 'Dashboard'],
+            ['route' => 'execution.health', 'pattern' => ['execution.health'], 'label' => 'Execution Health'],
             ['route' => 'requests.index', 'pattern' => ['requests.index'], 'label' => 'Requests & Approvals'],
             ['route' => 'requests.communications', 'pattern' => ['requests.communications'], 'label' => 'Inbox & Logs'],
             ['route' => 'requests.reports', 'pattern' => ['requests.reports'], 'label' => 'Request Reports'],
             ['route' => 'expenses.index', 'pattern' => ['expenses.*'], 'label' => 'Expenses'],
             ['route' => 'vendors.index', 'pattern' => ['vendors.index', 'vendors.show', 'vendors.reports'], 'label' => 'Vendors'],
+            ['route' => 'procurement.orders', 'pattern' => ['procurement.orders'], 'label' => 'Procurement'],
             ['route' => 'budgets.index', 'pattern' => ['budgets.*'], 'label' => 'Budgets'],
             ['route' => 'assets.index', 'pattern' => ['assets.*'], 'label' => 'Assets'],
         ];
@@ -182,6 +192,8 @@ class NavAccessService
             ['route' => 'platform.tenants', 'pattern' => ['platform.tenants'], 'label' => 'Tenant / Org Management'],
             ['route' => 'platform.users', 'pattern' => ['platform.users'], 'label' => 'Platform Users'],
             ['route' => 'platform.operations.execution', 'pattern' => ['platform.operations.execution'], 'label' => 'Execution Operations'],
+            ['route' => 'platform.operations.execution-checklist', 'pattern' => ['platform.operations.execution-checklist'], 'label' => 'Execution Test Checklist'],
+            ['route' => 'platform.operations.incident-history', 'pattern' => ['platform.operations.incident-history'], 'label' => 'Incident History'],
         ];
 
         $activeTenantId = $this->currentPlatformTenantId() ?? $this->firstExternalTenantId();
@@ -219,17 +231,21 @@ class NavAccessService
             'requests.index' => 'clipboard',
             'requests.communications' => 'inbox',
             'expenses.index' => 'receipt',
+            'procurement.orders' => 'clipboard',
             'vendors.index', 'platform.tenants', 'platform.tenants.show' => 'building',
             'budgets.index', 'platform.tenants.billing' => 'wallet',
             'assets.index' => 'cube',
             'departments.index' => 'office',
             'team.index', 'platform.users' => 'users',
             'platform.operations.execution' => 'flow',
+            'platform.operations.execution-checklist' => 'clipboard',
+            'platform.operations.incident-history' => 'chart',
+            'execution.health' => 'flow',
             'approval-workflows.index', 'platform.tenants.execution-mode' => 'flow',
             'settings.communications' => 'chat',
             'settings.request-configuration', 'platform.tenants.plan-entitlements' => 'sliders',
             'settings.approval-timing-controls' => 'clock',
-            'settings.expense-controls', 'settings.asset-controls', 'settings.vendor-controls', 'platform.tenants.execution-policy' => 'shield',
+            'settings.expense-controls', 'settings.asset-controls', 'settings.vendor-controls', 'settings.procurement-controls', 'settings.treasury-controls', 'platform.tenants.execution-policy' => 'shield',
             'settings.index' => 'cog',
             default => 'dot',
         };
@@ -302,3 +318,8 @@ class NavAccessService
         return $id ? (int) $id : null;
     }
 }
+
+
+
+
+

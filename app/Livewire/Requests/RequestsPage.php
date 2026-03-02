@@ -14,6 +14,7 @@ use App\Domains\Approvals\Models\ApprovalWorkflowStep;
 use App\Domains\Approvals\Models\RequestApproval;
 use App\Domains\Company\Models\CompanyCommunicationSetting;
 use App\Domains\Expenses\Models\Expense;
+use App\Domains\Procurement\Models\PurchaseOrder;
 use App\Domains\Requests\Models\RequestComment;
 use App\Domains\Requests\Models\RequestCommunicationLog;
 use App\Domains\Requests\Models\RequestAttachment;
@@ -26,6 +27,9 @@ use App\Enums\UserRole;
 use App\Models\User;
 use App\Services\ExpensePolicyResolver;
 use App\Services\RequestApprovalRouter;
+use App\Services\TenantModuleAccessService;
+use App\Services\Procurement\CreatePurchaseOrderFromRequestService;
+use App\Services\Procurement\ProcurementControlSettingsService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Gate;
@@ -506,6 +510,13 @@ class RequestsPage extends Component
         }
 
         $this->feedbackError = null;
+
+        if (! app(TenantModuleAccessService::class)->moduleEnabled(\Illuminate\Support\Facades\Auth::user(), 'procurement')) {
+            $this->setFeedbackError('Procurement module is disabled for this organization plan.');
+
+            return;
+        }
+
         $request = $this->loadRequestForView($this->selectedRequestId);
 
         if (Gate::denies('create', Expense::class)) {
@@ -584,7 +595,42 @@ class RequestsPage extends Component
         $this->fillSelectedRequestData($this->loadRequestForView((int) $request->id));
         $this->resetPage();
     }
+    public function convertSelectedRequestToPurchaseOrder(
+        CreatePurchaseOrderFromRequestService $createPurchaseOrderFromRequestService
+    ): void {
+        if (! $this->selectedRequestId) {
+            return;
+        }
 
+        $this->feedbackError = null;
+
+        if (! app(TenantModuleAccessService::class)->moduleEnabled(\Illuminate\Support\Facades\Auth::user(), 'procurement')) {
+            $this->setFeedbackError('Procurement module is disabled for this organization plan.');
+
+            return;
+        }
+
+        $request = $this->loadRequestForView($this->selectedRequestId);
+
+        try {
+            $purchaseOrder = $createPurchaseOrderFromRequestService->createFromRequest(
+                actor: \Illuminate\Support\Facades\Auth::user(),
+                request: $request,
+            );
+        } catch (ValidationException $exception) {
+            $this->setFeedbackError((string) collect($exception->errors())->flatten()->first());
+
+            return;
+        } catch (Throwable) {
+            $this->setFeedbackError('Unable to convert this request to a procurement order right now.');
+
+            return;
+        }
+
+        $this->setFeedback(sprintf('Procurement order %s created from request.', (string) $purchaseOrder->po_number));
+        $this->fillSelectedRequestData($this->loadRequestForView((int) $request->id));
+        $this->resetPage();
+    }
     public function render(): View
     {
         $this->refreshRequestTypeMap();
@@ -1158,6 +1204,9 @@ class RequestsPage extends Component
                 'expenses' => fn ($query) => $query
                     ->with('creator:id,name')
                     ->latest('id'),
+                'purchaseOrders' => fn ($query) => $query
+                    ->with('creator:id,name')
+                    ->latest('id'),
             ])
             ->findOrFail($requestId);
     }
@@ -1177,6 +1226,7 @@ class RequestsPage extends Component
             'communicationLogs.recipient:id,name,avatar_path,gender,updated_at',
             'attachments.uploader:id,name',
             'expenses.creator:id,name',
+            'purchaseOrders.creator:id,name',
         ]);
 
         $currentApprovers = [];
@@ -1244,9 +1294,20 @@ class RequestsPage extends Component
             })
             ->all();
         $linkedExpense = $request->expenses->first();
+        $linkedPurchaseOrder = $request->purchaseOrders->sortByDesc('id')->first();
         $canCreateExpense = Gate::allows('create', Expense::class)
             && (string) $request->status === 'approved'
             && ! $linkedExpense;
+        $procurementModuleEnabled = app(TenantModuleAccessService::class)->moduleEnabled(
+            \Illuminate\Support\Facades\Auth::user(),
+            'procurement'
+        );
+        $procurementControls = app(ProcurementControlSettingsService::class)->effectiveControls((int) \Illuminate\Support\Facades\Auth::user()->company_id);
+        $allowedConversionStatuses = array_values((array) ($procurementControls['conversion_allowed_statuses'] ?? ['approved']));
+        $canConvertToPurchaseOrder = $procurementModuleEnabled
+            && Gate::allows('convertToPurchaseOrder', $request)
+            && in_array(strtolower((string) $request->status), $allowedConversionStatuses, true)
+            && ! $linkedPurchaseOrder;
         $approvalContextMessage = null;
         if ((string) $request->status === 'in_review' && ! Gate::allows('approve', $request)) {
             $approvalContextMessage = ! empty($currentApprovers)
@@ -1289,6 +1350,7 @@ class RequestsPage extends Component
             'can_upload_attachments' => Gate::allows('uploadAttachment', $request),
             'can_comment' => Gate::allows('view', $request),
             'can_create_expense' => $canCreateExpense,
+            'can_convert_to_po' => $canConvertToPurchaseOrder,
             'linked_expense' => $linkedExpense ? [
                 'id' => (int) $linkedExpense->id,
                 'expense_code' => (string) $linkedExpense->expense_code,
@@ -1297,6 +1359,14 @@ class RequestsPage extends Component
                 'currency' => strtoupper((string) $request->currency),
                 'expense_date' => optional($linkedExpense->expense_date)->format('M d, Y'),
                 'created_by' => (string) ($linkedExpense->creator?->name ?? 'System'),
+            ] : null,
+            'linked_purchase_order' => $linkedPurchaseOrder ? [
+                'id' => (int) $linkedPurchaseOrder->id,
+                'po_number' => (string) $linkedPurchaseOrder->po_number,
+                'status' => (string) $linkedPurchaseOrder->po_status,
+                'amount' => (int) $linkedPurchaseOrder->total_amount,
+                'currency' => strtoupper((string) $linkedPurchaseOrder->currency_code),
+                'created_by' => (string) ($linkedPurchaseOrder->creator?->name ?? 'System'),
             ] : null,
             'items' => $request->items
                 ->map(fn ($item): array => [
@@ -2053,3 +2123,14 @@ class RequestsPage extends Component
         return $mapped;
     }
 }
+
+
+
+
+
+
+
+
+
+
+

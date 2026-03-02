@@ -11,6 +11,7 @@ use App\Http\Controllers\VendorStatementCsvExportController;
 use App\Http\Controllers\VendorStatementPrintController;
 use App\Enums\UserRole;
 use App\Livewire\Dashboard\DashboardShell;
+use App\Livewire\Execution\ExecutionHealthPage;
 use App\Livewire\Assets\AssetReportsPage;
 use App\Livewire\Organization\ApprovalWorkflowsPage;
 use App\Livewire\Organization\DepartmentsPage;
@@ -23,6 +24,8 @@ use App\Livewire\Settings\CompanySetup;
 use App\Livewire\Settings\AssetControlsPage;
 use App\Livewire\Settings\ApprovalTimingControlsPage;
 use App\Livewire\Settings\ExpenseControlsPage;
+use App\Livewire\Settings\ProcurementControlsPage;
+use App\Livewire\Settings\TreasuryControlsPage;
 use App\Livewire\Settings\RequestConfigurationPage;
 use App\Livewire\Settings\TenantDetailsPage;
 use App\Livewire\Settings\TenantManagementPage;
@@ -34,6 +37,8 @@ use App\Livewire\Platform\TenantExecutionPolicyPage;
 use App\Livewire\Platform\TenantPlanEntitlementsPage;
 use App\Livewire\Platform\TenantProfilePage;
 use App\Livewire\Platform\ExecutionOperationsPage;
+use App\Livewire\Platform\ExecutionTestChecklistPage;
+use App\Livewire\Platform\IncidentHistoryPage;
 use App\Livewire\Vendors\VendorDetailsPage;
 use App\Livewire\Vendors\VendorReportsPage;
 use Illuminate\Support\Facades\Route;
@@ -63,10 +68,13 @@ Route::middleware(['auth', 'platform.access'])->prefix('platform')->name('platfo
     Route::get('/tenants/{company}', TenantProfilePage::class)->name('tenants.show');
     Route::get('/users', PlatformUsersPage::class)->name('users');
     Route::get('/operations/execution', ExecutionOperationsPage::class)->name('operations.execution');
+    Route::get('/operations/execution-checklist', ExecutionTestChecklistPage::class)->name('operations.execution-checklist');
+    Route::get('/operations/incident-history', IncidentHistoryPage::class)->name('operations.incident-history');
 });
 
 Route::middleware(['auth', 'company.context'])->group(function (): void {
     Route::get('/dashboard', DashboardShell::class)->name('dashboard');
+    Route::get('/execution/health', ExecutionHealthPage::class)->name('execution.health');
     Route::get('/reports', ReportsCenterPage::class)->middleware('module.enabled:reports')->name('reports.index');
 
     Route::prefix('dashboard')->name('dashboard.')->group(function (): void {
@@ -109,6 +117,9 @@ Route::middleware(['auth', 'company.context'])->group(function (): void {
         Route::view('/', 'app.assets.index')->name('index');
         Route::get('/reports', AssetReportsPage::class)->middleware('module.enabled:reports')->name('reports');
     });
+    Route::prefix('procurement')->middleware('module.enabled:procurement')->name('procurement.')->group(function (): void {
+        Route::view('/orders', 'app.procurement.orders')->name('orders');
+    });
 
     Route::prefix('departments')->name('departments.')->group(function (): void {
         Route::get('/', DepartmentsPage::class)->name('index');
@@ -136,6 +147,8 @@ Route::middleware(['auth', 'company.context'])->group(function (): void {
         Route::get('/expense-controls', ExpenseControlsPage::class)->middleware('module.enabled:expenses')->name('expense-controls');
         Route::get('/asset-controls', AssetControlsPage::class)->middleware('module.enabled:assets')->name('asset-controls');
         Route::get('/vendor-controls', VendorControlsPage::class)->middleware('module.enabled:vendors')->name('vendor-controls');
+        Route::get('/procurement-controls', ProcurementControlsPage::class)->middleware('module.enabled:procurement')->name('procurement-controls');
+        Route::get('/treasury-controls', TreasuryControlsPage::class)->middleware('module.enabled:treasury')->name('treasury-controls');
         Route::get('/organization', function () {
             abort_unless(\Illuminate\Support\Facades\Auth::user()?->role === UserRole::Owner->value, 403);
 
@@ -145,3 +158,9 @@ Route::middleware(['auth', 'company.context'])->group(function (): void {
 });
 
 require __DIR__.'/auth.php';
+
+
+
+
+
+

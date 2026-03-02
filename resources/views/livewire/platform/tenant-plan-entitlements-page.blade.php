@@ -30,7 +30,7 @@
         </a>
     </div>
 
-    @include('livewire.platform.partials.tenant-section-tabs', ['company' => $company])
+    @include('livewire.platform.partials.tenant-section-tabs', ['company' => $company, 'tenantContextRoute' => 'platform.tenants.plan-entitlements'])
 
     <form wire:submit.prevent="save" class="fd-card space-y-4 p-5">
         <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -97,6 +97,8 @@
             <label class="inline-flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" wire:model.defer="entitlementsForm.communications_enabled" class="rounded border-slate-300"> <span>Communications</span></label>
             <label class="inline-flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" wire:model.defer="entitlementsForm.ai_enabled" class="rounded border-slate-300"> <span>AI</span></label>
             <label class="inline-flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" wire:model.defer="entitlementsForm.fintech_enabled" class="rounded border-slate-300"> <span>Fintech</span></label>
+            <label class="inline-flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" wire:model.defer="entitlementsForm.procurement_enabled" class="rounded border-slate-300"> <span>Procurement</span></label>
+            <label class="inline-flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" wire:model.defer="entitlementsForm.treasury_enabled" class="rounded border-slate-300"> <span>Treasury</span></label>
         </div>
 
         <div class="flex justify-end border-t border-slate-200 pt-3">
@@ -107,3 +109,8 @@
         </div>
     </form>
 </div>
+
+
+
+
+

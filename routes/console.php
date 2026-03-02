@@ -8,6 +8,7 @@ use App\Services\TenantBillingAutomationService;
 use App\Services\Execution\SubscriptionAutoBillingOrchestrator;
 use App\Services\Execution\SubscriptionBillingAttemptProcessor;
 use App\Services\Execution\ExecutionOpsAlertService;
+use App\Services\Execution\ExecutionOpsAutoRecoveryService;
 use App\Services\RequestCommunicationRetryService;
 use App\Services\AssetCommunicationRetryService;
 use App\Services\AssetReminderService;
@@ -109,6 +110,47 @@ Artisan::command('execution:ops:alert-summary {--window=}', function (ExecutionO
 
 Schedule::command('execution:ops:alert-summary')
     ->everyFifteenMinutes()
+    ->withoutOverlapping();
+
+Artisan::command('execution:ops:auto-recover {--company=} {--older-than=} {--batch=} {--dry-run}', function (ExecutionOpsAutoRecoveryService $service): int {
+    // Options are intentionally explicit for incident debugging and safe re-runs from shell.
+    $companyId = $this->option('company');
+    $companyId = is_numeric($companyId) ? (int) $companyId : null;
+
+    $olderThan = $this->option('older-than');
+    $olderThan = is_numeric($olderThan) ? (int) $olderThan : null;
+
+    $batch = $this->option('batch');
+    $batch = is_numeric($batch) ? (int) $batch : null;
+
+    $dryRun = (bool) $this->option('dry-run');
+
+    $summary = $service->run(
+        companyId: $companyId,
+        olderThanMinutes: $olderThan,
+        maxPerPipeline: $batch,
+        dryRun: $dryRun,
+    );
+
+    $this->info('Execution operations auto recovery completed.');
+    $this->line('Enabled: '.($summary['enabled'] ? 'yes' : 'no'));
+    $this->line('Dry-run: '.($summary['dry_run'] ? 'yes' : 'no'));
+    $this->line('Older than (minutes): '.$summary['older_than_minutes']);
+    $this->line('Max per pipeline: '.$summary['max_per_pipeline']);
+    $this->line('Cooldown (minutes): '.$summary['cooldown_minutes']);
+    $this->line('Totals - matched: '.$summary['totals']['matched'].', processed: '.$summary['totals']['processed'].', skipped: '.$summary['totals']['skipped'].', rejected: '.$summary['totals']['rejected']);
+
+    foreach (['billing', 'payout', 'webhook'] as $pipeline) {
+        $stats = $summary['results'][$pipeline];
+        $this->line(ucfirst($pipeline).' - matched: '.$stats['matched'].', processed: '.$stats['processed'].', skipped: '.$stats['skipped'].', rejected: '.$stats['rejected']);
+    }
+
+    return self::SUCCESS;
+})->purpose('Safely auto-recover queued execution records older than configured threshold');
+
+// Scheduler uses a stricter batch cap than config default to keep background recovery low-risk.
+Schedule::command('execution:ops:auto-recover --batch=100')
+    ->everyThirtyMinutes()
     ->withoutOverlapping();
 
 Artisan::command('requests:communications:retry-failed {--company=} {--batch=200}', function (RequestCommunicationRetryService $retryService): int {
@@ -279,3 +321,5 @@ Artisan::command('assets:communications:process-queued {--company=} {--older-tha
 Schedule::command('assets:communications:process-queued --older-than=2 --batch=500')
     ->everyTenMinutes()
     ->withoutOverlapping();
+
+

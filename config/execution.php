@@ -47,11 +47,11 @@ return [
         // ],
     ],
 
-    // Phase 3 subscription auto-billing defaults.
+    //  subscription auto-billing defaults.
     'billing' => [
         'default_currency' => env('FLOWDESK_BILLING_DEFAULT_CURRENCY', 'NGN'),
         'plan_amounts' => [
-            // Keep pilot at zero by default unless platform chooses to bill pilots.
+            // i will bill tenants here appropriately. 
             'pilot' => (float) env('FLOWDESK_PLAN_AMOUNT_PILOT', 0),
             'growth' => (float) env('FLOWDESK_PLAN_AMOUNT_GROWTH', 0),
             'business' => (float) env('FLOWDESK_PLAN_AMOUNT_BUSINESS', 0),
@@ -62,5 +62,16 @@ return [
     'ops_alerts' => [
         'window_minutes' => (int) env('FLOWDESK_EXECUTION_OPS_ALERT_WINDOW_MINUTES', 60),
         'failure_threshold' => (int) env('FLOWDESK_EXECUTION_OPS_ALERT_FAILURE_THRESHOLD', 5),
+        'stuck_queued_older_than_minutes' => (int) env('FLOWDESK_EXECUTION_OPS_ALERT_STUCK_OLDER_THAN_MINUTES', 45),
+        'stuck_queued_threshold' => (int) env('FLOWDESK_EXECUTION_OPS_ALERT_STUCK_THRESHOLD', 10),
+        'invalid_webhook_threshold' => (int) env('FLOWDESK_EXECUTION_OPS_ALERT_INVALID_WEBHOOK_THRESHOLD', 5),
+    ],
+
+    'ops_recovery' => [
+        'enabled' => filter_var(env('FLOWDESK_EXECUTION_OPS_AUTO_RECOVERY_ENABLED', true), FILTER_VALIDATE_BOOL),
+        'older_than_minutes' => (int) env('FLOWDESK_EXECUTION_OPS_AUTO_RECOVERY_OLDER_THAN_MINUTES', 30),
+        'max_per_pipeline' => (int) env('FLOWDESK_EXECUTION_OPS_AUTO_RECOVERY_MAX_PER_PIPELINE', 200),
+        'cooldown_minutes' => (int) env('FLOWDESK_EXECUTION_OPS_AUTO_RECOVERY_COOLDOWN_MINUTES', 15),
     ],
 ];
+

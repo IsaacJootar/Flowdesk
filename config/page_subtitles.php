@@ -13,10 +13,16 @@ return [
     'Expense Controls' => 'Set which roles can post, edit, and void expenses per organization policy',
     'Asset Controls' => 'Set which roles can manage asset registration, custody, maintenance, and disposal',
     'Vendor Controls' => 'Set which roles can manage vendor profiles, invoices, payments, exports, and communications',
+    'Procurement Orders' => 'Track purchase order drafts, issuance, and commitment posting for approved requests',
+    'Procurement Controls' => 'Configure request-to-PO conversion, issue roles, and commitment posting guardrails',
+    'Treasury Controls' => 'Configure statement import and reconciliation tolerances for treasury operations',
     'Tenant / Organization Management' => 'Tenant control center for lifecycle, plans, billing defaults, seat governance, and entitlements',
     'Tenant Details' => 'Billing ledger, reconciliation queue, plan history, usage quotas, and tenant audit timeline',
     'Platform Users' => 'Assign and manage global platform roles for tenant operations and billing governance',
     'Execution Operations' => 'Retry failures, process stuck queues, and reconcile webhook dead-letter events',
+    'Execution Health' => 'Tenant-safe execution status, affected counts, and next steps for your organization',
+    'Execution Test Checklist' => 'Run execution mode and operations dry-runs from UI without CLI dependency',
+    'Incident History' => 'Filter and export recovery incidents with seven-day trend visibility',
     'Assets' => 'Track assets from registration to assignment, maintenance, and disposal',
     'Asset Reports' => 'Analyze asset distribution, maintenance spend, and disposal trends',
     'Organization Hierarchy' => 'Manage departments, reporting lines, role ownership, and approval chains',
@@ -25,3 +31,6 @@ return [
     'Approval Workflows' => 'Configure policy chains and approval routing for requests',
     'Team' => 'Manage staff accounts, role ownership, and reporting hierarchy',
 ];
+
+
+

@@ -30,22 +30,66 @@
         </a>
     </div>
 
-    @include('livewire.platform.partials.tenant-section-tabs', ['company' => $company])
+    @include('livewire.platform.partials.tenant-section-tabs', ['company' => $company, 'tenantContextRoute' => 'platform.tenants.execution-mode'])
 
     <form wire:submit.prevent="save" class="fd-card space-y-4 p-5">
         <div class="grid gap-4 sm:grid-cols-2">
             <label class="block">
                 <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Payment Execution Mode</span>
-                <select wire:model.defer="modeForm.payment_execution_mode" class="w-full rounded-xl border-slate-300 text-sm">
+                <select wire:model.defer="modeForm.payment_execution_mode" class="w-full rounded-xl text-sm @error('modeForm.payment_execution_mode') border-rose-300 focus:border-rose-500 focus:ring-rose-500 @else border-slate-300 @enderror">
                     @foreach ($modes as $mode)
                         <option value="{{ $mode }}">{{ $mode === 'execution_enabled' ? 'Execution-enabled' : 'Decision-only' }}</option>
                     @endforeach
                 </select>
+                @error('modeForm.payment_execution_mode')
+                    <p class="mt-1 text-xs font-medium text-rose-600">{{ $message }}</p>
+                @enderror
             </label>
 
             <label class="block">
                 <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Execution Provider</span>
-                <input type="text" wire:model.defer="modeForm.execution_provider" class="w-full rounded-xl border-slate-300 text-sm" placeholder="Required for execution-enabled mode">
+                <div class="space-y-2">
+                    <select wire:model.defer="modeForm.execution_provider" class="w-full rounded-xl text-sm @error('modeForm.execution_provider') border-rose-300 focus:border-rose-500 focus:ring-rose-500 @else border-slate-300 @enderror">
+                        <option value="">Select execution provider</option>
+                        @foreach ($providerOptions as $provider)
+                            <option value="{{ $provider }}">{{ $provider }}</option>
+                        @endforeach
+                    </select>
+
+                    @error('modeForm.execution_provider')
+                        <p class="text-xs font-medium text-rose-600">{{ $message }}</p>
+                    @enderror
+
+                    <div class="flex flex-wrap items-center justify-between gap-3 text-xs">
+                        <div class="space-y-1">
+                            <p class="text-slate-500">Supported keys:</p>
+                            <div class="flex flex-wrap gap-1.5">
+                                @foreach ($providerHelperKeys as $providerKey)
+                                    @php
+                                        $badgeClass = match (strtolower((string) $providerKey)) {
+                                            'manual_ops' => 'border-slate-300 bg-slate-100 text-slate-700',
+                                            'paystack' => 'border-emerald-200 bg-emerald-50 text-emerald-700',
+                                            'flutterwave' => 'border-amber-200 bg-amber-50 text-amber-700',
+                                            default => 'border-indigo-200 bg-indigo-50 text-indigo-700',
+                                        };
+                                    @endphp
+                                    <span class="inline-flex rounded-full border px-2 py-0.5 font-semibold {{ $badgeClass }}">{{ $providerKey }}</span>
+                                @endforeach
+                            </div>
+                        </div>
+
+                        <button
+                            type="button"
+                            wire:click="useManualOperationsProvider"
+                            wire:loading.attr="disabled"
+                            wire:target="useManualOperationsProvider"
+                            class="inline-flex h-8 items-center rounded-lg border border-slate-300 bg-white px-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                        >
+                            <span wire:loading.remove wire:target="useManualOperationsProvider">Use manual_ops</span>
+                            <span wire:loading wire:target="useManualOperationsProvider">Setting...</span>
+                        </button>
+                    </div>
+                </div>
             </label>
         </div>
 
@@ -61,3 +105,8 @@
         </div>
     </form>
 </div>
+
+
+
+
+

@@ -42,7 +42,7 @@ class PaystackPayoutExecutionAdapter implements PayoutExecutionAdapterInterface
         }
 
         $amountKobo = (int) round($request->amount * 100);
-        if ($amountKobo < 1) {
+        if ($amountKobo < 10) {
             return $this->failed(
                 code: 'invalid_amount',
                 message: 'Payout amount must be greater than zero.',

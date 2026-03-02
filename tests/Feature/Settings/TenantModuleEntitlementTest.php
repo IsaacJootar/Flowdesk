@@ -104,6 +104,49 @@ class TenantModuleEntitlementTest extends TestCase
             ->get(route('vendors.index'))
             ->assertForbidden();
     }
+    public function test_disabled_procurement_module_is_hidden_and_blocked(): void
+    {
+        [$company, $department] = $this->createCompanyContext('Entitlement Procurement');
+        $owner = $this->createUser($company, $department, UserRole::Owner->value);
+
+        TenantFeatureEntitlement::query()->create([
+            'company_id' => $company->id,
+            'procurement_enabled' => false,
+            'created_by' => $owner->id,
+            'updated_by' => $owner->id,
+        ]);
+
+        $items = app(NavAccessService::class)->forUser($owner)['items'];
+        $routes = array_column($items, 'route');
+
+        $this->assertNotContains('procurement.orders', $routes);
+
+        $this->actingAs($owner)
+            ->get(route('procurement.orders'))
+            ->assertForbidden();
+    }
+
+    public function test_enabled_procurement_module_is_visible_and_accessible(): void
+    {
+        [$company, $department] = $this->createCompanyContext('Entitlement Procurement Enabled');
+        $owner = $this->createUser($company, $department, UserRole::Owner->value);
+
+        TenantFeatureEntitlement::query()->create([
+            'company_id' => $company->id,
+            'procurement_enabled' => true,
+            'created_by' => $owner->id,
+            'updated_by' => $owner->id,
+        ]);
+
+        $items = app(NavAccessService::class)->forUser($owner)['items'];
+        $routes = array_column($items, 'route');
+
+        $this->assertContains('procurement.orders', $routes);
+
+        $this->actingAs($owner)
+            ->get(route('procurement.orders'))
+            ->assertOk();
+    }
 
     /**
      * @return array{0: Company, 1: Department}

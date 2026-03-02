@@ -14,7 +14,7 @@
         </a>
     </div>
 
-    @include('livewire.platform.partials.tenant-section-tabs', ['company' => $company])
+    @include('livewire.platform.partials.tenant-section-tabs', ['company' => $company, 'tenantContextRoute' => 'platform.tenants.show'])
 
     <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <div class="rounded-2xl border border-sky-200 bg-sky-50 p-5">
@@ -69,3 +69,7 @@
         </div>
     </div>
 </div>
+
+
+
+

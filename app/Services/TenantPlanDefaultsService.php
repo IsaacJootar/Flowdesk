@@ -33,6 +33,8 @@ class TenantPlanDefaultsService
                 'communications' => (bool) ($entitlements['communications'] ?? true),
                 'ai' => (bool) ($entitlements['ai'] ?? false),
                 'fintech' => (bool) ($entitlements['fintech'] ?? false),
+                'procurement' => (bool) ($entitlements['procurement'] ?? false),
+                'treasury' => (bool) ($entitlements['treasury'] ?? false),
             ],
         ];
     }
@@ -55,6 +57,8 @@ class TenantPlanDefaultsService
             'communications_enabled' => (bool) ($modules['communications'] ?? true),
             'ai_enabled' => (bool) ($modules['ai'] ?? false),
             'fintech_enabled' => (bool) ($modules['fintech'] ?? false),
+            'procurement_enabled' => (bool) ($modules['procurement'] ?? false),
+            'treasury_enabled' => (bool) ($modules['treasury'] ?? false),
         ];
     }
 }

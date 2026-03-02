@@ -20,7 +20,7 @@ class RequestPayoutExecutionAttemptProcessor
     public function processAttemptById(int $attemptId): bool
     {
         $attempt = RequestPayoutExecutionAttempt::query()
-            ->with(['request.requester', 'subscription'])
+            ->with(['subscription'])
             ->find($attemptId);
 
         if (! $attempt) {
@@ -31,11 +31,19 @@ class RequestPayoutExecutionAttemptProcessor
             return false;
         }
 
-        $request = $attempt->request;
+        $request = SpendRequest::query()
+            ->withoutGlobalScopes()
+            ->withTrashed()
+            ->with(['requester'])
+            ->find((int) $attempt->request_id);
+
         $subscription = $attempt->subscription;
         if (! $request || ! $subscription) {
             return false;
         }
+
+        // Preserve the unscoped request relation for downstream status sync.
+        $attempt->setRelation('request', $request);
 
         $attempt->forceFill([
             'execution_status' => 'processing',
@@ -78,6 +86,10 @@ class RequestPayoutExecutionAttemptProcessor
         ?string $eventId,
         array $normalizedPayload = []
     ): void {
+        $request = SpendRequest::query()
+            ->withoutGlobalScopes()
+            ->withTrashed()
+            ->find((int) $attempt->request_id);
         $attempt->forceFill([
             'execution_status' => $nextStatus,
             'last_provider_event_id' => $eventId,
@@ -87,7 +99,7 @@ class RequestPayoutExecutionAttemptProcessor
             'failed_at' => $nextStatus === 'failed' ? now() : $attempt->failed_at,
         ])->save();
 
-        $this->syncRequestStatus($attempt->request, $nextStatus, $attempt);
+        $this->syncRequestStatus($request, $nextStatus, $attempt);
     }
 
     private function applyAdapterResult(
@@ -162,3 +174,4 @@ class RequestPayoutExecutionAttemptProcessor
         }
     }
 }
+

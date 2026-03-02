@@ -26,6 +26,8 @@ return [
                 'communications' => false,
                 'ai' => false,
                 'fintech' => false,
+                'procurement' => false,
+                'treasury' => false,
             ],
         ],
         'growth' => [
@@ -41,6 +43,8 @@ return [
                 'communications' => true,
                 'ai' => false,
                 'fintech' => false,
+                'procurement' => false,
+                'treasury' => false,
             ],
         ],
         'business' => [
@@ -56,6 +60,8 @@ return [
                 'communications' => true,
                 'ai' => false,
                 'fintech' => false,
+                'procurement' => false,
+                'treasury' => false,
             ],
         ],
         'enterprise' => [
@@ -71,8 +77,9 @@ return [
                 'communications' => true,
                 'ai' => false,
                 'fintech' => false,
+                'procurement' => false,
+                'treasury' => false,
             ],
         ],
     ],
 ];
-

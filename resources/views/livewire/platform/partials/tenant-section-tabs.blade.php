@@ -20,7 +20,11 @@
         ->orderBy('name')
         ->get(['id', 'name']);
 
-    $currentRoute = (string) request()->route()?->getName();
+    $currentRoute = isset($tenantContextRoute) && is_string($tenantContextRoute) && $tenantContextRoute !== ''
+        ? $tenantContextRoute
+        : (request()->routeIs('platform.tenants.*')
+            ? (string) request()->route()?->getName()
+            : 'platform.tenants.show');
 @endphp
 
 <div class="fd-card p-3">
