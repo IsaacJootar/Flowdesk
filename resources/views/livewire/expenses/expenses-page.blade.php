@@ -158,17 +158,17 @@
                                             type="button"
                                             wire:click="openViewModal({{ $expense->id }})"
                                             wire:loading.attr="disabled"
-                                            wire:target="openViewModal"
+                                            wire:target="openViewModal({{ $expense->id }})"
                                             class="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-70"
                                         >
-                                            <span wire:loading.remove wire:target="openViewModal" class="inline-flex items-center gap-1.5">
+                                            <span wire:loading.remove wire:target="openViewModal({{ $expense->id }})" class="inline-flex items-center gap-1.5">
                                                 <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                                                     <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"></path>
                                                     <circle cx="12" cy="12" r="3"></circle>
                                                 </svg>
                                                 <span>View</span>
                                             </span>
-                                            <span wire:loading wire:target="openViewModal">Opening...</span>
+                                            <span wire:loading wire:target="openViewModal({{ $expense->id }})">Opening...</span>
                                         </button>
                                         @if ($expense->status !== 'void')
                                             @can('update', $expense)
@@ -188,17 +188,17 @@
                                                     type="button"
                                                     wire:click="openVoidModal({{ $expense->id }})"
                                                     wire:loading.attr="disabled"
-                                                    wire:target="openVoidModal"
+                                                    wire:target="openVoidModal({{ $expense->id }})"
                                                     class="rounded-lg border border-rose-300 px-3 py-1.5 text-xs font-medium text-rose-700 hover:bg-rose-50 disabled:opacity-70"
                                                 >
-                                                    <span wire:loading.remove wire:target="openVoidModal" class="inline-flex items-center gap-1.5">
+                                                    <span wire:loading.remove wire:target="openVoidModal({{ $expense->id }})" class="inline-flex items-center gap-1.5">
                                                         <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                                                             <circle cx="12" cy="12" r="9"></circle>
                                                             <path d="M7 7l10 10"></path>
                                                         </svg>
                                                         <span>Void</span>
                                                     </span>
-                                                    <span wire:loading wire:target="openVoidModal">Opening...</span>
+                                                    <span wire:loading wire:target="openVoidModal({{ $expense->id }})">Opening...</span>
                                                 </button>
                                             @endcan
                                         @endif
@@ -485,3 +485,4 @@
         </div>
     @endif
 </div>
+

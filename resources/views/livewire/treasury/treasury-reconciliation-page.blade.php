@@ -23,9 +23,9 @@
                 <p class="mt-1 text-sm text-slate-600">Use one workspace for statement import, reconciliation, and treasury activity navigation.</p>
             </div>
             <div class="flex flex-wrap items-center gap-2">
-                <a href="{{ route('treasury.reconciliation-exceptions') }}" class="inline-flex h-9 items-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-50">Reconciliation Exceptions</a>
-                <a href="{{ route('treasury.payment-runs') }}" class="inline-flex h-9 items-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-50">Payment Runs</a>
-                <a href="{{ route('treasury.cash-position') }}" class="inline-flex h-9 items-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-50">Cash Position</a>
+                <a href="{{ route('treasury.reconciliation-exceptions') }}" class="inline-flex h-9 items-center rounded-lg border border-rose-300 bg-rose-50 px-3 text-xs font-semibold text-rose-700 transition hover:bg-rose-100">Reconciliation Exceptions</a>
+                <a href="{{ route('treasury.payment-runs') }}" class="inline-flex h-9 items-center rounded-lg border border-indigo-300 bg-indigo-50 px-3 text-xs font-semibold text-indigo-700 transition hover:bg-indigo-100">Payment Runs</a>
+                <a href="{{ route('treasury.cash-position') }}" class="inline-flex h-9 items-center rounded-lg border border-emerald-300 bg-emerald-50 px-3 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100">Cash Position</a>
             </div>
         </div>
     </div>
@@ -86,43 +86,40 @@
     </div>
 
     <div class="fd-card p-5">
-        <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Manage Treasury</p>
-                <p class="mt-1 text-sm text-slate-600">Use one workspace for statement import, reconciliation, and treasury activity navigation.</p>
-            </div>
-            <div class="flex flex-wrap items-center gap-2">
-                <a href="{{ route('treasury.reconciliation-exceptions') }}" class="inline-flex h-9 items-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-50">Reconciliation Exceptions</a>
-                <a href="{{ route('treasury.payment-runs') }}" class="inline-flex h-9 items-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-50">Payment Runs</a>
-                <a href="{{ route('treasury.cash-position') }}" class="inline-flex h-9 items-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-50">Cash Position</a>
-            </div>
-        </div>
-    </div>
-
-    <div class="fd-card p-5">
         <h3 class="text-sm font-semibold text-slate-900">Bank Account Setup</h3>
         <p class="mt-1 text-xs text-slate-500">Add account references used for statement ingestion and reconciliation context.</p>
+
+        @if ($errors->has('bankAccountForm.account_name') || $errors->has('bankAccountForm.bank_name') || $errors->has('bankAccountForm.currency_code'))
+            <div class="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                Complete required bank account fields before saving.
+            </div>
+        @endif
 
         <div class="mt-3 grid gap-3 md:grid-cols-3">
             <label class="block">
                 <span class="mb-1 block text-xs text-slate-600">Account Name</span>
                 <input type="text" wire:model.defer="bankAccountForm.account_name" class="w-full rounded-xl border-slate-300 text-sm focus:border-slate-500 focus:ring-slate-500" placeholder="Operations Account">
+                @error('bankAccountForm.account_name')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
             </label>
             <label class="block">
                 <span class="mb-1 block text-xs text-slate-600">Bank Name</span>
                 <input type="text" wire:model.defer="bankAccountForm.bank_name" class="w-full rounded-xl border-slate-300 text-sm focus:border-slate-500 focus:ring-slate-500" placeholder="First City Bank">
+                @error('bankAccountForm.bank_name')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
             </label>
             <label class="block">
                 <span class="mb-1 block text-xs text-slate-600">Currency</span>
                 <input type="text" maxlength="3" wire:model.defer="bankAccountForm.currency_code" class="w-full rounded-xl border-slate-300 text-sm uppercase focus:border-slate-500 focus:ring-slate-500" placeholder="NGN">
+                @error('bankAccountForm.currency_code')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
             </label>
             <label class="block">
                 <span class="mb-1 block text-xs text-slate-600">Account Reference</span>
                 <input type="text" wire:model.defer="bankAccountForm.account_reference" class="w-full rounded-xl border-slate-300 text-sm focus:border-slate-500 focus:ring-slate-500" placeholder="Bank provided ID">
+                @error('bankAccountForm.account_reference')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
             </label>
             <label class="block">
                 <span class="mb-1 block text-xs text-slate-600">Masked Number</span>
                 <input type="text" wire:model.defer="bankAccountForm.account_number_masked" class="w-full rounded-xl border-slate-300 text-sm focus:border-slate-500 focus:ring-slate-500" placeholder="****1234">
+                @error('bankAccountForm.account_number_masked')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
             </label>
             <label class="inline-flex items-center gap-2 pt-6 text-sm text-slate-700">
                 <input type="checkbox" wire:model.defer="bankAccountForm.is_primary" class="rounded border-slate-300 text-slate-700 focus:ring-slate-500">
@@ -132,26 +129,12 @@
 
         @if ($canOperate)
             <div class="mt-3 flex justify-end">
-                <button type="button" wire:click="createBankAccount" wire:loading.attr="disabled" wire:target="createBankAccount" class="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-70">
+                <button type="button" wire:click="createBankAccount" wire:loading.attr="disabled" wire:target="createBankAccount" class="rounded-lg border border-slate-900 bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-700 disabled:opacity-70">
                     <span wire:loading.remove wire:target="createBankAccount">Save Bank Account</span>
                     <span wire:loading wire:target="createBankAccount">Saving...</span>
                 </button>
             </div>
         @endif
-    </div>
-
-    <div class="fd-card p-5">
-        <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Manage Treasury</p>
-                <p class="mt-1 text-sm text-slate-600">Use one workspace for statement import, reconciliation, and treasury activity navigation.</p>
-            </div>
-            <div class="flex flex-wrap items-center gap-2">
-                <a href="{{ route('treasury.reconciliation-exceptions') }}" class="inline-flex h-9 items-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-50">Reconciliation Exceptions</a>
-                <a href="{{ route('treasury.payment-runs') }}" class="inline-flex h-9 items-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-50">Payment Runs</a>
-                <a href="{{ route('treasury.cash-position') }}" class="inline-flex h-9 items-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-50">Cash Position</a>
-            </div>
-        </div>
     </div>
 
     <div class="fd-card p-5">
@@ -235,4 +218,3 @@
         @endif
     </div>
 </div>
-

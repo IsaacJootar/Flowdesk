@@ -7,6 +7,7 @@ use App\Domains\Treasury\Models\ReconciliationException;
 use App\Enums\UserRole;
 use App\Models\User;
 use App\Services\TenantAuditLogger;
+use App\Services\Treasury\TreasuryControlSettingsService;
 use Illuminate\Contracts\View\View;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -26,6 +27,8 @@ class TreasuryReconciliationExceptionsPage extends Component
     public string $severityFilter = 'all';
 
     public string $streamFilter = 'all';
+
+    public string $queueSort = 'priority';
 
     public string $search = '';
 
@@ -68,6 +71,15 @@ class TreasuryReconciliationExceptionsPage extends Component
 
     public function updatedStreamFilter(): void
     {
+        $this->resetPage();
+    }
+
+    public function updatedQueueSort(): void
+    {
+        if (! in_array($this->queueSort, ['priority', 'newest', 'oldest'], true)) {
+            $this->queueSort = 'priority';
+        }
+
         $this->resetPage();
     }
 
@@ -176,11 +188,15 @@ class TreasuryReconciliationExceptionsPage extends Component
         $this->setFeedback('Treasury exception updated.');
     }
 
-    public function render(): View
+    public function render(TreasuryControlSettingsService $treasuryControlSettingsService): View
     {
+        $companyId = (int) auth()->user()->company_id;
+        $controls = $treasuryControlSettingsService->effectiveControls($companyId);
+        $slaHours = (int) ($controls['exception_alert_age_hours'] ?? 48);
+
         $query = ReconciliationException::query()
             ->with('line:id,line_reference,description,amount,currency_code,posted_at')
-            ->where('company_id', (int) auth()->user()->company_id)
+            ->where('company_id', $companyId)
             ->when($this->statusFilter !== 'all', fn ($builder) => $builder->where('exception_status', $this->statusFilter))
             ->when($this->severityFilter !== 'all', fn ($builder) => $builder->where('severity', $this->severityFilter))
             ->when($this->streamFilter !== 'all', fn ($builder) => $builder->where('match_stream', $this->streamFilter))
@@ -190,12 +206,31 @@ class TreasuryReconciliationExceptionsPage extends Component
                         ->orWhere('details', 'like', '%'.$this->search.'%')
                         ->orWhereHas('line', fn ($lineQuery) => $lineQuery->where('line_reference', 'like', '%'.$this->search.'%')->orWhere('description', 'like', '%'.$this->search.'%'));
                 });
-            })
-            ->latest('id');
+            });
+
+        // Control intent: queue urgent financial risk first (open + severe + old + high value) to reduce settlement exposure.
+        if ($this->queueSort === 'priority') {
+            $query
+                ->orderByRaw("CASE WHEN exception_status = 'open' THEN 0 ELSE 1 END ASC")
+                ->orderByRaw("CASE severity WHEN 'critical' THEN 4 WHEN 'high' THEN 3 WHEN 'medium' THEN 2 ELSE 1 END DESC")
+                ->orderBy('created_at')
+                ->orderByRaw('COALESCE((SELECT ABS(amount) FROM bank_statement_lines WHERE bank_statement_lines.id = reconciliation_exceptions.bank_statement_line_id), 0) DESC')
+                ->orderByDesc('id');
+        } elseif ($this->queueSort === 'oldest') {
+            $query->oldest('created_at')->oldest('id');
+        } else {
+            $query->latest('created_at')->latest('id');
+        }
 
         $exceptions = $this->readyToLoad
             ? (clone $query)->paginate($this->perPage)
             : ReconciliationException::query()->whereRaw('1=0')->paginate($this->perPage);
+
+        if ($this->readyToLoad) {
+            $exceptions->getCollection()->transform(function (ReconciliationException $exception) use ($slaHours): ReconciliationException {
+                return $this->decorateExceptionForQueue($exception, $slaHours);
+            });
+        }
 
         $summary = $this->readyToLoad
             ? [
@@ -211,8 +246,53 @@ class TreasuryReconciliationExceptionsPage extends Component
             'statuses' => ['all', ReconciliationException::STATUS_OPEN, ReconciliationException::STATUS_RESOLVED, ReconciliationException::STATUS_WAIVED],
             'severities' => ['all', ReconciliationException::SEVERITY_LOW, ReconciliationException::SEVERITY_MEDIUM, ReconciliationException::SEVERITY_HIGH, ReconciliationException::SEVERITY_CRITICAL],
             'streams' => ['all', ReconciliationException::STREAM_EXECUTION_PAYMENT, ReconciliationException::STREAM_EXPENSE_EVIDENCE, ReconciliationException::STREAM_REIMBURSEMENT],
+            'queueSortOptions' => [
+                'priority' => 'Priority First',
+                'newest' => 'Newest First',
+                'oldest' => 'Oldest First',
+            ],
+            'slaHours' => $slaHours,
             'canOperate' => auth()->check() && $this->canOperate(auth()->user()),
         ]);
+    }
+
+    private function decorateExceptionForQueue(ReconciliationException $exception, int $slaHours): ReconciliationException
+    {
+        $ageHours = $exception->created_at ? (int) $exception->created_at->diffInHours(now()) : 0;
+        $lineAmount = abs((int) ($exception->line?->amount ?? 0));
+        $isOpen = (string) $exception->exception_status === ReconciliationException::STATUS_OPEN;
+        $isSlaBreached = $isOpen && $ageHours >= $slaHours;
+
+        $priorityBand = 'low';
+        if (! $isOpen) {
+            $priorityBand = 'closed';
+        } elseif (
+            (string) $exception->severity === ReconciliationException::SEVERITY_CRITICAL
+            || $ageHours >= ($slaHours * 2)
+            || $lineAmount >= 1_000_000
+        ) {
+            $priorityBand = 'urgent';
+        } elseif (
+            (string) $exception->severity === ReconciliationException::SEVERITY_HIGH
+            || $isSlaBreached
+            || $lineAmount >= 500_000
+        ) {
+            $priorityBand = 'high';
+        } elseif (
+            (string) $exception->severity === ReconciliationException::SEVERITY_MEDIUM
+            || $ageHours >= (int) floor(max(1, $slaHours) / 2)
+            || $lineAmount >= 100_000
+        ) {
+            $priorityBand = 'medium';
+        }
+
+        $exception->setAttribute('age_hours', $ageHours);
+        $exception->setAttribute('line_amount_abs', $lineAmount);
+        $exception->setAttribute('sla_hours', $slaHours);
+        $exception->setAttribute('sla_breached', $isSlaBreached);
+        $exception->setAttribute('priority_band', $priorityBand);
+
+        return $exception;
     }
 
     private function setFeedback(string $message): void

@@ -4,11 +4,13 @@ namespace App\Services\Execution;
 
 use App\Domains\Company\Models\ExecutionWebhookEvent;
 use App\Domains\Requests\Models\RequestPayoutExecutionAttempt;
+use App\Services\Treasury\SyncWebhookExecutionExceptionService;
 
 class RequestPayoutWebhookReconciliationService
 {
     public function __construct(
         private readonly RequestPayoutExecutionAttemptProcessor $attemptProcessor,
+        private readonly SyncWebhookExecutionExceptionService $syncWebhookExecutionExceptionService,
     ) {
     }
 
@@ -29,6 +31,7 @@ class RequestPayoutWebhookReconciliationService
                 'failure_reason' => 'No payout execution attempt matched webhook payload.',
                 'processed_at' => now(),
             ])->save();
+            $this->syncWebhookExecutionExceptionService->syncForEvent($event, 'payout_webhook');
 
             return [
                 'status' => 202,
@@ -50,6 +53,7 @@ class RequestPayoutWebhookReconciliationService
                 'failure_reason' => 'Event type is not mapped to payout execution lifecycle.',
                 'processed_at' => now(),
             ])->save();
+            $this->syncWebhookExecutionExceptionService->syncForEvent($event, 'payout_webhook');
 
             return [
                 'status' => 202,
@@ -71,6 +75,7 @@ class RequestPayoutWebhookReconciliationService
             'processed_at' => now(),
             'failure_reason' => null,
         ])->save();
+        $this->syncWebhookExecutionExceptionService->syncForEvent($event, 'payout_webhook');
 
         return [
             'status' => 202,

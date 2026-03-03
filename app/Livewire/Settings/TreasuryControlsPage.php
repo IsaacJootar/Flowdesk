@@ -23,7 +23,7 @@ class TreasuryControlsPage extends Component
     public int $feedbackKey = 0;
 
     /**
-     * @var array{statement_import_max_rows:string,auto_match_date_window_days:string,auto_match_amount_tolerance:string,exception_alert_age_hours:string,out_of_pocket_requires_reimbursement_link:bool}
+     * @var array{statement_import_max_rows:string,auto_match_date_window_days:string,auto_match_amount_tolerance:string,auto_match_min_confidence:string,direct_expense_text_similarity_threshold:string,exception_alert_age_hours:string,out_of_pocket_requires_reimbursement_link:bool}
      */
     public array $controlsForm = [];
 
@@ -43,6 +43,8 @@ class TreasuryControlsPage extends Component
             'controlsForm.statement_import_max_rows' => ['required', 'integer', 'min:100', 'max:200000'],
             'controlsForm.auto_match_date_window_days' => ['required', 'integer', 'min:0', 'max:30'],
             'controlsForm.auto_match_amount_tolerance' => ['required', 'integer', 'min:0', 'max:1000000'],
+            'controlsForm.auto_match_min_confidence' => ['required', 'integer', 'min:1', 'max:99'],
+            'controlsForm.direct_expense_text_similarity_threshold' => ['required', 'integer', 'min:0', 'max:100'],
             'controlsForm.exception_alert_age_hours' => ['required', 'integer', 'min:1', 'max:720'],
             'controlsForm.out_of_pocket_requires_reimbursement_link' => ['boolean'],
         ]);
@@ -51,6 +53,8 @@ class TreasuryControlsPage extends Component
             'statement_import_max_rows' => (int) $validated['controlsForm']['statement_import_max_rows'],
             'auto_match_date_window_days' => (int) $validated['controlsForm']['auto_match_date_window_days'],
             'auto_match_amount_tolerance' => (int) $validated['controlsForm']['auto_match_amount_tolerance'],
+            'auto_match_min_confidence' => (int) $validated['controlsForm']['auto_match_min_confidence'],
+            'direct_expense_text_similarity_threshold' => (int) $validated['controlsForm']['direct_expense_text_similarity_threshold'],
             'exception_alert_age_hours' => (int) $validated['controlsForm']['exception_alert_age_hours'],
             'out_of_pocket_requires_reimbursement_link' => (bool) $validated['controlsForm']['out_of_pocket_requires_reimbursement_link'],
         ];
@@ -103,6 +107,8 @@ class TreasuryControlsPage extends Component
             'statement_import_max_rows' => (string) ((int) $controls['statement_import_max_rows']),
             'auto_match_date_window_days' => (string) ((int) $controls['auto_match_date_window_days']),
             'auto_match_amount_tolerance' => (string) ((int) $controls['auto_match_amount_tolerance']),
+            'auto_match_min_confidence' => (string) ((int) $controls['auto_match_min_confidence']),
+            'direct_expense_text_similarity_threshold' => (string) ((int) $controls['direct_expense_text_similarity_threshold']),
             'exception_alert_age_hours' => (string) ((int) $controls['exception_alert_age_hours']),
             'out_of_pocket_requires_reimbursement_link' => (bool) $controls['out_of_pocket_requires_reimbursement_link'],
         ];

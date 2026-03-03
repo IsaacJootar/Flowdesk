@@ -7,6 +7,7 @@ use App\Domains\Company\Models\TenantSubscriptionBillingAttempt;
 use App\Domains\Requests\Models\RequestPayoutExecutionAttempt;
 use App\Models\User;
 use App\Services\TenantAuditLogger;
+use App\Services\Treasury\SyncWebhookExecutionExceptionService;
 
 class ExecutionWebhookManualReconciliationService
 {
@@ -14,6 +15,7 @@ class ExecutionWebhookManualReconciliationService
         private readonly SubscriptionBillingAttemptProcessor $billingAttemptProcessor,
         private readonly RequestPayoutExecutionAttemptProcessor $payoutAttemptProcessor,
         private readonly TenantAuditLogger $tenantAuditLogger,
+        private readonly SyncWebhookExecutionExceptionService $syncWebhookExecutionExceptionService,
     ) {
     }
 
@@ -44,6 +46,7 @@ class ExecutionWebhookManualReconciliationService
                 'failure_reason' => 'Manual reconcile skipped: event type is not mapped. Reason: '.$reason,
                 'processed_at' => now(),
             ])->save();
+            $this->syncWebhookExecutionExceptionService->syncForEvent($event, 'manual_reconcile');
 
             $this->logAudit($event, $actor, 'tenant.execution.webhook.manual_ignored', [
                 'reason' => $reason,
@@ -70,6 +73,7 @@ class ExecutionWebhookManualReconciliationService
                 'processed_at' => now(),
                 'failure_reason' => 'Manual reconcile completed. Reason: '.$reason,
             ])->save();
+            $this->syncWebhookExecutionExceptionService->syncForEvent($event, 'manual_reconcile');
 
             $this->logAudit($event, $actor, 'tenant.execution.webhook.manual_reconciled_payout', [
                 'reason' => $reason,
@@ -97,6 +101,7 @@ class ExecutionWebhookManualReconciliationService
                 'processed_at' => now(),
                 'failure_reason' => 'Manual reconcile completed. Reason: '.$reason,
             ])->save();
+            $this->syncWebhookExecutionExceptionService->syncForEvent($event, 'manual_reconcile');
 
             $this->logAudit($event, $actor, 'tenant.execution.webhook.manual_reconciled_billing', [
                 'reason' => $reason,
@@ -115,6 +120,7 @@ class ExecutionWebhookManualReconciliationService
             'failure_reason' => 'Manual reconcile failed: no linked billing/payout attempt. Reason: '.$reason,
             'processed_at' => now(),
         ])->save();
+        $this->syncWebhookExecutionExceptionService->syncForEvent($event, 'manual_reconcile');
 
         $this->logAudit($event, $actor, 'tenant.execution.webhook.manual_failed', [
             'reason' => $reason,

@@ -7,6 +7,7 @@ use App\Domains\Company\Models\Department;
 use App\Domains\Company\Models\ExecutionWebhookEvent;
 use App\Domains\Company\Models\TenantSubscription;
 use App\Domains\Company\Models\TenantSubscriptionBillingAttempt;
+use App\Domains\Treasury\Models\ReconciliationException;
 use App\Domains\Requests\Models\RequestPayoutExecutionAttempt;
 use App\Domains\Requests\Models\SpendRequest;
 use App\Enums\PlatformUserRole;
@@ -14,12 +15,14 @@ use App\Enums\UserRole;
 use App\Livewire\Platform\ExecutionOperationsPage;
 use App\Models\User;
 use App\Services\Execution\Adapters\NullPayoutExecutionAdapter;
+use App\Services\Execution\ExecutionWebhookManualReconciliationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
 use Livewire\Livewire;
 use Tests\Fakes\Execution\FakeSubscriptionBillingAdapter;
 use Tests\Fakes\Execution\FakeWebhookVerifier;
 use Tests\TestCase;
+
 class ExecutionOperationsCenterPhaseFiveTest extends TestCase
 {
     use RefreshDatabase;
@@ -259,7 +262,105 @@ class ExecutionOperationsCenterPhaseFiveTest extends TestCase
             'entity_id' => $event->id,
         ]);
     }
+    public function test_manual_failed_webhook_handoff_creates_and_resolves_treasury_exception(): void
+    {
+        $platformUser = $this->createPlatformUser(PlatformUserRole::PlatformOpsAdmin->value);
+        $tenant = $this->createTenantCompany('Ops Webhook Handoff Tenant');
 
+        $subscription = TenantSubscription::query()->create([
+            'company_id' => $tenant->id,
+            'plan_code' => 'growth',
+            'subscription_status' => 'current',
+            'payment_execution_mode' => 'execution_enabled',
+            'execution_provider' => 'manual_ops',
+            'created_by' => $platformUser->id,
+            'updated_by' => $platformUser->id,
+        ]);
+
+        $event = ExecutionWebhookEvent::query()->create([
+            'provider_key' => 'manual_ops',
+            'external_event_id' => 'evt-manual-failed-001',
+            'company_id' => $tenant->id,
+            'tenant_subscription_id' => $subscription->id,
+            'event_type' => 'payment.failed',
+            'verification_status' => 'valid',
+            'processing_status' => 'queued',
+            'received_at' => now(),
+            'normalized_payload' => [
+                'status' => 'failed',
+            ],
+        ]);
+
+        $failedResult = app(ExecutionWebhookManualReconciliationService::class)->reconcile(
+            event: $event,
+            reason: 'No linkage present after provider retry',
+            actor: $platformUser,
+        );
+
+        $this->assertFalse($failedResult['ok']);
+        $this->assertDatabaseHas('execution_webhook_events', [
+            'id' => $event->id,
+            'processing_status' => 'failed',
+        ]);
+
+        $exception = ReconciliationException::query()
+            ->where('company_id', $tenant->id)
+            ->where('exception_code', 'execution_webhook_reconcile_failed')
+            ->where('exception_status', ReconciliationException::STATUS_OPEN)
+            ->first();
+
+        $this->assertNotNull($exception);
+        $this->assertSame((int) $event->id, (int) data_get((array) ($exception->metadata ?? []), 'execution_webhook_event_id'));
+        $this->assertStringStartsWith('EXE-', (string) data_get((array) ($exception->metadata ?? []), 'execution_incident_id', ''));
+
+        $this->assertDatabaseHas('tenant_audit_events', [
+            'company_id' => $tenant->id,
+            'action' => 'tenant.execution.webhook.handoff_to_treasury',
+            'entity_type' => ExecutionWebhookEvent::class,
+            'entity_id' => $event->id,
+        ]);
+
+        $attempt = TenantSubscriptionBillingAttempt::query()->create([
+            'company_id' => $tenant->id,
+            'tenant_subscription_id' => $subscription->id,
+            'provider_key' => 'manual_ops',
+            'billing_cycle_key' => now()->format('Y-m'),
+            'idempotency_key' => 'tenant:'.$tenant->id.':billing:webhook-handoff:001',
+            'attempt_status' => 'webhook_pending',
+            'amount' => 22000,
+            'currency_code' => 'NGN',
+            'period_start' => now()->startOfMonth()->toDateString(),
+            'period_end' => now()->endOfMonth()->toDateString(),
+            'queued_at' => now(),
+            'attempt_count' => 1,
+        ]);
+
+        $event->forceFill([
+            'tenant_subscription_billing_attempt_id' => (int) $attempt->id,
+            'event_type' => 'payment.settled',
+            'normalized_payload' => [
+                'billing_attempt_id' => (int) $attempt->id,
+                'status' => 'settled',
+            ],
+        ])->save();
+
+        $recoveredResult = app(ExecutionWebhookManualReconciliationService::class)->reconcile(
+            event: $event->fresh(),
+            reason: 'Linked billing attempt after provider trace',
+            actor: $platformUser,
+        );
+
+        $this->assertTrue($recoveredResult['ok']);
+        $this->assertDatabaseHas('execution_webhook_events', [
+            'id' => $event->id,
+            'processing_status' => 'processed',
+        ]);
+
+        $this->assertDatabaseHas('reconciliation_exceptions', [
+            'id' => (int) $exception->id,
+            'exception_status' => ReconciliationException::STATUS_RESOLVED,
+        ]);
+    }
     private function createPlatformUser(string $platformRole): User
     {
         return User::factory()->create([
@@ -284,6 +385,9 @@ class ExecutionOperationsCenterPhaseFiveTest extends TestCase
         ]);
     }
 }
+
+
+
 
 
 

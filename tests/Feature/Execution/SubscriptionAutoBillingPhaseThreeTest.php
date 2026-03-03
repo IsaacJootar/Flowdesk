@@ -5,6 +5,7 @@ namespace Tests\Feature\Execution;
 use App\Domains\Company\Models\Company;
 use App\Domains\Company\Models\TenantSubscription;
 use App\Domains\Company\Models\TenantSubscriptionBillingAttempt;
+use App\Domains\Treasury\Models\ReconciliationException;
 use App\Services\Execution\Adapters\NullPayoutExecutionAdapter;
 use App\Services\Execution\SubscriptionAutoBillingOrchestrator;
 use App\Services\Execution\SubscriptionBillingAttemptProcessor;
@@ -154,6 +155,102 @@ class SubscriptionAutoBillingPhaseThreeTest extends TestCase
             'external_event_id' => 'evt-phase3-001',
             'processing_status' => 'processed',
             'verification_status' => 'valid',
+        ]);
+    }
+
+    public function test_failed_billing_webhook_creates_treasury_handoff_exception_with_incident_reference(): void
+    {
+        config()->set('execution.providers.fake_provider', [
+            'subscription_billing_adapter' => FakeSubscriptionBillingAdapter::class,
+            'payout_execution_adapter' => NullPayoutExecutionAdapter::class,
+            'webhook_verifier' => FakeWebhookVerifier::class,
+        ]);
+
+        $company = $this->createExternalTenantCompany('Phase3 Billing Handoff Tenant');
+        $subscription = TenantSubscription::query()->create([
+            'company_id' => $company->id,
+            'plan_code' => 'growth',
+            'subscription_status' => 'current',
+            'payment_execution_mode' => 'execution_enabled',
+            'execution_provider' => 'fake_provider',
+        ]);
+
+        $attempt = TenantSubscriptionBillingAttempt::query()->create([
+            'company_id' => $company->id,
+            'tenant_subscription_id' => $subscription->id,
+            'provider_key' => 'fake_provider',
+            'billing_cycle_key' => now()->format('Y-m'),
+            'idempotency_key' => 'tenant:'.$company->id.':billing:handoff:001',
+            'attempt_status' => 'webhook_pending',
+            'amount' => 20500,
+            'currency_code' => 'NGN',
+            'period_start' => now()->startOfMonth()->toDateString(),
+            'period_end' => now()->endOfMonth()->toDateString(),
+            'provider_reference' => 'BILL-HANDOFF-001',
+            'queued_at' => now(),
+            'attempt_count' => 1,
+        ]);
+
+        $failedPayload = json_encode([
+            'event_id' => 'evt-phase3-billing-failed',
+            'event_type' => 'billing.failed',
+            'billing_attempt_id' => (int) $attempt->id,
+            'idempotency_key' => (string) $attempt->idempotency_key,
+            'status' => 'failed',
+        ], JSON_THROW_ON_ERROR);
+
+        $failedResult = app(SubscriptionBillingWebhookReconciliationService::class)->receive(
+            provider: 'fake_provider',
+            headers: ['x-test' => '1'],
+            body: $failedPayload,
+            signature: null,
+        );
+
+        $this->assertTrue($failedResult['ok']);
+        $this->assertSame(202, $failedResult['status']);
+
+        $this->assertDatabaseHas('tenant_subscription_billing_attempts', [
+            'id' => $attempt->id,
+            'attempt_status' => 'failed',
+        ]);
+
+        $exception = ReconciliationException::query()
+            ->where('company_id', $company->id)
+            ->where('exception_code', 'execution_billing_failed')
+            ->where('exception_status', ReconciliationException::STATUS_OPEN)
+            ->first();
+
+        $this->assertNotNull($exception);
+        $this->assertSame((int) $attempt->id, (int) data_get((array) ($exception->metadata ?? []), 'billing_attempt_id'));
+        $this->assertStringStartsWith('EXE-', (string) data_get((array) ($exception->metadata ?? []), 'execution_incident_id', ''));
+
+        $this->assertDatabaseHas('tenant_audit_events', [
+            'company_id' => $company->id,
+            'action' => 'tenant.execution.billing.handoff_to_treasury',
+            'entity_type' => TenantSubscriptionBillingAttempt::class,
+            'entity_id' => $attempt->id,
+        ]);
+
+        $settledPayload = json_encode([
+            'event_id' => 'evt-phase3-billing-settled',
+            'event_type' => 'billing.settled',
+            'billing_attempt_id' => (int) $attempt->id,
+            'idempotency_key' => (string) $attempt->idempotency_key,
+            'status' => 'settled',
+        ], JSON_THROW_ON_ERROR);
+
+        $settledResult = app(SubscriptionBillingWebhookReconciliationService::class)->receive(
+            provider: 'fake_provider',
+            headers: ['x-test' => '1'],
+            body: $settledPayload,
+            signature: null,
+        );
+
+        $this->assertTrue($settledResult['ok']);
+
+        $this->assertDatabaseHas('reconciliation_exceptions', [
+            'id' => (int) $exception->id,
+            'exception_status' => ReconciliationException::STATUS_RESOLVED,
         ]);
     }
 

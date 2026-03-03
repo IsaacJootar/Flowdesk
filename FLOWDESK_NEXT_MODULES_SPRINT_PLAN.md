@@ -324,7 +324,9 @@ Release gate addition:
 3. Sprint 3 receipts + invoice linking: completed.
 4. Sprint 4 3-way match + payout gate: completed.
 5. Sprint 5 treasury import + reconciliation workbench: completed.
-6. Sprint 6 automation/reporting: partially completed.
-   - Done: auto-match engine, exception queue, reports-center treasury metrics.
-   - Remaining: advanced heuristic tuning, stronger reversal/failure handoff workflow, queue aging prioritization.
+6. Sprint 6 automation/reporting: completed.
+   - Done: auto-match engine, confidence-scored candidate selection, exception queue aging prioritization, reports-center treasury metrics.
+   - Done: direct-expense heuristic tuning (merchant text similarity + date window + confidence floor) with tenant controls.
+   - Done: reversal/failure handoff workflow into treasury exceptions with incident linking for payout, billing, and webhook pipelines.
 7. Sprint 7 and Sprint 8 remain open for policy hardening, rollout controls, and enablement operations.
+

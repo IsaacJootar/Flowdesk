@@ -5,6 +5,7 @@ namespace App\Services\Execution;
 use App\Domains\Company\Models\ExecutionWebhookEvent;
 use App\Domains\Company\Models\TenantSubscriptionBillingAttempt;
 use App\Services\Execution\DTO\ProviderWebhookPayloadData;
+use App\Services\Treasury\SyncWebhookExecutionExceptionService;
 use Carbon\CarbonImmutable;
 
 class SubscriptionBillingWebhookReconciliationService
@@ -13,6 +14,7 @@ class SubscriptionBillingWebhookReconciliationService
         private readonly TenantExecutionAdapterFactory $adapterFactory,
         private readonly SubscriptionBillingAttemptProcessor $attemptProcessor,
         private readonly RequestPayoutWebhookReconciliationService $requestPayoutWebhookReconciliationService,
+        private readonly SyncWebhookExecutionExceptionService $syncWebhookExecutionExceptionService,
     ) {
     }
 
@@ -57,6 +59,7 @@ class SubscriptionBillingWebhookReconciliationService
                 'failure_reason' => $verification->reason ?: 'Webhook verification failed.',
                 'processed_at' => now(),
             ])->save();
+            $this->syncWebhookExecutionExceptionService->syncForEvent($event, 'billing_webhook');
 
             return [
                 'status' => 422,
@@ -72,6 +75,7 @@ class SubscriptionBillingWebhookReconciliationService
                 'failure_reason' => 'Duplicate provider event already processed.',
                 'processed_at' => now(),
             ])->save();
+            $this->syncWebhookExecutionExceptionService->syncForEvent($event, 'billing_webhook');
 
             return [
                 'status' => 202,
@@ -84,12 +88,16 @@ class SubscriptionBillingWebhookReconciliationService
         $attempt = $this->resolveAttempt($verification->normalizedPayload);
         if (! $attempt) {
             // One webhook endpoint serves both billing and payout events.
-            return $this->requestPayoutWebhookReconciliationService->reconcile(
+            $result = $this->requestPayoutWebhookReconciliationService->reconcile(
                 event: $event,
                 eventType: $verification->eventType,
                 eventId: $verification->eventId,
                 normalizedPayload: $verification->normalizedPayload,
             );
+
+            $this->syncWebhookExecutionExceptionService->syncForEvent($event->fresh() ?? $event, 'billing_webhook_fallback');
+
+            return $result;
         }
 
         $event->forceFill([
@@ -105,6 +113,7 @@ class SubscriptionBillingWebhookReconciliationService
                 'failure_reason' => 'Event type is not mapped to billing lifecycle.',
                 'processed_at' => now(),
             ])->save();
+            $this->syncWebhookExecutionExceptionService->syncForEvent($event, 'billing_webhook');
 
             return [
                 'status' => 202,
@@ -126,6 +135,7 @@ class SubscriptionBillingWebhookReconciliationService
             'processed_at' => now(),
             'failure_reason' => null,
         ])->save();
+        $this->syncWebhookExecutionExceptionService->syncForEvent($event, 'billing_webhook');
 
         return [
             'status' => 202,

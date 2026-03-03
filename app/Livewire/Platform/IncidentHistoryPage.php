@@ -193,6 +193,9 @@ class IncidentHistoryPage extends Component
             'tenant.execution.webhook.auto_recovered_queued' => 'Webhook auto recovered',
             'tenant.execution.auto_recovery.run_summary' => 'Auto recovery run summary',
             'tenant.execution.alert.summary_emitted' => 'Execution alert summary',
+            'tenant.execution.billing.handoff_to_treasury' => 'Billing handoff to treasury',
+            'tenant.execution.payout.handoff_to_treasury' => 'Payout handoff to treasury',
+            'tenant.execution.webhook.handoff_to_treasury' => 'Webhook handoff to treasury',
             default => $action,
         };
     }
@@ -220,6 +223,7 @@ class IncidentHistoryPage extends Component
             'auto_recovery' => 'Auto Recovery',
             'auto_recovery_summary' => 'Auto Recovery Summary',
             'alert_summary' => 'Alert Summary',
+            'treasury_handoff' => 'Treasury Handoff',
             default => 'Other',
         };
     }
@@ -265,6 +269,7 @@ class IncidentHistoryPage extends Component
             ['value' => 'auto_recovery', 'label' => 'Auto recovery'],
             ['value' => 'auto_recovery_summary', 'label' => 'Auto recovery summary'],
             ['value' => 'alert_summary', 'label' => 'Alert summary'],
+            ['value' => 'treasury_handoff', 'label' => 'Treasury handoff'],
         ];
     }
 
@@ -357,6 +362,11 @@ class IncidentHistoryPage extends Component
             ],
             'auto_recovery_summary' => ['tenant.execution.auto_recovery.run_summary'],
             'alert_summary' => ['tenant.execution.alert.summary_emitted'],
+            'treasury_handoff' => [
+                'tenant.execution.billing.handoff_to_treasury',
+                'tenant.execution.payout.handoff_to_treasury',
+                'tenant.execution.webhook.handoff_to_treasury',
+            ],
             default => [],
         };
 
@@ -460,6 +470,9 @@ class IncidentHistoryPage extends Component
             'tenant.execution.webhook.auto_recovered_queued' => 'auto_recovery',
             'tenant.execution.auto_recovery.run_summary' => 'auto_recovery_summary',
             'tenant.execution.alert.summary_emitted' => 'alert_summary',
+            'tenant.execution.billing.handoff_to_treasury',
+            'tenant.execution.payout.handoff_to_treasury',
+            'tenant.execution.webhook.handoff_to_treasury' => 'treasury_handoff',
             default => 'other',
         };
     }
@@ -508,6 +521,9 @@ class IncidentHistoryPage extends Component
             'tenant.execution.webhook.auto_recovered_queued',
             'tenant.execution.auto_recovery.run_summary',
             'tenant.execution.alert.summary_emitted',
+            'tenant.execution.billing.handoff_to_treasury',
+            'tenant.execution.payout.handoff_to_treasury',
+            'tenant.execution.webhook.handoff_to_treasury',
         ];
     }
 
@@ -538,6 +554,9 @@ class IncidentHistoryPage extends Component
             'tenant.execution.payout.auto_recovered_queued',
             'tenant.execution.webhook.auto_recovered_queued',
             'tenant.execution.auto_recovery.run_summary',
+            'tenant.execution.billing.handoff_to_treasury',
+            'tenant.execution.payout.handoff_to_treasury',
+            'tenant.execution.webhook.handoff_to_treasury',
         ];
     }
 
@@ -550,6 +569,7 @@ class IncidentHistoryPage extends Component
             'tenant.execution.billing.retry_requested',
             'tenant.execution.billing.process_stuck_queued',
             'tenant.execution.billing.auto_recovered_queued',
+            'tenant.execution.billing.handoff_to_treasury',
         ];
     }
 
@@ -562,6 +582,7 @@ class IncidentHistoryPage extends Component
             'tenant.execution.payout.retry_requested',
             'tenant.execution.payout.process_stuck_queued',
             'tenant.execution.payout.auto_recovered_queued',
+            'tenant.execution.payout.handoff_to_treasury',
         ];
     }
 
@@ -576,6 +597,7 @@ class IncidentHistoryPage extends Component
             'tenant.execution.webhook.manual_failed',
             'tenant.execution.webhook.manual_ignored',
             'tenant.execution.webhook.auto_recovered_queued',
+            'tenant.execution.webhook.handoff_to_treasury',
         ];
     }
 
@@ -614,3 +636,7 @@ class IncidentHistoryPage extends Component
         ]);
     }
 }
+
+
+
+

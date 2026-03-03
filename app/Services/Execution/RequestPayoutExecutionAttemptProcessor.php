@@ -8,12 +8,14 @@ use App\Services\Execution\DTO\AdapterOperationResult;
 use App\Services\Execution\DTO\AdapterOperationStatus;
 use App\Services\Execution\DTO\PayoutExecutionRequestData;
 use App\Services\RequestCommunicationLogger;
+use App\Services\Treasury\SyncPayoutExecutionExceptionService;
 
 class RequestPayoutExecutionAttemptProcessor
 {
     public function __construct(
         private readonly TenantExecutionAdapterFactory $adapterFactory,
         private readonly RequestCommunicationLogger $requestCommunicationLogger,
+        private readonly SyncPayoutExecutionExceptionService $syncPayoutExecutionExceptionService,
     ) {
     }
 
@@ -100,6 +102,7 @@ class RequestPayoutExecutionAttemptProcessor
         ])->save();
 
         $this->syncRequestStatus($request, $nextStatus, $attempt);
+        $this->syncPayoutExecutionExceptionService->syncForAttempt($attempt, 'webhook');
     }
 
     private function applyAdapterResult(
@@ -128,6 +131,8 @@ class RequestPayoutExecutionAttemptProcessor
         ])->save();
 
         $this->syncRequestStatus($attempt->request, $status, $attempt);
+        // Terminal payout outcomes must be mirrored into treasury exception queue for incident triage.
+        $this->syncPayoutExecutionExceptionService->syncForAttempt($attempt, 'adapter');
     }
 
     private function syncRequestStatus(?SpendRequest $request, string $executionStatus, RequestPayoutExecutionAttempt $attempt): void
@@ -174,4 +179,3 @@ class RequestPayoutExecutionAttemptProcessor
         }
     }
 }
-

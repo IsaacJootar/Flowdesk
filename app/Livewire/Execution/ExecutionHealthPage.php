@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Execution;
 
+use App\Domains\Company\Models\ExecutionWebhookEvent;
 use App\Domains\Company\Models\TenantAuditEvent;
 use App\Domains\Company\Models\TenantSubscriptionBillingAttempt;
 use App\Domains\Requests\Models\RequestPayoutExecutionAttempt;
@@ -38,12 +39,42 @@ class ExecutionHealthPage extends Component
      */
     public array $recentSummaries = [];
 
+    public string $focusPipeline = '';
+
+    public ?int $focusBillingAttemptId = null;
+
+    public ?int $focusPayoutAttemptId = null;
+
+    public ?int $focusWebhookEventId = null;
+
+    public ?string $focusIncidentId = null;
+
+    public bool $focusRequested = false;
+
+    /**
+     * @var array{
+     *     pipeline:string,
+     *     record_label:string,
+     *     status:string,
+     *     provider:string,
+     *     reference:string,
+     *     amount:string,
+     *     event_time:string,
+     *     incident_id:?string,
+     *     next_action:string
+     * }|null
+     */
+    public ?array $focusContext = null;
+
+    public ?string $focusContextMessage = null;
+
     public function mount(): void
     {
         abort_unless($this->canAccessPage(), 403);
 
         $this->summary = $this->emptySummary();
         $this->recentSummaries = [];
+        $this->hydrateFocusFromQuery();
     }
 
     public function loadData(): void
@@ -55,6 +86,7 @@ class ExecutionHealthPage extends Component
         $this->readyToLoad = true;
         $this->summary = $this->buildSummary();
         $this->recentSummaries = $this->buildRecentSummaries();
+        [$this->focusContext, $this->focusContextMessage] = $this->buildFocusContext();
     }
 
     public function render(): View
@@ -184,6 +216,28 @@ class ExecutionHealthPage extends Component
         })->all();
     }
 
+    /**
+     * @return array{0:array{pipeline:string,record_label:string,status:string,provider:string,reference:string,amount:string,event_time:string,incident_id:?string,next_action:string}|null,1:?string}
+     */
+    private function buildFocusContext(): array
+    {
+        if (! $this->focusRequested) {
+            return [null, null];
+        }
+
+        $companyId = (int) (Auth::user()?->company_id ?? 0);
+        if ($companyId <= 0) {
+            return [null, 'Unable to resolve linked execution context for this user scope.'];
+        }
+
+        return match ($this->focusPipeline) {
+            'billing' => $this->billingFocusContext($companyId),
+            'payout' => $this->payoutFocusContext($companyId),
+            'webhook' => $this->webhookFocusContext($companyId),
+            default => [null, 'Linked execution context type is not supported.'],
+        };
+    }
+
     private function canAccessPage(): bool
     {
         $user = Auth::user();
@@ -238,6 +292,172 @@ class ExecutionHealthPage extends Component
     }
 
     /**
+     * @return array{0:array{pipeline:string,record_label:string,status:string,provider:string,reference:string,amount:string,event_time:string,incident_id:?string,next_action:string}|null,1:?string}
+     */
+    private function billingFocusContext(int $companyId): array
+    {
+        if (! $this->focusBillingAttemptId) {
+            return [null, 'Billing attempt reference is missing in this link.'];
+        }
+
+        $attempt = TenantSubscriptionBillingAttempt::query()
+            ->where('company_id', $companyId)
+            ->whereKey((int) $this->focusBillingAttemptId)
+            ->first([
+                'id',
+                'attempt_status',
+                'provider_key',
+                'provider_reference',
+                'external_invoice_id',
+                'amount',
+                'currency_code',
+                'updated_at',
+            ]);
+
+        if (! $attempt) {
+            return [null, 'Linked billing attempt is not available in your tenant scope anymore.'];
+        }
+
+        $status = (string) $attempt->attempt_status;
+
+        return [[
+            'pipeline' => 'Billing',
+            'record_label' => 'Billing attempt #'.(int) $attempt->id,
+            'status' => $status,
+            'provider' => (string) ($attempt->provider_key ?? '-'),
+            'reference' => (string) ($attempt->provider_reference ?: $attempt->external_invoice_id ?: '-'),
+            'amount' => number_format((float) $attempt->amount, 2).' '.strtoupper((string) ($attempt->currency_code ?? 'NGN')),
+            'event_time' => $attempt->updated_at?->format('M d, Y H:i') ?? '-',
+            'incident_id' => $this->focusIncidentId,
+            'next_action' => $status === 'failed'
+                ? 'Confirm provider and billing configuration, then retry from operations.'
+                : 'Monitor status transition and reconcile if needed.',
+        ], null];
+    }
+
+    /**
+     * @return array{0:array{pipeline:string,record_label:string,status:string,provider:string,reference:string,amount:string,event_time:string,incident_id:?string,next_action:string}|null,1:?string}
+     */
+    private function payoutFocusContext(int $companyId): array
+    {
+        if (! $this->focusPayoutAttemptId) {
+            return [null, 'Payout attempt reference is missing in this link.'];
+        }
+
+        $attempt = RequestPayoutExecutionAttempt::query()
+            ->with('request:id,request_code')
+            ->where('company_id', $companyId)
+            ->whereKey((int) $this->focusPayoutAttemptId)
+            ->first([
+                'id',
+                'request_id',
+                'execution_status',
+                'provider_key',
+                'provider_reference',
+                'external_transfer_id',
+                'amount',
+                'currency_code',
+                'updated_at',
+            ]);
+
+        if (! $attempt) {
+            return [null, 'Linked payout attempt is not available in your tenant scope anymore.'];
+        }
+
+        $status = (string) $attempt->execution_status;
+        $requestCode = (string) ($attempt->request?->request_code ?? 'N/A');
+
+        return [[
+            'pipeline' => 'Payout',
+            'record_label' => 'Payout attempt #'.(int) $attempt->id.' ('.$requestCode.')',
+            'status' => $status,
+            'provider' => (string) ($attempt->provider_key ?? '-'),
+            'reference' => (string) ($attempt->provider_reference ?: $attempt->external_transfer_id ?: '-'),
+            'amount' => number_format((float) $attempt->amount, 2).' '.strtoupper((string) ($attempt->currency_code ?? 'NGN')),
+            'event_time' => $attempt->updated_at?->format('M d, Y H:i') ?? '-',
+            'incident_id' => $this->focusIncidentId,
+            'next_action' => $status === 'failed'
+                ? 'Confirm payout request linkage and provider readiness, then retry from operations.'
+                : 'Monitor status transition and reconcile if needed.',
+        ], null];
+    }
+
+    /**
+     * @return array{0:array{pipeline:string,record_label:string,status:string,provider:string,reference:string,amount:string,event_time:string,incident_id:?string,next_action:string}|null,1:?string}
+     */
+    private function webhookFocusContext(int $companyId): array
+    {
+        if (! $this->focusWebhookEventId) {
+            return [null, 'Webhook event reference is missing in this link.'];
+        }
+
+        $event = ExecutionWebhookEvent::query()
+            ->where('company_id', $companyId)
+            ->whereKey((int) $this->focusWebhookEventId)
+            ->first([
+                'id',
+                'provider_key',
+                'external_event_id',
+                'event_type',
+                'verification_status',
+                'processing_status',
+                'received_at',
+            ]);
+
+        if (! $event) {
+            return [null, 'Linked webhook event is not available in your tenant scope anymore.'];
+        }
+
+        $status = (string) $event->processing_status;
+
+        return [[
+            'pipeline' => 'Webhook',
+            'record_label' => 'Webhook event #'.(int) $event->id,
+            'status' => $status,
+            'provider' => (string) ($event->provider_key ?? '-'),
+            'reference' => (string) ($event->external_event_id ?: $event->event_type ?: '-'),
+            'amount' => '-',
+            'event_time' => $event->received_at?->format('M d, Y H:i') ?? '-',
+            'incident_id' => $this->focusIncidentId,
+            'next_action' => $status === 'failed'
+                ? 'Review webhook verification/mapping state and run manual reconcile when ready.'
+                : 'Monitor webhook lifecycle and reconcile if needed.',
+        ], null];
+    }
+
+    private function hydrateFocusFromQuery(): void
+    {
+        $query = request()->query();
+
+        $pipeline = strtolower(trim((string) ($query['focus_pipeline'] ?? '')));
+        if (! in_array($pipeline, ['billing', 'payout', 'webhook'], true)) {
+            $this->focusRequested = false;
+
+            return;
+        }
+
+        $this->focusPipeline = $pipeline;
+        $this->focusBillingAttemptId = $this->positiveInt($query['billing_attempt_id'] ?? null);
+        $this->focusPayoutAttemptId = $this->positiveInt($query['payout_attempt_id'] ?? null);
+        $this->focusWebhookEventId = $this->positiveInt($query['webhook_event_id'] ?? null);
+
+        $incidentId = strtoupper(trim((string) ($query['incident_id'] ?? '')));
+        $this->focusIncidentId = $incidentId !== '' ? $incidentId : null;
+        $this->focusRequested = true;
+    }
+
+    private function positiveInt(mixed $value): ?int
+    {
+        if (! is_numeric($value)) {
+            return null;
+        }
+
+        $parsed = (int) $value;
+
+        return $parsed > 0 ? $parsed : null;
+    }
+
+    /**
      * @return array{
      *     status_label:string,
      *     status_tone:string,
@@ -261,5 +481,3 @@ class ExecutionHealthPage extends Component
         ];
     }
 }
-
-

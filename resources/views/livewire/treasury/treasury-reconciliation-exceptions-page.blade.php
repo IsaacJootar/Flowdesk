@@ -30,7 +30,7 @@
     </div>
 
     <div class="fd-card p-5">
-        <div class="grid gap-3 lg:grid-cols-5">
+        <div class="grid gap-3 lg:grid-cols-6">
             <label class="block lg:col-span-2">
                 <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Search</span>
                 <input type="text" wire:model.live.debounce.300ms="search" class="w-full rounded-xl border-slate-300 text-sm focus:border-slate-500 focus:ring-slate-500" placeholder="Code, details, line reference">
@@ -62,7 +62,20 @@
                     @endforeach
                 </select>
             </label>
+
+            <label class="block">
+                <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Queue Mode</span>
+                <select wire:model.live="queueSort" class="w-full rounded-xl border-slate-300 text-sm focus:border-slate-500 focus:ring-slate-500">
+                    @foreach ($queueSortOptions as $sortValue => $sortLabel)
+                        <option value="{{ $sortValue }}">{{ $sortLabel }}</option>
+                    @endforeach
+                </select>
+            </label>
         </div>
+
+        <p class="mt-3 text-xs text-slate-500">
+            Priority queue uses severity, queue age, and transaction value. SLA breach threshold is {{ (int) $slaHours }} hour(s) from treasury controls.
+        </p>
     </div>
 
     <div class="grid gap-3 sm:grid-cols-3">
@@ -93,6 +106,7 @@
                     <thead class="bg-slate-50 text-xs uppercase tracking-[0.12em] text-slate-500">
                         <tr>
                             <th class="px-4 py-3 text-left font-semibold">Exception</th>
+                            <th class="px-4 py-3 text-left font-semibold">Priority / SLA</th>
                             <th class="px-4 py-3 text-left font-semibold">Line</th>
                             <th class="px-4 py-3 text-left font-semibold">Details</th>
                             <th class="px-4 py-3 text-left font-semibold">Status</th>
@@ -108,11 +122,38 @@
                                     'waived' => 'bg-amber-100 text-amber-700',
                                     default => 'bg-slate-100 text-slate-700',
                                 };
+
+                                $priorityBand = (string) ($exception->priority_band ?? 'low');
+                                $priorityClass = match ($priorityBand) {
+                                    'urgent' => 'bg-red-100 text-red-700',
+                                    'high' => 'bg-rose-100 text-rose-700',
+                                    'medium' => 'bg-amber-100 text-amber-700',
+                                    'closed' => 'bg-slate-100 text-slate-600',
+                                    default => 'bg-emerald-100 text-emerald-700',
+                                };
+
+                                $ageHours = (int) ($exception->age_hours ?? 0);
+                                $slaHoursForRow = (int) ($exception->sla_hours ?? $slaHours);
+                                $slaBreached = (bool) ($exception->sla_breached ?? false);
+                                $slaRemaining = max(0, $slaHoursForRow - $ageHours);
                             @endphp
                             <tr class="hover:bg-slate-50">
                                 <td class="px-4 py-3 text-slate-600">
                                     <p class="font-medium text-slate-800">{{ strtoupper((string) $exception->exception_code) }}</p>
                                     <p class="text-xs text-slate-500">{{ ucfirst((string) $exception->severity) }} | {{ ucfirst(str_replace('_', ' ', (string) $exception->match_stream)) }}</p>
+                                </td>
+                                <td class="px-4 py-3 text-slate-600">
+                                    <div class="flex flex-wrap items-center gap-1.5">
+                                        <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold {{ $priorityClass }}">{{ ucfirst($priorityBand) }}</span>
+                                        @if ((string) $exception->exception_status === 'open')
+                                            @if ($slaBreached)
+                                                <span class="inline-flex rounded-full bg-red-100 px-2.5 py-1 text-xs font-semibold text-red-700">SLA Breached</span>
+                                            @else
+                                                <span class="inline-flex rounded-full bg-sky-100 px-2.5 py-1 text-xs font-semibold text-sky-700">SLA due in {{ $slaRemaining }}h</span>
+                                            @endif
+                                        @endif
+                                    </div>
+                                    <p class="mt-1 text-xs text-slate-500">Age {{ $ageHours }}h</p>
                                 </td>
                                 <td class="px-4 py-3 text-slate-600">
                                     <p>{{ $exception->line?->line_reference ?: '-' }}</p>
@@ -121,6 +162,52 @@
                                 <td class="px-4 py-3 text-slate-600">
                                     <p>{{ $exception->details ?: '-' }}</p>
                                     <p class="text-xs text-slate-500">Next: {{ $exception->next_action ?: '-' }}</p>
+                                    @php
+                                        $executionMetadata = (array) ($exception->metadata ?? []);
+                                        $incidentId = (string) data_get($executionMetadata, 'execution_incident_id', '');
+                                        $billingAttemptId = (int) data_get($executionMetadata, 'billing_attempt_id', 0);
+                                        $payoutAttemptId = (int) data_get($executionMetadata, 'payout_attempt_id', 0);
+                                        $webhookEventId = (int) data_get($executionMetadata, 'execution_webhook_event_id', 0);
+
+                                        $contextQuery = [];
+                                        $contextLabel = 'Open Execution Health';
+
+                                        if ($billingAttemptId > 0) {
+                                            $contextQuery = [
+                                                'focus_pipeline' => 'billing',
+                                                'billing_attempt_id' => $billingAttemptId,
+                                                'incident_id' => $incidentId,
+                                            ];
+                                            $contextLabel = 'Open Billing Context';
+                                        } elseif ($payoutAttemptId > 0) {
+                                            $contextQuery = [
+                                                'focus_pipeline' => 'payout',
+                                                'payout_attempt_id' => $payoutAttemptId,
+                                                'incident_id' => $incidentId,
+                                            ];
+                                            $contextLabel = 'Open Payout Context';
+                                        } elseif ($webhookEventId > 0) {
+                                            $contextQuery = [
+                                                'focus_pipeline' => 'webhook',
+                                                'webhook_event_id' => $webhookEventId,
+                                                'incident_id' => $incidentId,
+                                            ];
+                                            $contextLabel = 'Open Webhook Context';
+                                        }
+
+                                        $hasContextLink = ($incidentId !== '') || ($contextQuery !== []);
+                                    @endphp
+
+                                    @if ($hasContextLink)
+                                        <p class="text-xs text-slate-500">
+                                            @if ($incidentId !== '')
+                                                Incident {{ $incidentId }}
+                                            @else
+                                                Linked execution record
+                                            @endif
+                                            <a href="{{ route('execution.health', $contextQuery) }}" class="ml-1 font-semibold text-slate-700 hover:text-slate-900">{{ $contextLabel }}</a>
+                                        </p>
+                                    @endif
                                 </td>
                                 <td class="px-4 py-3">
                                     <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold {{ $statusClass }}">{{ ucfirst((string) $exception->exception_status) }}</span>
@@ -138,7 +225,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="5" class="px-4 py-10 text-center text-sm text-slate-500">No reconciliation exceptions found for the selected filters.</td>
+                                <td colspan="6" class="px-4 py-10 text-center text-sm text-slate-500">No reconciliation exceptions found for the selected filters.</td>
                             </tr>
                         @endforelse
                     </tbody>
@@ -179,4 +266,5 @@
         </div>
     @endif
 </div>
+
 

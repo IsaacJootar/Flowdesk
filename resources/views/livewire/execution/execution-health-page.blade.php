@@ -55,6 +55,56 @@
             <p class="mt-2 text-sm text-slate-800">{{ $summary['next_action'] ?? 'Retry later.' }}</p>
         </section>
 
+        @if ($focusRequested)
+            <section class="fd-card p-5">
+                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Focused Execution Context</p>
+
+                @if ($focusContext)
+                    <div class="mt-2 flex flex-wrap items-center gap-2">
+                        <h3 class="text-base font-semibold text-slate-900">{{ $focusContext['record_label'] }}</h3>
+                        @if (! empty($focusContext['incident_id']))
+                            <span class="inline-flex rounded-full border border-slate-300 bg-slate-50 px-2 py-0.5 text-xs font-semibold text-slate-700">{{ $focusContext['incident_id'] }}</span>
+                        @endif
+                    </div>
+
+                    <div class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                        <div>
+                            <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Pipeline</p>
+                            <p class="mt-1 text-sm font-medium text-slate-800">{{ $focusContext['pipeline'] }}</p>
+                        </div>
+                        <div>
+                            <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Status</p>
+                            <p class="mt-1 text-sm font-medium text-slate-800">{{ str_replace('_', ' ', $focusContext['status']) }}</p>
+                        </div>
+                        <div>
+                            <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Provider</p>
+                            <p class="mt-1 text-sm font-medium text-slate-800">{{ $focusContext['provider'] }}</p>
+                        </div>
+                        <div>
+                            <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Reference</p>
+                            <p class="mt-1 text-sm font-medium text-slate-800">{{ $focusContext['reference'] }}</p>
+                        </div>
+                        <div>
+                            <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Amount</p>
+                            <p class="mt-1 text-sm font-medium text-slate-800">{{ $focusContext['amount'] }}</p>
+                        </div>
+                        <div>
+                            <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Updated</p>
+                            <p class="mt-1 text-sm font-medium text-slate-800">{{ $focusContext['event_time'] }}</p>
+                        </div>
+                    </div>
+
+                    <p class="mt-4 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+                        {{ $focusContext['next_action'] }}
+                    </p>
+                @else
+                    <p class="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                        {{ $focusContextMessage ?: 'Linked execution record was not found in your tenant scope.' }}
+                    </p>
+                @endif
+            </section>
+        @endif
+
         <section class="fd-card p-4">
             <div class="mb-3 flex items-center justify-between gap-3">
                 <div>
@@ -90,4 +140,3 @@
         </section>
     @endif
 </div>
-

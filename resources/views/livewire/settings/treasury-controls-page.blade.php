@@ -67,6 +67,20 @@
                     <p class="mt-1 text-xs text-slate-500">Maximum absolute amount difference allowed for automatic matching.</p>
                     @error('controlsForm.auto_match_amount_tolerance')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
                 </label>
+
+                <label class="block">
+                    <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Auto-Match Minimum Confidence (%)</span>
+                    <input type="number" min="1" max="99" wire:model.defer="controlsForm.auto_match_min_confidence" class="w-full rounded-xl border-slate-300 text-sm focus:border-slate-500 focus:ring-slate-500">
+                    <p class="mt-1 text-xs text-slate-500">Auto-match only applies when the best candidate meets this confidence floor.</p>
+                    @error('controlsForm.auto_match_min_confidence')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+                </label>
+
+                <label class="block">
+                    <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Direct Expense Text Similarity Threshold (%)</span>
+                    <input type="number" min="0" max="100" wire:model.defer="controlsForm.direct_expense_text_similarity_threshold" class="w-full rounded-xl border-slate-300 text-sm focus:border-slate-500 focus:ring-slate-500">
+                    <p class="mt-1 text-xs text-slate-500">Minimum merchant/text similarity used to treat expense evidence as strong match context.</p>
+                    @error('controlsForm.direct_expense_text_similarity_threshold')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+                </label>
             </div>
 
             <label class="inline-flex items-center gap-2 text-sm text-slate-700">

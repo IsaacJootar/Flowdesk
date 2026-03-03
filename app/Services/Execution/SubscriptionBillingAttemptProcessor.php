@@ -9,6 +9,7 @@ use App\Services\Execution\DTO\AdapterOperationStatus;
 use App\Services\Execution\DTO\SubscriptionBillingRequestData;
 use App\Services\TenantAuditLogger;
 use App\Services\TenantBillingAutomationService;
+use App\Services\Treasury\SyncBillingExecutionExceptionService;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 
@@ -18,6 +19,7 @@ class SubscriptionBillingAttemptProcessor
         private readonly TenantExecutionAdapterFactory $adapterFactory,
         private readonly TenantAuditLogger $tenantAuditLogger,
         private readonly TenantBillingAutomationService $billingAutomationService,
+        private readonly SyncBillingExecutionExceptionService $syncBillingExecutionExceptionService,
     ) {
     }
 
@@ -111,6 +113,9 @@ class SubscriptionBillingAttemptProcessor
             'updated_by' => null,
         ])->save();
 
+        // Mirror billing terminal outcomes into treasury exceptions for operator triage.
+        $this->syncBillingExecutionExceptionService->syncForAttempt($attempt, 'webhook');
+
         if ($nextStatus === 'settled') {
             $this->ensureLedgerChargeEntry($attempt);
             $company = $attempt->subscription?->company;
@@ -141,6 +146,9 @@ class SubscriptionBillingAttemptProcessor
             'settled_at' => $status === 'settled' ? now() : $attempt->settled_at,
             'failed_at' => $status === 'failed' ? now() : $attempt->failed_at,
         ])->save();
+
+        // Adapter terminal outcomes should open/close treasury handoff exceptions automatically.
+        $this->syncBillingExecutionExceptionService->syncForAttempt($attempt, 'adapter');
 
         $this->tenantAuditLogger->log(
             companyId: (int) $attempt->company_id,

@@ -10,6 +10,7 @@ use App\Domains\Approvals\Models\RequestApproval;
 use App\Domains\Company\Models\Company;
 use App\Domains\Company\Models\TenantSubscription;
 use App\Domains\Requests\Models\RequestPayoutExecutionAttempt;
+use App\Domains\Treasury\Models\ReconciliationException;
 use App\Domains\Requests\Models\SpendRequest;
 use App\Enums\UserRole;
 use App\Models\User;
@@ -225,6 +226,121 @@ class RequestPayoutExecutionPhaseFourTest extends TestCase
         ]);
     }
 
+    public function test_failed_payout_webhook_creates_treasury_handoff_exception_with_incident_reference(): void
+    {
+        config()->set('execution.providers.fake_provider', [
+            'subscription_billing_adapter' => FakeSubscriptionBillingAdapter::class,
+            'payout_execution_adapter' => NullPayoutExecutionAdapter::class,
+            'webhook_verifier' => FakeWebhookVerifier::class,
+        ]);
+
+        [$company, $department] = $this->createCompanyContext('Phase4 Treasury Handoff');
+        $staff = $this->createUser($company, $department, UserRole::Staff->value);
+
+        $subscription = TenantSubscription::query()->create([
+            'company_id' => $company->id,
+            'plan_code' => 'growth',
+            'subscription_status' => 'current',
+            'payment_execution_mode' => 'execution_enabled',
+            'execution_provider' => 'fake_provider',
+            'execution_allowed_channels' => ['bank_transfer'],
+        ]);
+
+        $request = SpendRequest::query()->create([
+            'company_id' => $company->id,
+            'request_code' => 'FD-REQ-P4-HANDOFF-001',
+            'requested_by' => $staff->id,
+            'department_id' => $department->id,
+            'title' => 'Webhook payout failure handoff',
+            'amount' => 92000,
+            'currency' => 'NGN',
+            'status' => 'execution_processing',
+            'approved_amount' => 92000,
+            'metadata' => [
+                'approval_scope' => RequestApprovalRouter::SCOPE_PAYMENT_AUTHORIZATION,
+            ],
+        ]);
+
+        $attempt = RequestPayoutExecutionAttempt::query()->create([
+            'company_id' => $company->id,
+            'request_id' => $request->id,
+            'tenant_subscription_id' => $subscription->id,
+            'provider_key' => 'fake_provider',
+            'execution_channel' => 'bank_transfer',
+            'idempotency_key' => 'request:'.$request->id.':payout',
+            'execution_status' => 'webhook_pending',
+            'amount' => 92000,
+            'currency_code' => 'NGN',
+            'provider_reference' => 'PAYOUT-HANDOFF-001',
+            'queued_at' => now(),
+            'attempt_count' => 1,
+            'metadata' => ['request_code' => $request->request_code],
+        ]);
+
+        $failedPayload = json_encode([
+            'event_id' => 'evt-phase4-handoff-failed',
+            'event_type' => 'payout.failed',
+            'payout_attempt_id' => (int) $attempt->id,
+            'request_id' => (int) $request->id,
+            'idempotency_key' => (string) $attempt->idempotency_key,
+            'status' => 'failed',
+        ], JSON_THROW_ON_ERROR);
+
+        $result = app(SubscriptionBillingWebhookReconciliationService::class)->receive(
+            provider: 'fake_provider',
+            headers: ['x-test' => '1'],
+            body: $failedPayload,
+            signature: null,
+        );
+
+        $this->assertTrue($result['ok']);
+        $this->assertSame(202, $result['status']);
+
+        $this->assertDatabaseHas('request_payout_execution_attempts', [
+            'id' => $attempt->id,
+            'execution_status' => 'failed',
+        ]);
+
+        $exception = ReconciliationException::query()
+            ->where('company_id', $company->id)
+            ->where('exception_code', 'execution_payout_failed')
+            ->where('exception_status', ReconciliationException::STATUS_OPEN)
+            ->first();
+
+        $this->assertNotNull($exception);
+        $this->assertSame((int) $attempt->id, (int) data_get((array) ($exception->metadata ?? []), 'payout_attempt_id'));
+        $this->assertStringStartsWith('EXE-', (string) data_get((array) ($exception->metadata ?? []), 'execution_incident_id', ''));
+
+        $this->assertDatabaseHas('tenant_audit_events', [
+            'company_id' => $company->id,
+            'action' => 'tenant.execution.payout.handoff_to_treasury',
+            'entity_type' => RequestPayoutExecutionAttempt::class,
+            'entity_id' => $attempt->id,
+        ]);
+
+        $settledPayload = json_encode([
+            'event_id' => 'evt-phase4-handoff-settled',
+            'event_type' => 'payout.settled',
+            'payout_attempt_id' => (int) $attempt->id,
+            'request_id' => (int) $request->id,
+            'idempotency_key' => (string) $attempt->idempotency_key,
+            'status' => 'settled',
+        ], JSON_THROW_ON_ERROR);
+
+        $settledResult = app(SubscriptionBillingWebhookReconciliationService::class)->receive(
+            provider: 'fake_provider',
+            headers: ['x-test' => '1'],
+            body: $settledPayload,
+            signature: null,
+        );
+
+        $this->assertTrue($settledResult['ok']);
+
+        $this->assertDatabaseHas('reconciliation_exceptions', [
+            'id' => (int) $exception->id,
+            'exception_status' => ReconciliationException::STATUS_RESOLVED,
+        ]);
+    }
     /**
      * @return array{0: Company, 1: \App\Domains\Company\Models\Department}
      */
@@ -322,3 +438,8 @@ class RequestPayoutExecutionPhaseFourTest extends TestCase
         ]);
     }
 }
+
+
+
+
+

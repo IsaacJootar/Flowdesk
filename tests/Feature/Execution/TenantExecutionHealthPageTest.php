@@ -193,7 +193,40 @@ class TenantExecutionHealthPageTest extends TestCase
             ->assertSet('summary.affected_payouts', 1)
             ->assertSet('summary.next_action', 'Retry later.');
     }
+    public function test_execution_health_can_show_focused_billing_context_from_deep_link(): void
+    {
+        [$company, $department] = $this->createCompanyContext('Health Focus Tenant');
+        $finance = $this->createUser($company, $department, UserRole::Finance->value);
+        $subscription = $this->createSubscription($company, $finance);
 
+        $attempt = TenantSubscriptionBillingAttempt::query()->create([
+            'company_id' => $company->id,
+            'tenant_subscription_id' => $subscription->id,
+            'provider_key' => 'manual_ops',
+            'billing_cycle_key' => '2026-03',
+            'idempotency_key' => 'tenant-focus-billing-001',
+            'attempt_status' => 'failed',
+            'amount' => 1800,
+            'currency_code' => 'NGN',
+            'period_start' => now()->startOfMonth()->toDateString(),
+            'period_end' => now()->endOfMonth()->toDateString(),
+            'attempt_count' => 1,
+        ]);
+
+        $this->actingAs($finance);
+
+        Livewire::test(ExecutionHealthPage::class)
+            ->set('focusRequested', true)
+            ->set('focusPipeline', 'billing')
+            ->set('focusBillingAttemptId', (int) $attempt->id)
+            ->set('focusIncidentId', 'EXE-123456')
+            ->call('loadData')
+            ->assertSet('focusContext.pipeline', 'Billing')
+            ->assertSet('focusContext.record_label', 'Billing attempt #'.(int) $attempt->id)
+            ->assertSee('Focused Execution Context')
+            ->assertSee('Billing attempt #'.(int) $attempt->id)
+            ->assertSee('EXE-123456');
+    }
     /**
      * @return array{0: Company, 1: Department}
      */
@@ -261,3 +294,4 @@ class TenantExecutionHealthPageTest extends TestCase
         ]);
     }
 }
+
