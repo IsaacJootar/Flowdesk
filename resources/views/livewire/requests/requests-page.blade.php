@@ -1148,6 +1148,13 @@
                             @endif
                         </div>
 
+                        @if (! empty($selectedRequest['mandatory_po_policy_message']))
+                            <div class="rounded-xl border border-amber-200 bg-amber-50 p-4">
+                                <p class="text-sm font-semibold text-amber-800">Mandatory PO Policy</p>
+                                <p class="mt-1 text-xs text-amber-700">{{ $selectedRequest['mandatory_po_policy_message'] }}</p>
+                            </div>
+                        @endif
+
                         <div class="rounded-xl border border-slate-200 p-4">
                             <div class="mb-3 flex items-center justify-between">
                                 <p class="text-sm font-semibold text-slate-800">Request Thread</p>

@@ -29,6 +29,7 @@ use App\Services\ExpensePolicyResolver;
 use App\Services\RequestApprovalRouter;
 use App\Services\TenantModuleAccessService;
 use App\Services\Procurement\CreatePurchaseOrderFromRequestService;
+use App\Services\Procurement\MandatoryPurchaseOrderPolicyService;
 use App\Services\Procurement\ProcurementControlSettingsService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
@@ -527,6 +528,13 @@ class RequestsPage extends Component
 
         if ((string) $request->status !== 'approved') {
             $this->setFeedbackError('Only approved requests can be converted to expense records.');
+
+            return;
+        }
+
+        $mandatoryPoPolicy = app(MandatoryPurchaseOrderPolicyService::class)->evaluateForRequest($request);
+        if ((bool) ($mandatoryPoPolicy['required'] ?? false) && $request->purchaseOrders->isEmpty()) {
+            $this->setFeedbackError((string) ($mandatoryPoPolicy['reason'] ?? 'Mandatory PO policy requires conversion before expense handoff.'));
 
             return;
         }
@@ -1295,9 +1303,12 @@ class RequestsPage extends Component
             ->all();
         $linkedExpense = $request->expenses->first();
         $linkedPurchaseOrder = $request->purchaseOrders->sortByDesc('id')->first();
+        $mandatoryPoPolicy = app(MandatoryPurchaseOrderPolicyService::class)->evaluateForRequest($request);
+        $mandatoryPoRequiredNoOrder = (bool) ($mandatoryPoPolicy['required'] ?? false) && ! $linkedPurchaseOrder;
         $canCreateExpense = Gate::allows('create', Expense::class)
             && (string) $request->status === 'approved'
-            && ! $linkedExpense;
+            && ! $linkedExpense
+            && ! $mandatoryPoRequiredNoOrder;
         $procurementModuleEnabled = app(TenantModuleAccessService::class)->moduleEnabled(
             \Illuminate\Support\Facades\Auth::user(),
             'procurement'
@@ -1351,6 +1362,9 @@ class RequestsPage extends Component
             'can_comment' => Gate::allows('view', $request),
             'can_create_expense' => $canCreateExpense,
             'can_convert_to_po' => $canConvertToPurchaseOrder,
+            'mandatory_po_policy_message' => $mandatoryPoRequiredNoOrder
+                ? (string) ($mandatoryPoPolicy['reason'] ?? 'Mandatory PO policy requires conversion before expense handoff.')
+                : null,
             'linked_expense' => $linkedExpense ? [
                 'id' => (int) $linkedExpense->id,
                 'expense_code' => (string) $linkedExpense->expense_code,

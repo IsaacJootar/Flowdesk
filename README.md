@@ -13,6 +13,8 @@
 - Execution provider usage and operations flow: `FLOWDESK_REAL_PROVIDER_INTEGRATION_GUIDE.md`
 - Incident history module (filters/trend/export): `app/Livewire/Platform/IncidentHistoryPage.php`
 - Two-mode execution architecture plan: `FLOWDESK_TWO_MODE_TENANT_EXECUTION_PLAN.md`
+- Procurement backfill SOP/runbook (`ROL-803`): `FLOWDESK_ROL803_BACKFILL_SOP_RUNBOOK.md`
+- Pilot checklist + KPI baseline template (`ROL-805`): `FLOWDESK_ROL805_PILOT_CHECKLIST_AND_KPI_TEMPLATE.md`
 
 ## About Laravel
 
@@ -71,4 +73,5 @@ If you discover a security vulnerability within Laravel, please send an e-mail t
 ## License
 
 The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+
 

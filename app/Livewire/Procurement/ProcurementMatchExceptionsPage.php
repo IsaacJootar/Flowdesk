@@ -117,9 +117,25 @@ class ProcurementMatchExceptionsPage extends Component
         ]);
 
         $controls = $settingsService->effectiveControls((int) $user->company_id);
-        $allowedRoles = (array) ($controls['match_override_allowed_roles'] ?? ['owner', 'finance']);
+        $allowedRoles = array_values(array_filter(array_map(
+            static fn (mixed $role): string => strtolower(trim((string) $role)),
+            (array) ($controls['match_override_allowed_roles'] ?? ['owner', 'finance'])
+        )));
         if (! in_array(strtolower((string) $user->role), $allowedRoles, true)) {
-            $this->setFeedbackError(sprintf('Only [%s] can resolve procurement match exceptions.', implode(', ', $allowedRoles)));
+            $this->setFeedbackError(sprintf('Only [%s] can resolve or waive procurement match exceptions.', implode(', ', $allowedRoles)));
+
+            $tenantAuditLogger->log(
+                companyId: (int) $user->company_id,
+                action: 'tenant.procurement.match.exception.action.denied',
+                actor: $user,
+                description: 'Procurement match exception action denied by role guardrail policy.',
+                entityType: InvoiceMatchException::class,
+                metadata: [
+                    'reason' => 'role_not_allowed',
+                    'selected_exception_id' => $this->selectedExceptionId,
+                    'allowed_roles' => $allowedRoles,
+                ],
+            );
 
             return;
         }
@@ -139,6 +155,36 @@ class ProcurementMatchExceptionsPage extends Component
             $this->setFeedbackError('This exception is already closed.');
 
             return;
+        }
+
+        $requiresMakerChecker = (bool) ($controls['match_override_requires_maker_checker'] ?? true);
+        if ($requiresMakerChecker) {
+            $makerIds = array_values(array_filter([
+                (int) ($exception->created_by ?? 0),
+                (int) ($exception->matchResult?->created_by ?? 0),
+                (int) ($exception->matchResult?->updated_by ?? 0),
+            ]));
+
+            // Control intent: ensure override action is approved by a different authorized operator.
+            if (in_array((int) $user->id, $makerIds, true)) {
+                $this->setFeedbackError('Maker-checker policy requires another authorized user to resolve or waive this exception.');
+
+                $tenantAuditLogger->log(
+                    companyId: (int) $user->company_id,
+                    action: 'tenant.procurement.match.exception.action.denied',
+                    actor: $user,
+                    description: 'Procurement match exception action denied by maker-checker policy.',
+                    entityType: InvoiceMatchException::class,
+                    entityId: (int) $exception->id,
+                    metadata: [
+                        'reason' => 'maker_checker_same_user',
+                        'allowed_roles' => $allowedRoles,
+                        'requires_maker_checker' => true,
+                    ],
+                );
+
+                return;
+            }
         }
 
         $newStatus = $this->resolutionAction === 'waived'
@@ -187,6 +233,8 @@ class ProcurementMatchExceptionsPage extends Component
                 'vendor_invoice_id' => (int) ($exception->vendor_invoice_id ?? 0),
                 'exception_code' => (string) $exception->exception_code,
                 'new_status' => $newStatus,
+                'allowed_roles' => $allowedRoles,
+                'maker_checker_required' => $requiresMakerChecker,
             ],
         );
 
@@ -194,8 +242,15 @@ class ProcurementMatchExceptionsPage extends Component
         $this->setFeedback('Procurement match exception updated.');
     }
 
-    public function render(): View
+    public function render(ProcurementControlSettingsService $settingsService): View
     {
+        $controls = $settingsService->effectiveControls((int) auth()->user()->company_id);
+        $allowedRoles = array_values(array_filter(array_map(
+            static fn (mixed $role): string => strtolower(trim((string) $role)),
+            (array) ($controls['match_override_allowed_roles'] ?? ['owner', 'finance'])
+        )));
+        $makerCheckerRequired = (bool) ($controls['match_override_requires_maker_checker'] ?? true);
+
         $query = InvoiceMatchException::query()
             ->with([
                 'order:id,po_number',
@@ -228,6 +283,8 @@ class ProcurementMatchExceptionsPage extends Component
         return view('livewire.procurement.procurement-match-exceptions-page', [
             'exceptions' => $exceptions,
             'summary' => $summary,
+            'matchActionAllowedRoles' => $allowedRoles,
+            'makerCheckerRequired' => $makerCheckerRequired,
             'statuses' => ['all', InvoiceMatchException::STATUS_OPEN, InvoiceMatchException::STATUS_RESOLVED, InvoiceMatchException::STATUS_WAIVED],
             'severities' => ['all', InvoiceMatchException::SEVERITY_LOW, InvoiceMatchException::SEVERITY_MEDIUM, InvoiceMatchException::SEVERITY_HIGH, InvoiceMatchException::SEVERITY_CRITICAL],
         ]);

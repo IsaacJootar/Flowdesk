@@ -208,6 +208,8 @@ class IncidentHistoryPage extends Component
             'billing' => 'Billing',
             'payout' => 'Payout',
             'webhook' => 'Webhook',
+            'procurement' => 'Procurement',
+            'treasury' => 'Treasury',
             default => 'System',
         };
     }
@@ -246,6 +248,12 @@ class IncidentHistoryPage extends Component
         if ($action === 'tenant.execution.alert.summary_emitted') {
             $count = (int) ($metadata['count'] ?? 0);
             $threshold = (int) ($metadata['threshold'] ?? 0);
+            $ageHours = (int) ($metadata['age_hours'] ?? 0);
+
+            if ($ageHours > 0) {
+                return 'count '.$count.', threshold '.$threshold.', age '.$ageHours.' hrs';
+            }
+
             $windowMinutes = (int) ($metadata['window_minutes'] ?? 0);
 
             return 'count '.$count.', threshold '.$threshold.', window '.$windowMinutes.' mins';
@@ -305,7 +313,7 @@ class IncidentHistoryPage extends Component
 
     private function applyPipelineFilter(Builder $query): void
     {
-        if (! in_array($this->pipelineFilter, ['billing', 'payout', 'webhook', 'system'], true)) {
+        if (! in_array($this->pipelineFilter, ['billing', 'payout', 'webhook', 'procurement', 'treasury', 'system'], true)) {
             return;
         }
 
@@ -482,7 +490,7 @@ class IncidentHistoryPage extends Component
         if (in_array($action, ['tenant.execution.auto_recovery.run_summary', 'tenant.execution.alert.summary_emitted'], true)) {
             $pipeline = strtolower(trim((string) ($metadata['pipeline'] ?? '')));
 
-            return in_array($pipeline, ['billing', 'payout', 'webhook'], true)
+            return in_array($pipeline, ['billing', 'payout', 'webhook', 'procurement', 'treasury'], true)
                 ? $pipeline
                 : 'system';
         }

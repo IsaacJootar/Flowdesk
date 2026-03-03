@@ -6,6 +6,8 @@ use App\Domains\Budgets\Models\DepartmentBudget;
 use App\Domains\Company\Models\Company;
 use App\Domains\Company\Models\Department;
 use App\Domains\Company\Models\TenantFeatureEntitlement;
+use App\Domains\Expenses\Models\Expense;
+use App\Domains\Procurement\Models\CompanyProcurementControlSetting;
 use App\Domains\Procurement\Models\ProcurementCommitment;
 use App\Domains\Procurement\Models\PurchaseOrder;
 use App\Domains\Requests\Models\RequestItem;
@@ -140,6 +142,60 @@ class ProcurementRequestToPoFlowTest extends TestCase
         ]);
     }
 
+
+    public function test_mandatory_po_policy_blocks_create_expense_handoff_until_po_is_linked(): void
+    {
+        [$company, $department] = $this->createCompanyContext('Procurement Mandatory PO Expense');
+        $owner = $this->createUser($company, $department, UserRole::Owner->value);
+        $vendor = $this->createVendor($company);
+
+        TenantFeatureEntitlement::query()->create([
+            'company_id' => $company->id,
+            'procurement_enabled' => true,
+            'created_by' => $owner->id,
+            'updated_by' => $owner->id,
+        ]);
+
+        CompanyProcurementControlSetting::query()->create([
+            'company_id' => $company->id,
+            'controls' => [
+                'mandatory_po_enabled' => true,
+                'mandatory_po_min_amount' => 100000,
+                'mandatory_po_category_codes' => [],
+            ],
+            'created_by' => $owner->id,
+            'updated_by' => $owner->id,
+        ]);
+
+        $request = SpendRequest::query()->create([
+            'company_id' => $company->id,
+            'request_code' => 'FD-PROC-REQ-003',
+            'requested_by' => $owner->id,
+            'department_id' => $department->id,
+            'vendor_id' => $vendor->id,
+            'title' => 'Mandatory PO expense handoff request',
+            'amount' => 200000,
+            'approved_amount' => 200000,
+            'currency' => 'NGN',
+            'status' => 'approved',
+            'created_by' => $owner->id,
+            'updated_by' => $owner->id,
+        ]);
+
+        $this->actingAs($owner);
+
+        Livewire::test(RequestsPage::class)
+            ->call('openViewModal', $request->id)
+            ->call('createExpenseFromSelectedRequest')
+            ->assertSet('feedbackError', 'Mandatory PO policy requires conversion before non-PO handoff (amount 200000 >= threshold 100000).');
+
+        $this->assertDatabaseMissing('expenses', [
+            'company_id' => $company->id,
+            'request_id' => $request->id,
+        ]);
+
+        $this->assertNull(Expense::query()->where('request_id', $request->id)->first());
+    }
     public function test_procurement_routes_are_accessible_when_module_enabled(): void
     {
         [$company, $department] = $this->createCompanyContext('Procurement Route Tenant');

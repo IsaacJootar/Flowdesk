@@ -21,6 +21,10 @@
             <div>
                 <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Treasury Reconciliation Exceptions</p>
                 <p class="mt-1 text-sm text-slate-600">Resolve or waive exceptions, then return to the main treasury workspace.</p>
+                <p class="mt-1 text-xs text-slate-500">Action roles: {{ implode(', ', (array) $exceptionActionAllowedRoles) }}.</p>
+                @if ($makerCheckerRequired)
+                    <p class="text-xs text-amber-700">Maker-checker is enabled: exception maker cannot close the same exception.</p>
+                @endif
             </div>
             <a href="{{ route('treasury.reconciliation') }}" class="inline-flex h-10 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl border border-slate-300 bg-white px-3.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
                 <span aria-hidden="true">&larr;</span>

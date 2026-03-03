@@ -151,6 +151,50 @@
             </div>
 
             <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Mandatory PO Policy</p>
+                <p class="mt-1 text-xs text-slate-500">Block non-PO payout/expense handoff when threshold/category policy requires procurement lane.</p>
+
+                <div class="mt-3 grid gap-3 sm:grid-cols-2">
+                    <label class="inline-flex items-center gap-2 text-sm text-slate-700 sm:col-span-2">
+                        <input type="checkbox" wire:model.defer="controlsForm.mandatory_po_enabled" class="rounded border-slate-300 text-slate-700 focus:ring-slate-500">
+                        Enforce mandatory PO policy before payout and expense handoff
+                    </label>
+
+                    <label class="block">
+                        <span class="mb-1 block text-xs text-slate-600">Amount Threshold (minor unit)</span>
+                        <input type="number" min="0" max="999999999" step="1" wire:model.defer="controlsForm.mandatory_po_min_amount" class="w-full rounded-xl border-slate-300 text-sm focus:border-slate-500 focus:ring-slate-500" placeholder="0">
+                        <p class="mt-1 text-xs text-slate-500">If request amount is at or above this value, PO is required.</p>
+                        @error('controlsForm.mandatory_po_min_amount')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+                    </label>
+
+                    <label class="block">
+                        <span class="mb-1 block text-xs text-slate-600">Category Codes (comma-separated)</span>
+                        <input type="text" wire:model.defer="controlsForm.mandatory_po_category_codes" class="w-full rounded-xl border-slate-300 text-sm focus:border-slate-500 focus:ring-slate-500" placeholder="it_equipment, capex, software">
+                        <p class="mt-1 text-xs text-slate-500">If any request item uses one of these categories, PO is required.</p>
+                        @error('controlsForm.mandatory_po_category_codes')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+                    </label>
+                </div>
+            </div>
+
+            <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Stale Commitment Alert</p>
+                <p class="mt-1 text-xs text-slate-500">Raise an ops alert when active procurement commitments remain open too long.</p>
+                <div class="mt-3 grid gap-3 sm:grid-cols-2">
+                    <label class="block">
+                        <span class="mb-1 block text-xs text-slate-600">Age Threshold (Hours)</span>
+                        <input type="number" min="1" max="720" step="1" wire:model.defer="controlsForm.stale_commitment_alert_age_hours" class="w-full rounded-xl border-slate-300 text-sm focus:border-slate-500 focus:ring-slate-500">
+                        @error('controlsForm.stale_commitment_alert_age_hours')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+                    </label>
+
+                    <label class="block">
+                        <span class="mb-1 block text-xs text-slate-600">Count Threshold</span>
+                        <input type="number" min="1" max="1000" step="1" wire:model.defer="controlsForm.stale_commitment_alert_count_threshold" class="w-full rounded-xl border-slate-300 text-sm focus:border-slate-500 focus:ring-slate-500">
+                        <p class="mt-1 text-xs text-slate-500">Alert triggers when at least this many active commitments are past the age threshold.</p>
+                        @error('controlsForm.stale_commitment_alert_count_threshold')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+                    </label>
+                </div>
+            </div>
+            <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
                 <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Match Override Allowed Roles</p>
                 <p class="mt-1 text-xs text-slate-500">These roles can resolve/waive procurement match exceptions.</p>
                 <div class="mt-2 grid gap-2 sm:grid-cols-3 lg:grid-cols-5">
@@ -188,6 +232,11 @@
                 <label class="inline-flex items-center gap-2 text-sm text-slate-700 sm:col-span-2">
                     <input type="checkbox" wire:model.defer="controlsForm.block_payment_on_mismatch" class="rounded border-slate-300 text-slate-700 focus:ring-slate-500">
                     Block payment execution when procurement 3-way match fails
+                </label>
+
+                <label class="inline-flex items-center gap-2 text-sm text-slate-700 sm:col-span-2">
+                    <input type="checkbox" wire:model.defer="controlsForm.match_override_requires_maker_checker" class="rounded border-slate-300 text-slate-700 focus:ring-slate-500">
+                    Require maker-checker for procurement exception overrides
                 </label>
             </div>
 

@@ -8,6 +8,7 @@ use App\Services\TenantAuditLogger;
 use App\Services\Treasury\TreasuryControlSettingsService;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\View\View;
+use Illuminate\Validation\Rule;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -23,7 +24,7 @@ class TreasuryControlsPage extends Component
     public int $feedbackKey = 0;
 
     /**
-     * @var array{statement_import_max_rows:string,auto_match_date_window_days:string,auto_match_amount_tolerance:string,auto_match_min_confidence:string,direct_expense_text_similarity_threshold:string,exception_alert_age_hours:string,out_of_pocket_requires_reimbursement_link:bool}
+     * @var array{statement_import_max_rows:string,auto_match_date_window_days:string,auto_match_amount_tolerance:string,auto_match_min_confidence:string,direct_expense_text_similarity_threshold:string,exception_alert_age_hours:string,reconciliation_backlog_alert_count_threshold:string,exception_action_allowed_roles:array<int,string>,exception_action_requires_maker_checker:bool,out_of_pocket_requires_reimbursement_link:bool}
      */
     public array $controlsForm = [];
 
@@ -46,6 +47,10 @@ class TreasuryControlsPage extends Component
             'controlsForm.auto_match_min_confidence' => ['required', 'integer', 'min:1', 'max:99'],
             'controlsForm.direct_expense_text_similarity_threshold' => ['required', 'integer', 'min:0', 'max:100'],
             'controlsForm.exception_alert_age_hours' => ['required', 'integer', 'min:1', 'max:720'],
+            'controlsForm.reconciliation_backlog_alert_count_threshold' => ['required', 'integer', 'min:1', 'max:2000'],
+            'controlsForm.exception_action_allowed_roles' => ['required', 'array', 'min:1'],
+            'controlsForm.exception_action_allowed_roles.*' => ['string', Rule::in(UserRole::values())],
+            'controlsForm.exception_action_requires_maker_checker' => ['boolean'],
             'controlsForm.out_of_pocket_requires_reimbursement_link' => ['boolean'],
         ]);
 
@@ -56,7 +61,10 @@ class TreasuryControlsPage extends Component
             'auto_match_min_confidence' => (int) $validated['controlsForm']['auto_match_min_confidence'],
             'direct_expense_text_similarity_threshold' => (int) $validated['controlsForm']['direct_expense_text_similarity_threshold'],
             'exception_alert_age_hours' => (int) $validated['controlsForm']['exception_alert_age_hours'],
-            'out_of_pocket_requires_reimbursement_link' => (bool) $validated['controlsForm']['out_of_pocket_requires_reimbursement_link'],
+            'reconciliation_backlog_alert_count_threshold' => (int) $validated['controlsForm']['reconciliation_backlog_alert_count_threshold'],
+            'exception_action_allowed_roles' => array_values((array) $validated['controlsForm']['exception_action_allowed_roles']),
+            'exception_action_requires_maker_checker' => (bool) ($validated['controlsForm']['exception_action_requires_maker_checker'] ?? true),
+            'out_of_pocket_requires_reimbursement_link' => (bool) ($validated['controlsForm']['out_of_pocket_requires_reimbursement_link'] ?? true),
         ];
 
         $setting = $settingsService->settingsForCompany((int) auth()->user()->company_id);
@@ -96,7 +104,9 @@ class TreasuryControlsPage extends Component
 
     public function render(): View
     {
-        return view('livewire.settings.treasury-controls-page');
+        return view('livewire.settings.treasury-controls-page', [
+            'roles' => UserRole::values(),
+        ]);
     }
 
     private function hydrateFromSetting(TreasuryControlSettingsService $settingsService): void
@@ -110,6 +120,9 @@ class TreasuryControlsPage extends Component
             'auto_match_min_confidence' => (string) ((int) $controls['auto_match_min_confidence']),
             'direct_expense_text_similarity_threshold' => (string) ((int) $controls['direct_expense_text_similarity_threshold']),
             'exception_alert_age_hours' => (string) ((int) $controls['exception_alert_age_hours']),
+            'reconciliation_backlog_alert_count_threshold' => (string) ((int) $controls['reconciliation_backlog_alert_count_threshold']),
+            'exception_action_allowed_roles' => array_values((array) $controls['exception_action_allowed_roles']),
+            'exception_action_requires_maker_checker' => (bool) $controls['exception_action_requires_maker_checker'],
             'out_of_pocket_requires_reimbursement_link' => (bool) $controls['out_of_pocket_requires_reimbursement_link'],
         ];
     }

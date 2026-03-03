@@ -36,7 +36,7 @@
         @endif
     </section>
 
-    <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+    <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
         <a href="{{ route('platform.tenants') }}" class="block rounded-2xl border border-sky-200 bg-sky-50 p-5 transition hover:border-sky-300 hover:bg-sky-100">
             <p class="text-sm font-semibold text-sky-900">Tenant / Org Management</p>
             <p class="mt-1 text-sm text-sky-700">Manage lifecycle, plans, entitlements, and manual billing records.</p>
@@ -56,6 +56,10 @@
         <a href="{{ route('platform.operations.incident-history') }}" class="block rounded-2xl border border-violet-200 bg-violet-50 p-5 transition hover:border-violet-300 hover:bg-violet-100">
             <p class="text-sm font-semibold text-violet-900">Incident History</p>
             <p class="mt-1 text-sm text-violet-700">Review recovery and execution incident timelines with filters, trends, and exports.</p>
+        </a>
+        <a href="{{ route('platform.operations.pilot-rollout') }}" class="block rounded-2xl border border-cyan-200 bg-cyan-50 p-5 transition hover:border-cyan-300 hover:bg-cyan-100">
+            <p class="text-sm font-semibold text-cyan-900">Pilot Rollout KPIs</p>
+            <p class="mt-1 text-sm text-cyan-700">Capture baseline vs pilot windows and compare control outcomes by tenant.</p>
         </a>
     </div>
 </div>

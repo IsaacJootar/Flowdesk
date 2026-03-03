@@ -202,6 +202,7 @@ class NavAccessService
             ['route' => 'platform.operations.execution', 'pattern' => ['platform.operations.execution'], 'label' => 'Execution Operations'],
             ['route' => 'platform.operations.execution-checklist', 'pattern' => ['platform.operations.execution-checklist'], 'label' => 'Execution Test Checklist'],
             ['route' => 'platform.operations.incident-history', 'pattern' => ['platform.operations.incident-history'], 'label' => 'Incident History'],
+            ['route' => 'platform.operations.pilot-rollout', 'pattern' => ['platform.operations.pilot-rollout'], 'label' => 'Pilot Rollout KPIs'],
         ];
 
         $activeTenantId = $this->currentPlatformTenantId() ?? $this->firstExternalTenantId();
@@ -252,6 +253,7 @@ class NavAccessService
             'platform.operations.execution' => 'flow',
             'platform.operations.execution-checklist' => 'clipboard',
             'platform.operations.incident-history' => 'chart',
+            'platform.operations.pilot-rollout' => 'chart',
             'execution.health' => 'flow',
             'approval-workflows.index', 'platform.tenants.execution-mode' => 'flow',
             'settings.communications' => 'chat',
@@ -330,9 +332,3 @@ class NavAccessService
         return $id ? (int) $id : null;
     }
 }
-
-
-
-
-
-

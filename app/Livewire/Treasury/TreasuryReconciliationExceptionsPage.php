@@ -108,11 +108,34 @@ class TreasuryReconciliationExceptionsPage extends Component
         $this->resolutionNotes = '';
     }
 
-    public function applyResolution(TenantAuditLogger $tenantAuditLogger): void
-    {
+    public function applyResolution(
+        TenantAuditLogger $tenantAuditLogger,
+        TreasuryControlSettingsService $treasuryControlSettingsService
+    ): void {
         $user = auth()->user();
-        if (! $user instanceof User || ! $this->canOperate($user)) {
-            $this->setFeedbackError('Only owner/finance can resolve treasury exceptions.');
+        if (! $user instanceof User) {
+            return;
+        }
+
+        $controls = $treasuryControlSettingsService->effectiveControls((int) $user->company_id);
+        $allowedRoles = $this->normalizeRoles((array) ($controls['exception_action_allowed_roles'] ?? ['owner', 'finance']));
+        $requiresMakerChecker = (bool) ($controls['exception_action_requires_maker_checker'] ?? true);
+
+        if (! $this->canOperate($user, $allowedRoles)) {
+            $this->setFeedbackError(sprintf('Only [%s] can resolve or waive treasury exceptions.', implode(', ', $allowedRoles)));
+
+            $tenantAuditLogger->log(
+                companyId: (int) $user->company_id,
+                action: 'tenant.treasury.exception.action.denied',
+                actor: $user,
+                description: 'Treasury exception action denied by role guardrail policy.',
+                entityType: ReconciliationException::class,
+                metadata: [
+                    'reason' => 'role_not_allowed',
+                    'selected_exception_id' => $this->selectedExceptionId,
+                    'allowed_roles' => $allowedRoles,
+                ],
+            );
 
             return;
         }
@@ -138,6 +161,34 @@ class TreasuryReconciliationExceptionsPage extends Component
             $this->setFeedbackError('Exception is already closed.');
 
             return;
+        }
+
+        if ($requiresMakerChecker) {
+            $makerIds = array_values(array_filter([
+                (int) ($exception->created_by ?? 0),
+                (int) ($exception->updated_by ?? 0),
+            ]));
+
+            // Control intent: exception maker and checker must be different for sensitive closure actions.
+            if (in_array((int) $user->id, $makerIds, true)) {
+                $this->setFeedbackError('Maker-checker policy requires another authorized user to resolve or waive this exception.');
+
+                $tenantAuditLogger->log(
+                    companyId: (int) $user->company_id,
+                    action: 'tenant.treasury.exception.action.denied',
+                    actor: $user,
+                    description: 'Treasury exception action denied by maker-checker policy.',
+                    entityType: ReconciliationException::class,
+                    entityId: (int) $exception->id,
+                    metadata: [
+                        'reason' => 'maker_checker_same_user',
+                        'allowed_roles' => $allowedRoles,
+                        'requires_maker_checker' => true,
+                    ],
+                );
+
+                return;
+            }
         }
 
         $newStatus = $this->resolutionAction === 'waived'
@@ -181,6 +232,8 @@ class TreasuryReconciliationExceptionsPage extends Component
                 'exception_code' => (string) $exception->exception_code,
                 'match_stream' => (string) $exception->match_stream,
                 'new_status' => $newStatus,
+                'allowed_roles' => $allowedRoles,
+                'requires_maker_checker' => $requiresMakerChecker,
             ],
         );
 
@@ -193,6 +246,8 @@ class TreasuryReconciliationExceptionsPage extends Component
         $companyId = (int) auth()->user()->company_id;
         $controls = $treasuryControlSettingsService->effectiveControls($companyId);
         $slaHours = (int) ($controls['exception_alert_age_hours'] ?? 48);
+        $allowedRoles = $this->normalizeRoles((array) ($controls['exception_action_allowed_roles'] ?? ['owner', 'finance']));
+        $makerCheckerRequired = (bool) ($controls['exception_action_requires_maker_checker'] ?? true);
 
         $query = ReconciliationException::query()
             ->with('line:id,line_reference,description,amount,currency_code,posted_at')
@@ -252,7 +307,9 @@ class TreasuryReconciliationExceptionsPage extends Component
                 'oldest' => 'Oldest First',
             ],
             'slaHours' => $slaHours,
-            'canOperate' => auth()->check() && $this->canOperate(auth()->user()),
+            'exceptionActionAllowedRoles' => $allowedRoles,
+            'makerCheckerRequired' => $makerCheckerRequired,
+            'canOperate' => auth()->check() && $this->canOperate(auth()->user(), $allowedRoles),
         ]);
     }
 
@@ -319,11 +376,23 @@ class TreasuryReconciliationExceptionsPage extends Component
         ], true);
     }
 
-    private function canOperate(User $user): bool
+    /**
+     * @param  array<int, string>  $allowedRoles
+     */
+    private function canOperate(User $user, array $allowedRoles): bool
     {
-        return in_array((string) $user->role, [
-            UserRole::Owner->value,
-            UserRole::Finance->value,
-        ], true);
+        return in_array(strtolower((string) $user->role), $this->normalizeRoles($allowedRoles), true);
+    }
+
+    /**
+     * @param  array<int, mixed>  $roles
+     * @return array<int, string>
+     */
+    private function normalizeRoles(array $roles): array
+    {
+        return array_values(array_filter(array_map(
+            static fn (mixed $role): string => strtolower(trim((string) $role)),
+            $roles
+        )));
     }
 }

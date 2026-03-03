@@ -5,9 +5,20 @@ namespace App\Livewire\Dashboard;
 use App\Domains\Assets\Models\Asset;
 use App\Domains\Budgets\Models\DepartmentBudget;
 use App\Domains\Company\Models\Department;
+use App\Domains\Company\Models\TenantAuditEvent;
+use App\Domains\Company\Models\TenantSubscriptionBillingAttempt;
 use App\Domains\Expenses\Models\Expense;
+use App\Domains\Procurement\Models\InvoiceMatchException;
+use App\Domains\Procurement\Models\ProcurementCommitment;
+use App\Domains\Requests\Models\RequestPayoutExecutionAttempt;
 use App\Domains\Requests\Models\SpendRequest;
+use App\Domains\Treasury\Models\ReconciliationException;
+use App\Enums\UserRole;
 use App\Models\User;
+use App\Services\Procurement\ProcurementControlSettingsService;
+use App\Services\TenantModuleAccessService;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -21,10 +32,26 @@ class DashboardShell extends Component
     /** @var array<string, array{label: string, value: string, hint: string, words?: string}> */
     public array $metrics = [];
 
+    public string $roleView = 'general';
+
+    public string $roleTitle = 'Operations Snapshot';
+
+    public string $roleDescription = 'Quick summary of spend, requests, and controls for your tenant.';
+
+    /** @var array<int, array{label:string,value:string,hint:string,tone:string}> */
+    public array $roleSummaryCards = [];
+
+    /** @var array<int, array{label:string,route:string,url:string,hint:string}> */
+    public array $priorityActions = [];
+
+    /** @var array<int, array{label:string,time:string,detail:string}> */
+    public array $recentSignals = [];
+
     public function mount(): void
     {
         // Keep initial render light; metrics are loaded via wire:init.
         $this->metrics = $this->defaultMetrics();
+        $this->applyRoleContext(Auth::user());
     }
 
     public function loadMetrics(): void
@@ -35,11 +62,15 @@ class DashboardShell extends Component
 
         $this->readyToLoad = true;
 
-        $user = \Illuminate\Support\Facades\Auth::user();
-        $companyId = $user?->company_id;
+        $user = Auth::user();
+        $this->applyRoleContext($user);
 
-        if (! $companyId) {
+        $companyId = (int) ($user?->company_id ?? 0);
+        if ($companyId <= 0 || ! $user) {
             $this->metrics = $this->defaultMetrics();
+            $this->roleSummaryCards = [];
+            $this->priorityActions = [];
+            $this->recentSignals = [];
 
             return;
         }
@@ -126,12 +157,13 @@ class DashboardShell extends Component
                 'hint' => 'Active users in your organization',
             ],
         ];
+
+        $this->buildRoleLens($user, $companyId, $currencyCode);
     }
 
     public function render()
     {
-        return view('livewire.dashboard.dashboard-shell')
-            ;
+        return view('livewire.dashboard.dashboard-shell');
     }
 
     /**
@@ -171,6 +203,417 @@ class DashboardShell extends Component
                 'hint' => 'Run company setup first',
             ],
         ];
+    }
+
+    private function applyRoleContext(?User $user): void
+    {
+        $role = strtolower((string) ($user?->role ?? ''));
+
+        if ($role === UserRole::Finance->value) {
+            $this->roleView = 'finance';
+            $this->roleTitle = 'Finance Command Center';
+            $this->roleDescription = 'Queue health, blocked handoffs, and reconciliation workload for finance operations.';
+
+            return;
+        }
+
+        if ($role === UserRole::Owner->value) {
+            $this->roleView = 'owner';
+            $this->roleTitle = 'Owner Control Tower';
+            $this->roleDescription = 'Cross-lane control posture and policy-risk signals across your tenant.';
+
+            return;
+        }
+
+        if ($role === UserRole::Auditor->value) {
+            $this->roleView = 'auditor';
+            $this->roleTitle = 'Audit & Assurance Lens';
+            $this->roleDescription = 'Traceability and override-risk posture for independent reviews.';
+
+            return;
+        }
+
+        $this->roleView = 'general';
+        $this->roleTitle = 'Operations Snapshot';
+        $this->roleDescription = 'Quick summary of spend, requests, and controls for your tenant.';
+    }
+
+    private function buildRoleLens(User $user, int $companyId, string $currencyCode): void
+    {
+        $staleCommitments = $this->staleCommitmentCount($companyId);
+        $procurementOpen = (int) InvoiceMatchException::query()
+            ->where('exception_status', InvoiceMatchException::STATUS_OPEN)
+            ->count();
+        $procurementCritical = (int) InvoiceMatchException::query()
+            ->where('exception_status', InvoiceMatchException::STATUS_OPEN)
+            ->whereIn('severity', [InvoiceMatchException::SEVERITY_HIGH, InvoiceMatchException::SEVERITY_CRITICAL])
+            ->count();
+
+        $treasuryOpen = (int) ReconciliationException::query()
+            ->where('exception_status', ReconciliationException::STATUS_OPEN)
+            ->count();
+        $treasuryCritical = (int) ReconciliationException::query()
+            ->where('exception_status', ReconciliationException::STATUS_OPEN)
+            ->whereIn('severity', [ReconciliationException::SEVERITY_HIGH, ReconciliationException::SEVERITY_CRITICAL])
+            ->count();
+
+        $queueRisk = $this->oldQueuedExecutionCount($companyId);
+        $executionAlerts24h = $this->countAuditActions(
+            $companyId,
+            ['tenant.execution.alert.summary_emitted'],
+            Carbon::now()->subDay()
+        );
+
+        $blockedPayout30d = $this->countAuditActions(
+            $companyId,
+            ['tenant.execution.payout.blocked_by_procurement_match'],
+            Carbon::now()->subDays(30)
+        );
+
+        $this->roleSummaryCards = [];
+        $this->priorityActions = [];
+
+        if ($this->roleView === 'finance') {
+            $this->roleSummaryCards = [
+                [
+                    'label' => 'Open Procurement Exceptions',
+                    'value' => number_format($procurementOpen),
+                    'hint' => number_format($procurementCritical).' high/critical',
+                    'tone' => 'amber',
+                ],
+                [
+                    'label' => 'Open Treasury Exceptions',
+                    'value' => number_format($treasuryOpen),
+                    'hint' => number_format($treasuryCritical).' high/critical',
+                    'tone' => 'rose',
+                ],
+                [
+                    'label' => 'Stale Execution Queue',
+                    'value' => number_format($queueRisk),
+                    'hint' => 'Queued records above recovery age',
+                    'tone' => 'sky',
+                ],
+                [
+                    'label' => 'Blocked Payout Handoffs (30d)',
+                    'value' => number_format($blockedPayout30d),
+                    'hint' => 'Procurement gate prevented payout queueing',
+                    'tone' => 'slate',
+                ],
+            ];
+
+            $this->pushPriorityAction($user, 'execution.health', 'Review execution health', 'Track current incidents and recent recovery outcomes.');
+            $this->pushPriorityAction($user, 'procurement.match-exceptions', 'Clear procurement exceptions', 'Resolve 3-way match blockers before payout handoff.');
+            $this->pushPriorityAction($user, 'treasury.reconciliation-exceptions', 'Work treasury exceptions', 'Close open reconciliation backlog items.');
+            $this->pushPriorityAction($user, 'reports.index', 'Open reports center', 'Review reconciled vs unreconciled trends.');
+
+            $this->recentSignals = $this->recentSignalsForActions($companyId, [
+                'tenant.execution.alert.summary_emitted',
+                'tenant.execution.payout.blocked_by_procurement_match',
+                'tenant.procurement.match.failed',
+                'tenant.execution.auto_recovery.run_summary',
+                'tenant.treasury.reconciliation.auto_run',
+            ]);
+
+            return;
+        }
+
+        if ($this->roleView === 'owner') {
+            $controlDenials7d = $this->countAuditActions(
+                $companyId,
+                [
+                    'tenant.procurement.match.exception.action.denied',
+                    'tenant.treasury.exception.action.denied',
+                ],
+                Carbon::now()->subDays(7)
+            );
+
+            $this->roleSummaryCards = [
+                [
+                    'label' => 'Control Breach Signals (7d)',
+                    'value' => number_format($controlDenials7d + $blockedPayout30d),
+                    'hint' => number_format($controlDenials7d).' denied actions + '.number_format($blockedPayout30d).' blocked payout handoffs',
+                    'tone' => 'rose',
+                ],
+                [
+                    'label' => 'Stale Commitments',
+                    'value' => number_format($staleCommitments),
+                    'hint' => 'Active procurement commitments above tenant age threshold',
+                    'tone' => 'amber',
+                ],
+                [
+                    'label' => 'Execution Alerts (24h)',
+                    'value' => number_format($executionAlerts24h),
+                    'hint' => 'Alerts emitted by execution ops summary runs',
+                    'tone' => 'sky',
+                ],
+                [
+                    'label' => 'Open Finance Exceptions',
+                    'value' => number_format($procurementOpen + $treasuryOpen),
+                    'hint' => number_format($procurementOpen).' procurement + '.number_format($treasuryOpen).' treasury',
+                    'tone' => 'slate',
+                ],
+            ];
+
+            $this->pushPriorityAction($user, 'settings.procurement-controls', 'Tune procurement controls', 'Update mandatory PO, match, and stale commitment thresholds.');
+            $this->pushPriorityAction($user, 'settings.treasury-controls', 'Tune treasury controls', 'Adjust backlog alert and reconciliation guardrails.');
+            $this->pushPriorityAction($user, 'execution.health', 'Review execution health', 'Validate tenant-facing execution status and incidents.');
+            $this->pushPriorityAction($user, 'reports.index', 'Review governance reports', 'Track trend lines for controls and exceptions.');
+
+            $this->recentSignals = $this->recentSignalsForActions($companyId, [
+                'tenant.procurement.controls.updated',
+                'tenant.treasury.controls.updated',
+                'tenant.procurement.match.exception.action.denied',
+                'tenant.treasury.exception.action.denied',
+                'tenant.execution.alert.summary_emitted',
+                'tenant.execution.payout.blocked_by_procurement_match',
+            ]);
+
+            return;
+        }
+
+        if ($this->roleView === 'auditor') {
+            $manualOverrides7d = $this->countAuditActions(
+                $companyId,
+                [
+                    'tenant.procurement.match.exception.resolved',
+                    'tenant.procurement.match.exception.waived',
+                    'tenant.treasury.exception.resolved',
+                    'tenant.treasury.exception.waived',
+                    'tenant.execution.billing.process_stuck_queued',
+                    'tenant.execution.payout.process_stuck_queued',
+                ],
+                Carbon::now()->subDays(7)
+            );
+
+            $deniedSensitive7d = $this->countAuditActions(
+                $companyId,
+                [
+                    'tenant.procurement.match.exception.action.denied',
+                    'tenant.treasury.exception.action.denied',
+                ],
+                Carbon::now()->subDays(7)
+            );
+
+            $alerts7d = $this->countAuditActions(
+                $companyId,
+                ['tenant.execution.alert.summary_emitted'],
+                Carbon::now()->subDays(7)
+            );
+
+            $this->roleSummaryCards = [
+                [
+                    'label' => 'Manual Override Actions (7d)',
+                    'value' => number_format($manualOverrides7d),
+                    'hint' => 'Resolved/waived exceptions and manual queue recoveries',
+                    'tone' => 'violet',
+                ],
+                [
+                    'label' => 'Denied Sensitive Actions (7d)',
+                    'value' => number_format($deniedSensitive7d),
+                    'hint' => 'Role or maker-checker denials',
+                    'tone' => 'rose',
+                ],
+                [
+                    'label' => 'Execution Alerts (7d)',
+                    'value' => number_format($alerts7d),
+                    'hint' => 'Tenant alert summaries emitted',
+                    'tone' => 'sky',
+                ],
+                [
+                    'label' => 'Open Exceptions Snapshot',
+                    'value' => number_format($procurementOpen + $treasuryOpen),
+                    'hint' => number_format($procurementOpen).' procurement + '.number_format($treasuryOpen).' treasury',
+                    'tone' => 'slate',
+                ],
+            ];
+
+            $this->pushPriorityAction($user, 'requests.communications', 'Inspect communication logs', 'Trace request and reminder delivery events.');
+            $this->pushPriorityAction($user, 'procurement.match-exceptions', 'Inspect procurement exception queue', 'Review resolution notes and actor trail.');
+            $this->pushPriorityAction($user, 'treasury.reconciliation-exceptions', 'Inspect treasury exception queue', 'Review waive/resolve decisions and maker-checker evidence.');
+            $this->pushPriorityAction($user, 'reports.index', 'Export audit reports', 'Use reports center for reconciled/unreconciled and control signals.');
+
+            $this->recentSignals = $this->recentSignalsForActions($companyId, [
+                'tenant.procurement.match.exception.resolved',
+                'tenant.procurement.match.exception.waived',
+                'tenant.treasury.exception.resolved',
+                'tenant.treasury.exception.waived',
+                'tenant.procurement.match.exception.action.denied',
+                'tenant.treasury.exception.action.denied',
+                'tenant.execution.alert.summary_emitted',
+            ]);
+
+            return;
+        }
+
+        // Keep manager/staff dashboard simple and operational.
+        $postedExpenseCount = (int) Expense::query()
+            ->where('status', 'posted')
+            ->whereBetween('expense_date', [now()->startOfMonth()->toDateString(), now()->endOfMonth()->toDateString()])
+            ->count();
+
+        $this->roleSummaryCards = [
+            [
+                'label' => 'This Month Posted Expenses',
+                'value' => number_format($postedExpenseCount),
+                'hint' => 'Posted direct and request-linked expenses',
+                'tone' => 'emerald',
+            ],
+            [
+                'label' => 'In-Review Request Value',
+                'value' => sprintf('%s %s', $currencyCode, number_format((int) SpendRequest::query()->where('status', 'in_review')->sum('amount'), 2)),
+                'hint' => 'Requests waiting for approval decisions',
+                'tone' => 'sky',
+            ],
+        ];
+
+        $this->pushPriorityAction($user, 'requests.index', 'Open requests', 'Create and track spend requests.');
+        $this->pushPriorityAction($user, 'expenses.index', 'Open expenses', 'Post direct expenses and attach evidence.');
+
+        $this->recentSignals = $this->recentSignalsForActions($companyId, [
+            'tenant.execution.alert.summary_emitted',
+            'tenant.execution.auto_recovery.run_summary',
+        ]);
+    }
+
+    private function staleCommitmentCount(int $companyId): int
+    {
+        $controls = app(ProcurementControlSettingsService::class)->effectiveControls($companyId);
+        $ageHours = max(1, (int) ($controls['stale_commitment_alert_age_hours'] ?? 72));
+        $cutoff = Carbon::now()->subHours($ageHours);
+
+        return (int) ProcurementCommitment::query()
+            ->where('commitment_status', ProcurementCommitment::STATUS_ACTIVE)
+            ->where('effective_at', '<=', $cutoff)
+            ->count();
+    }
+
+    private function oldQueuedExecutionCount(int $companyId): int
+    {
+        $olderThanMinutes = max(1, (int) config('execution.ops_recovery.older_than_minutes', 30));
+        $cutoff = Carbon::now()->subMinutes($olderThanMinutes);
+
+        $billing = (int) TenantSubscriptionBillingAttempt::query()
+            ->where('company_id', $companyId)
+            ->where('attempt_status', 'queued')
+            ->whereNotNull('queued_at')
+            ->where('queued_at', '<=', $cutoff)
+            ->count();
+
+        $payout = (int) RequestPayoutExecutionAttempt::query()
+            ->where('company_id', $companyId)
+            ->where('execution_status', 'queued')
+            ->whereNotNull('queued_at')
+            ->where('queued_at', '<=', $cutoff)
+            ->count();
+
+        return $billing + $payout;
+    }
+
+    /**
+     * @param  array<int, string>  $actions
+     */
+    private function countAuditActions(int $companyId, array $actions, Carbon $since): int
+    {
+        return (int) TenantAuditEvent::query()
+            ->where('company_id', $companyId)
+            ->whereIn('action', $actions)
+            ->where('event_at', '>=', $since)
+            ->count();
+    }
+
+    private function pushPriorityAction(User $user, string $route, string $label, string $hint): void
+    {
+        if (! app(TenantModuleAccessService::class)->routeEnabled($user, $route)) {
+            return;
+        }
+
+        try {
+            $url = route($route);
+        } catch (\Throwable) {
+            return;
+        }
+
+        $this->priorityActions[] = [
+            'label' => $label,
+            'route' => $route,
+            'url' => $url,
+            'hint' => $hint,
+        ];
+    }
+
+    /**
+     * @param  array<int, string>  $actions
+     * @return array<int, array{label:string,time:string,detail:string}>
+     */
+    private function recentSignalsForActions(int $companyId, array $actions): array
+    {
+        $events = TenantAuditEvent::query()
+            ->where('company_id', $companyId)
+            ->whereIn('action', $actions)
+            ->latest('event_at')
+            ->latest('id')
+            ->limit(8)
+            ->get(['action', 'description', 'metadata', 'event_at']);
+
+        return $events->map(function (TenantAuditEvent $event): array {
+            $metadata = (array) ($event->metadata ?? []);
+
+            return [
+                'label' => $this->humanizeAction((string) $event->action),
+                'time' => $event->event_at?->format('M d, H:i') ?? '-',
+                'detail' => $this->signalDetail((string) $event->action, $metadata, (string) ($event->description ?? '')),
+            ];
+        })->all();
+    }
+
+    private function humanizeAction(string $action): string
+    {
+        return match ($action) {
+            'tenant.execution.alert.summary_emitted' => 'Execution alert summary',
+            'tenant.execution.auto_recovery.run_summary' => 'Auto recovery summary',
+            'tenant.execution.payout.blocked_by_procurement_match' => 'Payout blocked by procurement gate',
+            'tenant.procurement.match.failed' => 'Procurement match failed',
+            'tenant.procurement.match.exception.resolved' => 'Procurement exception resolved',
+            'tenant.procurement.match.exception.waived' => 'Procurement exception waived',
+            'tenant.procurement.match.exception.action.denied' => 'Procurement exception action denied',
+            'tenant.treasury.exception.resolved' => 'Treasury exception resolved',
+            'tenant.treasury.exception.waived' => 'Treasury exception waived',
+            'tenant.treasury.exception.action.denied' => 'Treasury exception action denied',
+            'tenant.procurement.controls.updated' => 'Procurement controls updated',
+            'tenant.treasury.controls.updated' => 'Treasury controls updated',
+            'tenant.treasury.reconciliation.auto_run' => 'Treasury auto reconciliation run',
+            'tenant.execution.billing.process_stuck_queued' => 'Billing manual recovery',
+            'tenant.execution.payout.process_stuck_queued' => 'Payout manual recovery',
+            default => str_replace('_', ' ', trim(str_replace('.', ' / ', $action))),
+        };
+    }
+
+    /**
+     * @param  array<string, mixed>  $metadata
+     */
+    private function signalDetail(string $action, array $metadata, string $description): string
+    {
+        if ($action === 'tenant.execution.alert.summary_emitted') {
+            $type = (string) ($metadata['type'] ?? 'alert');
+            $pipeline = (string) ($metadata['pipeline'] ?? 'system');
+            $count = (int) ($metadata['count'] ?? 0);
+
+            return sprintf('%s / %s / count %d', str_replace('_', ' ', $type), $pipeline, $count);
+        }
+
+        if ($action === 'tenant.execution.auto_recovery.run_summary') {
+            $pipeline = (string) ($metadata['pipeline'] ?? 'execution');
+            $processed = (int) ($metadata['processed'] ?? 0);
+            $matched = (int) ($metadata['matched'] ?? 0);
+
+            return sprintf('%s processed %d of %d', ucfirst($pipeline), $processed, $matched);
+        }
+
+        if ($action === 'tenant.execution.payout.blocked_by_procurement_match') {
+            return (string) ($metadata['reason'] ?? $description ?: 'Blocked by procurement policy controls.');
+        }
+
+        return $description !== '' ? $description : 'No extra detail.';
     }
 
     private function formatAmountInWords(int $amount, string $currencyCode): string
@@ -275,4 +718,6 @@ class DashboardShell extends Component
         return implode(' ', $words);
     }
 }
+
+
 

@@ -24,6 +24,7 @@
             <div class="flex flex-wrap items-center gap-2">
                 <a href="{{ route('platform.operations.incident-history') }}" class="inline-flex h-9 items-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50">Open Incident History</a>
                 <a href="{{ route('platform.operations.execution-checklist') }}" class="inline-flex h-9 items-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50">Open Test Checklist</a>
+                <a href="{{ route('platform.operations.pilot-rollout') }}" class="inline-flex h-9 items-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50">Open Pilot Rollout KPIs</a>
             </div>
         </div>
     </div>
@@ -57,6 +58,8 @@
                     <option value="billing">Billing</option>
                     <option value="payout">Payout</option>
                     <option value="webhook">Webhook</option>
+                    <option value="procurement">Procurement</option>
+                    <option value="treasury">Treasury</option>
                 </select>
             </label>
 
@@ -245,7 +248,7 @@
                         <th class="px-3 py-2">Provider</th>
                         <th class="px-3 py-2">Count</th>
                         <th class="px-3 py-2">Threshold</th>
-                        <th class="px-3 py-2">Window</th>
+                        <th class="px-3 py-2">Window / Age</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -264,7 +267,13 @@
                             <td class="px-3 py-2 text-slate-700">{{ $providerKey }}</td>
                             <td class="px-3 py-2 text-slate-700">{{ number_format((int) ($meta['count'] ?? 0)) }}</td>
                             <td class="px-3 py-2 text-slate-700">{{ number_format((int) ($meta['threshold'] ?? 0)) }}</td>
-                            <td class="px-3 py-2 text-slate-700">{{ number_format((int) ($meta['window_minutes'] ?? 0)) }}m</td>
+                            <td class="px-3 py-2 text-slate-700">
+                                @if ((int) ($meta['age_hours'] ?? 0) > 0)
+                                    {{ number_format((int) ($meta['age_hours'] ?? 0)) }}h
+                                @else
+                                    {{ number_format((int) ($meta['window_minutes'] ?? 0)) }}m
+                                @endif
+                            </td>
                         </tr>
                     @empty
                         <tr>

@@ -39,6 +39,7 @@ use App\Livewire\Platform\TenantProfilePage;
 use App\Livewire\Platform\ExecutionOperationsPage;
 use App\Livewire\Platform\ExecutionTestChecklistPage;
 use App\Livewire\Platform\IncidentHistoryPage;
+use App\Livewire\Platform\PilotRolloutKpiPage;
 use App\Livewire\Vendors\VendorDetailsPage;
 use App\Livewire\Vendors\VendorReportsPage;
 use App\Livewire\Treasury\TreasuryCashPositionPage;
@@ -74,6 +75,7 @@ Route::middleware(['auth', 'platform.access'])->prefix('platform')->name('platfo
     Route::get('/operations/execution', ExecutionOperationsPage::class)->name('operations.execution');
     Route::get('/operations/execution-checklist', ExecutionTestChecklistPage::class)->name('operations.execution-checklist');
     Route::get('/operations/incident-history', IncidentHistoryPage::class)->name('operations.incident-history');
+    Route::get('/operations/pilot-rollout', PilotRolloutKpiPage::class)->name('operations.pilot-rollout');
 });
 
 Route::middleware(['auth', 'company.context'])->group(function (): void {
@@ -171,9 +173,3 @@ Route::middleware(['auth', 'company.context'])->group(function (): void {
 });
 
 require __DIR__.'/auth.php';
-
-
-
-
-
-

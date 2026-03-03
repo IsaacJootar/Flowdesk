@@ -3,7 +3,7 @@
         <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div>
                 <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Unified Reports Center</p>
-                <p class="mt-1 text-sm text-slate-600">Monitor requests, expenses, vendors, assets, and budgets from one reporting surface.</p>
+                <p class="mt-1 text-sm text-slate-600">Monitor requests, expenses, vendors, procurement, treasury, assets, and budgets from one reporting surface.</p>
             </div>
             <div class="flex flex-wrap items-center gap-2">
                 @foreach ($quickLinks as $link)
@@ -72,9 +72,9 @@
         </div>
     </div>
 
-    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-6">
+    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7">
         @if (! $readyToLoad)
-            @for ($i = 0; $i < 6; $i++)
+            @for ($i = 0; $i < 7; $i++)
                 <div class="rounded-2xl border border-slate-200 bg-white p-4">
                     <div class="mb-2 h-3 w-24 animate-pulse rounded bg-slate-200"></div>
                     <div class="mb-2 h-7 w-20 animate-pulse rounded bg-slate-200"></div>
@@ -104,6 +104,13 @@
                     <p class="mt-1 text-sm font-semibold text-amber-900">Access restricted</p>
                     <p class="mt-1 text-xs text-amber-700">Vendor invoice metrics are available to finance, auditor, and owner roles.</p>
                 @endif
+            </div>
+            <div class="rounded-2xl border border-orange-200 bg-orange-50 p-4">
+                <p class="text-xs uppercase tracking-[0.1em] text-orange-700">Procurement Controls</p>
+                <p class="mt-1 text-2xl font-semibold text-orange-900">{{ number_format((int) $metrics['procurement']['linked_invoices']) }}</p>
+                <p class="mt-1 text-xs text-orange-700">Open exceptions: {{ number_format((int) $metrics['procurement']['open_exceptions']) }}</p>
+                <p class="text-xs text-orange-700">Match pass rate: {{ number_format((float) $metrics['procurement']['match_pass_rate_percent'], 1) }}%</p>
+                <p class="text-xs text-orange-700">Stale commitments: {{ number_format((int) $metrics['procurement']['stale_commitments']) }}</p>
             </div>
             <div class="rounded-2xl border border-indigo-200 bg-indigo-50 p-4">
                 <p class="text-xs uppercase tracking-[0.1em] text-indigo-700">Assets</p>
@@ -159,6 +166,7 @@
                                     'Requests' => 'bg-sky-100 text-sky-700',
                                     'Expenses' => 'bg-emerald-100 text-emerald-700',
                                     'Vendors' => 'bg-amber-100 text-amber-700',
+                                    'Procurement' => 'bg-orange-100 text-orange-700',
                                     'Assets' => 'bg-indigo-100 text-indigo-700',
                                     default => 'bg-slate-100 text-slate-700',
                                 };
@@ -252,3 +260,6 @@
         @endif
     </div>
 </div>
+
+
+

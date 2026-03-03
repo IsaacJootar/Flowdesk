@@ -19,6 +19,10 @@
         <div>
             <h2 class="text-base font-semibold text-slate-900">Procurement Match Exceptions</h2>
             <p class="text-xs text-slate-500">Review 3-way match failures and apply controlled resolution actions.</p>
+            <p class="mt-1 text-xs text-slate-500">Action roles: {{ implode(', ', (array) $matchActionAllowedRoles) }}.</p>
+            @if ($makerCheckerRequired)
+                <p class="text-xs text-amber-700">Maker-checker is enabled: the user who generated the mismatch cannot close it.</p>
+            @endif
         </div>
         <a href="{{ route('procurement.orders') }}" class="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50">
             <span aria-hidden="true">&larr;</span>

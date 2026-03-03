@@ -28,7 +28,13 @@ class ProcurementControlSettingsService
      *   match_quantity_tolerance_percent:float,
      *   match_date_tolerance_days:int,
      *   block_payment_on_mismatch:bool,
-     *   match_override_allowed_roles:array<int,string>
+     *   match_override_allowed_roles:array<int,string>,
+     *   mandatory_po_enabled:bool,
+     *   mandatory_po_min_amount:int,
+     *   mandatory_po_category_codes:array<int,string>,
+     *   match_override_requires_maker_checker:bool,
+     *   stale_commitment_alert_age_hours:int,
+     *   stale_commitment_alert_count_threshold:int
      * }
      */
     public function effectiveControls(int $companyId): array
@@ -66,6 +72,11 @@ class ProcurementControlSettingsService
             (array) $defaults['match_override_allowed_roles']
         );
 
+        $mandatoryPoCategories = $this->sanitizeCategoryCodes(
+            (array) ($configured['mandatory_po_category_codes'] ?? $defaults['mandatory_po_category_codes']),
+            (array) $defaults['mandatory_po_category_codes']
+        );
+
         return [
             'conversion_allowed_statuses' => $statuses,
             'require_vendor_on_conversion' => (bool) ($configured['require_vendor_on_conversion'] ?? $defaults['require_vendor_on_conversion']),
@@ -80,6 +91,12 @@ class ProcurementControlSettingsService
             'match_date_tolerance_days' => max(0, (int) ($configured['match_date_tolerance_days'] ?? $defaults['match_date_tolerance_days'])),
             'block_payment_on_mismatch' => (bool) ($configured['block_payment_on_mismatch'] ?? $defaults['block_payment_on_mismatch']),
             'match_override_allowed_roles' => $overrideRoles,
+            'mandatory_po_enabled' => (bool) ($configured['mandatory_po_enabled'] ?? $defaults['mandatory_po_enabled']),
+            'mandatory_po_min_amount' => max(0, (int) ($configured['mandatory_po_min_amount'] ?? $defaults['mandatory_po_min_amount'])),
+            'mandatory_po_category_codes' => $mandatoryPoCategories,
+            'match_override_requires_maker_checker' => (bool) ($configured['match_override_requires_maker_checker'] ?? $defaults['match_override_requires_maker_checker']),
+            'stale_commitment_alert_age_hours' => max(1, (int) ($configured['stale_commitment_alert_age_hours'] ?? $defaults['stale_commitment_alert_age_hours'])),
+            'stale_commitment_alert_count_threshold' => max(1, (int) ($configured['stale_commitment_alert_count_threshold'] ?? $defaults['stale_commitment_alert_count_threshold'])),
         ];
     }
 
@@ -101,6 +118,28 @@ class ProcurementControlSettingsService
 
         return array_values(array_filter(array_map(
             static fn (mixed $role): string => strtolower(trim((string) $role)),
+            $fallback
+        )));
+    }
+
+    /**
+     * @param  array<int, mixed>  $codes
+     * @param  array<int, mixed>  $fallback
+     * @return array<int, string>
+     */
+    private function sanitizeCategoryCodes(array $codes, array $fallback): array
+    {
+        $normalized = array_values(array_filter(array_map(
+            static fn (mixed $code): string => strtolower(trim((string) $code)),
+            $codes
+        )));
+
+        if ($normalized !== []) {
+            return $normalized;
+        }
+
+        return array_values(array_filter(array_map(
+            static fn (mixed $code): string => strtolower(trim((string) $code)),
             $fallback
         )));
     }

@@ -17,6 +17,7 @@ use App\Domains\Requests\Models\SpendRequest;
 use App\Domains\Vendors\Models\Vendor;
 use App\Domains\Vendors\Models\VendorInvoice;
 use App\Enums\UserRole;
+use App\Livewire\Procurement\ProcurementMatchExceptionsPage;
 use App\Livewire\Procurement\PurchaseReceiptsPage;
 use App\Models\User;
 use App\Services\Procurement\CreateGoodsReceiptService;
@@ -452,6 +453,160 @@ class ProcurementReceiptAndInvoiceLinkingTest extends TestCase
         $this->assertDatabaseHas('request_payout_execution_attempts', [
             'id' => $allowedAttempt->id,
             'request_id' => $request->id,
+        ]);
+    }
+
+    public function test_mandatory_po_policy_blocks_payout_queue_without_linked_purchase_order(): void
+    {
+        [$company, $department] = $this->createCompanyContext('Procurement Mandatory PO Gate');
+        $owner = $this->createUser($company, $department, UserRole::Owner->value);
+        $vendor = $this->createVendor($company);
+
+        TenantSubscription::query()->create([
+            'company_id' => $company->id,
+            'plan_code' => 'growth',
+            'subscription_status' => 'current',
+            'payment_execution_mode' => 'execution_enabled',
+            'execution_provider' => 'manual_ops',
+            'execution_allowed_channels' => ['bank_transfer'],
+            'created_by' => $owner->id,
+            'updated_by' => $owner->id,
+        ]);
+
+        CompanyProcurementControlSetting::query()->create([
+            'company_id' => $company->id,
+            'controls' => [
+                'mandatory_po_enabled' => true,
+                'mandatory_po_min_amount' => 100000,
+                'mandatory_po_category_codes' => [],
+            ],
+            'created_by' => $owner->id,
+            'updated_by' => $owner->id,
+        ]);
+
+        $request = SpendRequest::query()->create([
+            'company_id' => $company->id,
+            'request_code' => 'FD-REQ-PROC-MPO-001',
+            'requested_by' => $owner->id,
+            'department_id' => $department->id,
+            'vendor_id' => $vendor->id,
+            'title' => 'Mandatory PO payout gate request',
+            'description' => 'Must require PO before payout queueing.',
+            'amount' => 150000,
+            'approved_amount' => 150000,
+            'currency' => 'NGN',
+            'status' => 'approved_for_execution',
+            'created_by' => $owner->id,
+            'updated_by' => $owner->id,
+        ]);
+
+        $attempt = app(RequestPayoutExecutionOrchestrator::class)->queueForApprovedRequest($request->fresh(), $owner->id);
+
+        $this->assertNull($attempt);
+        $this->assertDatabaseMissing('request_payout_execution_attempts', [
+            'request_id' => $request->id,
+        ]);
+
+        $blockedRequest = $request->fresh();
+        $this->assertTrue((bool) data_get((array) ($blockedRequest->metadata ?? []), 'execution.procurement_gate.blocked', false));
+        $this->assertStringContainsString(
+            'Mandatory PO policy requires conversion before non-PO handoff',
+            (string) data_get((array) ($blockedRequest->metadata ?? []), 'execution.procurement_gate.reason', '')
+        );
+    }
+
+    public function test_maker_checker_blocks_same_user_for_match_exception_resolution(): void
+    {
+        [$company, $department] = $this->createCompanyContext('Procurement Maker Checker');
+        $owner = $this->createUser($company, $department, UserRole::Owner->value);
+        $finance = $this->createUser($company, $department, UserRole::Finance->value);
+        $vendor = $this->createVendor($company);
+
+        CompanyProcurementControlSetting::query()->create([
+            'company_id' => $company->id,
+            'controls' => [
+                'match_override_allowed_roles' => ['owner', 'finance'],
+                'match_override_requires_maker_checker' => true,
+            ],
+            'created_by' => $owner->id,
+            'updated_by' => $owner->id,
+        ]);
+
+        $order = PurchaseOrder::query()->create([
+            'company_id' => $company->id,
+            'vendor_id' => $vendor->id,
+            'po_number' => 'PO-MC-001',
+            'po_status' => PurchaseOrder::STATUS_RECEIVED,
+            'currency_code' => 'NGN',
+            'subtotal_amount' => 120000,
+            'tax_amount' => 0,
+            'total_amount' => 120000,
+            'issued_at' => now()->subDays(2),
+            'created_by' => $owner->id,
+            'updated_by' => $owner->id,
+        ]);
+
+        PurchaseOrderItem::query()->create([
+            'company_id' => $company->id,
+            'purchase_order_id' => $order->id,
+            'line_number' => 1,
+            'item_description' => 'Server rack rail',
+            'quantity' => 1,
+            'unit_price' => 120000,
+            'line_total' => 120000,
+            'currency_code' => 'NGN',
+            'received_quantity' => 0,
+            'received_total' => 0,
+        ]);
+
+        $invoice = VendorInvoice::query()->create([
+            'company_id' => $company->id,
+            'vendor_id' => $vendor->id,
+            'invoice_number' => 'INV-MC-001',
+            'invoice_date' => now()->toDateString(),
+            'due_date' => now()->addDays(10)->toDateString(),
+            'currency' => 'NGN',
+            'total_amount' => 120000,
+            'paid_amount' => 0,
+            'outstanding_amount' => 120000,
+            'status' => VendorInvoice::STATUS_UNPAID,
+            'created_by' => $owner->id,
+            'updated_by' => $owner->id,
+        ]);
+
+        app(LinkVendorInvoiceToPurchaseOrderService::class)->link($owner, $order, $invoice);
+
+        $exception = InvoiceMatchException::query()
+            ->where('company_id', $company->id)
+            ->where('purchase_order_id', $order->id)
+            ->where('vendor_invoice_id', $invoice->id)
+            ->where('exception_status', InvoiceMatchException::STATUS_OPEN)
+            ->firstOrFail();
+
+        $this->actingAs($owner);
+        Livewire::test(ProcurementMatchExceptionsPage::class)
+            ->call('openResolutionModal', (int) $exception->id, 'resolved')
+            ->set('resolutionNotes', 'Owner attempting to self-resolve.')
+            ->call('applyResolution')
+            ->assertSet('feedbackError', 'Maker-checker policy requires another authorized user to resolve or waive this exception.');
+
+        $this->assertDatabaseHas('invoice_match_exceptions', [
+            'id' => (int) $exception->id,
+            'exception_status' => InvoiceMatchException::STATUS_OPEN,
+        ]);
+
+        $this->actingAs($finance);
+        Livewire::test(ProcurementMatchExceptionsPage::class)
+            ->call('openResolutionModal', (int) $exception->id, 'resolved')
+            ->set('resolutionNotes', 'Finance completed independent override review.')
+            ->call('applyResolution')
+            ->assertSet('feedbackError', null)
+            ->assertSet('feedbackMessage', 'Procurement match exception updated.');
+
+        $this->assertDatabaseHas('invoice_match_exceptions', [
+            'id' => (int) $exception->id,
+            'exception_status' => InvoiceMatchException::STATUS_RESOLVED,
+            'resolved_by_user_id' => (int) $finance->id,
         ]);
     }
     public function test_procurement_receipts_page_can_export_csv(): void

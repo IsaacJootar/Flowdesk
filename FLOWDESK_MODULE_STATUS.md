@@ -134,6 +134,13 @@ This file is the canonical module inventory so planning discussions stay aligned
 - Test coverage:
   - `tests/Feature/Execution/IncidentHistoryPageTest.php`
 
+## Pilot Rollout KPI Capture
+- Route: `/platform/operations/pilot-rollout`
+- Entry: `app/Livewire/Platform/PilotRolloutKpiPage.php`
+- Status: Implemented with baseline/pilot window capture form, tenant filters, and latest-delta panel.
+- Test coverage:
+  - `tests/Feature/Execution/PilotRolloutKpiPageTest.php`
+
 ## 3) Execution Engine Status
 
 ## Implemented
@@ -146,7 +153,7 @@ This file is the canonical module inventory so planning discussions stay aligned
 
 ## Key files
 - `app/Services/Execution/*`
-- `routes/console.php` (`execution:ops:alert-summary`, `execution:ops:auto-recover`)
+- `routes/console.php` (`execution:ops:alert-summary`, `execution:ops:auto-recover`, `rollout:pilot:capture-kpis`)
 - `config/execution.php`
 
 ## Execution tests

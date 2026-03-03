@@ -10,15 +10,18 @@ use App\Domains\Expenses\Models\Expense;
 use App\Domains\Requests\Models\RequestPayoutExecutionAttempt;
 use App\Domains\Requests\Models\SpendRequest;
 use App\Domains\Treasury\Models\BankAccount;
+use App\Domains\Treasury\Models\CompanyTreasuryControlSetting;
 use App\Domains\Treasury\Models\ReconciliationException;
 use App\Domains\Treasury\Models\ReconciliationMatch;
 use App\Enums\UserRole;
+use App\Livewire\Treasury\TreasuryReconciliationExceptionsPage;
 use App\Models\User;
 use App\Services\Treasury\AutoReconcileStatementService;
 use App\Services\Treasury\ImportBankStatementCsvService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Str;
+use Livewire\Livewire;
 use Tests\TestCase;
 
 class TreasuryReconciliationWorkflowTest extends TestCase
@@ -58,6 +61,103 @@ class TreasuryReconciliationWorkflowTest extends TestCase
             ->assertSee('Treasury Cash Position');
     }
 
+
+    public function test_treasury_exception_action_enforces_tenant_allowed_roles(): void
+    {
+        [$company, $department] = $this->createCompanyContext('Treasury Role Guardrail Tenant');
+        $owner = $this->createUser($company, $department, UserRole::Owner->value);
+        $manager = $this->createUser($company, $department, UserRole::Manager->value);
+
+        CompanyTreasuryControlSetting::query()->create([
+            'company_id' => $company->id,
+            'controls' => [
+                'exception_action_allowed_roles' => ['owner', 'finance'],
+                'exception_action_requires_maker_checker' => false,
+            ],
+            'created_by' => $owner->id,
+            'updated_by' => $owner->id,
+        ]);
+
+        $exception = ReconciliationException::query()->create([
+            'company_id' => $company->id,
+            'exception_code' => 'execution_payout_failed',
+            'exception_status' => ReconciliationException::STATUS_OPEN,
+            'severity' => ReconciliationException::SEVERITY_HIGH,
+            'match_stream' => ReconciliationException::STREAM_EXECUTION_PAYMENT,
+            'next_action' => 'Review payout state and provider response.',
+            'details' => 'Role guardrail test exception.',
+            'created_by' => $owner->id,
+            'updated_by' => $owner->id,
+        ]);
+
+        $this->actingAs($manager);
+
+        Livewire::test(TreasuryReconciliationExceptionsPage::class)
+            ->call('openResolutionModal', (int) $exception->id, 'resolved')
+            ->set('resolutionNotes', 'Manager trying to close exception.')
+            ->call('applyResolution')
+            ->assertSet('feedbackError', 'Only [owner, finance] can resolve or waive treasury exceptions.');
+
+        $this->assertDatabaseHas('reconciliation_exceptions', [
+            'id' => (int) $exception->id,
+            'exception_status' => ReconciliationException::STATUS_OPEN,
+        ]);
+    }
+
+    public function test_treasury_exception_action_enforces_maker_checker_when_enabled(): void
+    {
+        [$company, $department] = $this->createCompanyContext('Treasury Maker Checker Tenant');
+        $owner = $this->createUser($company, $department, UserRole::Owner->value);
+        $finance = $this->createUser($company, $department, UserRole::Finance->value);
+
+        CompanyTreasuryControlSetting::query()->create([
+            'company_id' => $company->id,
+            'controls' => [
+                'exception_action_allowed_roles' => ['owner', 'finance'],
+                'exception_action_requires_maker_checker' => true,
+            ],
+            'created_by' => $owner->id,
+            'updated_by' => $owner->id,
+        ]);
+
+        $exception = ReconciliationException::query()->create([
+            'company_id' => $company->id,
+            'exception_code' => 'execution_billing_failed',
+            'exception_status' => ReconciliationException::STATUS_OPEN,
+            'severity' => ReconciliationException::SEVERITY_HIGH,
+            'match_stream' => ReconciliationException::STREAM_EXECUTION_PAYMENT,
+            'next_action' => 'Investigate billing provider status.',
+            'details' => 'Maker-checker test exception.',
+            'created_by' => $owner->id,
+            'updated_by' => $owner->id,
+        ]);
+
+        $this->actingAs($owner);
+        Livewire::test(TreasuryReconciliationExceptionsPage::class)
+            ->call('openResolutionModal', (int) $exception->id, 'resolved')
+            ->set('resolutionNotes', 'Owner trying to self-resolve.')
+            ->call('applyResolution')
+            ->assertSet('feedbackError', 'Maker-checker policy requires another authorized user to resolve or waive this exception.');
+
+        $this->assertDatabaseHas('reconciliation_exceptions', [
+            'id' => (int) $exception->id,
+            'exception_status' => ReconciliationException::STATUS_OPEN,
+        ]);
+
+        $this->actingAs($finance);
+        Livewire::test(TreasuryReconciliationExceptionsPage::class)
+            ->call('openResolutionModal', (int) $exception->id, 'resolved')
+            ->set('resolutionNotes', 'Finance completed independent review.')
+            ->call('applyResolution')
+            ->assertSet('feedbackError', null)
+            ->assertSet('feedbackMessage', 'Treasury exception updated.');
+
+        $this->assertDatabaseHas('reconciliation_exceptions', [
+            'id' => (int) $exception->id,
+            'exception_status' => ReconciliationException::STATUS_RESOLVED,
+            'resolved_by_user_id' => (int) $finance->id,
+        ]);
+    }
     public function test_statement_import_and_auto_reconciliation_create_matches_and_exceptions(): void
     {
         [$company, $department] = $this->createCompanyContext('Treasury Reconciliation Tenant');

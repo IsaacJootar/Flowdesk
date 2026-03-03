@@ -8,6 +8,10 @@ use App\Domains\Company\Models\ExecutionWebhookEvent;
 use App\Domains\Company\Models\TenantSubscription;
 use App\Domains\Company\Models\TenantSubscriptionBillingAttempt;
 use App\Domains\Company\Models\TenantAuditEvent;
+use App\Domains\Procurement\Models\CompanyProcurementControlSetting;
+use App\Domains\Procurement\Models\ProcurementCommitment;
+use App\Domains\Treasury\Models\CompanyTreasuryControlSetting;
+use App\Domains\Treasury\Models\ReconciliationException;
 use App\Domains\Requests\Models\RequestPayoutExecutionAttempt;
 use App\Domains\Requests\Models\SpendRequest;
 use App\Enums\UserRole;
@@ -22,7 +26,7 @@ class ExecutionOpsGuardrailsTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_alert_service_includes_stuck_queue_and_invalid_webhook_alerts(): void
+    public function test_alert_service_includes_execution_and_governance_backlog_alerts(): void
     {
         $tenant = $this->createTenantCompany('Ops Alerts Tenant');
 
@@ -86,6 +90,64 @@ class ExecutionOpsGuardrailsTest extends TestCase
             'received_at' => now()->subMinutes(4),
         ]);
 
+        CompanyProcurementControlSetting::query()->create([
+            'company_id' => $tenant->id,
+            'controls' => [
+                'stale_commitment_alert_age_hours' => 24,
+                'stale_commitment_alert_count_threshold' => 2,
+            ],
+        ]);
+
+        ProcurementCommitment::query()->create([
+            'company_id' => $tenant->id,
+            'commitment_status' => ProcurementCommitment::STATUS_ACTIVE,
+            'amount' => 80000,
+            'currency_code' => 'NGN',
+            'effective_at' => now()->subHours(36),
+        ]);
+
+        ProcurementCommitment::query()->create([
+            'company_id' => $tenant->id,
+            'commitment_status' => ProcurementCommitment::STATUS_ACTIVE,
+            'amount' => 90000,
+            'currency_code' => 'NGN',
+            'effective_at' => now()->subHours(30),
+        ]);
+
+        CompanyTreasuryControlSetting::query()->create([
+            'company_id' => $tenant->id,
+            'controls' => [
+                'exception_alert_age_hours' => 24,
+                'reconciliation_backlog_alert_count_threshold' => 2,
+            ],
+        ]);
+
+        $reconA = ReconciliationException::query()->create([
+            'company_id' => $tenant->id,
+            'exception_code' => 'unmatched_statement_line',
+            'exception_status' => ReconciliationException::STATUS_OPEN,
+            'severity' => ReconciliationException::SEVERITY_HIGH,
+            'match_stream' => ReconciliationException::STREAM_EXECUTION_PAYMENT,
+        ]);
+
+        $reconA->forceFill([
+            'created_at' => now()->subHours(40),
+            'updated_at' => now()->subHours(40),
+        ])->saveQuietly();
+
+        $reconB = ReconciliationException::query()->create([
+            'company_id' => $tenant->id,
+            'exception_code' => 'low_confidence_match',
+            'exception_status' => ReconciliationException::STATUS_OPEN,
+            'severity' => ReconciliationException::SEVERITY_MEDIUM,
+            'match_stream' => ReconciliationException::STREAM_EXPENSE_EVIDENCE,
+        ]);
+
+        $reconB->forceFill([
+            'created_at' => now()->subHours(30),
+            'updated_at' => now()->subHours(30),
+        ])->saveQuietly();
+
         config()->set('execution.ops_alerts.stuck_queued_older_than_minutes', 30);
         config()->set('execution.ops_alerts.stuck_queued_threshold', 2);
         config()->set('execution.ops_alerts.invalid_webhook_threshold', 2);
@@ -101,6 +163,18 @@ class ExecutionOpsGuardrailsTest extends TestCase
         $this->assertTrue(collect($summary['alerts'])->contains(fn (array $alert): bool =>
             $alert['type'] === 'invalid_webhook_spike'
             && $alert['pipeline'] === 'webhook'
+            && $alert['company_id'] === $tenant->id
+        ));
+
+        $this->assertTrue(collect($summary['alerts'])->contains(fn (array $alert): bool =>
+            $alert['type'] === 'stale_commitment'
+            && $alert['pipeline'] === 'procurement'
+            && $alert['company_id'] === $tenant->id
+        ));
+
+        $this->assertTrue(collect($summary['alerts'])->contains(fn (array $alert): bool =>
+            $alert['type'] === 'reconciliation_backlog'
+            && $alert['pipeline'] === 'treasury'
             && $alert['company_id'] === $tenant->id
         ));
 
@@ -120,6 +194,22 @@ class ExecutionOpsGuardrailsTest extends TestCase
             ->where('action', 'tenant.execution.alert.summary_emitted')
             ->where('metadata->type', 'invalid_webhook_spike')
             ->where('metadata->pipeline', 'webhook')
+            ->exists());
+
+        $this->assertTrue(TenantAuditEvent::query()
+            ->where('company_id', $tenant->id)
+            ->where('action', 'tenant.execution.alert.summary_emitted')
+            ->where('metadata->type', 'stale_commitment')
+            ->where('metadata->pipeline', 'procurement')
+            ->where('metadata->age_hours', 24)
+            ->exists());
+
+        $this->assertTrue(TenantAuditEvent::query()
+            ->where('company_id', $tenant->id)
+            ->where('action', 'tenant.execution.alert.summary_emitted')
+            ->where('metadata->type', 'reconciliation_backlog')
+            ->where('metadata->pipeline', 'treasury')
+            ->where('metadata->age_hours', 24)
             ->exists());
     }
 

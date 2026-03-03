@@ -9,11 +9,13 @@ use App\Services\Execution\SubscriptionAutoBillingOrchestrator;
 use App\Services\Execution\SubscriptionBillingAttemptProcessor;
 use App\Services\Execution\ExecutionOpsAlertService;
 use App\Services\Execution\ExecutionOpsAutoRecoveryService;
+use App\Services\Procurement\LegacyVendorLinkBackfillService;
 use App\Services\RequestCommunicationRetryService;
 use App\Services\AssetCommunicationRetryService;
 use App\Services\AssetReminderService;
 use App\Services\VendorCommunicationRetryService;
 use App\Services\VendorReminderService;
+use App\Services\Rollout\CapturePilotKpiSnapshotService;
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
@@ -152,6 +154,87 @@ Artisan::command('execution:ops:auto-recover {--company=} {--older-than=} {--bat
 Schedule::command('execution:ops:auto-recover --batch=100')
     ->everyThirtyMinutes()
     ->withoutOverlapping();
+
+Artisan::command('procurement:backfill-vendor-links {--company=} {--dry-run} {--date-window=} {--amount-tolerance=} {--batch=200} {--skip-match} {--skip-payment-sync}', function (LegacyVendorLinkBackfillService $service): int {
+    // Backfill runs are intentionally explicit so finance can preview impact before writing changes.
+    $companyId = $this->option('company');
+    $companyId = is_numeric($companyId) ? (int) $companyId : null;
+
+    $batch = $this->option('batch');
+    $batch = is_numeric($batch) ? (int) $batch : (int) config('procurement.backfill.batch_size', 200);
+
+    $dateWindow = $this->option('date-window');
+    $dateWindow = is_numeric($dateWindow) ? (int) $dateWindow : (int) config('procurement.backfill.invoice_date_window_days', 60);
+
+    $amountTolerance = $this->option('amount-tolerance');
+    $amountTolerance = is_numeric($amountTolerance) ? (float) $amountTolerance : (float) config('procurement.backfill.amount_tolerance_percent', 5);
+
+    $dryRun = (bool) $this->option('dry-run');
+    $recomputeMatch = ! (bool) $this->option('skip-match');
+    $syncPayments = ! (bool) $this->option('skip-payment-sync');
+
+    $summary = $service->run(
+        companyId: $companyId,
+        dryRun: $dryRun,
+        batchSize: max(1, $batch),
+        dateWindowDays: max(0, $dateWindow),
+        amountTolerancePercent: max(0, $amountTolerance),
+        recomputeMatch: $recomputeMatch,
+        syncPayments: $syncPayments,
+    );
+
+    $this->info('Procurement legacy vendor backfill completed.');
+    $this->line('Dry-run: '.($summary['dry_run'] ? 'yes' : 'no'));
+    $this->line('Company scope: '.($summary['company_scope'] ?: 'all'));
+    $this->line('Companies scanned: '.$summary['companies_scanned']);
+    $this->line('Invoice summary - already linked: '.$summary['invoices']['already_linked'].', scanned: '.$summary['invoices']['scanned'].', eligible: '.$summary['invoices']['eligible'].', linked: '.$summary['invoices']['linked'].', ambiguous: '.$summary['invoices']['ambiguous'].', no candidate: '.$summary['invoices']['no_candidate'].', match passed: '.$summary['invoices']['match_passed'].', match failed: '.$summary['invoices']['match_failed'].', match skipped (no actor): '.$summary['invoices']['match_skipped_no_actor'].', errors: '.$summary['invoices']['errors']);
+    $this->line('Payment summary - scanned: '.$summary['payments']['scanned'].', mismatch found: '.$summary['payments']['mismatch_found'].', synced: '.$summary['payments']['synced'].', errors: '.$summary['payments']['errors']);
+
+    return self::SUCCESS;
+})->purpose('Backfill legacy vendor invoice/payment links into procurement controls safely');
+Artisan::command('rollout:pilot:capture-kpis {--company=} {--label=pilot} {--start=} {--end=} {--window-days=14} {--notes=}', function (CapturePilotKpiSnapshotService $service): int {
+    $companyId = $this->option('company');
+    $companyId = is_numeric($companyId) ? (int) $companyId : null;
+
+    $windowLabel = (string) ($this->option('label') ?? 'pilot');
+    $windowDays = is_numeric($this->option('window-days')) ? max(1, (int) $this->option('window-days')) : 14;
+
+    $start = trim((string) ($this->option('start') ?? ''));
+    $end = trim((string) ($this->option('end') ?? ''));
+
+    try {
+        $windowEnd = $end !== '' ? \Illuminate\Support\Carbon::parse($end) : now();
+        $windowStart = $start !== '' ? \Illuminate\Support\Carbon::parse($start) : $windowEnd->copy()->subDays($windowDays - 1)->startOfDay();
+    } catch (\Throwable) {
+        $this->error('Invalid --start or --end datetime format.');
+
+        return self::FAILURE;
+    }
+
+    try {
+        $summary = $service->captureWindow(
+            companyId: $companyId,
+            windowLabel: $windowLabel,
+            windowStart: $windowStart,
+            windowEnd: $windowEnd,
+            actor: null,
+            notes: trim((string) ($this->option('notes') ?? '')) ?: null,
+        );
+    } catch (\Throwable $exception) {
+        $this->error('Pilot KPI capture failed: '.$exception->getMessage());
+
+        return self::FAILURE;
+    }
+
+    $this->info('Pilot rollout KPI capture completed.');
+    $this->line('Window label: '.$summary['window_label']);
+    $this->line('Window start: '.$summary['window_start']);
+    $this->line('Window end: '.$summary['window_end']);
+    $this->line('Tenant scope: '.($companyId ?: 'all eligible'));
+    $this->line('Captured rows: '.$summary['captured']);
+
+    return self::SUCCESS;
+})->purpose('Capture baseline/pilot KPI snapshots for procurement + treasury rollout windows');
 
 Artisan::command('requests:communications:retry-failed {--company=} {--batch=200}', function (RequestCommunicationRetryService $retryService): int {
     $companyId = $this->option('company');
@@ -321,5 +404,3 @@ Artisan::command('assets:communications:process-queued {--company=} {--older-tha
 Schedule::command('assets:communications:process-queued --older-than=2 --batch=500')
     ->everyTenMinutes()
     ->withoutOverlapping();
-
-

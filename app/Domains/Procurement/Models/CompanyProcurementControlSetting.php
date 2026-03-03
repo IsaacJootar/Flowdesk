@@ -63,6 +63,16 @@ class CompanyProcurementControlSetting extends Model
             'match_date_tolerance_days' => max(0, (int) ($defaults['match_date_tolerance_days'] ?? 7)),
             'block_payment_on_mismatch' => (bool) ($defaults['block_payment_on_mismatch'] ?? true),
             'match_override_allowed_roles' => array_values((array) ($defaults['match_override_allowed_roles'] ?? ['owner', 'finance'])),
+            // Policy keys remain tenant-configurable so governance hardening does not require code deploys.
+            'mandatory_po_enabled' => (bool) ($defaults['mandatory_po_enabled'] ?? false),
+            'mandatory_po_min_amount' => max(0, (int) ($defaults['mandatory_po_min_amount'] ?? 0)),
+            'mandatory_po_category_codes' => array_values(array_filter(array_map(
+                static fn (mixed $code): string => strtolower(trim((string) $code)),
+                (array) ($defaults['mandatory_po_category_codes'] ?? [])
+            ))),
+            'match_override_requires_maker_checker' => (bool) ($defaults['match_override_requires_maker_checker'] ?? true),
+            'stale_commitment_alert_age_hours' => max(1, (int) ($defaults['stale_commitment_alert_age_hours'] ?? 72)),
+            'stale_commitment_alert_count_threshold' => max(1, (int) ($defaults['stale_commitment_alert_count_threshold'] ?? 3)),
         ];
     }
 

@@ -5,6 +5,9 @@ namespace App\Livewire\Reports;
 use App\Domains\Assets\Models\Asset;
 use App\Domains\Budgets\Models\DepartmentBudget;
 use App\Domains\Company\Models\Department;
+use App\Domains\Procurement\Models\InvoiceMatchException;
+use App\Domains\Procurement\Models\InvoiceMatchResult;
+use App\Domains\Procurement\Models\ProcurementCommitment;
 use App\Domains\Expenses\Models\Expense;
 use App\Domains\Treasury\Models\BankStatementLine;
 use App\Domains\Treasury\Models\ReconciliationException;
@@ -12,10 +15,12 @@ use App\Domains\Requests\Models\SpendRequest;
 use App\Domains\Vendors\Models\Vendor;
 use App\Domains\Vendors\Models\VendorInvoice;
 use App\Enums\UserRole;
+use App\Services\Procurement\ProcurementControlSettingsService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Layout;
@@ -145,6 +150,7 @@ class ReportsCenterPage extends Component
      *   expenses: array{total:int, posted:int, void:int, amount:int},
      *   vendors: array{outstanding_count:int, outstanding_amount:int, overdue_count:int},
      *   assets: array{total:int, assigned:int, in_maintenance:int, disposed:int},
+     *   procurement: array{linked_invoices:int, open_exceptions:int, match_pass_rate_percent:float, stale_commitments:int},
      *   budgets: array{active_count:int, allocated:int, used:int, remaining:int}
      * }
      */
@@ -154,6 +160,7 @@ class ReportsCenterPage extends Component
         $expenseQuery = $this->expenseQuery();
         $assetQuery = $this->assetQuery();
         $budgetQuery = $this->budgetQuery();
+        $companyId = (int) Auth::user()?->company_id;
 
         $requests = [
             'total' => (clone $requestQuery)->count(),
@@ -183,18 +190,51 @@ class ReportsCenterPage extends Component
             'remaining' => (int) ((clone $budgetQuery)->sum('remaining_amount') ?? 0),
         ];
 
+        $matchResultsBaseQuery = InvoiceMatchResult::query()
+            ->whereIn('match_status', [
+                InvoiceMatchResult::STATUS_MATCHED,
+                InvoiceMatchResult::STATUS_MISMATCH,
+                InvoiceMatchResult::STATUS_OVERRIDDEN,
+            ]);
+        $matchResultsTotal = (int) (clone $matchResultsBaseQuery)->count();
+        $matchResultsPassed = (int) (clone $matchResultsBaseQuery)
+            ->whereIn('match_status', [InvoiceMatchResult::STATUS_MATCHED, InvoiceMatchResult::STATUS_OVERRIDDEN])
+            ->count();
+
+        $procurementControls = app(ProcurementControlSettingsService::class)->effectiveControls($companyId);
+        $staleCommitmentAgeHours = max(1, (int) ($procurementControls['stale_commitment_alert_age_hours'] ?? 72));
+        // Use tenant-defined stale age so KPI cards match guardrail and alert semantics exactly.
+        $staleCommitmentCutoff = Carbon::now()->subHours($staleCommitmentAgeHours);
+
+        $procurement = [
+            'linked_invoices' => (int) VendorInvoice::query()
+                ->whereNotNull('purchase_order_id')
+                ->where('status', '!=', VendorInvoice::STATUS_VOID)
+                ->count(),
+            'open_exceptions' => (int) InvoiceMatchException::query()
+                ->where('exception_status', InvoiceMatchException::STATUS_OPEN)
+                ->count(),
+            'match_pass_rate_percent' => $matchResultsTotal > 0
+                ? round(($matchResultsPassed / $matchResultsTotal) * 100, 1)
+                : 0.0,
+            'stale_commitments' => (int) ProcurementCommitment::query()
+                ->where('commitment_status', ProcurementCommitment::STATUS_ACTIVE)
+                ->where('effective_at', '<=', $staleCommitmentCutoff)
+                ->count(),
+        ];
+
         // Reconciliation visibility keeps finance aware of close risk directly from Reports Center.
         $treasury = [
             'reconciled_lines' => BankStatementLine::query()
-                ->where('company_id', (int) Auth::user()?->company_id)
+                ->where('company_id', $companyId)
                 ->where('is_reconciled', true)
                 ->count(),
             'open_exceptions' => ReconciliationException::query()
-                ->where('company_id', (int) Auth::user()?->company_id)
+                ->where('company_id', $companyId)
                 ->where('exception_status', ReconciliationException::STATUS_OPEN)
                 ->count(),
             'unreconciled_value' => (int) (BankStatementLine::query()
-                ->where('company_id', (int) Auth::user()?->company_id)
+                ->where('company_id', $companyId)
                 ->where('is_reconciled', false)
                 ->sum('amount') ?? 0),
         ];
@@ -222,11 +262,11 @@ class ReportsCenterPage extends Component
             'expenses' => $expenses,
             'vendors' => $vendors,
             'assets' => $assets,
+            'procurement' => $procurement,
             'budgets' => $budgets,
             'treasury' => $treasury,
         ];
     }
-
     private function buildUnifiedActivityFeed(): LengthAwarePaginator
     {
         $events = collect();
@@ -678,6 +718,7 @@ class ReportsCenterPage extends Component
      *   expenses: array{total:int, posted:int, void:int, amount:int},
      *   vendors: array{outstanding_count:int, outstanding_amount:int, overdue_count:int},
      *   assets: array{total:int, assigned:int, in_maintenance:int, disposed:int},
+     *   procurement: array{linked_invoices:int, open_exceptions:int, match_pass_rate_percent:float, stale_commitments:int},
      *   budgets: array{active_count:int, allocated:int, used:int, remaining:int}
      * }
      */
@@ -688,8 +729,12 @@ class ReportsCenterPage extends Component
             'expenses' => ['total' => 0, 'posted' => 0, 'void' => 0, 'amount' => 0],
             'vendors' => ['outstanding_count' => 0, 'outstanding_amount' => 0, 'overdue_count' => 0],
             'assets' => ['total' => 0, 'assigned' => 0, 'in_maintenance' => 0, 'disposed' => 0],
+            'procurement' => ['linked_invoices' => 0, 'open_exceptions' => 0, 'match_pass_rate_percent' => 0.0, 'stale_commitments' => 0],
             'budgets' => ['active_count' => 0, 'allocated' => 0, 'used' => 0, 'remaining' => 0],
             'treasury' => ['reconciled_lines' => 0, 'open_exceptions' => 0, 'unreconciled_value' => 0],
         ];
     }
 }
+
+
+

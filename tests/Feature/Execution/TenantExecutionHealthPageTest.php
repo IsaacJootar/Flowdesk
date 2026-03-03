@@ -113,6 +113,33 @@ class TenantExecutionHealthPageTest extends TestCase
             ->assertSee($expectedIncident);
     }
 
+    public function test_recent_procurement_alert_is_visible_in_tenant_execution_health_summaries(): void
+    {
+        [$company, $department] = $this->createCompanyContext('Health Procurement Alert Tenant');
+        $finance = $this->createUser($company, $department, UserRole::Finance->value);
+
+        TenantAuditEvent::query()->create([
+            'company_id' => $company->id,
+            'action' => 'tenant.execution.alert.summary_emitted',
+            'description' => 'Execution alert threshold breached during ops summary run.',
+            'metadata' => [
+                'pipeline' => 'procurement',
+                'type' => 'stale_commitment',
+                'count' => 4,
+                'threshold' => 3,
+                'age_hours' => 72,
+            ],
+            'event_at' => now()->subMinutes(2),
+        ]);
+
+        $this->actingAs($finance);
+
+        Livewire::test(ExecutionHealthPage::class)
+            ->call('loadData')
+            ->assertSet('summary.status_label', 'Action needed')
+            ->assertSee('Procurement pipeline requires attention.');
+    }
+
     public function test_delayed_status_is_scoped_to_current_tenant_counts(): void
     {
         [$companyA, $departmentA] = $this->createCompanyContext('Health Tenant A');

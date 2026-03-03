@@ -328,5 +328,16 @@ Release gate addition:
    - Done: auto-match engine, confidence-scored candidate selection, exception queue aging prioritization, reports-center treasury metrics.
    - Done: direct-expense heuristic tuning (merchant text similarity + date window + confidence floor) with tenant controls.
    - Done: reversal/failure handoff workflow into treasury exceptions with incident linking for payout, billing, and webhook pipelines.
-7. Sprint 7 and Sprint 8 remain open for policy hardening, rollout controls, and enablement operations.
-
+7. Sprint 7 governance hardening: in progress.
+   - Done: `POL-701` mandatory-PO policy controls (amount/category) with enforcement in payout gate and request expense handoff.
+   - Done: `POL-702` maker-checker guardrail for procurement exception override actions (same-user override blocked by policy).
+   - Done: `POL-703` policy-based role guardrails + maker-checker + denied-attempt audit logging for treasury/procurement exception actions.
+   - Done: `ALRT-701` stale-commitment + reconciliation-backlog alerts emitted by `execution:ops:alert-summary`, visible in platform incident/operations views and tenant execution health summaries.
+   - Done: `UI-701` role-specific tenant dashboard lenses for finance, owner, and auditor with scoped summary cards, priority actions, and recent control signals.
+8. Sprint 8 rollout controls and enablement: in progress.
+   - Done: `ROL-802` migration/backfill tooling via `procurement:backfill-vendor-links` with dry-run mode, conservative candidate matching, payment link alignment, and audit summary output.
+   - Done: `ROL-803` SOP/runbook published in `FLOWDESK_ROL803_BACKFILL_SOP_RUNBOOK.md`.
+   - Done: `ROL-804` Reports Center KPI cards expanded for procurement + treasury rollout metrics.
+   - Done: `ROL-805` pilot cohort checklist and KPI baseline template published in `FLOWDESK_ROL805_PILOT_CHECKLIST_AND_KPI_TEMPLATE.md`.
+   - Done: `ROL-805` pilot execution tooling shipped: `rollout:pilot:capture-kpis` command + platform page `/platform/operations/pilot-rollout` for baseline/pilot capture and delta review.
+   - Next: run cohort pilot windows with real tenant data and record wave go/no-go outcomes.

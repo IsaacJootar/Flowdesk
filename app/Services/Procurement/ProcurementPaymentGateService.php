@@ -10,6 +10,7 @@ class ProcurementPaymentGateService
 {
     public function __construct(
         private readonly ProcurementControlSettingsService $settingsService,
+        private readonly MandatoryPurchaseOrderPolicyService $mandatoryPurchaseOrderPolicyService,
     ) {
     }
 
@@ -23,6 +24,18 @@ class ProcurementPaymentGateService
             'purchaseOrders.matchResults:id,purchase_order_id,vendor_invoice_id,match_status,match_score,mismatch_reason',
             'purchaseOrders.matchExceptions:id,invoice_match_result_id,purchase_order_id,vendor_invoice_id,exception_code,exception_status',
         ]);
+
+        $mandatoryPoPolicy = $this->mandatoryPurchaseOrderPolicyService->evaluateForRequest($request);
+        if ((bool) ($mandatoryPoPolicy['required'] ?? false) && $request->purchaseOrders->isEmpty()) {
+            return [
+                'allowed' => false,
+                'reason' => (string) ($mandatoryPoPolicy['reason'] ?? 'Mandatory PO policy requires conversion before payout.'),
+                'metadata' => [
+                    'block_reason' => 'mandatory_po_policy',
+                    'mandatory_po' => (array) ($mandatoryPoPolicy['context'] ?? []),
+                ],
+            ];
+        }
 
         $controls = $this->settingsService->effectiveControls((int) $request->company_id);
         if (! (bool) ($controls['block_payment_on_mismatch'] ?? true)) {

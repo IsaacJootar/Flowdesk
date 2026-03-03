@@ -4,8 +4,12 @@ namespace App\Services\Execution;
 
 use App\Domains\Company\Models\ExecutionWebhookEvent;
 use App\Domains\Company\Models\TenantSubscriptionBillingAttempt;
+use App\Domains\Procurement\Models\ProcurementCommitment;
 use App\Domains\Requests\Models\RequestPayoutExecutionAttempt;
+use App\Domains\Treasury\Models\ReconciliationException;
+use App\Services\Procurement\ProcurementControlSettingsService;
 use App\Services\TenantAuditLogger;
+use App\Services\Treasury\TreasuryControlSettingsService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 
@@ -13,11 +17,13 @@ class ExecutionOpsAlertService
 {
     public function __construct(
         private readonly TenantAuditLogger $tenantAuditLogger,
+        private readonly ProcurementControlSettingsService $procurementControlSettingsService,
+        private readonly TreasuryControlSettingsService $treasuryControlSettingsService,
     ) {
     }
 
     /**
-     * @return array{window_minutes:int,threshold:int,alerts:array<int,array{type:string,pipeline:string,provider:string,company_id:int,count:int,threshold:int}>}
+     * @return array{window_minutes:int,threshold:int,alerts:array<int,array{type:string,pipeline:string,provider:string,company_id:int,count:int,threshold:int,context?:array<string,mixed>}>}
      */
     public function emitWarnings(?int $windowMinutes = null): array
     {
@@ -35,6 +41,7 @@ class ExecutionOpsAlertService
                 'count' => $alert['count'],
                 'window_minutes' => $summary['window_minutes'],
                 'threshold' => $alert['threshold'],
+                'context' => (array) ($alert['context'] ?? []),
             ]);
 
             // Persist alert summaries so operators can review tenant-specific incidents from UI.
@@ -45,7 +52,7 @@ class ExecutionOpsAlertService
     }
 
     /**
-     * @return array{window_minutes:int,threshold:int,alerts:array<int,array{type:string,pipeline:string,provider:string,company_id:int,count:int,threshold:int}>}
+     * @return array{window_minutes:int,threshold:int,alerts:array<int,array{type:string,pipeline:string,provider:string,company_id:int,count:int,threshold:int,context?:array<string,mixed>}>}
      */
     public function summarizeFailures(int $windowMinutes, int $threshold): array
     {
@@ -220,6 +227,9 @@ class ExecutionOpsAlertService
             ];
         }
 
+        $alerts = array_merge($alerts, $this->summarizeStaleCommitmentAlerts());
+        $alerts = array_merge($alerts, $this->summarizeReconciliationBacklogAlerts());
+
         return [
             'window_minutes' => $windowMinutes,
             'threshold' => $threshold,
@@ -228,7 +238,105 @@ class ExecutionOpsAlertService
     }
 
     /**
-     * @param  array{type:string,pipeline:string,provider:string,company_id:int,count:int,threshold:int}  $alert
+     * @return array<int,array{type:string,pipeline:string,provider:string,company_id:int,count:int,threshold:int,context:array{age_hours:int}}>
+     */
+    private function summarizeStaleCommitmentAlerts(): array
+    {
+        $alerts = [];
+
+        $companyIds = ProcurementCommitment::query()
+            ->where('commitment_status', ProcurementCommitment::STATUS_ACTIVE)
+            ->select('company_id')
+            ->distinct()
+            ->pluck('company_id')
+            ->map(static fn ($id): int => (int) $id)
+            ->filter(static fn (int $id): bool => $id > 0)
+            ->values();
+
+        foreach ($companyIds as $companyId) {
+            $controls = $this->procurementControlSettingsService->effectiveControls($companyId);
+
+            $ageHours = max(1, (int) ($controls['stale_commitment_alert_age_hours'] ?? 72));
+            $countThreshold = max(1, (int) ($controls['stale_commitment_alert_count_threshold'] ?? 3));
+            $cutoff = Carbon::now()->subHours($ageHours);
+
+            $count = (int) ProcurementCommitment::query()
+                ->where('company_id', $companyId)
+                ->where('commitment_status', ProcurementCommitment::STATUS_ACTIVE)
+                ->where('effective_at', '<=', $cutoff)
+                ->count();
+
+            if ($count < $countThreshold) {
+                continue;
+            }
+
+            $alerts[] = [
+                'type' => 'stale_commitment',
+                'pipeline' => 'procurement',
+                'provider' => 'system',
+                'company_id' => $companyId,
+                'count' => $count,
+                'threshold' => $countThreshold,
+                'context' => [
+                    'age_hours' => $ageHours,
+                ],
+            ];
+        }
+
+        return $alerts;
+    }
+
+    /**
+     * @return array<int,array{type:string,pipeline:string,provider:string,company_id:int,count:int,threshold:int,context:array{age_hours:int}}>
+     */
+    private function summarizeReconciliationBacklogAlerts(): array
+    {
+        $alerts = [];
+
+        $companyIds = ReconciliationException::query()
+            ->where('exception_status', ReconciliationException::STATUS_OPEN)
+            ->select('company_id')
+            ->distinct()
+            ->pluck('company_id')
+            ->map(static fn ($id): int => (int) $id)
+            ->filter(static fn (int $id): bool => $id > 0)
+            ->values();
+
+        foreach ($companyIds as $companyId) {
+            $controls = $this->treasuryControlSettingsService->effectiveControls($companyId);
+
+            $ageHours = max(1, (int) ($controls['exception_alert_age_hours'] ?? 48));
+            $countThreshold = max(1, (int) ($controls['reconciliation_backlog_alert_count_threshold'] ?? 5));
+            $cutoff = Carbon::now()->subHours($ageHours);
+
+            $count = (int) ReconciliationException::query()
+                ->where('company_id', $companyId)
+                ->where('exception_status', ReconciliationException::STATUS_OPEN)
+                ->where('created_at', '<=', $cutoff)
+                ->count();
+
+            if ($count < $countThreshold) {
+                continue;
+            }
+
+            $alerts[] = [
+                'type' => 'reconciliation_backlog',
+                'pipeline' => 'treasury',
+                'provider' => 'system',
+                'company_id' => $companyId,
+                'count' => $count,
+                'threshold' => $countThreshold,
+                'context' => [
+                    'age_hours' => $ageHours,
+                ],
+            ];
+        }
+
+        return $alerts;
+    }
+
+    /**
+     * @param  array{type:string,pipeline:string,provider:string,company_id:int,count:int,threshold:int,context?:array<string,mixed>}  $alert
      */
     private function logAlertSummary(array $alert, int $windowMinutes): void
     {
@@ -237,20 +345,30 @@ class ExecutionOpsAlertService
             return;
         }
 
+        $alertType = (string) ($alert['type'] ?? '');
+        $metadata = [
+            'type' => $alertType,
+            'pipeline' => (string) ($alert['pipeline'] ?? ''),
+            'provider_key' => (string) ($alert['provider'] ?? ''),
+            'count' => (int) ($alert['count'] ?? 0),
+            'threshold' => (int) ($alert['threshold'] ?? 0),
+            'window_minutes' => in_array($alertType, ['failure_spike', 'stuck_queued', 'invalid_webhook_spike'], true)
+                ? $windowMinutes
+                : 0,
+            'trigger' => 'execution:ops:alert-summary',
+        ];
+
+        $context = (array) ($alert['context'] ?? []);
+        if ($context !== []) {
+            $metadata = array_merge($metadata, $context);
+        }
+
         $this->tenantAuditLogger->log(
             companyId: $companyId,
             action: 'tenant.execution.alert.summary_emitted',
             actor: null,
             description: 'Execution alert threshold breached during ops summary run.',
-            metadata: [
-                'type' => (string) ($alert['type'] ?? ''),
-                'pipeline' => (string) ($alert['pipeline'] ?? ''),
-                'provider_key' => (string) ($alert['provider'] ?? ''),
-                'count' => (int) ($alert['count'] ?? 0),
-                'threshold' => (int) ($alert['threshold'] ?? 0),
-                'window_minutes' => $windowMinutes,
-                'trigger' => 'execution:ops:alert-summary',
-            ],
+            metadata: $metadata,
         );
     }
 }

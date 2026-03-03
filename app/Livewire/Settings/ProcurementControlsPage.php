@@ -37,7 +37,13 @@ class ProcurementControlsPage extends Component
      *   match_quantity_tolerance_percent:string,
      *   match_date_tolerance_days:string,
      *   block_payment_on_mismatch:bool,
-     *   match_override_allowed_roles:array<int,string>
+     *   match_override_allowed_roles:array<int,string>,
+     *   mandatory_po_enabled:bool,
+     *   mandatory_po_min_amount:string,
+     *   mandatory_po_category_codes:string,
+     *   match_override_requires_maker_checker:bool,
+     *   stale_commitment_alert_age_hours:string,
+     *   stale_commitment_alert_count_threshold:string
      * }
      */
     public array $controlsForm = [];
@@ -72,6 +78,12 @@ class ProcurementControlsPage extends Component
             'controlsForm.block_payment_on_mismatch' => ['boolean'],
             'controlsForm.match_override_allowed_roles' => ['required', 'array', 'min:1'],
             'controlsForm.match_override_allowed_roles.*' => ['string', Rule::in(UserRole::values())],
+            'controlsForm.mandatory_po_enabled' => ['boolean'],
+            'controlsForm.mandatory_po_min_amount' => ['required', 'integer', 'min:0', 'max:999999999'],
+            'controlsForm.mandatory_po_category_codes' => ['nullable', 'string', 'max:500'],
+            'controlsForm.match_override_requires_maker_checker' => ['boolean'],
+            'controlsForm.stale_commitment_alert_age_hours' => ['required', 'integer', 'min:1', 'max:720'],
+            'controlsForm.stale_commitment_alert_count_threshold' => ['required', 'integer', 'min:1', 'max:1000'],
         ]);
 
         $statuses = array_values(array_filter(array_map(
@@ -84,6 +96,11 @@ class ProcurementControlsPage extends Component
 
             return;
         }
+
+        $mandatoryPoCategories = array_values(array_filter(array_map(
+            static fn (string $category): string => strtolower(trim($category)),
+            explode(',', (string) ($validated['controlsForm']['mandatory_po_category_codes'] ?? ''))
+        )));
 
         $setting = $settingsService->settingsForCompany((int) auth()->user()->company_id);
 
@@ -102,6 +119,12 @@ class ProcurementControlsPage extends Component
             'match_date_tolerance_days' => (int) $validated['controlsForm']['match_date_tolerance_days'],
             'block_payment_on_mismatch' => (bool) $validated['controlsForm']['block_payment_on_mismatch'],
             'match_override_allowed_roles' => array_values((array) $validated['controlsForm']['match_override_allowed_roles']),
+            'mandatory_po_enabled' => (bool) $validated['controlsForm']['mandatory_po_enabled'],
+            'mandatory_po_min_amount' => (int) $validated['controlsForm']['mandatory_po_min_amount'],
+            'mandatory_po_category_codes' => $mandatoryPoCategories,
+            'match_override_requires_maker_checker' => (bool) $validated['controlsForm']['match_override_requires_maker_checker'],
+            'stale_commitment_alert_age_hours' => (int) $validated['controlsForm']['stale_commitment_alert_age_hours'],
+            'stale_commitment_alert_count_threshold' => (int) $validated['controlsForm']['stale_commitment_alert_count_threshold'],
         ];
 
         $setting->forceFill([
@@ -163,6 +186,12 @@ class ProcurementControlsPage extends Component
             'match_date_tolerance_days' => (string) ((int) $controls['match_date_tolerance_days']),
             'block_payment_on_mismatch' => (bool) $controls['block_payment_on_mismatch'],
             'match_override_allowed_roles' => array_values((array) $controls['match_override_allowed_roles']),
+            'mandatory_po_enabled' => (bool) $controls['mandatory_po_enabled'],
+            'mandatory_po_min_amount' => (string) ((int) $controls['mandatory_po_min_amount']),
+            'mandatory_po_category_codes' => implode(', ', (array) $controls['mandatory_po_category_codes']),
+            'match_override_requires_maker_checker' => (bool) $controls['match_override_requires_maker_checker'],
+            'stale_commitment_alert_age_hours' => (string) ((int) $controls['stale_commitment_alert_age_hours']),
+            'stale_commitment_alert_count_threshold' => (string) ((int) $controls['stale_commitment_alert_count_threshold']),
         ];
     }
 
