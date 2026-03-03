@@ -5,14 +5,7 @@
             <h2 class="mt-1 text-xl font-semibold text-slate-900">{{ $company->name }}</h2>
             <p class="text-sm text-slate-500">{{ $company->slug }} - {{ $company->email ?: 'no email' }}</p>
         </div>
-        <a
-            href="{{ route('platform.tenants') }}"
-            class="inline-flex h-10 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl border border-slate-300 bg-white px-3.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-        >
-            <span aria-hidden="true">&larr;</span>
-            <span>Back to Tenants</span>
-        </a>
-    </div>
+</div>
 
     @include('livewire.platform.partials.tenant-section-tabs', ['company' => $company, 'tenantContextRoute' => 'platform.tenants.show'])
 

@@ -25,7 +25,7 @@
                 </span>
                 <h2 class="mt-2 text-base font-semibold text-slate-900">Tenant Procurement Guardrails</h2>
                 <p class="mt-1 text-sm text-slate-600">
-                    Configure conversion scope, issuance/receiving roles, invoice-link controls, and receipt tolerance behavior.
+                    Configure conversion scope, issuance/receiving roles, invoice-link controls, and 3-way match tolerances.
                 </p>
             </div>
 
@@ -125,6 +125,50 @@
                 @error('controlsForm.invoice_link_allowed_roles')<p class="mt-2 text-xs text-red-600">{{ $message }}</p>@enderror
             </div>
 
+            <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">3-Way Match Tolerances</p>
+                <p class="mt-1 text-xs text-slate-500">Used to decide if linked invoices can move to payment execution.</p>
+
+                <div class="mt-3 grid gap-3 sm:grid-cols-3">
+                    <label class="block">
+                        <span class="mb-1 block text-xs text-slate-600">Amount Tolerance (%)</span>
+                        <input type="number" min="0" max="100" step="0.01" wire:model.defer="controlsForm.match_amount_tolerance_percent" class="w-full rounded-xl border-slate-300 text-sm focus:border-slate-500 focus:ring-slate-500">
+                        @error('controlsForm.match_amount_tolerance_percent')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+                    </label>
+
+                    <label class="block">
+                        <span class="mb-1 block text-xs text-slate-600">Quantity Tolerance (%)</span>
+                        <input type="number" min="0" max="100" step="0.01" wire:model.defer="controlsForm.match_quantity_tolerance_percent" class="w-full rounded-xl border-slate-300 text-sm focus:border-slate-500 focus:ring-slate-500">
+                        @error('controlsForm.match_quantity_tolerance_percent')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+                    </label>
+
+                    <label class="block">
+                        <span class="mb-1 block text-xs text-slate-600">Invoice Date Window (Days)</span>
+                        <input type="number" min="0" max="90" step="1" wire:model.defer="controlsForm.match_date_tolerance_days" class="w-full rounded-xl border-slate-300 text-sm focus:border-slate-500 focus:ring-slate-500">
+                        @error('controlsForm.match_date_tolerance_days')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+                    </label>
+                </div>
+            </div>
+
+            <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Match Override Allowed Roles</p>
+                <p class="mt-1 text-xs text-slate-500">These roles can resolve/waive procurement match exceptions.</p>
+                <div class="mt-2 grid gap-2 sm:grid-cols-3 lg:grid-cols-5">
+                    @foreach ($roles as $role)
+                        <label class="inline-flex items-center gap-2 text-sm text-slate-700">
+                            <input
+                                type="checkbox"
+                                value="{{ $role }}"
+                                wire:model.defer="controlsForm.match_override_allowed_roles"
+                                class="rounded border-slate-300 text-slate-700 focus:ring-slate-500"
+                            >
+                            {{ ucfirst($role) }}
+                        </label>
+                    @endforeach
+                </div>
+                @error('controlsForm.match_override_allowed_roles')<p class="mt-2 text-xs text-red-600">{{ $message }}</p>@enderror
+            </div>
+
             <div class="grid gap-3 sm:grid-cols-2">
                 <label class="inline-flex items-center gap-2 text-sm text-slate-700">
                     <input type="checkbox" wire:model.defer="controlsForm.require_vendor_on_conversion" class="rounded border-slate-300 text-slate-700 focus:ring-slate-500">
@@ -138,7 +182,12 @@
 
                 <label class="inline-flex items-center gap-2 text-sm text-slate-700 sm:col-span-2">
                     <input type="checkbox" wire:model.defer="controlsForm.allow_over_receipt" class="rounded border-slate-300 text-slate-700 focus:ring-slate-500">
-                    Allow over-receipt quantities above PO ordered quantity (not recommended for strict control tenants)
+                    Allow over-receipt quantities above PO ordered quantity
+                </label>
+
+                <label class="inline-flex items-center gap-2 text-sm text-slate-700 sm:col-span-2">
+                    <input type="checkbox" wire:model.defer="controlsForm.block_payment_on_mismatch" class="rounded border-slate-300 text-slate-700 focus:ring-slate-500">
+                    Block payment execution when procurement 3-way match fails
                 </label>
             </div>
 

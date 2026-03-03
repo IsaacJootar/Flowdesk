@@ -57,7 +57,7 @@ class TenantModuleAccessService
             'vendors.index', 'vendors.show', 'vendors.reports' => $this->moduleEnabled($user, 'vendors'),
             'budgets.index' => $this->moduleEnabled($user, 'budgets'),
             'assets.index', 'assets.reports' => $this->moduleEnabled($user, 'assets'),
-            'procurement.orders', 'procurement.receipts' => $this->moduleEnabled($user, 'procurement'),
+            'procurement.orders', 'procurement.receipts', 'procurement.match-exceptions' => $this->moduleEnabled($user, 'procurement'),
             'approval-workflows.index', 'settings.request-configuration', 'settings.approval-timing-controls' => $this->moduleEnabled($user, 'requests'),
             'settings.communications' => $this->moduleEnabled($user, 'communications'),
             'settings.expense-controls' => $this->moduleEnabled($user, 'expenses'),
@@ -65,6 +65,7 @@ class TenantModuleAccessService
             'settings.asset-controls' => $this->moduleEnabled($user, 'assets'),
             'settings.procurement-controls' => $this->moduleEnabled($user, 'procurement'),
             'settings.treasury-controls' => $this->moduleEnabled($user, 'treasury'),
+            'treasury.reconciliation', 'treasury.reconciliation-exceptions', 'treasury.payment-runs', 'treasury.cash-position' => $this->moduleEnabled($user, 'treasury'),
             default => true,
         };
     }

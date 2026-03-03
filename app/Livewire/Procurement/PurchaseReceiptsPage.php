@@ -7,8 +7,10 @@ use App\Domains\Procurement\Models\GoodsReceiptItem;
 use App\Enums\UserRole;
 use App\Models\User;
 use Illuminate\Contracts\View\View;
+use Illuminate\Database\Eloquent\Builder;
 use Livewire\Component;
 use Livewire\WithPagination;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class PurchaseReceiptsPage extends Component
 {
@@ -71,6 +73,62 @@ class PurchaseReceiptsPage extends Component
         }
 
         $this->resetPage();
+    }
+
+    public function exportCsv(): StreamedResponse
+    {
+        $fileName = 'procurement_receipts_'.now()->format('Ymd_His').'.csv';
+
+        // Export uses the active page filters so finance teams can reconcile exactly what they reviewed.
+        $query = $this->filteredReceiptsQuery()
+            ->with([
+                'order:id,po_number,po_status,currency_code,vendor_id',
+                'order.vendor:id,name',
+                'order.vendorInvoices:id,purchase_order_id',
+                'receiver:id,name',
+                'items:id,goods_receipt_id,received_quantity,received_total',
+            ])
+            ->orderBy('id');
+
+        return response()->streamDownload(function () use ($query): void {
+            $stream = fopen('php://output', 'wb');
+
+            fputcsv($stream, [
+                'Receipt Number',
+                'Receipt Status',
+                'Received At',
+                'Receiver',
+                'PO Number',
+                'PO Status',
+                'Vendor',
+                'Currency',
+                'Line Count',
+                'Received Quantity Total',
+                'Received Value Total',
+                'Linked Invoice Count',
+            ]);
+
+            $query->chunkById(200, function ($receipts) use ($stream): void {
+                foreach ($receipts as $receipt) {
+                    fputcsv($stream, [
+                        (string) $receipt->receipt_number,
+                        (string) $receipt->receipt_status,
+                        (string) ($receipt->received_at?->format('Y-m-d H:i:s') ?? ''),
+                        (string) ($receipt->receiver?->name ?? '-'),
+                        (string) ($receipt->order?->po_number ?? '-'),
+                        (string) ($receipt->order?->po_status ?? '-'),
+                        (string) ($receipt->order?->vendor?->name ?? '-'),
+                        strtoupper((string) ($receipt->order?->currency_code ?: 'NGN')),
+                        (string) $receipt->items->count(),
+                        (string) number_format((float) $receipt->items->sum('received_quantity'), 2, '.', ''),
+                        (string) number_format((int) $receipt->items->sum('received_total'), 2, '.', ''),
+                        (string) ($receipt->order?->vendorInvoices?->count() ?? 0),
+                    ]);
+                }
+            }, 'id');
+
+            fclose($stream);
+        }, $fileName, ['Content-Type' => 'text/csv; charset=UTF-8']);
     }
 
     public function openDetails(int $receiptId): void
@@ -138,35 +196,27 @@ class PurchaseReceiptsPage extends Component
 
     public function render(): View
     {
-        $query = GoodsReceipt::query()
+        $query = $this->filteredReceiptsQuery()
             ->with([
                 'order:id,po_number,po_status,currency_code,vendor_id',
                 'order.vendor:id,name',
                 'receiver:id,name',
             ])
             ->withCount('items')
-            ->when($this->search !== '', function ($builder): void {
-                $builder->where(function ($inner): void {
-                    $inner->where('receipt_number', 'like', '%'.$this->search.'%')
-                        ->orWhereHas('order', fn ($orderQuery) => $orderQuery->where('po_number', 'like', '%'.$this->search.'%'))
-                        ->orWhereHas('order.vendor', fn ($vendorQuery) => $vendorQuery->where('name', 'like', '%'.$this->search.'%'));
-                });
-            })
-            ->when($this->statusFilter !== 'all', fn ($builder) => $builder->where('receipt_status', $this->statusFilter))
-            ->when($this->receivedFrom, fn ($builder) => $builder->whereDate('received_at', '>=', $this->receivedFrom))
-            ->when($this->receivedTo, fn ($builder) => $builder->whereDate('received_at', '<=', $this->receivedTo))
-            ->latest('received_at');
+            ->latest('received_at')
+            ->latest('id');
 
         $receipts = $this->readyToLoad
             ? (clone $query)->paginate($this->perPage)
             : GoodsReceipt::query()->whereRaw('1=0')->paginate($this->perPage);
 
+        $summaryQuery = $this->filteredReceiptsQuery();
         $summary = $this->readyToLoad
             ? [
-                'total' => (clone $query)->count(),
-                'confirmed' => (clone $query)->where('receipt_status', GoodsReceipt::STATUS_CONFIRMED)->count(),
+                'total' => (clone $summaryQuery)->count(),
+                'confirmed' => (clone $summaryQuery)->where('receipt_status', GoodsReceipt::STATUS_CONFIRMED)->count(),
                 'value' => (int) GoodsReceiptItem::query()
-                    ->whereIn('goods_receipt_id', (clone $query)->select('id'))
+                    ->whereIn('goods_receipt_id', (clone $summaryQuery)->select('id'))
                     ->sum('received_total'),
             ]
             : ['total' => 0, 'confirmed' => 0, 'value' => 0];
@@ -176,6 +226,21 @@ class PurchaseReceiptsPage extends Component
             'statuses' => GoodsReceipt::STATUSES,
             'summary' => $summary,
         ]);
+    }
+
+    private function filteredReceiptsQuery(): Builder
+    {
+        return GoodsReceipt::query()
+            ->when($this->search !== '', function ($builder): void {
+                $builder->where(function ($inner): void {
+                    $inner->where('receipt_number', 'like', '%'.$this->search.'%')
+                        ->orWhereHas('order', fn ($orderQuery) => $orderQuery->where('po_number', 'like', '%'.$this->search.'%'))
+                        ->orWhereHas('order.vendor', fn ($vendorQuery) => $vendorQuery->where('name', 'like', '%'.$this->search.'%'));
+                });
+            })
+            ->when($this->statusFilter !== 'all', fn ($builder) => $builder->where('receipt_status', $this->statusFilter))
+            ->when($this->receivedFrom, fn ($builder) => $builder->whereDate('received_at', '>=', $this->receivedFrom))
+            ->when($this->receivedTo, fn ($builder) => $builder->whereDate('received_at', '<=', $this->receivedTo));
     }
 
     private function canAccessPage(User $user): bool

@@ -6,6 +6,8 @@ use App\Domains\Assets\Models\Asset;
 use App\Domains\Budgets\Models\DepartmentBudget;
 use App\Domains\Company\Models\Department;
 use App\Domains\Expenses\Models\Expense;
+use App\Domains\Treasury\Models\BankStatementLine;
+use App\Domains\Treasury\Models\ReconciliationException;
 use App\Domains\Requests\Models\SpendRequest;
 use App\Domains\Vendors\Models\Vendor;
 use App\Domains\Vendors\Models\VendorInvoice;
@@ -127,6 +129,7 @@ class ReportsCenterPage extends Component
             'expenses' => 'Expenses',
             'assets' => 'Assets',
             'budgets' => 'Budgets',
+            'treasury' => 'Treasury',
         ];
 
         if ($this->canViewVendors()) {
@@ -180,6 +183,22 @@ class ReportsCenterPage extends Component
             'remaining' => (int) ((clone $budgetQuery)->sum('remaining_amount') ?? 0),
         ];
 
+        // Reconciliation visibility keeps finance aware of close risk directly from Reports Center.
+        $treasury = [
+            'reconciled_lines' => BankStatementLine::query()
+                ->where('company_id', (int) Auth::user()?->company_id)
+                ->where('is_reconciled', true)
+                ->count(),
+            'open_exceptions' => ReconciliationException::query()
+                ->where('company_id', (int) Auth::user()?->company_id)
+                ->where('exception_status', ReconciliationException::STATUS_OPEN)
+                ->count(),
+            'unreconciled_value' => (int) (BankStatementLine::query()
+                ->where('company_id', (int) Auth::user()?->company_id)
+                ->where('is_reconciled', false)
+                ->sum('amount') ?? 0),
+        ];
+
         $vendors = [
             'outstanding_count' => 0,
             'outstanding_amount' => 0,
@@ -204,6 +223,7 @@ class ReportsCenterPage extends Component
             'vendors' => $vendors,
             'assets' => $assets,
             'budgets' => $budgets,
+            'treasury' => $treasury,
         ];
     }
 
@@ -229,6 +249,10 @@ class ReportsCenterPage extends Component
 
         if ($this->isModuleVisible('budgets')) {
             $events = $events->concat($this->budgetEvents());
+        }
+
+        if ($this->isModuleVisible('treasury')) {
+            $events = $events->concat($this->treasuryEvents());
         }
 
         $sorted = $events
@@ -378,6 +402,31 @@ class ReportsCenterPage extends Component
                     'owner' => '-',
                     'occurred_at' => $budget->updated_at ?? $budget->created_at,
                     'url' => route('budgets.index'),
+                ];
+            });
+    }
+
+    /**
+     * @return Collection<int, array<string, mixed>>
+     */
+    private function treasuryEvents(): Collection
+    {
+        return ReconciliationException::query()
+            ->where('company_id', (int) Auth::user()?->company_id)
+            ->latest('updated_at')
+            ->limit(40)
+            ->get()
+            ->map(function (ReconciliationException $exception): array {
+                return [
+                    'module' => 'Treasury',
+                    'code' => strtoupper((string) $exception->exception_code),
+                    'title' => 'Reconciliation exception',
+                    'status' => (string) $exception->exception_status,
+                    'amount' => 0,
+                    'department' => '-',
+                    'owner' => '-',
+                    'occurred_at' => $exception->updated_at ?? $exception->created_at,
+                    'url' => route('treasury.reconciliation-exceptions'),
                 ];
             });
     }
@@ -640,6 +689,7 @@ class ReportsCenterPage extends Component
             'vendors' => ['outstanding_count' => 0, 'outstanding_amount' => 0, 'overdue_count' => 0],
             'assets' => ['total' => 0, 'assigned' => 0, 'in_maintenance' => 0, 'disposed' => 0],
             'budgets' => ['active_count' => 0, 'allocated' => 0, 'used' => 0, 'remaining' => 0],
+            'treasury' => ['reconciled_lines' => 0, 'open_exceptions' => 0, 'unreconciled_value' => 0],
         ];
     }
 }

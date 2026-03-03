@@ -1,5 +1,5 @@
 <div class="space-y-6">
-    <div
+<div
         class="pointer-events-none fixed z-[95] space-y-2"
         style="right: 16px; top: 64px; width: 320px; max-width: calc(100vw - 24px);"
     >

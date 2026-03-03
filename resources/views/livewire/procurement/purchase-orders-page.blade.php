@@ -45,8 +45,9 @@
         </div>
     </div>
 
-    <div class="flex justify-end">
+    <div class="flex justify-end gap-2">
         <a href="{{ route('procurement.receipts') }}" class="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50">Open Receipts Table</a>
+        <a href="{{ route('procurement.match-exceptions') }}" class="rounded-lg border border-rose-300 px-3 py-1.5 text-xs font-medium text-rose-700 hover:bg-rose-50">Open Match Exceptions</a>
     </div>
 
     <div class="grid gap-3 sm:grid-cols-4">

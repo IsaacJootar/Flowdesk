@@ -94,6 +94,7 @@ class NavAccessService
             ['route' => 'vendors.index', 'pattern' => ['vendors.index', 'vendors.show', 'vendors.reports'], 'label' => 'Manage Vendors'],
             ['route' => 'procurement.orders', 'pattern' => ['procurement.orders'], 'label' => 'Procurement'],
             ['route' => 'procurement.receipts', 'pattern' => ['procurement.receipts'], 'label' => 'Procurement Receipts'],
+            ['route' => 'treasury.reconciliation', 'pattern' => ['treasury.*'], 'label' => 'Manage Treasury'],
             ['route' => 'budgets.index', 'pattern' => ['budgets.*'], 'label' => 'Budgets'],
             ['route' => 'assets.index', 'pattern' => ['assets.*'], 'label' => 'Assets'],
             ['route' => 'departments.index', 'pattern' => ['departments.*'], 'label' => 'Departments'],
@@ -127,6 +128,7 @@ class NavAccessService
             ['route' => 'vendors.index', 'pattern' => ['vendors.index', 'vendors.show', 'vendors.reports'], 'label' => 'Vendors'],
             ['route' => 'procurement.orders', 'pattern' => ['procurement.orders'], 'label' => 'Procurement'],
             ['route' => 'procurement.receipts', 'pattern' => ['procurement.receipts'], 'label' => 'Procurement Receipts'],
+            ['route' => 'treasury.reconciliation', 'pattern' => ['treasury.*'], 'label' => 'Manage Treasury'],
             ['route' => 'budgets.index', 'pattern' => ['budgets.*'], 'label' => 'Budgets'],
             ['route' => 'assets.index', 'pattern' => ['assets.*'], 'label' => 'Assets'],
         ];
@@ -147,6 +149,7 @@ class NavAccessService
             ['route' => 'expenses.index', 'pattern' => ['expenses.*'], 'label' => 'Expenses'],
             ['route' => 'procurement.orders', 'pattern' => ['procurement.orders'], 'label' => 'Procurement'],
             ['route' => 'procurement.receipts', 'pattern' => ['procurement.receipts'], 'label' => 'Procurement Receipts'],
+            ['route' => 'treasury.reconciliation', 'pattern' => ['treasury.*'], 'label' => 'Manage Treasury'],
             ['route' => 'budgets.index', 'pattern' => ['budgets.*'], 'label' => 'Budgets'],
             ['route' => 'assets.index', 'pattern' => ['assets.*'], 'label' => 'Assets'],
         ];
@@ -181,6 +184,7 @@ class NavAccessService
             ['route' => 'vendors.index', 'pattern' => ['vendors.index', 'vendors.show', 'vendors.reports'], 'label' => 'Vendors'],
             ['route' => 'procurement.orders', 'pattern' => ['procurement.orders'], 'label' => 'Procurement'],
             ['route' => 'procurement.receipts', 'pattern' => ['procurement.receipts'], 'label' => 'Procurement Receipts'],
+            ['route' => 'treasury.reconciliation', 'pattern' => ['treasury.*'], 'label' => 'Manage Treasury'],
             ['route' => 'budgets.index', 'pattern' => ['budgets.*'], 'label' => 'Budgets'],
             ['route' => 'assets.index', 'pattern' => ['assets.*'], 'label' => 'Assets'],
         ];
@@ -237,6 +241,9 @@ class NavAccessService
             'expenses.index' => 'receipt',
             'procurement.orders' => 'clipboard',
             'procurement.receipts' => 'receipt',
+            'treasury.reconciliation', 'treasury.reconciliation-exceptions' => 'flow',
+            'treasury.payment-runs' => 'clipboard',
+            'treasury.cash-position' => 'wallet',
             'vendors.index', 'platform.tenants', 'platform.tenants.show' => 'building',
             'budgets.index', 'platform.tenants.billing' => 'wallet',
             'assets.index' => 'cube',
@@ -323,6 +330,7 @@ class NavAccessService
         return $id ? (int) $id : null;
     }
 }
+
 
 
 

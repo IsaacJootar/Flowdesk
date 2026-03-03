@@ -1,6 +1,6 @@
 # Flowdesk Module Status (Ground Truth)
 
-Last updated: 2026-03-02
+Last updated: 2026-03-03
 
 This file is the canonical module inventory so planning discussions stay aligned to what is already implemented in code.
 
@@ -195,7 +195,7 @@ Source files:
 
 ## 7) Ground Rule
 
-Before proposing â€œnewâ€ module work, check this file plus route map (`routes/web.php`, `routes/console.php`) to avoid suggesting already-implemented capabilities.
+Before proposing "new" module work, check this file plus route map (`routes/web.php`, `routes/console.php`) to avoid suggesting already-implemented capabilities.
 
 
 ## 8) Procurement and Treasury (In Progress)
@@ -282,6 +282,7 @@ Before proposing â€œnewâ€ module work, check this file plus route map (
 
 ### Goods Receipt Workflow
 - New tenant route: `/procurement/receipts` (`procurement.receipts`) with dedicated receipts table and detail modal.
+- Added CSV export button on receipts page (uses active filters).
 - New service: `app/Services/Procurement/CreateGoodsReceiptService.php`
 - Procurement Orders detail modal now supports recording receipts with line-level quantities and unit costs.
 - PO line received balances are updated on each receipt and PO status auto-progresses:
@@ -307,3 +308,79 @@ Before proposing â€œnewâ€ module work, check this file plus route map (
 
 ### Sprint 3 tests
 - `tests/Feature/Finance/ProcurementReceiptAndInvoiceLinkingTest.php`
+
+## Sprint 4 Progress (Implemented)
+
+### 3-Way Match Engine + Payment Blocking
+- New service: `app/Services/Procurement/EvaluateInvoiceThreeWayMatchService.php`
+  - Evaluates PO vs receipt vs invoice using tenant-configurable tolerances.
+  - Writes `invoice_match_results` and regenerates open `invoice_match_exceptions`.
+- New service: `app/Services/Procurement/ProcurementPaymentGateService.php`
+  - Blocks payout queueing when procurement controls require strict match state.
+- Payout orchestration integration:
+  - `app/Services/Execution/RequestPayoutExecutionOrchestrator.php`
+  - Adds procurement gate metadata and audit event when payout queueing is blocked.
+
+### Procurement controls expanded
+- Added tenant-configurable controls:
+  - `match_amount_tolerance_percent`
+  - `match_quantity_tolerance_percent`
+  - `match_date_tolerance_days`
+  - `block_payment_on_mismatch`
+  - `match_override_allowed_roles`
+- Updated in:
+  - `config/procurement.php`
+  - `ProcurementControlSettingsService`
+  - `CompanyProcurementControlSetting`
+  - `/settings/procurement-controls` UI
+
+### Procurement exception workbench
+- Route: `/procurement/match-exceptions` (`procurement.match-exceptions`)
+- New page/component:
+  - `app/Livewire/Procurement/ProcurementMatchExceptionsPage.php`
+  - `resources/views/livewire/procurement/procurement-match-exceptions-page.blade.php`
+- Linked from Procurement Orders page with quick navigation button.
+
+### Sprint 4 tests
+- `tests/Feature/Finance/ProcurementReceiptAndInvoiceLinkingTest.php`
+- `tests/Feature/Execution/RequestPayoutExecutionPhaseFourTest.php`
+- `tests/Feature/Settings/TenantModuleEntitlementTest.php`
+
+## Sprint 5 Progress (Implemented)
+
+### Treasury import + reconciliation workbench
+- New treasury routes/pages:
+  - `/treasury/reconciliation`
+  - `/treasury/reconciliation/exceptions`
+  - `/treasury/payment-runs`
+  - `/treasury/cash-position`
+- New services:
+  - `app/Services/Treasury/ImportBankStatementCsvService.php`
+  - `app/Services/Treasury/AutoReconcileStatementService.php`
+- Capabilities now available:
+  - Bank account setup
+  - CSV statement import with idempotent line hashing
+  - Auto-reconcile against payout attempts + direct expenses
+  - Exception queue with resolve/waive action and required notes
+  - Audit events for import and reconciliation runs/actions
+
+### Treasury visibility in Reports Center
+- `app/Livewire/Reports/ReportsCenterPage.php` now includes treasury metrics:
+  - reconciled lines
+  - open reconciliation exceptions
+  - unreconciled value
+- Treasury exceptions are also included in unified report activity feed.
+
+### Sprint 5 tests
+- `tests/Feature/Finance/TreasuryReconciliationWorkflowTest.php`
+- `tests/Feature/Reports/ReportsCenterTest.php`
+
+## Sprint 6 Progress (Partial)
+- Implemented:
+  - Auto-match rules with confidence scoring and exception generation (`AutoReconcileStatementService`).
+  - Reconciliation exception queue and resolution workflow (`TreasuryReconciliationExceptionsPage`).
+  - Reconciliation metrics surfaced in Reports Center.
+- Remaining for full Sprint 6 completion:
+  - deeper beneficiary/text heuristics tuning and configurable rule matrix,
+  - explicit execution reversal/failed-settlement linkage into treasury exception triage,
+  - dedicated aging priority indicators and value-weighted queue ordering in treasury exception list.

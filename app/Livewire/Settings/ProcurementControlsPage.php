@@ -32,7 +32,12 @@ class ProcurementControlsPage extends Component
      *   issue_allowed_roles:array<int,string>,
      *   receipt_allowed_roles:array<int,string>,
      *   invoice_link_allowed_roles:array<int,string>,
-     *   allow_over_receipt:bool
+     *   allow_over_receipt:bool,
+     *   match_amount_tolerance_percent:string,
+     *   match_quantity_tolerance_percent:string,
+     *   match_date_tolerance_days:string,
+     *   block_payment_on_mismatch:bool,
+     *   match_override_allowed_roles:array<int,string>
      * }
      */
     public array $controlsForm = [];
@@ -61,6 +66,12 @@ class ProcurementControlsPage extends Component
             'controlsForm.invoice_link_allowed_roles' => ['required', 'array', 'min:1'],
             'controlsForm.invoice_link_allowed_roles.*' => ['string', Rule::in(UserRole::values())],
             'controlsForm.allow_over_receipt' => ['boolean'],
+            'controlsForm.match_amount_tolerance_percent' => ['required', 'numeric', 'min:0', 'max:100'],
+            'controlsForm.match_quantity_tolerance_percent' => ['required', 'numeric', 'min:0', 'max:100'],
+            'controlsForm.match_date_tolerance_days' => ['required', 'integer', 'min:0', 'max:90'],
+            'controlsForm.block_payment_on_mismatch' => ['boolean'],
+            'controlsForm.match_override_allowed_roles' => ['required', 'array', 'min:1'],
+            'controlsForm.match_override_allowed_roles.*' => ['string', Rule::in(UserRole::values())],
         ]);
 
         $statuses = array_values(array_filter(array_map(
@@ -85,6 +96,12 @@ class ProcurementControlsPage extends Component
             'receipt_allowed_roles' => array_values((array) $validated['controlsForm']['receipt_allowed_roles']),
             'invoice_link_allowed_roles' => array_values((array) $validated['controlsForm']['invoice_link_allowed_roles']),
             'allow_over_receipt' => (bool) $validated['controlsForm']['allow_over_receipt'],
+            // These fields are explicit controls so finance policy can be changed without code deploys.
+            'match_amount_tolerance_percent' => (float) $validated['controlsForm']['match_amount_tolerance_percent'],
+            'match_quantity_tolerance_percent' => (float) $validated['controlsForm']['match_quantity_tolerance_percent'],
+            'match_date_tolerance_days' => (int) $validated['controlsForm']['match_date_tolerance_days'],
+            'block_payment_on_mismatch' => (bool) $validated['controlsForm']['block_payment_on_mismatch'],
+            'match_override_allowed_roles' => array_values((array) $validated['controlsForm']['match_override_allowed_roles']),
         ];
 
         $setting->forceFill([
@@ -141,6 +158,11 @@ class ProcurementControlsPage extends Component
             'receipt_allowed_roles' => array_values((array) $controls['receipt_allowed_roles']),
             'invoice_link_allowed_roles' => array_values((array) $controls['invoice_link_allowed_roles']),
             'allow_over_receipt' => (bool) $controls['allow_over_receipt'],
+            'match_amount_tolerance_percent' => (string) ((float) $controls['match_amount_tolerance_percent']),
+            'match_quantity_tolerance_percent' => (string) ((float) $controls['match_quantity_tolerance_percent']),
+            'match_date_tolerance_days' => (string) ((int) $controls['match_date_tolerance_days']),
+            'block_payment_on_mismatch' => (bool) $controls['block_payment_on_mismatch'],
+            'match_override_allowed_roles' => array_values((array) $controls['match_override_allowed_roles']),
         ];
     }
 

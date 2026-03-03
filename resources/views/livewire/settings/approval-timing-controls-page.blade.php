@@ -1,5 +1,5 @@
 <div class="space-y-6">
-    <div
+<div
         class="pointer-events-none fixed z-[95] space-y-2"
         style="right: 16px; top: 64px; width: 320px; max-width: calc(100vw - 24px);"
     >
@@ -203,7 +203,7 @@
                             {{ $editingDepartmentId ? 'Edit Department Override' : 'Add Department Override' }}
                         </h3>
                     </div>
-                    <button type="button" class="rounded-md p-1.5 text-slate-500 hover:bg-slate-100" wire:click="closeOverrideModal">✕</button>
+                    <button type="button" class="rounded-md p-1.5 text-slate-500 hover:bg-slate-100" wire:click="closeOverrideModal">Ã¢Å“â€¢</button>
                 </div>
 
                 <form wire:submit.prevent="saveDepartmentOverride" class="space-y-4 p-5">

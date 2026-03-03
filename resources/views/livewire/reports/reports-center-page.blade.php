@@ -72,9 +72,9 @@
         </div>
     </div>
 
-    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-6">
         @if (! $readyToLoad)
-            @for ($i = 0; $i < 5; $i++)
+            @for ($i = 0; $i < 6; $i++)
                 <div class="rounded-2xl border border-slate-200 bg-white p-4">
                     <div class="mb-2 h-3 w-24 animate-pulse rounded bg-slate-200"></div>
                     <div class="mb-2 h-7 w-20 animate-pulse rounded bg-slate-200"></div>
@@ -117,6 +117,12 @@
                 <p class="mt-1 text-xs text-slate-700">Remaining: {{ $currencyCode }} {{ number_format((int) $metrics['budgets']['remaining']) }}</p>
                 <p class="text-xs text-slate-700">Allocated: {{ $currencyCode }} {{ number_format((int) $metrics['budgets']['allocated']) }}</p>
             </div>
+            <div class="rounded-2xl border border-cyan-200 bg-cyan-50 p-4">
+                <p class="text-xs uppercase tracking-[0.1em] text-cyan-700">Treasury Reconciliation</p>
+                <p class="mt-1 text-2xl font-semibold text-cyan-900">{{ number_format((int) $metrics['treasury']['reconciled_lines']) }}</p>
+                <p class="mt-1 text-xs text-cyan-700">Open exceptions: {{ number_format((int) $metrics['treasury']['open_exceptions']) }}</p>
+                <p class="text-xs text-cyan-700">Unreconciled value: {{ $currencyCode }} {{ number_format((int) $metrics['treasury']['unreconciled_value']) }}</p>
+            </div>
         @endif
     </div>
 
@@ -158,11 +164,11 @@
                                 };
 
                                 $statusClass = 'bg-slate-100 text-slate-700';
-                                if (in_array((string) $activity['status'], ['approved', 'posted', 'paid', 'active', 'assigned'], true)) {
+                                if (in_array((string) $activity['status'], ['approved', 'posted', 'paid', 'active', 'assigned', 'resolved', 'waived'], true)) {
                                     $statusClass = 'bg-emerald-100 text-emerald-700';
                                 } elseif (in_array((string) $activity['status'], ['in_review', 'part_paid', 'in_maintenance'], true)) {
                                     $statusClass = 'bg-amber-100 text-amber-700';
-                                } elseif (in_array((string) $activity['status'], ['rejected', 'void', 'disposed'], true)) {
+                                } elseif (in_array((string) $activity['status'], ['rejected', 'void', 'disposed', 'open'], true)) {
                                     $statusClass = 'bg-red-100 text-red-700';
                                 }
                             @endphp

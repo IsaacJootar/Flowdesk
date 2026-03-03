@@ -57,6 +57,12 @@ class CompanyProcurementControlSetting extends Model
             'receipt_allowed_roles' => array_values((array) ($defaults['receipt_allowed_roles'] ?? ['owner', 'finance', 'manager'])),
             'invoice_link_allowed_roles' => array_values((array) ($defaults['invoice_link_allowed_roles'] ?? ['owner', 'finance'])),
             'allow_over_receipt' => (bool) ($defaults['allow_over_receipt'] ?? false),
+            // Tolerance keys are defaults only; tenant settings page can override per company policy.
+            'match_amount_tolerance_percent' => max(0, (float) ($defaults['match_amount_tolerance_percent'] ?? 2)),
+            'match_quantity_tolerance_percent' => max(0, (float) ($defaults['match_quantity_tolerance_percent'] ?? 0)),
+            'match_date_tolerance_days' => max(0, (int) ($defaults['match_date_tolerance_days'] ?? 7)),
+            'block_payment_on_mismatch' => (bool) ($defaults['block_payment_on_mismatch'] ?? true),
+            'match_override_allowed_roles' => array_values((array) ($defaults['match_override_allowed_roles'] ?? ['owner', 'finance'])),
         ];
     }
 

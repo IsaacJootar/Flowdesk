@@ -1,5 +1,5 @@
 <div wire:init="loadData" class="space-y-5">
-    <div class="fd-card p-5">
+<div class="fd-card p-5">
         <div class="grid gap-3 lg:grid-cols-6">
             <label class="block lg:col-span-2">
                 <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Search</span>
@@ -129,7 +129,7 @@
                 @forelse ($topDepartments as $row)
                     <div class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
                         <p class="text-sm font-medium text-slate-800">{{ $row->department?->name ?? 'Unassigned' }}</p>
-                        <p class="text-xs text-slate-500">{{ number_format((int) $row->total_requests) }} requests · {{ number_format((int) $row->total_amount) }}</p>
+                        <p class="text-xs text-slate-500">{{ number_format((int) $row->total_requests) }} requests Ã‚Â· {{ number_format((int) $row->total_amount) }}</p>
                     </div>
                 @empty
                     <p class="text-sm text-slate-500">No department activity in current filter.</p>
@@ -181,7 +181,7 @@
                             <tr class="hover:bg-slate-50" wire:key="request-report-{{ $request->id }}">
                                 <td class="px-4 py-3">
                                     <p class="font-medium text-slate-800">{{ $request->title }}</p>
-                                    <p class="text-xs text-slate-500">{{ $request->request_code }} · {{ (string) (($request->metadata['request_type_name'] ?? null) ?: ucfirst((string) (($request->metadata['type'] ?? 'spend')))) }}</p>
+                                    <p class="text-xs text-slate-500">{{ $request->request_code }} Ã‚Â· {{ (string) (($request->metadata['request_type_name'] ?? null) ?: ucfirst((string) (($request->metadata['type'] ?? 'spend')))) }}</p>
                                 </td>
                                 <td class="px-4 py-3 text-slate-700">{{ $request->requester?->name ?? '-' }}</td>
                                 <td class="px-4 py-3 text-slate-700">{{ $request->department?->name ?? '-' }}</td>

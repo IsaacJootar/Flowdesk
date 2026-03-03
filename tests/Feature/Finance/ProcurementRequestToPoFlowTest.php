@@ -161,6 +161,11 @@ class ProcurementRequestToPoFlowTest extends TestCase
             ->get(route('procurement.receipts'))
             ->assertOk()
             ->assertSee('Procurement Receipts');
+
+        $this->actingAs($owner)
+            ->get(route('procurement.match-exceptions'))
+            ->assertOk()
+            ->assertSee('Procurement Match Exceptions');
     }
 
     /**

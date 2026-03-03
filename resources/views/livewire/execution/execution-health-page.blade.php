@@ -1,5 +1,5 @@
 <div wire:init="loadData" class="space-y-6">
-    <section class="fd-card p-5">
+<section class="fd-card p-5">
         <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Tenant Execution Health</p>
         <h2 class="mt-1 text-xl font-semibold text-slate-900">Execution Health</h2>
         <p class="mt-1 text-sm text-slate-600">Status view for your organization only. No raw provider diagnostics are exposed on this page.</p>

@@ -130,6 +130,10 @@ class TenantModuleEntitlementTest extends TestCase
         $this->actingAs($owner)
             ->get(route('procurement.receipts'))
             ->assertForbidden();
+
+        $this->actingAs($owner)
+            ->get(route('procurement.match-exceptions'))
+            ->assertForbidden();
     }
 
     public function test_enabled_procurement_module_is_visible_and_accessible(): void
@@ -157,7 +161,87 @@ class TenantModuleEntitlementTest extends TestCase
         $this->actingAs($owner)
             ->get(route('procurement.receipts'))
             ->assertOk();
+
+        $this->actingAs($owner)
+            ->get(route('procurement.match-exceptions'))
+            ->assertOk();
     }
+
+    public function test_disabled_treasury_module_is_hidden_and_blocked(): void
+    {
+        [$company, $department] = $this->createCompanyContext('Entitlement Treasury');
+        $owner = $this->createUser($company, $department, UserRole::Owner->value);
+
+        TenantFeatureEntitlement::query()->create([
+            'company_id' => $company->id,
+            'treasury_enabled' => false,
+            'created_by' => $owner->id,
+            'updated_by' => $owner->id,
+        ]);
+
+        $items = app(NavAccessService::class)->forUser($owner)['items'];
+        $routes = array_column($items, 'route');
+
+        $this->assertNotContains('treasury.reconciliation', $routes);
+        $this->assertNotContains('treasury.reconciliation-exceptions', $routes);
+        $this->assertNotContains('treasury.payment-runs', $routes);
+        $this->assertNotContains('treasury.cash-position', $routes);
+
+        $this->actingAs($owner)
+            ->get(route('treasury.reconciliation'))
+            ->assertForbidden();
+
+        $this->actingAs($owner)
+            ->get(route('treasury.reconciliation-exceptions'))
+            ->assertForbidden();
+
+        $this->actingAs($owner)
+            ->get(route('treasury.payment-runs'))
+            ->assertForbidden();
+
+        $this->actingAs($owner)
+            ->get(route('treasury.cash-position'))
+            ->assertForbidden();
+    }
+
+    public function test_enabled_treasury_module_is_visible_and_accessible(): void
+    {
+        [$company, $department] = $this->createCompanyContext('Entitlement Treasury Enabled');
+        $owner = $this->createUser($company, $department, UserRole::Owner->value);
+
+        TenantFeatureEntitlement::query()->create([
+            'company_id' => $company->id,
+            'treasury_enabled' => true,
+            'created_by' => $owner->id,
+            'updated_by' => $owner->id,
+        ]);
+
+        $items = app(NavAccessService::class)->forUser($owner)['items'];
+        $routes = array_column($items, 'route');
+
+        // Treasury navigation is intentionally consolidated to one sidebar entry.
+        $this->assertContains('treasury.reconciliation', $routes);
+        $this->assertNotContains('treasury.reconciliation-exceptions', $routes);
+        $this->assertNotContains('treasury.payment-runs', $routes);
+        $this->assertNotContains('treasury.cash-position', $routes);
+
+        $this->actingAs($owner)
+            ->get(route('treasury.reconciliation'))
+            ->assertOk();
+
+        $this->actingAs($owner)
+            ->get(route('treasury.reconciliation-exceptions'))
+            ->assertOk();
+
+        $this->actingAs($owner)
+            ->get(route('treasury.payment-runs'))
+            ->assertOk();
+
+        $this->actingAs($owner)
+            ->get(route('treasury.cash-position'))
+            ->assertOk();
+    }
+
 
     /**
      * @return array{0: Company, 1: Department}

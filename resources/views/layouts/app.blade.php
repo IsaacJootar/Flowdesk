@@ -45,7 +45,7 @@
             $reportsToLabel = $isPlatformOperator ? 'N/A' : ($user?->reportsTo?->name ?? 'Not assigned');
             $navigation = app(\App\Services\NavAccessService::class)->forUser($user);
             $navItems = $navigation['items'];
-            $showBackToSettings = request()->routeIs('settings.*') && ! request()->routeIs('settings.index');
+            $showBackToSettings = request()->routeIs('settings.organization') || request()->routeIs('settings.company.setup');
         @endphp
 
         <div class="min-h-screen md:flex">

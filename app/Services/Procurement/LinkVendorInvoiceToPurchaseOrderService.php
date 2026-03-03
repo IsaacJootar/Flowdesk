@@ -14,6 +14,7 @@ class LinkVendorInvoiceToPurchaseOrderService
     public function __construct(
         private readonly ProcurementControlSettingsService $settingsService,
         private readonly TenantAuditLogger $tenantAuditLogger,
+        private readonly EvaluateInvoiceThreeWayMatchService $evaluateInvoiceThreeWayMatchService,
     ) {
     }
 
@@ -95,6 +96,12 @@ class LinkVendorInvoiceToPurchaseOrderService
             return $lockedOrder->fresh(['vendorInvoices']);
         });
 
+        $matchResult = $this->evaluateInvoiceThreeWayMatchService->evaluate(
+            $actor,
+            $updated,
+            $invoice->fresh()
+        );
+
         $this->tenantAuditLogger->log(
             companyId: (int) $order->company_id,
             action: 'tenant.procurement.vendor_invoice.linked',
@@ -108,6 +115,8 @@ class LinkVendorInvoiceToPurchaseOrderService
                 'vendor_invoice_id' => (int) $invoice->id,
                 'invoice_number' => (string) $invoice->invoice_number,
                 'status_transitioned' => $statusTransitioned,
+                'match_status' => (string) $matchResult->match_status,
+                'match_score' => (float) $matchResult->match_score,
             ],
         );
 

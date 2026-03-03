@@ -14,5 +14,11 @@ return [
         'invoice_link_allowed_roles' => ['owner', 'finance'],
         // Disabled by default to prevent quantity drift without deliberate tenant opt-in.
         'allow_over_receipt' => false,
+        // Match tolerances keep policy tenant-configurable and avoid hidden hardcoded control thresholds.
+        'match_amount_tolerance_percent' => 2,
+        'match_quantity_tolerance_percent' => 0,
+        'match_date_tolerance_days' => 7,
+        'block_payment_on_mismatch' => true,
+        'match_override_allowed_roles' => ['owner', 'finance'],
     ],
 ];

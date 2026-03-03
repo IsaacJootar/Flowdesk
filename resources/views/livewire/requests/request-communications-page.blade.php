@@ -1,5 +1,5 @@
 <div wire:init="loadData" class="space-y-5">
-    <div
+<div
         class="pointer-events-none fixed z-[95] space-y-2"
         style="right: 16px; top: 72px; width: 320px; max-width: calc(100vw - 24px);"
     >

@@ -1,4 +1,10 @@
 <div wire:init="loadData" class="space-y-5">
+    <div class="flex items-center justify-between">
+        <div>
+            <h2 class="text-base font-semibold text-slate-900">Procurement Receipts</h2>
+            <p class="text-xs text-slate-500">Review receipt history and linked vendor invoice coverage.</p>
+        </div>
+</div>
     <div class="fd-card p-5">
         <div class="grid gap-3 lg:grid-cols-5">
             <label class="block lg:col-span-2">
@@ -26,6 +32,13 @@
                 <input type="date" wire:model.live="receivedTo" class="w-full rounded-xl border-slate-300 text-sm focus:border-slate-500 focus:ring-slate-500">
             </label>
         </div>
+    </div>
+
+    <div class="flex justify-end">
+        <button type="button" wire:click="exportCsv" wire:loading.attr="disabled" wire:target="exportCsv" class="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-70">
+            <span wire:loading.remove wire:target="exportCsv">Export CSV</span>
+            <span wire:loading wire:target="exportCsv">Exporting...</span>
+        </button>
     </div>
 
     <div class="grid gap-3 sm:grid-cols-3">

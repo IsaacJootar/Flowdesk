@@ -41,6 +41,10 @@ use App\Livewire\Platform\ExecutionTestChecklistPage;
 use App\Livewire\Platform\IncidentHistoryPage;
 use App\Livewire\Vendors\VendorDetailsPage;
 use App\Livewire\Vendors\VendorReportsPage;
+use App\Livewire\Treasury\TreasuryCashPositionPage;
+use App\Livewire\Treasury\TreasuryPaymentRunsPage;
+use App\Livewire\Treasury\TreasuryReconciliationExceptionsPage;
+use App\Livewire\Treasury\TreasuryReconciliationPage;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 
@@ -120,6 +124,14 @@ Route::middleware(['auth', 'company.context'])->group(function (): void {
     Route::prefix('procurement')->middleware('module.enabled:procurement')->name('procurement.')->group(function (): void {
         Route::view('/orders', 'app.procurement.orders')->name('orders');
         Route::view('/receipts', 'app.procurement.receipts')->name('receipts');
+        Route::view('/match-exceptions', 'app.procurement.match-exceptions')->name('match-exceptions');
+    });
+
+    Route::prefix('treasury')->middleware('module.enabled:treasury')->name('treasury.')->group(function (): void {
+        Route::get('/reconciliation', TreasuryReconciliationPage::class)->name('reconciliation');
+        Route::get('/reconciliation/exceptions', TreasuryReconciliationExceptionsPage::class)->name('reconciliation-exceptions');
+        Route::get('/payment-runs', TreasuryPaymentRunsPage::class)->name('payment-runs');
+        Route::get('/cash-position', TreasuryCashPositionPage::class)->name('cash-position');
     });
 
     Route::prefix('departments')->name('departments.')->group(function (): void {

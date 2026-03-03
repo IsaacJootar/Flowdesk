@@ -23,7 +23,12 @@ class ProcurementControlSettingsService
      *   issue_allowed_roles:array<int,string>,
      *   receipt_allowed_roles:array<int,string>,
      *   invoice_link_allowed_roles:array<int,string>,
-     *   allow_over_receipt:bool
+     *   allow_over_receipt:bool,
+     *   match_amount_tolerance_percent:float,
+     *   match_quantity_tolerance_percent:float,
+     *   match_date_tolerance_days:int,
+     *   block_payment_on_mismatch:bool,
+     *   match_override_allowed_roles:array<int,string>
      * }
      */
     public function effectiveControls(int $companyId): array
@@ -56,6 +61,11 @@ class ProcurementControlSettingsService
             (array) $defaults['invoice_link_allowed_roles']
         );
 
+        $overrideRoles = $this->sanitizeRoles(
+            (array) ($configured['match_override_allowed_roles'] ?? $defaults['match_override_allowed_roles']),
+            (array) $defaults['match_override_allowed_roles']
+        );
+
         return [
             'conversion_allowed_statuses' => $statuses,
             'require_vendor_on_conversion' => (bool) ($configured['require_vendor_on_conversion'] ?? $defaults['require_vendor_on_conversion']),
@@ -65,6 +75,11 @@ class ProcurementControlSettingsService
             'receipt_allowed_roles' => $receiptRoles,
             'invoice_link_allowed_roles' => $invoiceLinkRoles,
             'allow_over_receipt' => (bool) ($configured['allow_over_receipt'] ?? $defaults['allow_over_receipt']),
+            'match_amount_tolerance_percent' => max(0, (float) ($configured['match_amount_tolerance_percent'] ?? $defaults['match_amount_tolerance_percent'])),
+            'match_quantity_tolerance_percent' => max(0, (float) ($configured['match_quantity_tolerance_percent'] ?? $defaults['match_quantity_tolerance_percent'])),
+            'match_date_tolerance_days' => max(0, (int) ($configured['match_date_tolerance_days'] ?? $defaults['match_date_tolerance_days'])),
+            'block_payment_on_mismatch' => (bool) ($configured['block_payment_on_mismatch'] ?? $defaults['block_payment_on_mismatch']),
+            'match_override_allowed_roles' => $overrideRoles,
         ];
     }
 

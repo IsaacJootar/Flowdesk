@@ -1,6 +1,6 @@
 # FLOWDESK_NEXT_MODULES_SPRINT_PLAN.md
 
-Last updated: 2026-03-02
+Last updated: 2026-03-03
 Scope source: `FLOWDESK_NEXT_MODULES_BLUEPRINT.md`
 Planning horizon: 8 implementation sprints + hardening/release
 Cadence assumption: 2-week sprints
@@ -317,3 +317,14 @@ To enforce configurability and UI consistency, these stories are mandatory:
 Release gate addition:
 1. No release if control-sensitive behavior remains hardcoded without tenant-configurable override.
 2. No release if new modals deviate from standard Flowdesk modal template.
+
+## 16) Current Build Progress (2026-03-03)
+1. Sprint 1 foundations: completed.
+2. Sprint 2 request-to-PO + commitment posting: completed.
+3. Sprint 3 receipts + invoice linking: completed.
+4. Sprint 4 3-way match + payout gate: completed.
+5. Sprint 5 treasury import + reconciliation workbench: completed.
+6. Sprint 6 automation/reporting: partially completed.
+   - Done: auto-match engine, exception queue, reports-center treasury metrics.
+   - Remaining: advanced heuristic tuning, stronger reversal/failure handoff workflow, queue aging prioritization.
+7. Sprint 7 and Sprint 8 remain open for policy hardening, rollout controls, and enablement operations.
