@@ -10,6 +10,7 @@ use App\Domains\Treasury\Models\ReconciliationException;
 use App\Services\Procurement\ProcurementControlSettingsService;
 use App\Services\TenantAuditLogger;
 use App\Services\Treasury\TreasuryControlSettingsService;
+use App\Services\Execution\ExecutionAlertChannelDeliveryService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 
@@ -19,6 +20,7 @@ class ExecutionOpsAlertService
         private readonly TenantAuditLogger $tenantAuditLogger,
         private readonly ProcurementControlSettingsService $procurementControlSettingsService,
         private readonly TreasuryControlSettingsService $treasuryControlSettingsService,
+        private readonly ExecutionAlertChannelDeliveryService $executionAlertChannelDeliveryService,
     ) {
     }
 
@@ -46,6 +48,8 @@ class ExecutionOpsAlertService
 
             // Persist alert summaries so operators can review tenant-specific incidents from UI.
             $this->logAlertSummary($alert, (int) $summary['window_minutes']);
+            // Delivery uses tenant communication settings so alerts are not log-only for tenant operators.
+            $this->executionAlertChannelDeliveryService->deliver($alert, (int) $summary['window_minutes']);
         }
 
         return $summary;
@@ -372,3 +376,7 @@ class ExecutionOpsAlertService
         );
     }
 }
+
+
+
+

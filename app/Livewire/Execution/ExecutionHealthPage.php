@@ -201,6 +201,8 @@ class ExecutionHealthPage extends Component
             ->whereIn('action', [
                 'tenant.execution.alert.summary_emitted',
                 'tenant.execution.auto_recovery.run_summary',
+                'tenant.execution.alert.notification.sent',
+                'tenant.execution.alert.notification.failed',
             ])
             ->latest('event_at')
             ->latest('id')
@@ -283,10 +285,18 @@ class ExecutionHealthPage extends Component
     private function summaryLabel(string $action, array $metadata): string
     {
         $pipeline = ucfirst((string) ($metadata['pipeline'] ?? 'execution'));
+        $channel = strtolower((string) ($metadata['channel'] ?? 'in_app'));
+        $channelLabel = match ($channel) {
+            'email' => 'Email',
+            'in_app' => 'In-app',
+            default => ucfirst(str_replace('_', ' ', $channel)),
+        };
 
         return match ($action) {
             'tenant.execution.alert.summary_emitted' => $pipeline.' pipeline requires attention.',
             'tenant.execution.auto_recovery.run_summary' => $pipeline.' recovery run completed.',
+            'tenant.execution.alert.notification.sent' => 'Execution alert delivered via '.$channelLabel.'.',
+            'tenant.execution.alert.notification.failed' => 'Execution alert delivery failed via '.$channelLabel.'.',
             default => 'Execution summary recorded.',
         };
     }
@@ -481,3 +491,5 @@ class ExecutionHealthPage extends Component
         ];
     }
 }
+
+

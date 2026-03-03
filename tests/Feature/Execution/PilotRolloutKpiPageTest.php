@@ -3,7 +3,9 @@
 namespace Tests\Feature\Execution;
 
 use App\Domains\Company\Models\Company;
+use App\Domains\Company\Models\TenantAuditEvent;
 use App\Domains\Company\Models\TenantPilotKpiCapture;
+use App\Domains\Company\Models\TenantPilotWaveOutcome;
 use App\Enums\PlatformUserRole;
 use App\Enums\UserRole;
 use App\Livewire\Platform\PilotRolloutKpiPage;
@@ -72,6 +74,45 @@ class PilotRolloutKpiPageTest extends TestCase
         $this->assertNotNull($capture);
         $this->assertSame(0.0, (float) $capture->match_pass_rate_percent);
         $this->assertSame(0.0, (float) $capture->auto_reconciliation_rate_percent);
+    }
+
+    public function test_platform_operator_can_record_pilot_wave_outcome_from_ui(): void
+    {
+        $platformUser = $this->createPlatformUser(PlatformUserRole::PlatformOpsAdmin->value);
+        $tenant = $this->createTenantCompany('Pilot Wave Outcome Tenant');
+
+        $this->actingAs($platformUser);
+
+        Livewire::test(PilotRolloutKpiPage::class)
+            ->set('outcomeTenant', (string) $tenant->id)
+            ->set('outcomeWaveLabel', 'wave-2')
+            ->set('outcomeDecision', 'hold')
+            ->set('outcomeNotes', 'Hold for one week while treasury mapping is corrected.')
+            ->call('recordWaveOutcome')
+            ->assertSee('Recorded Hold outcome for Pilot Wave Outcome Tenant (wave-2).');
+
+        $this->assertDatabaseHas('tenant_pilot_wave_outcomes', [
+            'company_id' => $tenant->id,
+            'wave_label' => 'wave-2',
+            'outcome' => 'hold',
+        ]);
+
+        $waveOutcome = TenantPilotWaveOutcome::query()
+            ->where('company_id', $tenant->id)
+            ->latest('id')
+            ->first();
+
+        $this->assertNotNull($waveOutcome);
+        $this->assertSame($platformUser->id, (int) $waveOutcome->decided_by_user_id);
+
+        $auditEvent = TenantAuditEvent::query()
+            ->where('company_id', $tenant->id)
+            ->where('action', 'tenant.rollout.pilot_wave_outcome.recorded')
+            ->latest('id')
+            ->first();
+
+        $this->assertNotNull($auditEvent);
+        $this->assertSame((int) $waveOutcome->id, (int) $auditEvent->entity_id);
     }
 
     private function createPlatformUser(string $platformRole): User

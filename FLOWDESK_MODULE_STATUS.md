@@ -137,7 +137,7 @@ This file is the canonical module inventory so planning discussions stay aligned
 ## Pilot Rollout KPI Capture
 - Route: `/platform/operations/pilot-rollout`
 - Entry: `app/Livewire/Platform/PilotRolloutKpiPage.php`
-- Status: Implemented with baseline/pilot window capture form, tenant filters, and latest-delta panel.
+- Status: Implemented with baseline/pilot window capture form, tenant filters, latest-delta panel, and pilot wave outcome recording (`go`/`hold`/`no-go`) with notes + audit trail.
 - Test coverage:
   - `tests/Feature/Execution/PilotRolloutKpiPageTest.php`
 
@@ -180,8 +180,8 @@ This file is the canonical module inventory so planning discussions stay aligned
 - `app/Services/AssetCommunicationRetryService.php`
 - `app/Services/RequestCommunication/Sms/TermiiSmsProvider.php`
 
-## Not yet wired specifically for execution alerts
-- `execution:ops:alert-summary` currently emits logs, but does not yet dispatch through the communication delivery managers/channels.
+## Execution-alert channel delivery status
+- `execution:ops:alert-summary` now dispatches tenant-scoped alert notifications via existing communication settings channels (`in_app`, `email`) and records delivery outcomes in `tenant_audit_events`.
 
 ## 5) Entitlement/Plan Matrix Status
 
@@ -198,7 +198,7 @@ Source files:
 
 1. `ai` module: entitlement key exists, but no active AI module routes/pages in current app nav.
 2. `fintech` module: entitlement key exists, but no dedicated tenant-facing fintech module route/page.
-3. Execution alerts are not yet routed through communication channels (email/sms/in-app/slack/telegram) and still use logging output.
+3. Slack/Telegram provider adapters are intentionally deferred; execution alerts currently deliver through tenant-configured `in_app` + `email` channels only.
 
 ## 7) Ground Rule
 
@@ -391,3 +391,5 @@ Before proposing "new" module work, check this file plus route map (`routes/web.
   - deeper beneficiary/text heuristics tuning and configurable rule matrix,
   - explicit execution reversal/failed-settlement linkage into treasury exception triage,
   - dedicated aging priority indicators and value-weighted queue ordering in treasury exception list.
+
+

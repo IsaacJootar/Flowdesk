@@ -75,8 +75,8 @@
             </label>
 
             <label class="block">
-                <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Window End</span>
-                <input type="date" wire:model.defer="captureDateEnd" class="w-full rounded-xl border-slate-300 text-sm" title="Optional" />
+                <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Window End <span class="text-[10px] normal-case text-slate-400">(optional)</span></span>
+                <input type="date" wire:model.defer="captureDateEnd" class="w-full rounded-xl border-slate-300 text-sm" />
                 @error('captureDateEnd')
                     <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
                 @enderror
@@ -99,6 +99,71 @@
         </div>
     </section>
 
+    <section class="fd-card p-4">
+        <div class="mb-3">
+            <h3 class="text-sm font-semibold text-slate-900">Pilot Wave Outcome</h3>
+            <p class="text-xs text-slate-500">Record go, hold, or no-go decisions per tenant rollout wave with accountable notes.</p>
+        </div>
+
+        <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+            <label class="block">
+                <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Tenant</span>
+                <select wire:model.defer="outcomeTenant" class="w-full rounded-xl border-slate-300 text-sm">
+                    <option value="">Select tenant</option>
+                    @foreach ($tenantOptions as $tenant)
+                        <option value="{{ (int) $tenant->id }}">{{ $tenant->name }}</option>
+                    @endforeach
+                </select>
+                @error('outcomeTenant')
+                    <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
+                @enderror
+            </label>
+
+            <label class="block">
+                <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Wave Label</span>
+                <input type="text" wire:model.defer="outcomeWaveLabel" maxlength="40" class="w-full rounded-xl border-slate-300 text-sm" placeholder="wave-1" />
+                @error('outcomeWaveLabel')
+                    <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
+                @enderror
+            </label>
+
+            <label class="block">
+                <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Outcome</span>
+                <select wire:model.defer="outcomeDecision" class="w-full rounded-xl border-slate-300 text-sm">
+                    <option value="go">Go</option>
+                    <option value="hold">Hold</option>
+                    <option value="no_go">No-go</option>
+                </select>
+                @error('outcomeDecision')
+                    <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
+                @enderror
+            </label>
+
+            <label class="block">
+                <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Decision Date <span class="text-[10px] normal-case text-slate-400">(optional)</span></span>
+                <input type="date" wire:model.defer="outcomeDecisionAt" class="w-full rounded-xl border-slate-300 text-sm" />
+                @error('outcomeDecisionAt')
+                    <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
+                @enderror
+            </label>
+
+            <label class="block">
+                <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Decision Notes</span>
+                <input type="text" wire:model.defer="outcomeNotes" maxlength="500" class="w-full rounded-xl border-slate-300 text-sm" placeholder="Why this decision?" />
+                @error('outcomeNotes')
+                    <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
+                @enderror
+            </label>
+        </div>
+
+        <div class="mt-4">
+            <button type="button" wire:click="recordWaveOutcome" wire:loading.attr="disabled" wire:target="recordWaveOutcome" class="inline-flex h-10 items-center rounded-xl bg-slate-900 px-4 text-xs font-semibold text-white hover:bg-slate-800 disabled:opacity-60">
+                <span wire:loading.remove wire:target="recordWaveOutcome">Record Wave Outcome</span>
+                <span wire:loading wire:target="recordWaveOutcome">Recording...</span>
+            </button>
+        </div>
+    </section>
+
     <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <div class="rounded-2xl border border-sky-200 bg-sky-50 p-4">
             <p class="text-xs font-semibold uppercase tracking-[0.14em] text-sky-700">Captured Windows</p>
@@ -115,6 +180,74 @@
         <div class="rounded-2xl border border-amber-200 bg-amber-50 p-4">
             <p class="text-xs font-semibold uppercase tracking-[0.14em] text-amber-700">Avg Auto Recon Rate</p>
             <p class="mt-2 text-2xl font-semibold text-amber-900">{{ number_format((float) $stats['avg_auto_reconciliation_rate_percent'], 1) }}%</p>
+        </div>
+    </section>
+
+    <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-emerald-700">Go Outcomes</p>
+            <p class="mt-2 text-2xl font-semibold text-emerald-900">{{ number_format((int) $outcomeStats['go']) }}</p>
+        </div>
+        <div class="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-amber-700">Hold Outcomes</p>
+            <p class="mt-2 text-2xl font-semibold text-amber-900">{{ number_format((int) $outcomeStats['hold']) }}</p>
+        </div>
+        <div class="rounded-2xl border border-rose-200 bg-rose-50 p-4">
+            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-rose-700">No-go Outcomes</p>
+            <p class="mt-2 text-2xl font-semibold text-rose-900">{{ number_format((int) $outcomeStats['no_go']) }}</p>
+        </div>
+        <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-700">Total Decisions</p>
+            <p class="mt-2 text-2xl font-semibold text-slate-900">{{ number_format((int) $outcomeStats['total']) }}</p>
+        </div>
+    </section>
+
+    <section class="fd-card p-4">
+        <div class="mb-3 flex items-center justify-between gap-3">
+            <div>
+                <h3 class="text-sm font-semibold text-slate-900">Recent Wave Outcomes</h3>
+                <p class="text-xs text-slate-500">Latest rollout decisions captured across pilot tenants.</p>
+            </div>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="min-w-full text-sm">
+                <thead>
+                    <tr class="border-b border-slate-200 text-left text-xs uppercase tracking-[0.14em] text-slate-500">
+                        <th class="px-3 py-2">Decision Time</th>
+                        <th class="px-3 py-2">Tenant</th>
+                        <th class="px-3 py-2">Wave</th>
+                        <th class="px-3 py-2">Outcome</th>
+                        <th class="px-3 py-2">Decided By</th>
+                        <th class="px-3 py-2">Notes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse ($recentOutcomes as $outcome)
+                        <tr class="border-b border-slate-100 align-top">
+                            <td class="px-3 py-2 text-slate-500">{{ $outcome->decision_at?->format('M d, Y H:i') ?? '-' }}</td>
+                            <td class="px-3 py-2 text-slate-700">{{ $outcome->company?->name ?? '-' }}</td>
+                            <td class="px-3 py-2 text-slate-700">{{ $outcome->wave_label }}</td>
+                            <td class="px-3 py-2">
+                                <span @class([
+                                    'inline-flex rounded-full px-2.5 py-1 text-xs font-semibold',
+                                    'bg-emerald-100 text-emerald-700' => $outcome->outcome === 'go',
+                                    'bg-amber-100 text-amber-700' => $outcome->outcome === 'hold',
+                                    'bg-rose-100 text-rose-700' => $outcome->outcome === 'no_go',
+                                ])>
+                                    {{ $this->outcomeDisplayLabel((string) $outcome->outcome) }}
+                                </span>
+                            </td>
+                            <td class="px-3 py-2 text-slate-700">{{ $outcome->decidedBy?->name ?? 'System' }}</td>
+                            <td class="px-3 py-2 text-slate-600">{{ $outcome->notes ?: '-' }}</td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="6" class="px-3 py-8 text-center text-sm text-slate-500">No pilot wave outcomes have been recorded yet.</td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
         </div>
     </section>
 
@@ -224,4 +357,3 @@
         <div class="mt-3">{{ $captures->links() }}</div>
     </section>
 </div>
-

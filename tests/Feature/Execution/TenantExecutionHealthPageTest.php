@@ -140,6 +140,30 @@ class TenantExecutionHealthPageTest extends TestCase
             ->assertSee('Procurement pipeline requires attention.');
     }
 
+
+    public function test_recent_alert_delivery_event_is_visible_in_tenant_execution_health_summaries(): void
+    {
+        [$company, $department] = $this->createCompanyContext('Health Alert Delivery Tenant');
+        $finance = $this->createUser($company, $department, UserRole::Finance->value);
+
+        TenantAuditEvent::query()->create([
+            'company_id' => $company->id,
+            'action' => 'tenant.execution.alert.notification.sent',
+            'description' => 'Execution alert summary delivered via email notifications.',
+            'metadata' => [
+                'pipeline' => 'payout',
+                'channel' => 'email',
+                'recipient_count' => 2,
+            ],
+            'event_at' => now()->subMinute(),
+        ]);
+
+        $this->actingAs($finance);
+
+        Livewire::test(ExecutionHealthPage::class)
+            ->call('loadData')
+            ->assertSee('Execution alert delivered via Email.');
+    }
     public function test_delayed_status_is_scoped_to_current_tenant_counts(): void
     {
         [$companyA, $departmentA] = $this->createCompanyContext('Health Tenant A');
@@ -321,4 +345,5 @@ class TenantExecutionHealthPageTest extends TestCase
         ]);
     }
 }
+
 

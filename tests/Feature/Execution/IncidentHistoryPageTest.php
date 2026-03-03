@@ -110,6 +110,43 @@ class IncidentHistoryPageTest extends TestCase
         }
     }
 
+
+    public function test_incident_type_filter_can_show_alert_delivery_events(): void
+    {
+        $platformUser = $this->createPlatformUser(PlatformUserRole::PlatformOpsAdmin->value);
+        $tenant = $this->createTenantCompany('Incident Delivery Filter Tenant');
+
+        TenantAuditEvent::query()->create([
+            'company_id' => $tenant->id,
+            'actor_user_id' => null,
+            'action' => 'tenant.execution.alert.notification.sent',
+            'description' => 'Execution alert summary delivered via email notifications.',
+            'metadata' => [
+                'pipeline' => 'billing',
+                'channel' => 'email',
+            ],
+            'event_at' => now()->subMinutes(3),
+        ]);
+
+        TenantAuditEvent::query()->create([
+            'company_id' => $tenant->id,
+            'actor_user_id' => null,
+            'action' => 'tenant.execution.alert.summary_emitted',
+            'description' => 'Execution alert threshold breached during ops summary run.',
+            'metadata' => [
+                'pipeline' => 'billing',
+            ],
+            'event_at' => now()->subMinutes(2),
+        ]);
+
+        $this->actingAs($platformUser);
+
+        Livewire::test(IncidentHistoryPage::class)
+            ->call('loadData')
+            ->set('incidentTypeFilter', 'alert_delivery')
+            ->assertSee('Execution alert delivery sent')
+            ->assertDontSee('Execution alert summary');
+    }
     private function createPlatformUser(string $platformRole): User
     {
         return User::factory()->create([
@@ -134,4 +171,5 @@ class IncidentHistoryPageTest extends TestCase
         ]);
     }
 }
+
 

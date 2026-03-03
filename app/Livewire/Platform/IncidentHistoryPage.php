@@ -193,6 +193,9 @@ class IncidentHistoryPage extends Component
             'tenant.execution.webhook.auto_recovered_queued' => 'Webhook auto recovered',
             'tenant.execution.auto_recovery.run_summary' => 'Auto recovery run summary',
             'tenant.execution.alert.summary_emitted' => 'Execution alert summary',
+            'tenant.execution.alert.notification.sent' => 'Execution alert delivery sent',
+            'tenant.execution.alert.notification.failed' => 'Execution alert delivery failed',
+            'tenant.execution.alert.notification.skipped' => 'Execution alert delivery skipped',
             'tenant.execution.billing.handoff_to_treasury' => 'Billing handoff to treasury',
             'tenant.execution.payout.handoff_to_treasury' => 'Payout handoff to treasury',
             'tenant.execution.webhook.handoff_to_treasury' => 'Webhook handoff to treasury',
@@ -225,6 +228,7 @@ class IncidentHistoryPage extends Component
             'auto_recovery' => 'Auto Recovery',
             'auto_recovery_summary' => 'Auto Recovery Summary',
             'alert_summary' => 'Alert Summary',
+            'alert_delivery' => 'Alert Delivery',
             'treasury_handoff' => 'Treasury Handoff',
             default => 'Other',
         };
@@ -259,6 +263,23 @@ class IncidentHistoryPage extends Component
             return 'count '.$count.', threshold '.$threshold.', window '.$windowMinutes.' mins';
         }
 
+        if (in_array($action, ['tenant.execution.alert.notification.sent', 'tenant.execution.alert.notification.failed', 'tenant.execution.alert.notification.skipped'], true)) {
+            $channel = (string) ($metadata['channel'] ?? 'in_app');
+            $recipientCount = (int) ($metadata['recipient_count'] ?? 0);
+            $failedCount = (int) ($metadata['failed_count'] ?? 0);
+            $missingEmailCount = (int) ($metadata['missing_email_count'] ?? 0);
+
+            $parts = ['channel '.$channel, 'recipients '.$recipientCount];
+            if ($failedCount > 0) {
+                $parts[] = 'failed '.$failedCount;
+            }
+            if ($missingEmailCount > 0) {
+                $parts[] = 'missing email '.$missingEmailCount;
+            }
+
+            return implode(', ', $parts);
+        }
+
         return (string) ($event->description ?? '-');
     }
 
@@ -277,6 +298,7 @@ class IncidentHistoryPage extends Component
             ['value' => 'auto_recovery', 'label' => 'Auto recovery'],
             ['value' => 'auto_recovery_summary', 'label' => 'Auto recovery summary'],
             ['value' => 'alert_summary', 'label' => 'Alert summary'],
+            ['value' => 'alert_delivery', 'label' => 'Alert delivery'],
             ['value' => 'treasury_handoff', 'label' => 'Treasury handoff'],
         ];
     }
@@ -341,6 +363,9 @@ class IncidentHistoryPage extends Component
                     $summaryQuery->whereIn('action', [
                         'tenant.execution.auto_recovery.run_summary',
                         'tenant.execution.alert.summary_emitted',
+                        'tenant.execution.alert.notification.sent',
+                        'tenant.execution.alert.notification.failed',
+                        'tenant.execution.alert.notification.skipped',
                     ])->where('metadata->pipeline', $pipelineFilter);
                 });
         });
@@ -370,6 +395,11 @@ class IncidentHistoryPage extends Component
             ],
             'auto_recovery_summary' => ['tenant.execution.auto_recovery.run_summary'],
             'alert_summary' => ['tenant.execution.alert.summary_emitted'],
+            'alert_delivery' => [
+                'tenant.execution.alert.notification.sent',
+                'tenant.execution.alert.notification.failed',
+                'tenant.execution.alert.notification.skipped',
+            ],
             'treasury_handoff' => [
                 'tenant.execution.billing.handoff_to_treasury',
                 'tenant.execution.payout.handoff_to_treasury',
@@ -478,6 +508,9 @@ class IncidentHistoryPage extends Component
             'tenant.execution.webhook.auto_recovered_queued' => 'auto_recovery',
             'tenant.execution.auto_recovery.run_summary' => 'auto_recovery_summary',
             'tenant.execution.alert.summary_emitted' => 'alert_summary',
+            'tenant.execution.alert.notification.sent',
+            'tenant.execution.alert.notification.failed',
+            'tenant.execution.alert.notification.skipped' => 'alert_delivery',
             'tenant.execution.billing.handoff_to_treasury',
             'tenant.execution.payout.handoff_to_treasury',
             'tenant.execution.webhook.handoff_to_treasury' => 'treasury_handoff',
@@ -487,7 +520,7 @@ class IncidentHistoryPage extends Component
 
     private function pipelineForAction(string $action, array $metadata): string
     {
-        if (in_array($action, ['tenant.execution.auto_recovery.run_summary', 'tenant.execution.alert.summary_emitted'], true)) {
+        if (in_array($action, ['tenant.execution.auto_recovery.run_summary', 'tenant.execution.alert.summary_emitted', 'tenant.execution.alert.notification.sent', 'tenant.execution.alert.notification.failed', 'tenant.execution.alert.notification.skipped'], true)) {
             $pipeline = strtolower(trim((string) ($metadata['pipeline'] ?? '')));
 
             return in_array($pipeline, ['billing', 'payout', 'webhook', 'procurement', 'treasury'], true)
@@ -529,6 +562,9 @@ class IncidentHistoryPage extends Component
             'tenant.execution.webhook.auto_recovered_queued',
             'tenant.execution.auto_recovery.run_summary',
             'tenant.execution.alert.summary_emitted',
+            'tenant.execution.alert.notification.sent',
+            'tenant.execution.alert.notification.failed',
+            'tenant.execution.alert.notification.skipped',
             'tenant.execution.billing.handoff_to_treasury',
             'tenant.execution.payout.handoff_to_treasury',
             'tenant.execution.webhook.handoff_to_treasury',
@@ -562,6 +598,9 @@ class IncidentHistoryPage extends Component
             'tenant.execution.payout.auto_recovered_queued',
             'tenant.execution.webhook.auto_recovered_queued',
             'tenant.execution.auto_recovery.run_summary',
+            'tenant.execution.alert.notification.sent',
+            'tenant.execution.alert.notification.failed',
+            'tenant.execution.alert.notification.skipped',
             'tenant.execution.billing.handoff_to_treasury',
             'tenant.execution.payout.handoff_to_treasury',
             'tenant.execution.webhook.handoff_to_treasury',
@@ -644,6 +683,7 @@ class IncidentHistoryPage extends Component
         ]);
     }
 }
+
 
 
 

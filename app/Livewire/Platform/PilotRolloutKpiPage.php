@@ -2,13 +2,16 @@
 
 namespace App\Livewire\Platform;
 
+use App\Domains\Company\Models\TenantAuditEvent;
 use App\Domains\Company\Models\TenantPilotKpiCapture;
+use App\Domains\Company\Models\TenantPilotWaveOutcome;
 use App\Livewire\Platform\Concerns\InteractsWithTenantCompanies;
 use App\Services\Rollout\CapturePilotKpiSnapshotService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -40,6 +43,16 @@ class PilotRolloutKpiPage extends Component
 
     public string $captureNotes = '';
 
+    public string $outcomeTenant = '';
+
+    public string $outcomeWaveLabel = 'wave-1';
+
+    public string $outcomeDecision = TenantPilotWaveOutcome::OUTCOME_GO;
+
+    public string $outcomeDecisionAt = '';
+
+    public string $outcomeNotes = '';
+
     public string $feedbackMessage = '';
 
     public string $feedbackTone = 'success';
@@ -49,6 +62,14 @@ class PilotRolloutKpiPage extends Component
     public function mount(): void
     {
         $this->authorizePlatformOperator();
+
+        $defaultTenantId = $this->tenantCompaniesBaseQuery()
+            ->orderBy('name')
+            ->value('id');
+
+        if ($defaultTenantId) {
+            $this->outcomeTenant = (string) $defaultTenantId;
+        }
     }
 
     public function loadData(): void
@@ -129,6 +150,79 @@ class PilotRolloutKpiPage extends Component
         );
     }
 
+    public function recordWaveOutcome(): void
+    {
+        $this->authorizePlatformOperator();
+
+        $tenantIds = $this->tenantCompanyIds();
+
+        $validated = $this->validate([
+            'outcomeTenant' => ['required', 'string', function (string $attribute, string $value, $fail) use ($tenantIds): void {
+                if (! ctype_digit($value) || ! in_array((int) $value, $tenantIds, true)) {
+                    $fail('Pilot wave decision must target a valid tenant.');
+                }
+            }],
+            'outcomeWaveLabel' => ['required', 'string', 'max:40'],
+            'outcomeDecision' => ['required', 'string', 'in:go,hold,no_go'],
+            'outcomeDecisionAt' => ['nullable', 'date'],
+            'outcomeNotes' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        $companyId = (int) $validated['outcomeTenant'];
+        $decisionAt = trim((string) ($validated['outcomeDecisionAt'] ?? '')) !== ''
+            ? Carbon::parse((string) $validated['outcomeDecisionAt'])->endOfDay()
+            : now();
+
+        $record = TenantPilotWaveOutcome::query()->create([
+            'company_id' => $companyId,
+            'wave_label' => trim((string) $validated['outcomeWaveLabel']),
+            'outcome' => (string) $validated['outcomeDecision'],
+            'decision_at' => $decisionAt,
+            'notes' => trim((string) ($validated['outcomeNotes'] ?? '')) ?: null,
+            'metadata' => [
+                'source' => 'platform_pilot_rollout_page',
+            ],
+            'decided_by_user_id' => Auth::id(),
+        ]);
+
+        // Keep go/hold/no-go decisions in the tenant audit trail for rollout accountability.
+        TenantAuditEvent::query()->create([
+            'company_id' => $companyId,
+            'actor_user_id' => Auth::id(),
+            'action' => 'tenant.rollout.pilot_wave_outcome.recorded',
+            'entity_type' => TenantPilotWaveOutcome::class,
+            'entity_id' => (int) $record->id,
+            'description' => 'Pilot wave rollout outcome was recorded.',
+            'metadata' => [
+                'wave_label' => (string) $record->wave_label,
+                'outcome' => (string) $record->outcome,
+                'decision_at' => (string) $record->decision_at?->toDateTimeString(),
+            ],
+            'event_at' => now(),
+        ]);
+
+        $tenantName = (string) $this->tenantCompaniesBaseQuery()->whereKey($companyId)->value('name');
+
+        $this->outcomeNotes = '';
+        $this->outcomeDecisionAt = '';
+        $this->readyToLoad = true;
+
+        $this->setFeedback(
+            'Recorded '.$this->outcomeDisplayLabel((string) $record->outcome).' outcome for '.$tenantName.' ('.(string) $record->wave_label.').',
+            'success'
+        );
+    }
+
+    public function outcomeDisplayLabel(string $outcome): string
+    {
+        return match ($outcome) {
+            TenantPilotWaveOutcome::OUTCOME_GO => 'Go',
+            TenantPilotWaveOutcome::OUTCOME_HOLD => 'Hold',
+            TenantPilotWaveOutcome::OUTCOME_NO_GO => 'No-go',
+            default => ucfirst(str_replace('_', ' ', $outcome)),
+        };
+    }
+
     public function render(): View
     {
         $this->authorizePlatformOperator();
@@ -154,6 +248,19 @@ class PilotRolloutKpiPage extends Component
                 'avg_auto_reconciliation_rate_percent' => 0.0,
             ];
 
+        $outcomeStats = $this->readyToLoad
+            ? $this->outcomeStats()
+            : [
+                'go' => 0,
+                'hold' => 0,
+                'no_go' => 0,
+                'total' => 0,
+            ];
+
+        $recentOutcomes = $this->readyToLoad
+            ? $this->recentOutcomes()
+            : collect();
+
         $delta = null;
         if ($this->readyToLoad && $this->tenantFilter !== 'all' && is_numeric($this->tenantFilter)) {
             $delta = $this->latestDeltaForTenant((int) $this->tenantFilter);
@@ -164,6 +271,8 @@ class PilotRolloutKpiPage extends Component
             'captures' => $captures,
             'stats' => $stats,
             'delta' => $delta,
+            'outcomeStats' => $outcomeStats,
+            'recentOutcomes' => $recentOutcomes,
         ]);
     }
 
@@ -203,6 +312,40 @@ class PilotRolloutKpiPage extends Component
             'avg_match_pass_rate_percent' => round((float) ((clone $query)->avg('match_pass_rate_percent') ?? 0), 1),
             'avg_auto_reconciliation_rate_percent' => round((float) ((clone $query)->avg('auto_reconciliation_rate_percent') ?? 0), 1),
         ];
+    }
+
+    /**
+     * @return array{go:int,hold:int,no_go:int,total:int}
+     */
+    private function outcomeStats(): array
+    {
+        $query = $this->waveOutcomesBaseQuery();
+
+        return [
+            'go' => (int) (clone $query)->where('outcome', TenantPilotWaveOutcome::OUTCOME_GO)->count(),
+            'hold' => (int) (clone $query)->where('outcome', TenantPilotWaveOutcome::OUTCOME_HOLD)->count(),
+            'no_go' => (int) (clone $query)->where('outcome', TenantPilotWaveOutcome::OUTCOME_NO_GO)->count(),
+            'total' => (int) (clone $query)->count(),
+        ];
+    }
+
+    /**
+     * @return Collection<int, TenantPilotWaveOutcome>
+     */
+    private function recentOutcomes(): Collection
+    {
+        return $this->waveOutcomesBaseQuery()
+            ->with(['company:id,name', 'decidedBy:id,name'])
+            ->latest('decision_at')
+            ->latest('id')
+            ->limit(12)
+            ->get();
+    }
+
+    private function waveOutcomesBaseQuery(): Builder
+    {
+        return TenantPilotWaveOutcome::query()
+            ->whereIn('company_id', $this->tenantCompanyIds());
     }
 
     /**
@@ -259,3 +402,4 @@ class PilotRolloutKpiPage extends Component
         ]);
     }
 }
+

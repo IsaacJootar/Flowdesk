@@ -332,7 +332,7 @@ Release gate addition:
    - Done: `POL-701` mandatory-PO policy controls (amount/category) with enforcement in payout gate and request expense handoff.
    - Done: `POL-702` maker-checker guardrail for procurement exception override actions (same-user override blocked by policy).
    - Done: `POL-703` policy-based role guardrails + maker-checker + denied-attempt audit logging for treasury/procurement exception actions.
-   - Done: `ALRT-701` stale-commitment + reconciliation-backlog alerts emitted by `execution:ops:alert-summary`, visible in platform incident/operations views and tenant execution health summaries.
+   - Done: `ALRT-701` stale-commitment + reconciliation-backlog alerts emitted by `execution:ops:alert-summary`, delivered via tenant communication channels (`in_app` + `email`), and visible in platform incident/operations views and tenant execution health summaries.
    - Done: `UI-701` role-specific tenant dashboard lenses for finance, owner, and auditor with scoped summary cards, priority actions, and recent control signals.
 8. Sprint 8 rollout controls and enablement: in progress.
    - Done: `ROL-802` migration/backfill tooling via `procurement:backfill-vendor-links` with dry-run mode, conservative candidate matching, payment link alignment, and audit summary output.
@@ -340,4 +340,6 @@ Release gate addition:
    - Done: `ROL-804` Reports Center KPI cards expanded for procurement + treasury rollout metrics.
    - Done: `ROL-805` pilot cohort checklist and KPI baseline template published in `FLOWDESK_ROL805_PILOT_CHECKLIST_AND_KPI_TEMPLATE.md`.
    - Done: `ROL-805` pilot execution tooling shipped: `rollout:pilot:capture-kpis` command + platform page `/platform/operations/pilot-rollout` for baseline/pilot capture and delta review.
-   - Next: run cohort pilot windows with real tenant data and record wave go/no-go outcomes.
+   - Done: pilot wave go/hold/no-go outcome capture added to `/platform/operations/pilot-rollout` with decision notes and tenant audit events.
+
+

@@ -2,7 +2,9 @@
 
 namespace Tests\Feature\Execution;
 
+use App\Domains\Audit\Models\ActivityLog;
 use App\Domains\Company\Models\Company;
+use App\Domains\Company\Models\CompanyCommunicationSetting;
 use App\Domains\Company\Models\Department;
 use App\Domains\Company\Models\ExecutionWebhookEvent;
 use App\Domains\Company\Models\TenantSubscription;
@@ -19,6 +21,7 @@ use App\Models\User;
 use App\Services\Execution\ExecutionOpsAlertService;
 use App\Services\Execution\ExecutionOpsAutoRecoveryService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -148,6 +151,31 @@ class ExecutionOpsGuardrailsTest extends TestCase
             'updated_at' => now()->subHours(30),
         ])->saveQuietly();
 
+        User::factory()->create([
+            'company_id' => $tenant->id,
+            'role' => UserRole::Owner->value,
+            'email' => 'owner.ops-alerts@example.test',
+            'is_active' => true,
+        ]);
+
+        User::factory()->create([
+            'company_id' => $tenant->id,
+            'role' => UserRole::Finance->value,
+            'email' => 'finance.ops-alerts@example.test',
+            'is_active' => true,
+        ]);
+
+        CompanyCommunicationSetting::query()->create([
+            'company_id' => $tenant->id,
+            'in_app_enabled' => true,
+            'email_enabled' => true,
+            'sms_enabled' => false,
+            'email_configured' => true,
+            'sms_configured' => false,
+            'fallback_order' => ['email', 'in_app', 'sms'],
+        ]);
+
+        Mail::fake();
         config()->set('execution.ops_alerts.stuck_queued_older_than_minutes', 30);
         config()->set('execution.ops_alerts.stuck_queued_threshold', 2);
         config()->set('execution.ops_alerts.invalid_webhook_threshold', 2);
@@ -210,7 +238,25 @@ class ExecutionOpsGuardrailsTest extends TestCase
             ->where('metadata->type', 'reconciliation_backlog')
             ->where('metadata->pipeline', 'treasury')
             ->where('metadata->age_hours', 24)
+            ->exists());        $this->assertTrue(TenantAuditEvent::query()
+            ->where('company_id', $tenant->id)
+            ->where('action', 'tenant.execution.alert.notification.sent')
+            ->where('metadata->channel', 'email')
             ->exists());
+
+        $this->assertTrue(TenantAuditEvent::query()
+            ->where('company_id', $tenant->id)
+            ->where('action', 'tenant.execution.alert.notification.sent')
+            ->where('metadata->channel', 'in_app')
+            ->exists());
+
+        $this->assertGreaterThan(
+            0,
+            ActivityLog::query()
+                ->where('company_id', $tenant->id)
+                ->where('action', 'execution.alert.in_app')
+                ->count()
+        );
     }
 
     public function test_auto_recovery_service_processes_queued_billing_and_payout_attempts(): void
@@ -351,5 +397,7 @@ class ExecutionOpsGuardrailsTest extends TestCase
         ]);
     }
 }
+
+
 
 
