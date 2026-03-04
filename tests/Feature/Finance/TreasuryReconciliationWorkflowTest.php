@@ -43,7 +43,12 @@ class TreasuryReconciliationWorkflowTest extends TestCase
         $this->actingAs($owner)
             ->get(route('treasury.reconciliation'))
             ->assertOk()
-            ->assertSee('Treasury Reconciliation');
+            ->assertSee('Treasury Daily Reconciliation Desk');
+
+        $this->actingAs($owner)
+            ->get(route('treasury.reconciliation-help'))
+            ->assertOk()
+            ->assertSee('Daily Reconciliation Desk Guide');
 
         $this->actingAs($owner)
             ->get(route('treasury.reconciliation-exceptions'))

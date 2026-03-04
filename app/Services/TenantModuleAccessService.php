@@ -50,14 +50,14 @@ class TenantModuleAccessService
 
         return match ($route) {
             'requests.index' => $this->moduleEnabled($user, 'requests'),
-            'requests.communications' => $this->moduleEnabled($user, ['requests', 'communications']),
+            'requests.communications', 'requests.communications-help' => $this->moduleEnabled($user, ['requests', 'communications']),
             'requests.reports' => $this->moduleEnabled($user, ['requests', 'reports']),
             'reports.index' => $this->moduleEnabled($user, 'reports'),
             'expenses.index' => $this->moduleEnabled($user, 'expenses'),
             'vendors.index', 'vendors.show', 'vendors.reports' => $this->moduleEnabled($user, 'vendors'),
             'budgets.index' => $this->moduleEnabled($user, 'budgets'),
             'assets.index', 'assets.reports' => $this->moduleEnabled($user, 'assets'),
-            'procurement.orders', 'procurement.receipts', 'procurement.match-exceptions' => $this->moduleEnabled($user, 'procurement'),
+            'procurement.release-desk', 'procurement.release-help', 'procurement.orders', 'procurement.receipts', 'procurement.match-exceptions' => $this->moduleEnabled($user, 'procurement'),
             'approval-workflows.index', 'settings.request-configuration', 'settings.approval-timing-controls' => $this->moduleEnabled($user, 'requests'),
             'settings.communications' => $this->moduleEnabled($user, 'communications'),
             'settings.expense-controls' => $this->moduleEnabled($user, 'expenses'),
@@ -65,7 +65,7 @@ class TenantModuleAccessService
             'settings.asset-controls' => $this->moduleEnabled($user, 'assets'),
             'settings.procurement-controls' => $this->moduleEnabled($user, 'procurement'),
             'settings.treasury-controls' => $this->moduleEnabled($user, 'treasury'),
-            'treasury.reconciliation', 'treasury.reconciliation-exceptions', 'treasury.payment-runs', 'treasury.cash-position' => $this->moduleEnabled($user, 'treasury'),
+            'treasury.reconciliation', 'treasury.reconciliation-help', 'treasury.reconciliation-exceptions', 'treasury.payment-runs', 'treasury.cash-position' => $this->moduleEnabled($user, 'treasury'),
             default => true,
         };
     }
@@ -122,3 +122,6 @@ class TenantModuleAccessService
         ];
     }
 }
+
+
+

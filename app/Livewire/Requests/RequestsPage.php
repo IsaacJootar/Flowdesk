@@ -1315,10 +1315,48 @@ class RequestsPage extends Component
         );
         $procurementControls = app(ProcurementControlSettingsService::class)->effectiveControls((int) \Illuminate\Support\Facades\Auth::user()->company_id);
         $allowedConversionStatuses = array_values((array) ($procurementControls['conversion_allowed_statuses'] ?? ['approved']));
+        $requestStatusKey = strtolower((string) $request->status);
+        $requestStatusLabel = str_replace('_', ' ', $requestStatusKey);
+        $allowedConversionStatusLabel = collect($allowedConversionStatuses)
+            ->map(static fn (string $status): string => str_replace('_', ' ', $status))
+            ->implode(', ');
+        $hasLinkedPurchaseOrder = $linkedPurchaseOrder !== null;
+        $canConvertByPolicy = Gate::allows('convertToPurchaseOrder', $request);
+        $statusAllowedForConversion = in_array($requestStatusKey, $allowedConversionStatuses, true);
+        $hasConversionVendor = (int) ($request->vendor_id ?? 0) > 0
+            || $request->items->contains(fn ($item): bool => (int) ($item->vendor_id ?? 0) > 0);
         $canConvertToPurchaseOrder = $procurementModuleEnabled
-            && Gate::allows('convertToPurchaseOrder', $request)
-            && in_array(strtolower((string) $request->status), $allowedConversionStatuses, true)
-            && ! $linkedPurchaseOrder;
+            && $canConvertByPolicy
+            && $statusAllowedForConversion
+            && ! $hasLinkedPurchaseOrder
+            && $hasConversionVendor;
+        $convertToPurchaseOrderBlocker = null;
+        if (! $procurementModuleEnabled) {
+            $convertToPurchaseOrderBlocker = 'Policy disallow: procurement module is disabled for this tenant plan.';
+        } elseif ($hasLinkedPurchaseOrder) {
+            $convertToPurchaseOrderBlocker = sprintf(
+                'Policy disallow: this request is already linked to PO %s.',
+                (string) ($linkedPurchaseOrder?->po_number ?? '#')
+            );
+        } elseif (! $statusAllowedForConversion) {
+            $convertToPurchaseOrderBlocker = sprintf(
+                'Policy disallow: only %s can be converted. Current status is %s.',
+                $allowedConversionStatusLabel !== '' ? $allowedConversionStatusLabel : 'approved requests',
+                $requestStatusLabel
+            );
+        } elseif (! $canConvertByPolicy) {
+            $actor = \Illuminate\Support\Facades\Auth::user();
+            $role = strtolower((string) ($actor?->role ?? ''));
+            if (! in_array($role, ['owner', 'finance', 'manager'], true)) {
+                $convertToPurchaseOrderBlocker = 'Policy disallow: only owner, finance, or manager can convert requests to PO.';
+            } elseif ($role === 'manager' && (int) ($actor?->department_id ?? 0) !== (int) $request->department_id) {
+                $convertToPurchaseOrderBlocker = 'Policy disallow: managers can only convert requests in their own department.';
+            } else {
+                $convertToPurchaseOrderBlocker = 'Policy disallow: your current role/scope cannot convert this request to PO.';
+            }
+        } elseif (! $hasConversionVendor) {
+            $convertToPurchaseOrderBlocker = 'Policy disallow: vendor must be linked on the request or at least one request item before conversion.';
+        }
         $approvalContextMessage = null;
         if ((string) $request->status === 'in_review' && ! Gate::allows('approve', $request)) {
             $approvalContextMessage = ! empty($currentApprovers)
@@ -1362,6 +1400,7 @@ class RequestsPage extends Component
             'can_comment' => Gate::allows('view', $request),
             'can_create_expense' => $canCreateExpense,
             'can_convert_to_po' => $canConvertToPurchaseOrder,
+            'convert_to_po_blocker' => $convertToPurchaseOrderBlocker,
             'mandatory_po_policy_message' => $mandatoryPoRequiredNoOrder
                 ? (string) ($mandatoryPoPolicy['reason'] ?? 'Mandatory PO policy requires conversion before expense handoff.')
                 : null,

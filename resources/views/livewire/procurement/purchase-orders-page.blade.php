@@ -1,4 +1,19 @@
 <div wire:init="loadData" class="space-y-5">
+    <div class="flex items-center justify-between">
+        <div>
+            <h2 class="text-base font-semibold text-slate-900">Procurement Orders</h2>
+            <p class="text-xs text-slate-500">Create and issue purchase orders from approved requests.</p>
+        </div>
+        <div class="flex items-center gap-2">
+            <a href="{{ route('procurement.release-desk') }}" class="inline-flex items-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100">
+                <span aria-hidden="true">&larr;</span>
+                <span>Back to Release Desk</span>
+            </a>
+            <a href="{{ route('procurement.release-help') }}" class="inline-flex items-center rounded-lg border border-slate-700 bg-slate-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800" style="background-color:#334155;border-color:#334155;color:#ffffff;">
+                Help / Usage Guide
+            </a>
+        </div>
+    </div>
     <div
         class="pointer-events-none fixed z-[95] space-y-2"
         style="right: 16px; top: 72px; width: 320px; max-width: calc(100vw - 24px);"
@@ -46,8 +61,8 @@
     </div>
 
     <div class="flex justify-end gap-2">
-        <a href="{{ route('procurement.receipts') }}" class="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50">Open Receipts Table</a>
-        <a href="{{ route('procurement.match-exceptions') }}" class="rounded-lg border border-rose-300 px-3 py-1.5 text-xs font-medium text-rose-700 hover:bg-rose-50">Open Match Exceptions</a>
+        <a href="{{ route('procurement.receipts') }}" class="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100">Open Receipts Table</a>
+        <a href="{{ route('procurement.match-exceptions') }}" class="rounded-lg border border-rose-300 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100">Open Match Exceptions</a>
     </div>
 
     <div class="grid gap-3 sm:grid-cols-4">
@@ -123,7 +138,7 @@
                                     <p>{{ (int) $order->vendor_invoices_count }} linked invoice(s)</p>
                                 </td>
                                 <td class="px-4 py-3 text-right">
-                                    <button type="button" wire:click="openDetails({{ $order->id }})" class="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50">View</button>
+                                    <button type="button" wire:click="openDetails({{ $order->id }})" class="rounded-lg border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-semibold text-sky-700 hover:bg-sky-100">View</button>
                                 </td>
                             </tr>
                         @empty

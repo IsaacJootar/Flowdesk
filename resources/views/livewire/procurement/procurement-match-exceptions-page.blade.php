@@ -24,9 +24,9 @@
                 <p class="text-xs text-amber-700">Maker-checker is enabled: the user who generated the mismatch cannot close it.</p>
             @endif
         </div>
-        <a href="{{ route('procurement.orders') }}" class="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50">
+        <a href="{{ route('procurement.release-desk') }}" class="inline-flex items-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100">
             <span aria-hidden="true">&larr;</span>
-            <span>Back to Procurement Orders</span>
+            <span>Back to Release Desk</span>
         </a>
     </div>
 
@@ -138,8 +138,8 @@
                                 <td class="px-4 py-3 text-right">
                                     @if ((string) $exception->exception_status === 'open')
                                         <div class="inline-flex items-center gap-2">
-                                            <button type="button" wire:click="openResolutionModal({{ $exception->id }}, 'resolved')" class="rounded-lg border border-emerald-300 px-3 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-50">Resolve</button>
-                                            <button type="button" wire:click="openResolutionModal({{ $exception->id }}, 'waived')" class="rounded-lg border border-amber-300 px-3 py-1.5 text-xs font-medium text-amber-700 hover:bg-amber-50">Waive</button>
+                                            <button type="button" wire:click="openResolutionModal({{ $exception->id }}, 'resolved')" class="rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100">Resolve</button>
+                                            <button type="button" wire:click="openResolutionModal({{ $exception->id }}, 'waived')" class="rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700 hover:bg-amber-100">Waive</button>
                                         </div>
                                     @else
                                         <span class="text-xs text-slate-500">Closed</span>

@@ -301,8 +301,9 @@ class DashboardShell extends Component
                 ],
             ];
 
+            $this->pushPriorityAction($user, 'execution.payout-ready', 'Run payout-ready queue', 'Process approved requests waiting for payout execution.');
             $this->pushPriorityAction($user, 'execution.health', 'Review execution health', 'Track current incidents and recent recovery outcomes.');
-            $this->pushPriorityAction($user, 'procurement.match-exceptions', 'Clear procurement exceptions', 'Resolve 3-way match blockers before payout handoff.');
+            $this->pushPriorityAction($user, 'procurement.release-desk', 'Clear procurement exceptions', 'Resolve 3-way match blockers before payout handoff.');
             $this->pushPriorityAction($user, 'treasury.reconciliation-exceptions', 'Work treasury exceptions', 'Close open reconciliation backlog items.');
             $this->pushPriorityAction($user, 'reports.index', 'Open reports center', 'Review reconciled vs unreconciled trends.');
 
@@ -356,6 +357,7 @@ class DashboardShell extends Component
 
             $this->pushPriorityAction($user, 'settings.procurement-controls', 'Tune procurement controls', 'Update mandatory PO, match, and stale commitment thresholds.');
             $this->pushPriorityAction($user, 'settings.treasury-controls', 'Tune treasury controls', 'Adjust backlog alert and reconciliation guardrails.');
+            $this->pushPriorityAction($user, 'execution.payout-ready', 'Run payout-ready queue', 'Process approved requests waiting for payout execution.');
             $this->pushPriorityAction($user, 'execution.health', 'Review execution health', 'Validate tenant-facing execution status and incidents.');
             $this->pushPriorityAction($user, 'reports.index', 'Review governance reports', 'Track trend lines for controls and exceptions.');
 
@@ -428,7 +430,7 @@ class DashboardShell extends Component
             ];
 
             $this->pushPriorityAction($user, 'requests.communications', 'Inspect communication logs', 'Trace request and reminder delivery events.');
-            $this->pushPriorityAction($user, 'procurement.match-exceptions', 'Inspect procurement exception queue', 'Review resolution notes and actor trail.');
+            $this->pushPriorityAction($user, 'procurement.release-desk', 'Inspect procurement exception queue', 'Review resolution notes and actor trail.');
             $this->pushPriorityAction($user, 'treasury.reconciliation-exceptions', 'Inspect treasury exception queue', 'Review waive/resolve decisions and maker-checker evidence.');
             $this->pushPriorityAction($user, 'reports.index', 'Export audit reports', 'Use reports center for reconciled/unreconciled and control signals.');
 

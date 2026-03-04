@@ -7,19 +7,22 @@ use App\Domains\Requests\Models\RequestCommunicationLog;
 use App\Domains\Requests\Models\SpendRequest;
 use App\Domains\Vendors\Models\VendorCommunicationLog;
 use App\Enums\UserRole;
+use App\Services\AssetCommunicationRetryService;
 use App\Services\RequestCommunicationRetryService;
-use Illuminate\Contracts\View\View;
+use App\Services\VendorCommunicationRetryService;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
-use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Contracts\View\View;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Str;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
 use Livewire\WithPagination;
 
 #[Layout('layouts.app')]
-#[Title('Request Communications')]
+#[Title('Communications Recovery Desk')]
 class RequestCommunicationsPage extends Component
 {
     use WithPagination;
@@ -33,6 +36,8 @@ class RequestCommunicationsPage extends Component
     public string $channelFilter = 'all';
 
     public string $statusFilter = 'all';
+
+    public string $displayScope = 'all';
 
     public int $perPage = 10;
 
@@ -49,18 +54,37 @@ class RequestCommunicationsPage extends Component
 
     public function mount(): void
     {
-        $user = \Illuminate\Support\Facades\Auth::user();
+        $user = auth()->user();
         abort_unless($user && Gate::forUser($user)->allows('viewAny', SpendRequest::class), 403);
     }
 
     public function retryLog(int $logId, RequestCommunicationRetryService $retryService): void
     {
+        // Backward-compatible entrypoint used by existing tests and call-sites.
+        $this->retryLogBySource('requests', $logId, $retryService, app(VendorCommunicationRetryService::class), app(AssetCommunicationRetryService::class));
+    }
+
+    public function retryLogBySource(
+        string $source,
+        int $logId,
+        RequestCommunicationRetryService $requestRetryService,
+        VendorCommunicationRetryService $vendorRetryService,
+        AssetCommunicationRetryService $assetRetryService
+    ): void {
         if (! $this->canExecuteDeliveryOps()) {
             $this->setFeedbackError('You are not allowed to manage communication retry operations.');
+
             return;
         }
 
-        $log = RequestCommunicationLog::query()->find($logId);
+        $normalizedSource = $this->normalizeSource($source);
+        if ($normalizedSource === '') {
+            $this->setFeedbackError('Communication source is invalid.');
+
+            return;
+        }
+
+        $log = $this->findRecoveryLog($normalizedSource, $logId);
         if (! $log) {
             $this->setFeedbackError('Communication record not found.');
 
@@ -73,36 +97,100 @@ class RequestCommunicationsPage extends Component
             return;
         }
 
-        $after = $retryService->retryLog($log);
+        $after = match ($normalizedSource) {
+            'vendors' => $vendorRetryService->retryLog($log),
+            'assets' => $assetRetryService->retryLog($log),
+            default => $requestRetryService->retryLog($log),
+        };
+
         $status = ucfirst((string) $after->status);
-        $this->setFeedback("Retry completed. Current status: {$status}.");
+        $this->setFeedback(sprintf('%s retry completed. Current status: %s.', $this->sourceLabel($normalizedSource), $status));
     }
 
-    public function retryFailed(RequestCommunicationRetryService $retryService): void
-    {
+    public function retryFailed(
+        RequestCommunicationRetryService $requestRetryService,
+        VendorCommunicationRetryService $vendorRetryService,
+        AssetCommunicationRetryService $assetRetryService
+    ): void {
         if (! $this->canExecuteDeliveryOps()) {
             $this->setFeedbackError('You are not allowed to manage communication retry operations.');
+
             return;
         }
 
-        $stats = $retryService->retryFailed($this->companyId(), 300);
-        $this->setFeedback(
-            "Retry failed done. Retried {$stats['retried']}, sent {$stats['sent']}, failed {$stats['failed']}, skipped {$stats['skipped']}."
-        );
+        $scope = $this->normalizeScope($this->displayScope);
+        $companyId = $this->companyId();
+        $parts = [];
+
+        // One desk can execute retries across request/vendor/asset pipelines based on scope.
+        if (in_array($scope, ['all', 'requests'], true)) {
+            $stats = $requestRetryService->retryFailed($companyId, 300);
+            $parts[] = sprintf('Requests retried %d, sent %d, failed %d, skipped %d.', (int) $stats['retried'], (int) $stats['sent'], (int) $stats['failed'], (int) $stats['skipped']);
+        }
+
+        if (in_array($scope, ['all', 'vendors'], true)) {
+            $stats = $vendorRetryService->retryFailed($companyId, null, 300);
+            $parts[] = sprintf('Vendors retried %d, sent %d, failed %d, skipped %d.', (int) $stats['retried'], (int) $stats['sent'], (int) $stats['failed'], (int) $stats['skipped']);
+        }
+
+        if (in_array($scope, ['all', 'assets'], true)) {
+            $stats = $assetRetryService->retryFailed($companyId, 300);
+            $parts[] = sprintf('Assets retried %d, sent %d, failed %d, skipped %d.', (int) $stats['retried'], (int) $stats['sent'], (int) $stats['failed'], (int) $stats['skipped']);
+        }
+
+        $this->setFeedback('Recovery retry complete. '.implode(' ', $parts));
     }
 
-    public function processQueuedBacklog(RequestCommunicationRetryService $retryService): void
-    {
+    public function processQueuedBacklog(
+        RequestCommunicationRetryService $requestRetryService,
+        VendorCommunicationRetryService $vendorRetryService,
+        AssetCommunicationRetryService $assetRetryService
+    ): void {
         if (! $this->canExecuteDeliveryOps()) {
             $this->setFeedbackError('You are not allowed to manage communication retry operations.');
+
             return;
         }
 
+        $scope = $this->normalizeScope($this->displayScope);
         $olderThan = max(0, (int) $this->queuedOlderThanMinutes);
-        $stats = $retryService->processStuckQueued($this->companyId(), $olderThan, 500);
-        $this->setFeedback(
-            "Queued processing done. Processed {$stats['processed']}, sent {$stats['sent']}, failed {$stats['failed']}, remaining queued {$stats['remaining_queued']}."
-        );
+        $companyId = $this->companyId();
+        $parts = [];
+
+        if (in_array($scope, ['all', 'requests'], true)) {
+            $stats = $requestRetryService->processStuckQueued($companyId, $olderThan, 500);
+            $parts[] = sprintf(
+                'Requests processed %d, sent %d, failed %d, remaining queued %d.',
+                (int) $stats['processed'],
+                (int) $stats['sent'],
+                (int) $stats['failed'],
+                (int) $stats['remaining_queued']
+            );
+        }
+
+        if (in_array($scope, ['all', 'vendors'], true)) {
+            $stats = $vendorRetryService->processStuckQueued($companyId, null, $olderThan, 500);
+            $parts[] = sprintf(
+                'Vendors processed %d, sent %d, failed %d, remaining queued %d.',
+                (int) $stats['processed'],
+                (int) $stats['sent'],
+                (int) $stats['failed'],
+                (int) $stats['remaining_queued']
+            );
+        }
+
+        if (in_array($scope, ['all', 'assets'], true)) {
+            $stats = $assetRetryService->processStuckQueued($companyId, $olderThan, 500);
+            $parts[] = sprintf(
+                'Assets processed %d, sent %d, failed %d, remaining queued %d.',
+                (int) $stats['processed'],
+                (int) $stats['sent'],
+                (int) $stats['failed'],
+                (int) $stats['remaining_queued']
+            );
+        }
+
+        $this->setFeedback('Queued recovery complete. '.implode(' ', $parts));
     }
 
     public function loadData(): void
@@ -130,6 +218,12 @@ class RequestCommunicationsPage extends Component
         $this->resetPage(pageName: $this->pageName());
     }
 
+    public function updatedDisplayScope(): void
+    {
+        $this->displayScope = $this->normalizeScope($this->displayScope);
+        $this->resetPage(pageName: $this->pageName());
+    }
+
     public function updatedPerPage(): void
     {
         if (! in_array($this->perPage, [10, 25, 50], true)) {
@@ -141,7 +235,7 @@ class RequestCommunicationsPage extends Component
 
     public function updatedQueuedOlderThanMinutes(mixed $value): void
     {
-        // Allow in-progress typing (empty input) without throwing hydration/type errors.
+        // Allow in-progress typing (empty input) without hydration/type errors.
         if ($value === null || $value === '') {
             return;
         }
@@ -181,8 +275,8 @@ class RequestCommunicationsPage extends Component
 
     public function markReadBySource(string $source, int $logId): void
     {
-        $normalized = strtolower(trim($source));
-        if (! in_array($normalized, ['requests', 'vendors', 'assets'], true)) {
+        $normalized = $this->normalizeSource($source);
+        if ($normalized === '') {
             $this->setFeedbackError('Notification source is invalid.');
 
             return;
@@ -193,22 +287,26 @@ class RequestCommunicationsPage extends Component
 
     public function markAllRead(): void
     {
-        $userId = (int) \Illuminate\Support\Facades\Auth::id();
+        $userId = (int) auth()->id();
+        $companyId = $this->companyId() ?? 0;
 
         // Inbox read-state spans all in-app internal notifications, regardless of module.
         RequestCommunicationLog::query()
+            ->where('company_id', $companyId)
             ->where('channel', 'in_app')
             ->where('recipient_user_id', $userId)
             ->whereNull('read_at')
             ->update(['read_at' => now()]);
 
         VendorCommunicationLog::query()
+            ->where('company_id', $companyId)
             ->where('channel', 'in_app')
             ->where('recipient_user_id', $userId)
             ->whereNull('read_at')
             ->update(['read_at' => now()]);
 
         AssetCommunicationLog::query()
+            ->where('company_id', $companyId)
             ->where('channel', 'in_app')
             ->where('recipient_user_id', $userId)
             ->whereNull('read_at')
@@ -224,41 +322,54 @@ class RequestCommunicationsPage extends Component
             $this->activeTab = 'inbox';
         }
 
+        $companyId = $this->companyId() ?? 0;
+        $olderThan = max(0, (int) $this->queuedOlderThanMinutes);
+
         $requestInboxUnreadCount = RequestCommunicationLog::query()
+            ->where('company_id', $companyId)
             ->where('channel', 'in_app')
-            ->where('recipient_user_id', (int) \Illuminate\Support\Facades\Auth::id())
+            ->where('recipient_user_id', (int) auth()->id())
             ->whereNull('read_at')
             ->count();
+
         $vendorInboxUnreadCount = VendorCommunicationLog::query()
+            ->where('company_id', $companyId)
             ->where('channel', 'in_app')
-            ->where('recipient_user_id', (int) \Illuminate\Support\Facades\Auth::id())
+            ->where('recipient_user_id', (int) auth()->id())
             ->whereNull('read_at')
             ->count();
+
         $assetInboxUnreadCount = AssetCommunicationLog::query()
+            ->where('company_id', $companyId)
             ->where('channel', 'in_app')
-            ->where('recipient_user_id', (int) \Illuminate\Support\Facades\Auth::id())
+            ->where('recipient_user_id', (int) auth()->id())
             ->whereNull('read_at')
             ->count();
+
         $inboxUnreadCount = $requestInboxUnreadCount + $vendorInboxUnreadCount + $assetInboxUnreadCount;
         $canManageDeliveryOps = $this->canExecuteDeliveryOps();
-        $deliverySummary = ['failed' => 0, 'queued' => 0];
+
+        $recoverySummary = [
+            'totals' => ['failed' => 0, 'queued_stuck' => 0, 'active' => 0],
+            'modules' => [
+                'requests' => ['label' => 'Requests', 'failed' => 0, 'queued_stuck' => 0],
+                'vendors' => ['label' => 'Vendors', 'failed' => 0, 'queued_stuck' => 0],
+                'assets' => ['label' => 'Assets', 'failed' => 0, 'queued_stuck' => 0],
+            ],
+            'channels' => [],
+            'recipient_issues' => [],
+        ];
+
         if ($canViewDeliveryLogs) {
-            $deliverySummary['failed'] = RequestCommunicationLog::query()
-                ->where('status', 'failed')
-                ->count();
-            $deliverySummary['queued'] = RequestCommunicationLog::query()
-                ->where('status', 'queued')
-                ->where('created_at', '<=', now()->subMinutes(max(0, (int) $this->queuedOlderThanMinutes)))
-                ->count();
+            $recoverySummary = $this->recoverySummary($companyId, $olderThan, $this->displayScope);
         }
 
         if (! $this->readyToLoad) {
             $communications = $this->emptyPaginator();
         } elseif ($this->activeTab === 'inbox') {
-            $communications = $this->inboxMessagesQuery()
-                ->paginate($this->perPage, pageName: $this->pageName());
+            $communications = $this->inboxMessagesQuery()->paginate($this->perPage, pageName: $this->pageName());
         } else {
-            $communications = $this->communicationsQuery()->paginate($this->perPage, pageName: $this->pageName());
+            $communications = $this->recoveryLogsQuery()->paginate($this->perPage, pageName: $this->pageName());
         }
 
         return view('livewire.requests.request-communications-page', [
@@ -266,63 +377,106 @@ class RequestCommunicationsPage extends Component
             'inboxUnreadCount' => $inboxUnreadCount,
             'channels' => ['in_app', 'email', 'sms'],
             'statuses' => ['queued', 'sent', 'failed', 'skipped'],
+            'scopes' => [
+                'all' => 'All modules',
+                'requests' => 'Requests',
+                'vendors' => 'Vendors',
+                'assets' => 'Assets',
+            ],
             'canViewDeliveryLogs' => $canViewDeliveryLogs,
             'canManageDeliveryOps' => $canManageDeliveryOps,
-            'deliverySummary' => $deliverySummary,
+            'recoverySummary' => $recoverySummary,
         ]);
     }
 
-    private function communicationsQuery(): Builder
+    private function recoveryLogsQuery(): QueryBuilder
     {
-        $query = RequestCommunicationLog::query()
-            ->with([
-                'request:id,request_code,title,requested_by',
-                'recipient:id,name',
+        $companyId = $this->companyId() ?? 0;
+        $cutoff = now()->subMinutes(max(0, (int) $this->queuedOlderThanMinutes));
+
+        $query = $this->recoveryBaseQuery($companyId)
+            ->leftJoin('requests as requests', 'requests.id', '=', 'logs.request_id')
+            ->leftJoin('vendors as vendors', 'vendors.id', '=', 'logs.vendor_id')
+            ->leftJoin('vendor_invoices as invoices', 'invoices.id', '=', 'logs.vendor_invoice_id')
+            ->leftJoin('assets as assets', 'assets.id', '=', 'logs.asset_id')
+            ->leftJoin('users as recipients', 'recipients.id', '=', 'logs.recipient_user_id')
+            ->select([
+                'logs.source_section',
+                'logs.id',
+                'logs.event',
+                'logs.channel',
+                'logs.status',
+                'logs.message',
+                'logs.read_at',
+                'logs.created_at',
+                'logs.recipient_user_id',
+                'logs.recipient_email',
+                'logs.recipient_phone',
+                'logs.request_id',
+                'logs.vendor_id',
+                'logs.vendor_invoice_id',
+                'logs.asset_id',
+                'requests.request_code as request_code',
+                'requests.title as request_title',
+                'vendors.name as vendor_name',
+                'invoices.invoice_number as invoice_number',
+                'assets.asset_code as asset_code',
+                'assets.name as asset_name',
+                'recipients.name as recipient_name',
+                'recipients.email as recipient_user_email',
+                'recipients.phone as recipient_user_phone',
             ]);
 
-        // One component serves two datasets: personal inbox vs operational delivery logs.
-        if ($this->activeTab === 'inbox') {
-            $query->where('channel', 'in_app')
-                ->where('recipient_user_id', (int) \Illuminate\Support\Facades\Auth::id());
-        } else {
-            if (! $this->canViewDeliveryLogs()) {
-                $query->whereRaw('1 = 0');
-
-                return $query->latest('id');
-            }
-            $this->applyDeliveryAccessScope($query);
+        if ($this->displayScope !== 'all') {
+            $query->where('logs.source_section', $this->normalizeScope($this->displayScope));
         }
 
         if ($this->search !== '') {
             $search = $this->search;
-            $query->where(function (Builder $builder) use ($search): void {
+            $query->where(function (QueryBuilder $builder) use ($search): void {
                 $builder
-                    ->where('event', 'like', '%'.$search.'%')
-                    ->orWhere('message', 'like', '%'.$search.'%')
-                    ->orWhereHas('request', fn (Builder $requestQuery) => $requestQuery
-                        ->where('request_code', 'like', '%'.$search.'%')
-                        ->orWhere('title', 'like', '%'.$search.'%'))
-                    ->orWhereHas('recipient', fn (Builder $recipientQuery) => $recipientQuery
-                        ->where('name', 'like', '%'.$search.'%'));
+                    ->where('logs.event', 'like', '%'.$search.'%')
+                    ->orWhere('logs.message', 'like', '%'.$search.'%')
+                    ->orWhere('requests.request_code', 'like', '%'.$search.'%')
+                    ->orWhere('requests.title', 'like', '%'.$search.'%')
+                    ->orWhere('vendors.name', 'like', '%'.$search.'%')
+                    ->orWhere('invoices.invoice_number', 'like', '%'.$search.'%')
+                    ->orWhere('assets.asset_code', 'like', '%'.$search.'%')
+                    ->orWhere('assets.name', 'like', '%'.$search.'%')
+                    ->orWhere('recipients.name', 'like', '%'.$search.'%')
+                    ->orWhere('logs.recipient_email', 'like', '%'.$search.'%')
+                    ->orWhere('logs.recipient_phone', 'like', '%'.$search.'%');
             });
         }
 
         if ($this->channelFilter !== 'all') {
-            $query->where('channel', $this->channelFilter);
+            $query->where('logs.channel', $this->channelFilter);
         }
 
         if ($this->statusFilter !== 'all') {
-            $query->where('status', $this->statusFilter);
+            if ($this->statusFilter === 'queued') {
+                $query->where('logs.status', 'queued')
+                    ->where('logs.created_at', '<=', $cutoff);
+            } else {
+                $query->where('logs.status', $this->statusFilter);
+            }
+        } else {
+            // Keep the recovery table focused on actionable queued backlog rows.
+            $query->where(function (QueryBuilder $builder) use ($cutoff): void {
+                $builder->where('logs.status', '!=', 'queued')
+                    ->orWhere('logs.created_at', '<=', $cutoff);
+            });
         }
 
-        return $query->latest('id');
+        return $query->orderByDesc('logs.created_at')->orderByDesc('logs.id');
     }
 
-    private function inboxMessagesQuery(): \Illuminate\Database\Query\Builder
+    private function inboxMessagesQuery(): QueryBuilder
     {
-        $userId = (int) \Illuminate\Support\Facades\Auth::id();
+        $userId = (int) auth()->id();
+        $companyId = $this->companyId() ?? 0;
 
-        // Request-origin in-app notifications
+        // Request-origin in-app notifications.
         $requestInbox = DB::table('request_communication_logs')
             ->select([
                 DB::raw("'requests' as source_section"),
@@ -339,10 +493,11 @@ class RequestCommunicationsPage extends Component
                 DB::raw('NULL as vendor_invoice_id'),
                 DB::raw('NULL as asset_id'),
             ])
+            ->where('request_communication_logs.company_id', $companyId)
             ->where('request_communication_logs.channel', 'in_app')
             ->where('request_communication_logs.recipient_user_id', $userId);
 
-        // Vendor/payables-origin in-app notifications
+        // Vendor/payables-origin in-app notifications.
         $vendorInbox = DB::table('vendor_communication_logs')
             ->select([
                 DB::raw("'vendors' as source_section"),
@@ -359,10 +514,11 @@ class RequestCommunicationsPage extends Component
                 'vendor_communication_logs.vendor_invoice_id',
                 DB::raw('NULL as asset_id'),
             ])
+            ->where('vendor_communication_logs.company_id', $companyId)
             ->where('vendor_communication_logs.channel', 'in_app')
             ->where('vendor_communication_logs.recipient_user_id', $userId);
 
-        // Asset-origin in-app notifications
+        // Asset-origin in-app notifications.
         $assetInbox = DB::table('asset_communication_logs')
             ->select([
                 DB::raw("'assets' as source_section"),
@@ -379,6 +535,7 @@ class RequestCommunicationsPage extends Component
                 DB::raw('NULL as vendor_invoice_id'),
                 'asset_communication_logs.asset_id',
             ])
+            ->where('asset_communication_logs.company_id', $companyId)
             ->where('asset_communication_logs.channel', 'in_app')
             ->where('asset_communication_logs.recipient_user_id', $userId);
 
@@ -416,7 +573,7 @@ class RequestCommunicationsPage extends Component
 
         if ($this->search !== '') {
             $search = $this->search;
-            $query->where(function (\Illuminate\Database\Query\Builder $builder) use ($search): void {
+            $query->where(function (QueryBuilder $builder) use ($search): void {
                 $builder
                     ->where('messages.event', 'like', '%'.$search.'%')
                     ->orWhere('messages.message', 'like', '%'.$search.'%')
@@ -441,22 +598,262 @@ class RequestCommunicationsPage extends Component
         return $query->orderByDesc('messages.created_at')->orderByDesc('messages.id');
     }
 
+    private function recoveryBaseQuery(int $companyId): QueryBuilder
+    {
+        // Normalize module-specific communication tables into one queryable recovery stream.
+        $requestLogs = DB::table('request_communication_logs')
+            ->select([
+                DB::raw("'requests' as source_section"),
+                'request_communication_logs.id',
+                'request_communication_logs.company_id',
+                'request_communication_logs.event',
+                'request_communication_logs.channel',
+                'request_communication_logs.status',
+                'request_communication_logs.message',
+                'request_communication_logs.read_at',
+                'request_communication_logs.created_at',
+                'request_communication_logs.recipient_user_id',
+                DB::raw('NULL as recipient_email'),
+                DB::raw('NULL as recipient_phone'),
+                'request_communication_logs.request_id',
+                DB::raw('NULL as vendor_id'),
+                DB::raw('NULL as vendor_invoice_id'),
+                DB::raw('NULL as asset_id'),
+            ])
+            ->where('request_communication_logs.company_id', $companyId);
+
+        $vendorLogs = DB::table('vendor_communication_logs')
+            ->select([
+                DB::raw("'vendors' as source_section"),
+                'vendor_communication_logs.id',
+                'vendor_communication_logs.company_id',
+                'vendor_communication_logs.event',
+                'vendor_communication_logs.channel',
+                'vendor_communication_logs.status',
+                'vendor_communication_logs.message',
+                'vendor_communication_logs.read_at',
+                'vendor_communication_logs.created_at',
+                'vendor_communication_logs.recipient_user_id',
+                'vendor_communication_logs.recipient_email',
+                'vendor_communication_logs.recipient_phone',
+                DB::raw('NULL as request_id'),
+                'vendor_communication_logs.vendor_id',
+                'vendor_communication_logs.vendor_invoice_id',
+                DB::raw('NULL as asset_id'),
+            ])
+            ->where('vendor_communication_logs.company_id', $companyId);
+
+        $assetLogs = DB::table('asset_communication_logs')
+            ->select([
+                DB::raw("'assets' as source_section"),
+                'asset_communication_logs.id',
+                'asset_communication_logs.company_id',
+                'asset_communication_logs.event',
+                'asset_communication_logs.channel',
+                'asset_communication_logs.status',
+                'asset_communication_logs.message',
+                'asset_communication_logs.read_at',
+                'asset_communication_logs.created_at',
+                'asset_communication_logs.recipient_user_id',
+                'asset_communication_logs.recipient_email',
+                'asset_communication_logs.recipient_phone',
+                DB::raw('NULL as request_id'),
+                DB::raw('NULL as vendor_id'),
+                DB::raw('NULL as vendor_invoice_id'),
+                'asset_communication_logs.asset_id',
+            ])
+            ->where('asset_communication_logs.company_id', $companyId);
+
+        $combined = $requestLogs->unionAll($vendorLogs)->unionAll($assetLogs);
+
+        return DB::query()->fromSub($combined, 'logs');
+    }
+
+    /**
+     * @return array{
+     *   totals: array{failed:int,queued_stuck:int,active:int},
+     *   modules: array<string, array{label:string,failed:int,queued_stuck:int}>,
+     *   channels: array<int, array{channel:string,label:string,failed:int,queued_stuck:int,total:int}>,
+     *   recipient_issues: array<int, array{key:string,label:string,count:int}>
+     * }
+     */
+    private function recoverySummary(int $companyId, int $olderThanMinutes, string $scope): array
+    {
+        $normalizedScope = $this->normalizeScope($scope);
+        $cutoff = now()->subMinutes(max(0, $olderThanMinutes));
+
+        $rows = $this->recoveryBaseQuery($companyId)
+            ->when($normalizedScope !== 'all', fn (QueryBuilder $query) => $query->where('logs.source_section', $normalizedScope))
+            ->where(function (QueryBuilder $query) use ($cutoff): void {
+                $query->where('logs.status', 'failed')
+                    ->orWhere(function (QueryBuilder $queued) use ($cutoff): void {
+                        $queued->where('logs.status', 'queued')->where('logs.created_at', '<=', $cutoff);
+                    });
+            })
+            ->select([
+                'logs.source_section',
+                'logs.channel',
+                'logs.status',
+                'logs.message',
+                'logs.recipient_email',
+                'logs.recipient_phone',
+                'logs.recipient_user_id',
+                'logs.created_at',
+            ])
+            ->limit(3000)
+            ->get();
+
+        $modules = [
+            'requests' => ['label' => 'Requests', 'failed' => 0, 'queued_stuck' => 0],
+            'vendors' => ['label' => 'Vendors', 'failed' => 0, 'queued_stuck' => 0],
+            'assets' => ['label' => 'Assets', 'failed' => 0, 'queued_stuck' => 0],
+        ];
+
+        $channels = [];
+        $recipientIssues = [
+            'missing_email' => ['key' => 'missing_email', 'label' => 'Missing recipient email', 'count' => 0],
+            'missing_phone' => ['key' => 'missing_phone', 'label' => 'Missing recipient phone', 'count' => 0],
+            'channel_config' => ['key' => 'channel_config', 'label' => 'Channel disabled or unconfigured', 'count' => 0],
+            'unsupported_channel' => ['key' => 'unsupported_channel', 'label' => 'Unsupported channel', 'count' => 0],
+            'provider_error' => ['key' => 'provider_error', 'label' => 'Provider/send error', 'count' => 0],
+            'missing_target' => ['key' => 'missing_target', 'label' => 'No recipient target', 'count' => 0],
+            'other' => ['key' => 'other', 'label' => 'Other failed reason', 'count' => 0],
+        ];
+
+        foreach ($rows as $row) {
+            $source = in_array((string) $row->source_section, ['requests', 'vendors', 'assets'], true)
+                ? (string) $row->source_section
+                : 'requests';
+
+            if ((string) $row->status === 'failed') {
+                $modules[$source]['failed']++;
+            }
+
+            if ((string) $row->status === 'queued') {
+                $modules[$source]['queued_stuck']++;
+            }
+
+            $channel = trim((string) ($row->channel ?? 'unknown'));
+            if ($channel === '') {
+                $channel = 'unknown';
+            }
+
+            if (! isset($channels[$channel])) {
+                $channels[$channel] = [
+                    'channel' => $channel,
+                    'label' => strtoupper(str_replace('_', ' ', $channel)),
+                    'failed' => 0,
+                    'queued_stuck' => 0,
+                    'total' => 0,
+                ];
+            }
+
+            if ((string) $row->status === 'failed') {
+                $channels[$channel]['failed']++;
+                $issueKey = $this->classifyRecipientIssue($row);
+                $recipientIssues[$issueKey]['count']++;
+            }
+
+            if ((string) $row->status === 'queued') {
+                $channels[$channel]['queued_stuck']++;
+            }
+
+            $channels[$channel]['total'] = $channels[$channel]['failed'] + $channels[$channel]['queued_stuck'];
+        }
+
+        $totalFailed = (int) array_sum(array_map(static fn (array $module): int => (int) $module['failed'], $modules));
+        $totalQueuedStuck = (int) array_sum(array_map(static fn (array $module): int => (int) $module['queued_stuck'], $modules));
+
+        usort($channels, static function (array $left, array $right): int {
+            return $right['total'] <=> $left['total'];
+        });
+
+        $recipientIssues = array_values(array_filter($recipientIssues, static fn (array $item): bool => (int) $item['count'] > 0));
+
+        return [
+            'totals' => [
+                'failed' => $totalFailed,
+                'queued_stuck' => $totalQueuedStuck,
+                'active' => $totalFailed + $totalQueuedStuck,
+            ],
+            'modules' => $modules,
+            'channels' => $channels,
+            'recipient_issues' => $recipientIssues,
+        ];
+    }
+
+    private function classifyRecipientIssue(object $row): string
+    {
+        $message = Str::lower((string) ($row->message ?? ''));
+
+        if (str_contains($message, 'recipient email is missing')) {
+            return 'missing_email';
+        }
+
+        if (str_contains($message, 'recipient phone is missing')) {
+            return 'missing_phone';
+        }
+
+        if (str_contains($message, 'disabled or not configured')) {
+            return 'channel_config';
+        }
+
+        if (str_contains($message, 'unsupported communication channel')) {
+            return 'unsupported_channel';
+        }
+
+        if (str_contains($message, 'unexpectedly') || str_contains($message, 'while sending')) {
+            return 'provider_error';
+        }
+
+        $recipientEmail = trim((string) ($row->recipient_email ?? ''));
+        $recipientPhone = trim((string) ($row->recipient_phone ?? ''));
+        $recipientUserId = (int) ($row->recipient_user_id ?? 0);
+
+        if ($recipientEmail === '' && $recipientPhone === '' && $recipientUserId === 0) {
+            return 'missing_target';
+        }
+
+        return 'other';
+    }
+
+    private function findRecoveryLog(string $source, int $logId): RequestCommunicationLog|VendorCommunicationLog|AssetCommunicationLog|null
+    {
+        $companyId = $this->companyId() ?? 0;
+
+        return match ($source) {
+            'vendors' => VendorCommunicationLog::query()
+                ->where('company_id', $companyId)
+                ->find($logId),
+            'assets' => AssetCommunicationLog::query()
+                ->where('company_id', $companyId)
+                ->find($logId),
+            default => RequestCommunicationLog::query()
+                ->where('company_id', $companyId)
+                ->find($logId),
+        };
+    }
+
     private function markInboxMessageAsRead(string $source, int $logId): void
     {
-        $userId = (int) \Illuminate\Support\Facades\Auth::id();
+        $userId = (int) auth()->id();
+        $companyId = $this->companyId() ?? 0;
 
         $log = match ($source) {
             'vendors' => VendorCommunicationLog::query()
+                ->where('company_id', $companyId)
                 ->where('id', $logId)
                 ->where('channel', 'in_app')
                 ->where('recipient_user_id', $userId)
                 ->first(),
             'assets' => AssetCommunicationLog::query()
+                ->where('company_id', $companyId)
                 ->where('id', $logId)
                 ->where('channel', 'in_app')
                 ->where('recipient_user_id', $userId)
                 ->first(),
             default => RequestCommunicationLog::query()
+                ->where('company_id', $companyId)
                 ->where('id', $logId)
                 ->where('channel', 'in_app')
                 ->where('recipient_user_id', $userId)
@@ -474,34 +871,6 @@ class RequestCommunicationsPage extends Component
         }
 
         $this->setFeedback('Notification marked as read.');
-    }
-
-    private function applyDeliveryAccessScope(Builder $query): void
-    {
-        $user = \Illuminate\Support\Facades\Auth::user();
-        if (! $user) {
-            $query->whereRaw('1 = 0');
-
-            return;
-        }
-
-        $role = (string) $user->role;
-        $canViewCompanyLogs = in_array($role, [
-            UserRole::Owner->value,
-            UserRole::Finance->value,
-            UserRole::Manager->value,
-            UserRole::Auditor->value,
-        ], true);
-
-        if ($canViewCompanyLogs) {
-            return;
-        }
-
-        $query->where(function (Builder $builder) use ($user): void {
-            $builder
-                ->where('recipient_user_id', (int) $user->id)
-                ->orWhereHas('request', fn (Builder $requestQuery) => $requestQuery->where('requested_by', (int) $user->id));
-        });
     }
 
     private function pageName(): string
@@ -525,7 +894,7 @@ class RequestCommunicationsPage extends Component
 
     private function canViewDeliveryLogs(): bool
     {
-        $user = \Illuminate\Support\Facades\Auth::user();
+        $user = auth()->user();
         if (! $user || ! $user->is_active) {
             return false;
         }
@@ -540,14 +909,12 @@ class RequestCommunicationsPage extends Component
 
     private function canExecuteDeliveryOps(): bool
     {
-        $user = \Illuminate\Support\Facades\Auth::user();
+        $user = auth()->user();
         if (! $user || ! $user->is_active) {
             return false;
         }
 
-        $role = (string) (\Illuminate\Support\Facades\Auth::user()?->role ?? '');
-
-        return in_array($role, [
+        return in_array((string) $user->role, [
             UserRole::Owner->value,
             UserRole::Finance->value,
         ], true);
@@ -555,9 +922,36 @@ class RequestCommunicationsPage extends Component
 
     private function companyId(): ?int
     {
-        $companyId = \Illuminate\Support\Facades\Auth::user()?->company_id;
+        $companyId = auth()->user()?->company_id;
 
         return $companyId ? (int) $companyId : null;
+    }
+
+    private function sourceLabel(string $source): string
+    {
+        return match ($source) {
+            'vendors' => 'Vendors',
+            'assets' => 'Assets',
+            default => 'Requests',
+        };
+    }
+
+    private function normalizeScope(string $scope): string
+    {
+        $normalized = strtolower(trim($scope));
+
+        return in_array($normalized, ['all', 'requests', 'vendors', 'assets'], true)
+            ? $normalized
+            : 'all';
+    }
+
+    private function normalizeSource(string $source): string
+    {
+        $normalized = strtolower(trim($source));
+
+        return in_array($normalized, ['requests', 'vendors', 'assets'], true)
+            ? $normalized
+            : '';
     }
 
     private function emptyPaginator(): LengthAwarePaginator
@@ -567,4 +961,5 @@ class RequestCommunicationsPage extends Component
             ->paginate($this->perPage, pageName: $this->pageName());
     }
 }
+
 

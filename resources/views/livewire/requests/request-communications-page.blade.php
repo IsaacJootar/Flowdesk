@@ -1,5 +1,5 @@
 <div wire:init="loadData" class="space-y-5">
-<div
+    <div
         class="pointer-events-none fixed z-[95] space-y-2"
         style="right: 16px; top: 72px; width: 320px; max-width: calc(100vw - 24px);"
     >
@@ -49,7 +49,7 @@
                         wire:click="switchTab('delivery')"
                         class="rounded-lg px-3 py-1.5 transition {{ $activeTab === 'delivery' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-800' }}"
                     >
-                        Delivery Logs
+                        Recovery Desk
                     </button>
                 @endif
             </div>
@@ -67,47 +67,124 @@
                         <span wire:loading wire:target="markAllRead">Processing...</span>
                     </button>
                 </div>
-            @elseif ($activeTab === 'delivery' && $canManageDeliveryOps)
+            @elseif ($activeTab === 'delivery')
                 <div class="flex flex-wrap items-center gap-2">
-                    <span class="inline-flex rounded-full bg-red-100 px-2 py-1 text-[11px] font-semibold text-red-700">
-                        Failed: {{ $deliverySummary['failed'] }}
-                    </span>
-                    <span class="inline-flex rounded-full bg-amber-100 px-2 py-1 text-[11px] font-semibold text-amber-700">
-                        Stuck queued: {{ $deliverySummary['queued'] }}
-                    </span>
-                    <label class="inline-flex items-center gap-1.5 text-xs text-slate-600">
-                        <span>Older than</span>
-                        <input
-                            type="number"
-                            min="0"
-                            wire:model.live.debounce.400ms="queuedOlderThanMinutes"
-                            class="w-16 rounded-lg border-slate-300 px-2 py-1 text-xs focus:border-slate-500 focus:ring-slate-500"
+                    <a href="{{ route('requests.communications-help') }}" class="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">
+                        Help / Usage Guide
+                    </a>
+                    @if ($canManageDeliveryOps)
+                        <button
+                            type="button"
+                            wire:click="retryFailed"
+                            wire:loading.attr="disabled"
+                            wire:target="retryFailed"
+                            class="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-100 disabled:opacity-70"
                         >
-                        <span>min</span>
-                    </label>
-                    <button
-                        type="button"
-                        wire:click="retryFailed"
-                        wire:loading.attr="disabled"
-                        wire:target="retryFailed"
-                        class="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-100 disabled:opacity-70"
-                    >
-                        <span wire:loading.remove wire:target="retryFailed">Retry Failed</span>
-                        <span wire:loading wire:target="retryFailed">Retrying...</span>
-                    </button>
-                    <button
-                        type="button"
-                        wire:click="processQueuedBacklog"
-                        wire:loading.attr="disabled"
-                        wire:target="processQueuedBacklog"
-                        class="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-700 hover:bg-amber-100 disabled:opacity-70"
-                    >
-                        <span wire:loading.remove wire:target="processQueuedBacklog">Process Queued</span>
-                        <span wire:loading wire:target="processQueuedBacklog">Processing...</span>
-                    </button>
+                            <span wire:loading.remove wire:target="retryFailed">Retry Failed</span>
+                            <span wire:loading wire:target="retryFailed">Retrying...</span>
+                        </button>
+                        <button
+                            type="button"
+                            wire:click="processQueuedBacklog"
+                            wire:loading.attr="disabled"
+                            wire:target="processQueuedBacklog"
+                            class="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-700 hover:bg-amber-100 disabled:opacity-70"
+                        >
+                            <span wire:loading.remove wire:target="processQueuedBacklog">Process Queued</span>
+                            <span wire:loading wire:target="processQueuedBacklog">Processing...</span>
+                        </button>
+                    @endif
                 </div>
             @endif
         </div>
+
+        @if ($activeTab === 'delivery')
+            <div class="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                <div class="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                    <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Active Recovery Items</p>
+                    <p class="mt-2 text-2xl font-semibold text-slate-900">{{ number_format((int) ($recoverySummary['totals']['active'] ?? 0)) }}</p>
+                    <p class="text-xs text-slate-500">Failed + stuck queued by current display scope</p>
+                </div>
+                <div class="rounded-2xl border border-red-200 bg-red-50 p-3">
+                    <p class="text-xs font-semibold uppercase tracking-[0.14em] text-red-700">Failed</p>
+                    <p class="mt-2 text-2xl font-semibold text-red-700">{{ number_format((int) ($recoverySummary['totals']['failed'] ?? 0)) }}</p>
+                </div>
+                <div class="rounded-2xl border border-amber-200 bg-amber-50 p-3">
+                    <p class="text-xs font-semibold uppercase tracking-[0.14em] text-amber-700">Stuck Queued</p>
+                    <p class="mt-2 text-2xl font-semibold text-amber-700">{{ number_format((int) ($recoverySummary['totals']['queued_stuck'] ?? 0)) }}</p>
+                    <p class="text-xs text-amber-700">Older than {{ max(0, (int) $queuedOlderThanMinutes) }} mins</p>
+                </div>
+                <div class="rounded-2xl border border-slate-200 bg-white p-3">
+                    <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Recovery Controls</p>
+                    <div class="mt-2 grid gap-2 sm:grid-cols-2">
+                        <label class="block">
+                            <span class="mb-1 block text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Display Age Filter (mins)</span>
+                            <input
+                                type="number"
+                                min="0"
+                                wire:model.live.debounce.400ms="queuedOlderThanMinutes"
+                                class="w-full rounded-lg border-slate-300 px-2 py-1 text-xs focus:border-slate-500 focus:ring-slate-500"
+                            >
+                        </label>
+                        <label class="block">
+                            <span class="mb-1 block text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Display Scope</span>
+                            <select wire:model.live="displayScope" class="w-full rounded-lg border-slate-300 px-2 py-1 text-xs focus:border-slate-500 focus:ring-slate-500">
+                                @foreach ($scopes as $scopeValue => $scopeLabel)
+                                    <option value="{{ $scopeValue }}">{{ $scopeLabel }}</option>
+                                @endforeach
+                            </select>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-4 grid gap-3 xl:grid-cols-2">
+                <div class="rounded-2xl border border-slate-200 bg-white p-3">
+                    <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Failed/Queued by Module</p>
+                    <div class="mt-3 grid gap-2 sm:grid-cols-3">
+                        @foreach (($recoverySummary['modules'] ?? []) as $module)
+                            <div class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                                <p class="text-xs font-semibold text-slate-700">{{ $module['label'] }}</p>
+                                <p class="mt-1 text-xs text-red-700">Failed: {{ number_format((int) ($module['failed'] ?? 0)) }}</p>
+                                <p class="text-xs text-amber-700">Queued: {{ number_format((int) ($module['queued_stuck'] ?? 0)) }}</p>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+
+                <div class="rounded-2xl border border-slate-200 bg-white p-3">
+                    <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Channel Issues</p>
+                    <div class="mt-3 space-y-2">
+                        @forelse (($recoverySummary['channels'] ?? []) as $channel)
+                            <div class="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                                <p class="text-xs font-semibold text-slate-700">{{ $channel['label'] }}</p>
+                                <p class="text-xs text-slate-600">
+                                    <span class="text-red-700">Failed {{ (int) $channel['failed'] }}</span>
+                                    <span class="mx-1 text-slate-400">|</span>
+                                    <span class="text-amber-700">Queued {{ (int) $channel['queued_stuck'] }}</span>
+                                </p>
+                            </div>
+                        @empty
+                            <p class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500">No channel recovery issues in current scope.</p>
+                        @endforelse
+                    </div>
+                </div>
+
+                <div class="rounded-2xl border border-slate-200 bg-white p-3 xl:col-span-2">
+                    <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Recipient / Config Breakdown (Failed Rows)</p>
+                    <div class="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                        @forelse (($recoverySummary['recipient_issues'] ?? []) as $issue)
+                            <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                                <p class="text-xs text-slate-600">{{ $issue['label'] }}</p>
+                                <p class="mt-1 text-base font-semibold text-slate-800">{{ number_format((int) $issue['count']) }}</p>
+                            </div>
+                        @empty
+                            <p class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500 sm:col-span-2 lg:col-span-4">No failed recipient/config issues in current scope.</p>
+                        @endforelse
+                    </div>
+                </div>
+            </div>
+        @endif
 
         <div class="mt-4 grid gap-3 lg:grid-cols-4">
             <label class="block lg:col-span-2">
@@ -150,7 +227,7 @@
                 @endfor
             </div>
         @else
-            <div wire:loading.flex wire:target="search,channelFilter,statusFilter,activeTab,perPage,queuedOlderThanMinutes,gotoPage,previousPage,nextPage,markReadBySource,markAllRead,retryFailed,processQueuedBacklog,retryLog" class="border-b border-slate-200 px-4 py-3 text-sm text-slate-500">
+            <div wire:loading.flex wire:target="search,channelFilter,statusFilter,displayScope,activeTab,perPage,queuedOlderThanMinutes,gotoPage,previousPage,nextPage,markReadBySource,markAllRead,retryFailed,processQueuedBacklog,retryLog,retryLogBySource" class="border-b border-slate-200 px-4 py-3 text-sm text-slate-500">
                 Loading communication records...
             </div>
 
@@ -194,8 +271,17 @@
                                 } elseif ($log->channel === 'in_app') {
                                     $channelClass = 'bg-emerald-100 text-emerald-700';
                                 }
+
+                                $sourceSection = $activeTab === 'inbox'
+                                    ? (string) ($log->source_section ?? 'requests')
+                                    : (string) ($log->source_section ?? 'requests');
+                                $sourceClass = match ($sourceSection) {
+                                    'vendors' => 'bg-indigo-100 text-indigo-700',
+                                    'assets' => 'bg-sky-100 text-sky-700',
+                                    default => 'bg-slate-100 text-slate-700',
+                                };
                             @endphp
-                            <tr wire:key="request-comm-{{ $activeTab === 'inbox' ? ($log->source_section ?? 'requests') : 'requests' }}-{{ $log->id }}" class="hover:bg-slate-50">
+                            <tr wire:key="request-comm-{{ $sourceSection }}-{{ $log->id }}" class="hover:bg-slate-50">
                                 <td class="px-4 py-3">
                                     <p class="font-medium text-slate-800">{{ ucwords(str_replace(['.', '_'], ' ', (string) $log->event)) }}</p>
                                     @if ($log->message)
@@ -203,16 +289,6 @@
                                     @endif
                                 </td>
                                 <td class="px-4 py-3 text-slate-700">
-                                    @php
-                                        $sourceSection = $activeTab === 'inbox'
-                                            ? (string) ($log->source_section ?? 'requests')
-                                            : 'requests';
-                                        $sourceClass = match ($sourceSection) {
-                                            'vendors' => 'bg-indigo-100 text-indigo-700',
-                                            'assets' => 'bg-sky-100 text-sky-700',
-                                            default => 'bg-slate-100 text-slate-700',
-                                        };
-                                    @endphp
                                     <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold {{ $sourceClass }}">
                                         {{ match ($sourceSection) {
                                             'vendors' => 'Vendors',
@@ -222,15 +298,15 @@
                                     </span>
                                 </td>
                                 <td class="px-4 py-3 text-slate-700">
-                                    @if ($activeTab === 'inbox' && ($log->source_section ?? 'requests') === 'vendors')
+                                    @if ($sourceSection === 'vendors')
                                         <p class="font-medium text-slate-800">{{ $log->vendor_name ?? '-' }}</p>
                                         <p class="text-xs text-slate-500">Invoice: {{ $log->invoice_number ?? '-' }}</p>
-                                    @elseif ($activeTab === 'inbox' && ($log->source_section ?? 'requests') === 'assets')
+                                    @elseif ($sourceSection === 'assets')
                                         <p class="font-medium text-slate-800">{{ $log->asset_name ?? '-' }}</p>
                                         <p class="text-xs text-slate-500">Asset: {{ $log->asset_code ?? '-' }}</p>
                                     @else
-                                        <p class="font-medium text-slate-800">{{ $activeTab === 'inbox' ? ($log->request_code ?? '-') : ($log->request?->request_code ?? '-') }}</p>
-                                        <p class="text-xs text-slate-500">{{ $activeTab === 'inbox' ? ($log->request_title ?? '-') : ($log->request?->title ?? '-') }}</p>
+                                        <p class="font-medium text-slate-800">{{ $log->request_code ?? '-' }}</p>
+                                        <p class="text-xs text-slate-500">{{ $log->request_title ?? '-' }}</p>
                                     @endif
                                 </td>
                                 <td class="px-4 py-3">
@@ -239,7 +315,12 @@
                                     </span>
                                 </td>
                                 <td class="px-4 py-3 text-slate-700">
-                                    {{ $activeTab === 'inbox' ? ($log->recipient_name ?? 'Assigned user') : ($log->recipient?->name ?? 'Workflow audience') }}
+                                    <p>{{ $log->recipient_name ?? 'Workflow audience' }}</p>
+                                    @if (($log->recipient_user_email ?? '') !== '' || ($log->recipient_email ?? '') !== '')
+                                        <p class="text-xs text-slate-500">{{ $log->recipient_user_email ?? $log->recipient_email }}</p>
+                                    @elseif (($log->recipient_user_phone ?? '') !== '' || ($log->recipient_phone ?? '') !== '')
+                                        <p class="text-xs text-slate-500">{{ $log->recipient_user_phone ?? $log->recipient_phone }}</p>
+                                    @endif
                                 </td>
                                 <td class="px-4 py-3">
                                     <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold {{ $statusClass }}">
@@ -247,7 +328,7 @@
                                     </span>
                                 </td>
                                 <td class="px-4 py-3 text-slate-600">
-                                    <p>{{ optional($log->created_at)->format('M d, Y H:i') }}</p>
+                                    <p>{{ \Illuminate\Support\Carbon::parse((string) $log->created_at)->format('M d, Y H:i') }}</p>
                                     @if ($activeTab === 'inbox')
                                         <p class="text-xs {{ $log->read_at ? 'text-slate-400' : 'font-semibold text-amber-700' }}">
                                             {{ $log->read_at ? 'Read' : 'Unread' }}
@@ -271,13 +352,13 @@
                                         @if (in_array((string) $log->status, ['failed', 'queued', 'skipped'], true))
                                             <button
                                                 type="button"
-                                                wire:click="retryLog({{ $log->id }})"
+                                                wire:click="retryLogBySource('{{ $sourceSection }}', {{ $log->id }})"
                                                 wire:loading.attr="disabled"
-                                                wire:target="retryLog({{ $log->id }})"
+                                                wire:target="retryLogBySource('{{ $sourceSection }}', {{ $log->id }})"
                                                 class="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-70"
                                             >
-                                                <span wire:loading.remove wire:target="retryLog({{ $log->id }})">Retry now</span>
-                                                <span wire:loading wire:target="retryLog({{ $log->id }})">Retrying...</span>
+                                                <span wire:loading.remove wire:target="retryLogBySource('{{ $sourceSection }}', {{ $log->id }})">Retry now</span>
+                                                <span wire:loading wire:target="retryLogBySource('{{ $sourceSection }}', {{ $log->id }})">Retrying...</span>
                                             </button>
                                         @else
                                             <span class="text-xs text-slate-400">-</span>
@@ -291,7 +372,7 @@
                                     @if ($activeTab === 'inbox')
                                         No in-app notifications match your filters.
                                     @else
-                                        No communication delivery logs match your filters.
+                                        No communication recovery rows match your filters.
                                     @endif
                                 </td>
                             </tr>
@@ -317,3 +398,4 @@
         @endif
     </div>
 </div>
+

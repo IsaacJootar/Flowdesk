@@ -1145,6 +1145,11 @@
                                 </p>
                             @else
                                 <p class="text-xs text-slate-600">Convert approved request to procurement order for pre-payment control and commitment posting.</p>
+                                @if (! empty($selectedRequest['convert_to_po_blocker']))
+                                    <p class="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-2 text-xs text-amber-700">
+                                        {{ $selectedRequest['convert_to_po_blocker'] }}
+                                    </p>
+                                @endif
                             @endif
                         </div>
 
@@ -1317,6 +1322,17 @@
                             <button type="button" wire:click="convertSelectedRequestToPurchaseOrder" wire:loading.attr="disabled" wire:target="convertSelectedRequestToPurchaseOrder" class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-700 hover:bg-amber-100 disabled:opacity-70">
                                 <span wire:loading.remove wire:target="convertSelectedRequestToPurchaseOrder">Convert to PO</span>
                                 <span wire:loading wire:target="convertSelectedRequestToPurchaseOrder">Converting...</span>
+                            </button>
+                        @elseif ($selectedRequest['linked_purchase_order'])
+                            <div class="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700" title="Request already converted to procurement order">
+                                <span>PO Linked</span>
+                                <span class="rounded-full border border-emerald-200 bg-white px-2 py-0.5 text-xs font-semibold text-emerald-700">
+                                    {{ $selectedRequest['linked_purchase_order']['po_number'] }}
+                                </span>
+                            </div>
+                        @else
+                            <button type="button" disabled class="cursor-not-allowed rounded-xl border border-slate-200 bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-400">
+                                Convert to PO
                             </button>
                         @endif
                         @if ($selectedRequest['can_create_expense'])

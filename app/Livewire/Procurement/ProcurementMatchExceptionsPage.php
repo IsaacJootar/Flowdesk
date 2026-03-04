@@ -45,6 +45,11 @@ class ProcurementMatchExceptionsPage extends Component
     {
         $user = auth()->user();
         abort_unless($user instanceof User && $this->canAccessPage($user), 403);
+
+        $deepLinkSearch = trim((string) request()->query('search', ''));
+        if ($deepLinkSearch !== '') {
+            $this->search = mb_substr($deepLinkSearch, 0, 120);
+        }
     }
 
     public function loadData(): void

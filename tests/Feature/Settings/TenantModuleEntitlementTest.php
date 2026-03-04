@@ -80,6 +80,10 @@ class TenantModuleEntitlementTest extends TestCase
         $this->actingAs($owner)
             ->get(route('requests.communications'))
             ->assertForbidden();
+
+        $this->actingAs($owner)
+            ->get(route('requests.communications-help'))
+            ->assertForbidden();
     }
 
     public function test_plan_defaults_apply_when_entitlements_row_is_missing(): void
@@ -120,8 +124,15 @@ class TenantModuleEntitlementTest extends TestCase
         $items = app(NavAccessService::class)->forUser($owner)['items'];
         $routes = array_column($items, 'route');
 
-        $this->assertNotContains('procurement.orders', $routes);
-        $this->assertNotContains('procurement.receipts', $routes);
+        $this->assertNotContains('procurement.release-desk', $routes);
+
+        $this->actingAs($owner)
+            ->get(route('procurement.release-desk'))
+            ->assertForbidden();
+
+        $this->actingAs($owner)
+            ->get(route('procurement.release-help'))
+            ->assertForbidden();
 
         $this->actingAs($owner)
             ->get(route('procurement.orders'))
@@ -151,8 +162,17 @@ class TenantModuleEntitlementTest extends TestCase
         $items = app(NavAccessService::class)->forUser($owner)['items'];
         $routes = array_column($items, 'route');
 
-        $this->assertContains('procurement.orders', $routes);
-        $this->assertContains('procurement.receipts', $routes);
+        $this->assertContains('procurement.release-desk', $routes);
+        $this->assertNotContains('procurement.orders', $routes);
+        $this->assertNotContains('procurement.receipts', $routes);
+
+        $this->actingAs($owner)
+            ->get(route('procurement.release-desk'))
+            ->assertOk();
+
+        $this->actingAs($owner)
+            ->get(route('procurement.release-help'))
+            ->assertOk();
 
         $this->actingAs($owner)
             ->get(route('procurement.orders'))
@@ -190,6 +210,10 @@ class TenantModuleEntitlementTest extends TestCase
         $this->actingAs($owner)
             ->get(route('treasury.reconciliation'))
             ->assertForbidden();
+        $this->actingAs($owner)
+            ->get(route('treasury.reconciliation-help'))
+            ->assertForbidden();
+
 
         $this->actingAs($owner)
             ->get(route('treasury.reconciliation-exceptions'))
@@ -228,6 +252,10 @@ class TenantModuleEntitlementTest extends TestCase
         $this->actingAs($owner)
             ->get(route('treasury.reconciliation'))
             ->assertOk();
+        $this->actingAs($owner)
+            ->get(route('treasury.reconciliation-help'))
+            ->assertOk();
+
 
         $this->actingAs($owner)
             ->get(route('treasury.reconciliation-exceptions'))
@@ -275,3 +303,4 @@ class TenantModuleEntitlementTest extends TestCase
         ]);
     }
 }
+

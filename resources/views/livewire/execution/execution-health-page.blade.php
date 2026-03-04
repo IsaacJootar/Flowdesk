@@ -1,8 +1,21 @@
 <div wire:init="loadData" class="space-y-6">
 <section class="fd-card p-5">
-        <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Tenant Execution Health</p>
-        <h2 class="mt-1 text-xl font-semibold text-slate-900">Execution Health</h2>
-        <p class="mt-1 text-sm text-slate-600">Status view for your organization only. No raw provider diagnostics are exposed on this page.</p>
+        <div class="flex flex-wrap items-start justify-between gap-3">
+            <div>
+                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Tenant Execution Health</p>
+                <h2 class="mt-1 text-xl font-semibold text-slate-900">Execution Health</h2>
+                <p class="mt-1 text-sm text-slate-600">Status view for your organization only. No raw provider diagnostics are exposed on this page.</p>
+            </div>
+
+            <div class="flex flex-wrap gap-2">
+                <a href="{{ route('execution.payout-ready') }}" class="inline-flex items-center rounded-lg border border-slate-700 bg-slate-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800" style="background-color:#334155;border-color:#334155;color:#ffffff;">
+                    Open Payout Ready Queue
+                </a>
+                <a href="{{ route('execution.help') }}" class="inline-flex items-center rounded-lg border border-slate-700 bg-slate-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800" style="background-color:#334155;border-color:#334155;color:#ffffff;">
+                    Help / Usage Guide
+                </a>
+            </div>
+        </div>
     </section>
 
     @if (! $readyToLoad)

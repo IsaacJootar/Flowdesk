@@ -12,12 +12,15 @@ use App\Http\Controllers\VendorStatementPrintController;
 use App\Enums\UserRole;
 use App\Livewire\Dashboard\DashboardShell;
 use App\Livewire\Execution\ExecutionHealthPage;
+use App\Livewire\Execution\ExecutionUsageGuidePage;
+use App\Livewire\Execution\PayoutReadyQueuePage;
 use App\Livewire\Assets\AssetReportsPage;
 use App\Livewire\Organization\ApprovalWorkflowsPage;
 use App\Livewire\Organization\DepartmentsPage;
 use App\Livewire\Organization\TeamPage;
 use App\Livewire\Reports\ReportsCenterPage;
 use App\Livewire\Requests\RequestCommunicationsPage;
+use App\Livewire\Requests\RequestCommunicationsGuidePage;
 use App\Livewire\Requests\RequestReportsPage;
 use App\Livewire\Settings\CommunicationSettingsPage;
 use App\Livewire\Settings\CompanySetup;
@@ -43,8 +46,11 @@ use App\Livewire\Platform\PilotRolloutKpiPage;
 use App\Livewire\Vendors\VendorDetailsPage;
 use App\Livewire\Vendors\VendorReportsPage;
 use App\Livewire\Treasury\TreasuryCashPositionPage;
+use App\Livewire\Procurement\ProcurementReleaseDeskPage;
+use App\Livewire\Procurement\ProcurementReleaseGuidePage;
 use App\Livewire\Treasury\TreasuryPaymentRunsPage;
 use App\Livewire\Treasury\TreasuryReconciliationExceptionsPage;
+use App\Livewire\Treasury\TreasuryReconciliationGuidePage;
 use App\Livewire\Treasury\TreasuryReconciliationPage;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
@@ -81,6 +87,8 @@ Route::middleware(['auth', 'platform.access'])->prefix('platform')->name('platfo
 Route::middleware(['auth', 'company.context'])->group(function (): void {
     Route::get('/dashboard', DashboardShell::class)->name('dashboard');
     Route::get('/execution/health', ExecutionHealthPage::class)->name('execution.health');
+    Route::get('/execution/payout-ready', PayoutReadyQueuePage::class)->name('execution.payout-ready');
+    Route::get('/execution/help', ExecutionUsageGuidePage::class)->name('execution.help');
     Route::get('/reports', ReportsCenterPage::class)->middleware('module.enabled:reports')->name('reports.index');
 
     Route::prefix('dashboard')->name('dashboard.')->group(function (): void {
@@ -90,6 +98,7 @@ Route::middleware(['auth', 'company.context'])->group(function (): void {
     Route::prefix('requests')->middleware('module.enabled:requests')->name('requests.')->group(function (): void {
         Route::view('/', 'app.requests.index')->name('index');
         Route::get('/communications', RequestCommunicationsPage::class)->middleware('module.enabled:communications')->name('communications');
+        Route::get('/communications/help', RequestCommunicationsGuidePage::class)->middleware('module.enabled:communications')->name('communications-help');
         Route::get('/reports', RequestReportsPage::class)->middleware('module.enabled:reports')->name('reports');
         Route::get('/attachments/{attachment}/download', RequestAttachmentDownloadController::class)
             ->name('attachments.download');
@@ -124,6 +133,8 @@ Route::middleware(['auth', 'company.context'])->group(function (): void {
         Route::get('/reports', AssetReportsPage::class)->middleware('module.enabled:reports')->name('reports');
     });
     Route::prefix('procurement')->middleware('module.enabled:procurement')->name('procurement.')->group(function (): void {
+        Route::get('/release-desk', ProcurementReleaseDeskPage::class)->name('release-desk');
+        Route::get('/release-help', ProcurementReleaseGuidePage::class)->name('release-help');
         Route::view('/orders', 'app.procurement.orders')->name('orders');
         Route::view('/receipts', 'app.procurement.receipts')->name('receipts');
         Route::view('/match-exceptions', 'app.procurement.match-exceptions')->name('match-exceptions');
@@ -131,6 +142,7 @@ Route::middleware(['auth', 'company.context'])->group(function (): void {
 
     Route::prefix('treasury')->middleware('module.enabled:treasury')->name('treasury.')->group(function (): void {
         Route::get('/reconciliation', TreasuryReconciliationPage::class)->name('reconciliation');
+        Route::get('/reconciliation/help', TreasuryReconciliationGuidePage::class)->name('reconciliation-help');
         Route::get('/reconciliation/exceptions', TreasuryReconciliationExceptionsPage::class)->name('reconciliation-exceptions');
         Route::get('/payment-runs', TreasuryPaymentRunsPage::class)->name('payment-runs');
         Route::get('/cash-position', TreasuryCashPositionPage::class)->name('cash-position');
@@ -173,3 +185,7 @@ Route::middleware(['auth', 'company.context'])->group(function (): void {
 });
 
 require __DIR__.'/auth.php';
+
+
+
+

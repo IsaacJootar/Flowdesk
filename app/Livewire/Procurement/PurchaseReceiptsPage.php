@@ -39,6 +39,17 @@ class PurchaseReceiptsPage extends Component
     {
         $user = auth()->user();
         abort_unless($user instanceof User && $this->canAccessPage($user), 403);
+
+        $deepLinkSearch = trim((string) request()->query('search', ''));
+        if ($deepLinkSearch !== '') {
+            $this->search = mb_substr($deepLinkSearch, 0, 120);
+        }
+
+        $openReceiptId = (int) request()->query('open_receipt_id', 0);
+        if ($openReceiptId > 0 && GoodsReceipt::query()->whereKey($openReceiptId)->exists()) {
+            $this->readyToLoad = true;
+            $this->openDetails($openReceiptId);
+        }
     }
 
     public function loadData(): void

@@ -1,10 +1,20 @@
 <div wire:init="loadData" class="space-y-5">
-    <div class="flex items-center justify-between">
+        <div class="flex items-center justify-between">
         <div>
             <h2 class="text-base font-semibold text-slate-900">Procurement Receipts</h2>
             <p class="text-xs text-slate-500">Review receipt history and linked vendor invoice coverage.</p>
         </div>
-</div>
+        <div class="flex items-center gap-2">
+            <a href="{{ route('procurement.release-desk') }}" class="inline-flex items-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100">
+                <span aria-hidden="true">&larr;</span>
+                <span>Back to Release Desk</span>
+            </a>
+            <a href="{{ route('procurement.release-help') }}" class="inline-flex items-center rounded-lg border border-slate-700 bg-slate-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800" style="background-color:#334155;border-color:#334155;color:#ffffff;">
+                Help / Usage Guide
+            </a>
+        </div>
+    </div>
+
     <div class="fd-card p-5">
         <div class="grid gap-3 lg:grid-cols-5">
             <label class="block lg:col-span-2">
@@ -35,7 +45,7 @@
     </div>
 
     <div class="flex justify-end">
-        <button type="button" wire:click="exportCsv" wire:loading.attr="disabled" wire:target="exportCsv" class="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-70">
+        <button type="button" wire:click="exportCsv" wire:loading.attr="disabled" wire:target="exportCsv" class="rounded-lg border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-semibold text-sky-700 hover:bg-sky-100 disabled:opacity-70">
             <span wire:loading.remove wire:target="exportCsv">Export CSV</span>
             <span wire:loading wire:target="exportCsv">Exporting...</span>
         </button>
@@ -102,7 +112,7 @@
                                     </span>
                                 </td>
                                 <td class="px-4 py-3 text-right">
-                                    <button type="button" wire:click="openDetails({{ $receipt->id }})" class="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50">View</button>
+                                    <button type="button" wire:click="openDetails({{ $receipt->id }})" class="rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100">View</button>
                                 </td>
                             </tr>
                         @empty

@@ -3,7 +3,7 @@
 return [
     'defaults' => [
         // Default statuses that can start procurement flow until tenant overrides are saved.
-        'conversion_allowed_statuses' => ['approved'],
+        'conversion_allowed_statuses' => ['approved', 'approved_for_execution'],
         'require_vendor_on_conversion' => true,
         'default_expected_delivery_days' => 14,
         'auto_post_commitment_on_issue' => true,
@@ -39,4 +39,5 @@ return [
         'amount_tolerance_percent' => 5,
     ],
 ];
+
 

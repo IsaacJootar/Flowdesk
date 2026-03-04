@@ -56,6 +56,17 @@ class PurchaseOrdersPage extends Component
     {
         $user = auth()->user();
         abort_unless($user instanceof User && $this->canAccessPage($user), 403);
+
+        $deepLinkSearch = trim((string) request()->query('search', ''));
+        if ($deepLinkSearch !== '') {
+            $this->search = mb_substr($deepLinkSearch, 0, 120);
+        }
+
+        $openOrderId = (int) request()->query('open_order_id', 0);
+        if ($openOrderId > 0 && PurchaseOrder::query()->whereKey($openOrderId)->exists()) {
+            $this->readyToLoad = true;
+            $this->openDetails($openOrderId);
+        }
     }
 
     public function loadData(): void

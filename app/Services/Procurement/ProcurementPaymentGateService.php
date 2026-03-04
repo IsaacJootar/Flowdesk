@@ -19,10 +19,36 @@ class ProcurementPaymentGateService
      */
     public function evaluateForRequest(SpendRequest $request): array
     {
+        $requestCompanyId = (int) ($request->company_id ?? 0);
+        if ($requestCompanyId <= 0) {
+            return [
+                'allowed' => false,
+                'reason' => 'Procurement gate blocked payout: request company scope is missing.',
+                'metadata' => [
+                    'block_reason' => 'missing_request_company_scope',
+                ],
+            ];
+        }
+
+        $viewerCompanyId = (int) (auth()->user()?->company_id ?? 0);
+        if ($viewerCompanyId > 0 && $viewerCompanyId !== $requestCompanyId) {
+            return [
+                'allowed' => false,
+                'reason' => 'Procurement gate blocked payout: request scope mismatch detected.',
+                'metadata' => [
+                    'block_reason' => 'request_company_scope_mismatch',
+                    'request_company_id' => $requestCompanyId,
+                    'viewer_company_id' => $viewerCompanyId,
+                ],
+            ];
+        }
+
         $request->loadMissing([
-            'purchaseOrders.vendorInvoices:id,purchase_order_id,invoice_number',
-            'purchaseOrders.matchResults:id,purchase_order_id,vendor_invoice_id,match_status,match_score,mismatch_reason',
-            'purchaseOrders.matchExceptions:id,invoice_match_result_id,purchase_order_id,vendor_invoice_id,exception_code,exception_status',
+            // Load company_id on related records so gate checks never infer tenancy from partial relation payloads.
+            'purchaseOrders:id,company_id,spend_request_id,po_number',
+            'purchaseOrders.vendorInvoices:id,company_id,purchase_order_id,invoice_number',
+            'purchaseOrders.matchResults:id,company_id,purchase_order_id,vendor_invoice_id,match_status,match_score,mismatch_reason',
+            'purchaseOrders.matchExceptions:id,company_id,invoice_match_result_id,purchase_order_id,vendor_invoice_id,exception_code,exception_status',
         ]);
 
         $mandatoryPoPolicy = $this->mandatoryPurchaseOrderPolicyService->evaluateForRequest($request);
@@ -37,7 +63,7 @@ class ProcurementPaymentGateService
             ];
         }
 
-        $controls = $this->settingsService->effectiveControls((int) $request->company_id);
+        $controls = $this->settingsService->effectiveControls($requestCompanyId);
         if (! (bool) ($controls['block_payment_on_mismatch'] ?? true)) {
             return [
                 'allowed' => true,
@@ -57,6 +83,22 @@ class ProcurementPaymentGateService
 
         foreach ($orders as $order) {
             $poNumber = (string) ($order->po_number ?? 'PO');
+            $orderCompanyId = (int) ($order->company_id ?? 0);
+
+            if ($orderCompanyId <= 0 || $orderCompanyId !== $requestCompanyId) {
+                return [
+                    'allowed' => false,
+                    'reason' => sprintf('Procurement gate blocked payout: %s has invalid company scope.', $poNumber),
+                    'metadata' => [
+                        'purchase_order_id' => (int) $order->id,
+                        'purchase_order_number' => $poNumber,
+                        'order_company_id' => $orderCompanyId,
+                        'request_company_id' => $requestCompanyId,
+                        'block_reason' => 'purchase_order_company_scope_mismatch',
+                    ],
+                ];
+            }
+
             $invoices = $order->vendorInvoices;
 
             if ($invoices->isEmpty()) {
@@ -73,6 +115,24 @@ class ProcurementPaymentGateService
 
             foreach ($invoices as $invoice) {
                 $invoiceNumber = (string) ($invoice->invoice_number ?? 'invoice');
+                $invoiceCompanyId = (int) ($invoice->company_id ?? 0);
+
+                if ($invoiceCompanyId <= 0 || $invoiceCompanyId !== $requestCompanyId) {
+                    return [
+                        'allowed' => false,
+                        'reason' => sprintf('Procurement gate blocked payout: %s / %s has invalid company scope.', $poNumber, $invoiceNumber),
+                        'metadata' => [
+                            'purchase_order_id' => (int) $order->id,
+                            'vendor_invoice_id' => (int) $invoice->id,
+                            'purchase_order_number' => $poNumber,
+                            'invoice_number' => $invoiceNumber,
+                            'invoice_company_id' => $invoiceCompanyId,
+                            'request_company_id' => $requestCompanyId,
+                            'block_reason' => 'vendor_invoice_company_scope_mismatch',
+                        ],
+                    ];
+                }
+
                 $result = $order->matchResults
                     ->first(fn ($row) => (int) $row->vendor_invoice_id === (int) $invoice->id);
 

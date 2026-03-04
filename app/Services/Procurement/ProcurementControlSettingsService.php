@@ -3,15 +3,52 @@
 namespace App\Services\Procurement;
 
 use App\Domains\Procurement\Models\CompanyProcurementControlSetting;
+use Illuminate\Database\QueryException;
 
 class ProcurementControlSettingsService
 {
-    public function settingsForCompany(int $companyId): CompanyProcurementControlSetting
+    /**
+     * @var array<int, CompanyProcurementControlSetting>
+     */
+    private array $settingsCache = [];
+
+    public function settingsForCompany(?int $companyId): CompanyProcurementControlSetting
     {
-        return CompanyProcurementControlSetting::query()->firstOrCreate(
-            ['company_id' => $companyId],
-            CompanyProcurementControlSetting::defaultAttributes(),
-        );
+        $resolvedCompanyId = $this->resolveCompanyId($companyId);
+
+        if (isset($this->settingsCache[$resolvedCompanyId])) {
+            return $this->settingsCache[$resolvedCompanyId];
+        }
+
+        $existing = CompanyProcurementControlSetting::query()
+            ->where('company_id', $resolvedCompanyId)
+            ->first();
+
+        if ($existing instanceof CompanyProcurementControlSetting) {
+            $this->settingsCache[$resolvedCompanyId] = $existing;
+
+            return $existing;
+        }
+
+        try {
+            $setting = CompanyProcurementControlSetting::query()->create([
+                'company_id' => $resolvedCompanyId,
+                ...CompanyProcurementControlSetting::defaultAttributes(),
+            ]);
+        } catch (QueryException $exception) {
+            if (! $this->isDuplicateCompanySettingsInsert($exception)) {
+                throw $exception;
+            }
+
+            // Concurrent requests can both attempt defaults bootstrap; fetch the row that won the race.
+            $setting = CompanyProcurementControlSetting::query()
+                ->where('company_id', $resolvedCompanyId)
+                ->firstOrFail();
+        }
+
+        $this->settingsCache[$resolvedCompanyId] = $setting;
+
+        return $setting;
     }
 
     /**
@@ -37,7 +74,7 @@ class ProcurementControlSettingsService
      *   stale_commitment_alert_count_threshold:int
      * }
      */
-    public function effectiveControls(int $companyId): array
+    public function effectiveControls(?int $companyId): array
     {
         $setting = $this->settingsForCompany($companyId);
         $defaults = CompanyProcurementControlSetting::defaultControls();
@@ -51,6 +88,13 @@ class ProcurementControlSettingsService
         if ($statuses === []) {
             $statuses = (array) $defaults['conversion_allowed_statuses'];
         }
+
+        // Keep conversion usable after final approval moves into execution-ready status.
+        if (in_array('approved', $statuses, true) && ! in_array('approved_for_execution', $statuses, true)) {
+            $statuses[] = 'approved_for_execution';
+        }
+
+        $statuses = array_values(array_unique($statuses));
 
         $issueRoles = $this->sanitizeRoles(
             (array) ($configured['issue_allowed_roles'] ?? $defaults['issue_allowed_roles']),
@@ -143,4 +187,28 @@ class ProcurementControlSettingsService
             $fallback
         )));
     }
+
+    private function resolveCompanyId(?int $companyId): int
+    {
+        $resolved = (int) ($companyId ?? 0);
+
+        if ($resolved <= 0) {
+            $resolved = (int) (auth()->user()?->company_id ?? 0);
+        }
+
+        if ($resolved <= 0) {
+            throw new \RuntimeException('Unable to resolve procurement settings company scope.');
+        }
+
+        return $resolved;
+    }
+
+    private function isDuplicateCompanySettingsInsert(QueryException $exception): bool
+    {
+        $driverCode = (int) ($exception->errorInfo[1] ?? 0);
+        $sqlState = (string) ($exception->errorInfo[0] ?? '');
+
+        return $driverCode === 1062 || $sqlState === '23000';
+    }
 }
+

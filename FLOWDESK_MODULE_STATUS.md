@@ -1,6 +1,6 @@
 # Flowdesk Module Status (Ground Truth)
 
-Last updated: 2026-03-03
+Last updated: 2026-03-04
 
 This file is the canonical module inventory so planning discussions stay aligned to what is already implemented in code.
 
@@ -11,17 +11,56 @@ This file is the canonical module inventory so planning discussions stay aligned
 - Entry: `app/Livewire/Dashboard/DashboardShell.php`
 - Status: Implemented and routed.
 
+## Execution (Tenant)
+- Routes: `/execution/health`, `/execution/payout-ready`, `/execution/help`
+- Entries:
+  - `app/Livewire/Execution/ExecutionHealthPage.php`
+  - `app/Livewire/Execution/PayoutReadyQueuePage.php`
+  - `app/Livewire/Execution/ExecutionUsageGuidePage.php`
+- Status: Implemented with tenant-scoped execution health summary, payout working queue (`Run Payout` and `Rerun Payout`), and in-app Help / Usage Guide.
+- Test coverage:
+  - `tests/Feature/Execution/TenantExecutionHealthPageTest.php`
+  - `tests/Feature/Execution/TenantPayoutReadyQueuePageTest.php`
+  - `tests/Feature/Execution/TenantExecutionUsageGuidePageTest.php`
+- Usage guide:
+  - `FLOWDESK_EXECUTION_OPERATIONS_USAGE.md`
+
+## Procurement (Tenant)
+- Routes: `/procurement/release-desk`, `/procurement/release-help`, `/procurement/orders`, `/procurement/receipts`, `/procurement/match-exceptions`
+- Entries:
+  - `app/Livewire/Procurement/ProcurementReleaseDeskPage.php`
+  - `app/Livewire/Procurement/ProcurementReleaseGuidePage.php`
+  - `app/Livewire/Procurement/PurchaseOrdersPage.php`
+  - `app/Livewire/Procurement/PurchaseReceiptsPage.php`
+  - `app/Livewire/Procurement/ProcurementMatchExceptionsPage.php`
+- Status: Implemented with a single sidebar entry (`Manage Procurement`) and Release Desk as the primary operator workspace.
+- Usage guide:
+  - `FLOWDESK_PROCUREMENT_RELEASE_DESK_USAGE.md`
+## Treasury (Tenant)
+- Routes: `/treasury/reconciliation`, `/treasury/reconciliation/help`, `/treasury/reconciliation/exceptions`, `/treasury/payment-runs`, `/treasury/cash-position`
+- Entries:
+  - `app/Livewire/Treasury/TreasuryReconciliationPage.php`
+  - `app/Livewire/Treasury/TreasuryReconciliationGuidePage.php`
+  - `app/Livewire/Treasury/TreasuryReconciliationExceptionsPage.php`
+  - `app/Livewire/Treasury/TreasuryPaymentRunsPage.php`
+  - `app/Livewire/Treasury/TreasuryCashPositionPage.php`
+- Status: Implemented with Daily Reconciliation Desk as the single execution workspace for import, unmatched lines, exception decisions, and close-day checklist.
+- Usage guide:
+  - `FLOWDESK_TREASURY_DAILY_RECONCILIATION_DESK_USAGE.md`
 ## Requests & Approvals
-- Routes: `/requests`, `/requests/communications`, `/requests/reports`
+- Routes: `/requests`, `/requests/communications`, `/requests/communications/help`, `/requests/reports`
 - Entries:
   - `app/Livewire/Requests/RequestsPage.php`
   - `app/Livewire/Requests/RequestCommunicationsPage.php`
   - `app/Livewire/Requests/RequestReportsPage.php`
   - `app/Livewire/Organization/ApprovalWorkflowsPage.php`
-- Status: Implemented with approvals, communication logs, reporting views.
+- Status: Implemented with approvals, reports, and a consolidated Communications Recovery Desk (requests/vendors/assets) with retry/backlog controls and issue breakdowns.
 - Test coverage:
   - `tests/Feature/Requests/RequestApprovalAutomationTest.php`
   - `tests/Feature/Requests/RequestApprovalHierarchyTest.php`
+  - `tests/Feature/Requests/CommunicationsRecoveryDeskPageTest.php`
+- Usage guide:
+  - `FLOWDESK_COMMUNICATIONS_RECOVERY_DESK_USAGE.md`
 
 ## Expenses
 - Route: `/expenses`
@@ -161,6 +200,9 @@ This file is the canonical module inventory so planning discussions stay aligned
 - `tests/Feature/Execution/RequestPayoutExecutionPhaseFourTest.php`
 - `tests/Feature/Execution/ExecutionOperationsCenterPhaseFiveTest.php`
 - `tests/Feature/Execution/ExecutionOpsGuardrailsTest.php`
+- `tests/Feature/Execution/TenantExecutionHealthPageTest.php`
+- `tests/Feature/Execution/TenantPayoutReadyQueuePageTest.php`
+- `tests/Feature/Execution/TenantExecutionUsageGuidePageTest.php`
 
 ## 4) Communications Stack Status
 
@@ -168,6 +210,7 @@ This file is the canonical module inventory so planning discussions stay aligned
 - Channels: `in_app`, `email`, `sms` via company communication settings.
 - Channel delivery adapters/managers for request, vendor, and asset pipelines.
 - Retry services and scheduled queue processing commands for communications.
+- Tenant Communications Recovery Desk and help page: `/requests/communications`, `/requests/communications/help`.
 - SMS provider abstraction (`Termii`) wired in communication layer.
 
 ## Key files
@@ -358,7 +401,19 @@ Before proposing "new" module work, check this file plus route map (`routes/web.
 - New page/component:
   - `app/Livewire/Procurement/ProcurementMatchExceptionsPage.php`
   - `resources/views/livewire/procurement/procurement-match-exceptions-page.blade.php`
-- Linked from Procurement Orders page with quick navigation button.
+- Linked from Procurement Release Desk and Procurement Orders.
+### Procurement Release Desk consolidation
+- Primary route: `/procurement/release-desk` (`procurement.release-desk`)
+- Help route: `/procurement/release-help` (`procurement.release-help`)
+- New page/components:
+  - `app/Livewire/Procurement/ProcurementReleaseDeskPage.php`
+  - `resources/views/livewire/procurement/procurement-release-desk-page.blade.php`
+  - `app/Livewire/Procurement/ProcurementReleaseGuidePage.php`
+  - `resources/views/livewire/procurement/procurement-release-guide-page.blade.php`
+- Sidebar navigation is intentionally consolidated to one entry (`Manage Procurement`).
+- Subpages (`orders`, `receipts`, `match-exceptions`) include back navigation to Release Desk.
+- Usage guide:
+  - `FLOWDESK_PROCUREMENT_RELEASE_DESK_USAGE.md`
 
 ### Sprint 4 tests
 - `tests/Feature/Finance/ProcurementReceiptAndInvoiceLinkingTest.php`
@@ -409,3 +464,6 @@ Before proposing "new" module work, check this file plus route map (`routes/web.
 - Sprint 8 rollout controls and enablement: completed.
 - Regression validation: php artisan test passed (198 tests, 0 failures).
 - UAT dry-run validation: php artisan procurement:backfill-vendor-links --dry-run completed with 0 errors and no persisted changes.
+
+
+
