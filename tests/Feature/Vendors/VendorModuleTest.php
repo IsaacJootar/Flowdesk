@@ -11,6 +11,7 @@ use App\Domains\Company\Models\Department;
 use App\Domains\Vendors\Models\CompanyVendorPolicySetting;
 use App\Domains\Vendors\Models\VendorCommunicationLog;
 use App\Domains\Vendors\Models\VendorInvoice;
+use App\Domains\Vendors\Models\VendorInvoicePayment;
 use App\Domains\Vendors\Models\Vendor;
 use App\Enums\UserRole;
 use App\Models\User;
@@ -377,6 +378,53 @@ class VendorModuleTest extends TestCase
             $this->assertArrayHasKey('account_number', $errors);
             $this->assertArrayHasKey('notes', $errors);
         }
+    }
+
+    public function test_vendor_part_payment_metrics_include_paid_in_multiple_installments(): void
+    {
+        [$company, $department] = $this->createCompanyContext('Acme Part Payment Metrics');
+        $owner = $this->createUser($company, $department, UserRole::Owner->value);
+        $vendor = $this->createVendor($company);
+
+        $invoice = $this->createInvoice($company, $vendor, [
+            'total_amount' => 120000,
+            'paid_amount' => 120000,
+            'outstanding_amount' => 0,
+            'status' => VendorInvoice::STATUS_PAID,
+        ]);
+
+        VendorInvoicePayment::query()->create([
+            'company_id' => $company->id,
+            'vendor_id' => $vendor->id,
+            'vendor_invoice_id' => $invoice->id,
+            'payment_reference' => 'PP-1',
+            'amount' => 60000,
+            'payment_date' => now()->subDay()->toDateString(),
+            'payment_method' => 'transfer',
+            'notes' => 'First installment',
+            'created_by' => $owner->id,
+            'updated_by' => $owner->id,
+        ]);
+
+        VendorInvoicePayment::query()->create([
+            'company_id' => $company->id,
+            'vendor_id' => $vendor->id,
+            'vendor_invoice_id' => $invoice->id,
+            'payment_reference' => 'PP-2',
+            'amount' => 60000,
+            'payment_date' => now()->toDateString(),
+            'payment_method' => 'transfer',
+            'notes' => 'Final installment',
+            'created_by' => $owner->id,
+            'updated_by' => $owner->id,
+        ]);
+
+        $this->actingAs($owner);
+
+        Livewire::test(\App\Livewire\Vendors\VendorsPage::class)
+            ->call('showDetails', $vendor->id)
+            ->assertSet('vendorPartPaidInvoicesCount', 1)
+            ->assertSet('vendorPartPaymentsCount', 1);
     }
 
     /**

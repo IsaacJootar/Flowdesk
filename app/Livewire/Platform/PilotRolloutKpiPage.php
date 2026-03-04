@@ -261,6 +261,10 @@ class PilotRolloutKpiPage extends Component
             ? $this->recentOutcomes()
             : collect();
 
+        $cohortProgress = $this->readyToLoad
+            ? $this->cohortProgressRows($tenantOptions)
+            : collect();
+
         $delta = null;
         if ($this->readyToLoad && $this->tenantFilter !== 'all' && is_numeric($this->tenantFilter)) {
             $delta = $this->latestDeltaForTenant((int) $this->tenantFilter);
@@ -273,6 +277,7 @@ class PilotRolloutKpiPage extends Component
             'delta' => $delta,
             'outcomeStats' => $outcomeStats,
             'recentOutcomes' => $recentOutcomes,
+            'cohortProgress' => $cohortProgress,
         ]);
     }
 
@@ -342,6 +347,106 @@ class PilotRolloutKpiPage extends Component
             ->get();
     }
 
+    /**
+     * @param  Collection<int, mixed>  $tenantOptions
+     * @return Collection<int, array<string,mixed>>
+     */
+    private function cohortProgressRows(Collection $tenantOptions): Collection
+    {
+        $tenantIds = $tenantOptions
+            ->pluck('id')
+            ->map(static fn ($id): int => (int) $id)
+            ->all();
+
+        if ($tenantIds === []) {
+            return collect();
+        }
+
+        // Fetch latest baseline/pilot capture markers once to avoid N+1 lookups per tenant.
+        $captures = TenantPilotKpiCapture::query()
+            ->whereIn('company_id', $tenantIds)
+            ->whereIn('window_label', ['baseline', 'pilot'])
+            ->orderByDesc('captured_at')
+            ->orderByDesc('id')
+            ->get(['id', 'company_id', 'window_label', 'captured_at']);
+
+        $baselineByTenant = [];
+        $pilotByTenant = [];
+
+        foreach ($captures as $capture) {
+            $companyId = (int) $capture->company_id;
+            $label = (string) $capture->window_label;
+
+            if ($label === 'baseline' && ! isset($baselineByTenant[$companyId])) {
+                $baselineByTenant[$companyId] = $capture;
+            }
+
+            if ($label === 'pilot' && ! isset($pilotByTenant[$companyId])) {
+                $pilotByTenant[$companyId] = $capture;
+            }
+        }
+
+        $outcomes = TenantPilotWaveOutcome::query()
+            ->whereIn('company_id', $tenantIds)
+            ->with(['decidedBy:id,name'])
+            ->latest('decision_at')
+            ->latest('id')
+            ->get(['id', 'company_id', 'wave_label', 'outcome', 'decision_at', 'decided_by_user_id']);
+
+        $outcomeByTenant = [];
+        foreach ($outcomes as $outcome) {
+            $companyId = (int) $outcome->company_id;
+
+            if (! isset($outcomeByTenant[$companyId])) {
+                $outcomeByTenant[$companyId] = $outcome;
+            }
+        }
+
+        return $tenantOptions->map(function ($tenant) use ($baselineByTenant, $pilotByTenant, $outcomeByTenant): array {
+            $companyId = (int) data_get($tenant, 'id');
+
+            /** @var TenantPilotKpiCapture|null $baseline */
+            $baseline = $baselineByTenant[$companyId] ?? null;
+            /** @var TenantPilotKpiCapture|null $pilot */
+            $pilot = $pilotByTenant[$companyId] ?? null;
+            /** @var TenantPilotWaveOutcome|null $outcome */
+            $outcome = $outcomeByTenant[$companyId] ?? null;
+
+            $baselineDone = $baseline !== null;
+            $pilotDone = $pilot !== null;
+            $outcomeDone = $outcome !== null;
+
+            $stage = 'Baseline pending';
+            $nextAction = 'Capture baseline KPI window first.';
+
+            if ($baselineDone && $pilotDone && $outcomeDone) {
+                $stage = 'Ready for rollout';
+                $nextAction = 'Complete. Execute the rollout decision for this tenant.';
+            } elseif ($baselineDone && $pilotDone) {
+                $stage = 'Decision pending';
+                $nextAction = 'Record go, hold, or no-go outcome.';
+            } elseif ($baselineDone) {
+                $stage = 'Pilot capture pending';
+                $nextAction = 'Capture pilot KPI window for this tenant.';
+            }
+
+            return [
+                'tenant_name' => (string) data_get($tenant, 'name', '-'),
+                'baseline_done' => $baselineDone,
+                'pilot_done' => $pilotDone,
+                'outcome_done' => $outcomeDone,
+                'baseline_captured_at' => $baseline?->captured_at?->format('M d, Y H:i'),
+                'pilot_captured_at' => $pilot?->captured_at?->format('M d, Y H:i'),
+                'outcome_recorded_at' => $outcome?->decision_at?->format('M d, Y H:i'),
+                'outcome_label' => $outcome ? $this->outcomeDisplayLabel((string) $outcome->outcome) : null,
+                'outcome_wave_label' => $outcome?->wave_label,
+                'decided_by' => $outcome?->decidedBy?->name,
+                'stage' => $stage,
+                'next_action' => $nextAction,
+            ];
+        });
+    }
+
     private function waveOutcomesBaseQuery(): Builder
     {
         return TenantPilotWaveOutcome::query()
@@ -402,4 +507,3 @@ class PilotRolloutKpiPage extends Component
         ]);
     }
 }
-

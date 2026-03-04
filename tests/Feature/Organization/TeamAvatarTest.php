@@ -35,6 +35,7 @@ class TeamAvatarTest extends TestCase
             'role' => UserRole::Staff->value,
             'department_id' => $department->id,
             'reports_to_user_id' => $owner->id,
+            'notification_channels' => ['in_app'],
             'avatar' => $avatarFile,
         ]);
 

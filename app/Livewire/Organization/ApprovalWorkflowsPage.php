@@ -574,7 +574,7 @@ class ApprovalWorkflowsPage extends Component
             ->orderBy('name')
             ->paginate($this->perPage);
 
-        $users = User::query()
+        $users = $this->companyUserQuery()
             ->orderBy('name')
             ->get(['id', 'name', 'role']);
 
@@ -599,6 +599,11 @@ class ApprovalWorkflowsPage extends Component
             'workflowScopeDescription' => $this->scopeDescription(),
             'workflowScopeOptions' => $this->workflowScopeOptions(),
         ]);
+    }
+
+    private function companyUserQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        return User::query()->where('company_id', (int) Auth::user()->company_id);
     }
 
     private function setFeedback(string $message): void

@@ -4,7 +4,7 @@
             <div>
                 <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Execution Incident Timeline</p>
                 <h2 class="mt-1 text-xl font-semibold text-slate-900">Incident History</h2>
-                <p class="mt-1 text-sm text-slate-600">Central history for manual retries/recoveries, auto-recovery runs, and webhook reconciliation outcomes.</p>
+                <p class="mt-1 text-sm text-slate-600">Central history for manual retries/recoveries, auto-recovery runs, webhook reconciliation outcomes, and rollout decisions.</p>
             </div>
             <div class="flex flex-wrap items-center gap-2">
                 <a href="{{ route('platform.operations.execution-checklist') }}" class="inline-flex h-9 items-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50">Open Test Checklist</a>
@@ -207,5 +207,6 @@
         <div class="mt-3">{{ $incidents->links() }}</div>
     </section>
 </div>
+
 
 

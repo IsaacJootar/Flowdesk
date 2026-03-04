@@ -220,7 +220,7 @@ class DashboardShell extends Component
         if ($role === UserRole::Owner->value) {
             $this->roleView = 'owner';
             $this->roleTitle = 'Owner Control Tower';
-            $this->roleDescription = 'Cross-lane control posture and policy-risk signals across your tenant.';
+            $this->roleDescription = 'Cross-lane control posture and policy-risk signals across your organization.';
 
             return;
         }

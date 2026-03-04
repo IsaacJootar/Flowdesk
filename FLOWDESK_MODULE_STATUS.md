@@ -200,15 +200,27 @@ Source files:
 2. `fintech` module: entitlement key exists, but no dedicated tenant-facing fintech module route/page.
 3. Slack/Telegram provider adapters are intentionally deferred; execution alerts currently deliver through tenant-configured `in_app` + `email` channels only.
 
+## 6.1) Later Modules / Deferred Backlog (Non-AI Priority)
+
+1. `fintech` tenant module (post-core)
+   - Tenant-facing module shell + navigation + entitlement visibility.
+   - Initial capabilities scoped for organization-level financial rails (to be defined per rollout phase).
+2. Execution alert channel expansion
+   - Add Slack adapter for `execution:ops:alert-summary` delivery pipeline.
+   - Add Telegram adapter for `execution:ops:alert-summary` delivery pipeline.
+3. Production hardening track (post-feature)
+   - Scheduler and queue observability dashboards/alerts.
+   - Cutover runbook rehearsal with seeded tenant UAT data and rollback checkpoints.
+
 ## 7) Ground Rule
 
 Before proposing "new" module work, check this file plus route map (`routes/web.php`, `routes/console.php`) to avoid suggesting already-implemented capabilities.
 
 
-## 8) Procurement and Treasury (In Progress)
+## 8) Procurement and Treasury (Implemented)
 
 ## Procurement Foundation
-- Status: In progress (Sprint 1 schema + base models added).
+- Status: Implemented (Sprint 1 schema + base models added).
 - New schema:
   - `purchase_orders`
   - `purchase_order_items`
@@ -221,7 +233,7 @@ Before proposing "new" module work, check this file plus route map (`routes/web.
   - `app/Domains/Procurement/Models/*`
 
 ## Treasury Foundation
-- Status: In progress (Sprint 1 schema + base models added).
+- Status: Implemented (Sprint 1 schema + base models added).
 - New schema:
   - `bank_accounts`
   - `bank_statements`
@@ -285,7 +297,7 @@ Before proposing "new" module work, check this file plus route map (`routes/web.
 - `tests/Feature/Finance/ProcurementRequestToPoFlowTest.php`
 - `tests/Feature/Settings/TenantModuleEntitlementTest.php` (procurement route case)
 
-## Sprint 3 Progress (In Progress)
+## Sprint 3 Progress (Implemented)
 
 ### Goods Receipt Workflow
 - New tenant route: `/procurement/receipts` (`procurement.receipts`) with dedicated receipts table and detail modal.
@@ -382,14 +394,18 @@ Before proposing "new" module work, check this file plus route map (`routes/web.
 - `tests/Feature/Finance/TreasuryReconciliationWorkflowTest.php`
 - `tests/Feature/Reports/ReportsCenterTest.php`
 
-## Sprint 6 Progress (Partial)
+## Sprint 6 Progress (Implemented)
 - Implemented:
   - Auto-match rules with confidence scoring and exception generation (`AutoReconcileStatementService`).
   - Reconciliation exception queue and resolution workflow (`TreasuryReconciliationExceptionsPage`).
   - Reconciliation metrics surfaced in Reports Center.
-- Remaining for full Sprint 6 completion:
-  - deeper beneficiary/text heuristics tuning and configurable rule matrix,
-  - explicit execution reversal/failed-settlement linkage into treasury exception triage,
+- Completed for Sprint 6 scope:
+  - deeper beneficiary/text heuristics tuning and configurable rule matrix.
+  - explicit execution reversal/failed-settlement linkage into treasury exception triage.
   - dedicated aging priority indicators and value-weighted queue ordering in treasury exception list.
 
-
+## 9) Program Closeout (2026-03-03)
+- Sprint 7 governance hardening and controls: completed.
+- Sprint 8 rollout controls and enablement: completed.
+- Regression validation: php artisan test passed (198 tests, 0 failures).
+- UAT dry-run validation: php artisan procurement:backfill-vendor-links --dry-run completed with 0 errors and no persisted changes.

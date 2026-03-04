@@ -199,6 +199,7 @@ class IncidentHistoryPage extends Component
             'tenant.execution.billing.handoff_to_treasury' => 'Billing handoff to treasury',
             'tenant.execution.payout.handoff_to_treasury' => 'Payout handoff to treasury',
             'tenant.execution.webhook.handoff_to_treasury' => 'Webhook handoff to treasury',
+            'tenant.rollout.pilot_wave_outcome.recorded' => 'Pilot wave outcome recorded',
             default => $action,
         };
     }
@@ -230,6 +231,7 @@ class IncidentHistoryPage extends Component
             'alert_summary' => 'Alert Summary',
             'alert_delivery' => 'Alert Delivery',
             'treasury_handoff' => 'Treasury Handoff',
+            'rollout_decision' => 'Rollout Decision',
             default => 'Other',
         };
     }
@@ -280,6 +282,17 @@ class IncidentHistoryPage extends Component
             return implode(', ', $parts);
         }
 
+
+        if ($action === 'tenant.rollout.pilot_wave_outcome.recorded') {
+            $waveLabel = (string) ($metadata['wave_label'] ?? '-');
+            $outcome = ucfirst(str_replace('_', ' ', (string) ($metadata['outcome'] ?? 'unknown')));
+            $decisionAt = (string) ($metadata['decision_at'] ?? '');
+
+            return $decisionAt !== ''
+                ? 'wave '.$waveLabel.', outcome '.$outcome.', decided '.$decisionAt
+                : 'wave '.$waveLabel.', outcome '.$outcome;
+        }
+
         return (string) ($event->description ?? '-');
     }
 
@@ -300,6 +313,7 @@ class IncidentHistoryPage extends Component
             ['value' => 'alert_summary', 'label' => 'Alert summary'],
             ['value' => 'alert_delivery', 'label' => 'Alert delivery'],
             ['value' => 'treasury_handoff', 'label' => 'Treasury handoff'],
+            ['value' => 'rollout_decision', 'label' => 'Rollout decision'],
         ];
     }
 
@@ -343,6 +357,7 @@ class IncidentHistoryPage extends Component
             $query->whereIn('action', [
                 'tenant.execution.auto_recovery.run_summary',
                 'tenant.execution.alert.summary_emitted',
+                'tenant.rollout.pilot_wave_outcome.recorded',
             ]);
 
             return;
@@ -362,7 +377,8 @@ class IncidentHistoryPage extends Component
                 ->orWhere(function (Builder $summaryQuery) use ($pipelineFilter): void {
                     $summaryQuery->whereIn('action', [
                         'tenant.execution.auto_recovery.run_summary',
-                        'tenant.execution.alert.summary_emitted',
+                'tenant.execution.alert.summary_emitted',
+                'tenant.rollout.pilot_wave_outcome.recorded',
                         'tenant.execution.alert.notification.sent',
                         'tenant.execution.alert.notification.failed',
                         'tenant.execution.alert.notification.skipped',
@@ -404,6 +420,9 @@ class IncidentHistoryPage extends Component
                 'tenant.execution.billing.handoff_to_treasury',
                 'tenant.execution.payout.handoff_to_treasury',
                 'tenant.execution.webhook.handoff_to_treasury',
+            ],
+            'rollout_decision' => [
+                'tenant.rollout.pilot_wave_outcome.recorded',
             ],
             default => [],
         };
@@ -514,6 +533,7 @@ class IncidentHistoryPage extends Component
             'tenant.execution.billing.handoff_to_treasury',
             'tenant.execution.payout.handoff_to_treasury',
             'tenant.execution.webhook.handoff_to_treasury' => 'treasury_handoff',
+            'tenant.rollout.pilot_wave_outcome.recorded' => 'rollout_decision',
             default => 'other',
         };
     }
@@ -568,6 +588,7 @@ class IncidentHistoryPage extends Component
             'tenant.execution.billing.handoff_to_treasury',
             'tenant.execution.payout.handoff_to_treasury',
             'tenant.execution.webhook.handoff_to_treasury',
+            'tenant.rollout.pilot_wave_outcome.recorded',
         ];
     }
 
@@ -585,6 +606,7 @@ class IncidentHistoryPage extends Component
             'tenant.execution.webhook.manual_reconciled_payout',
             'tenant.execution.webhook.manual_failed',
             'tenant.execution.webhook.manual_ignored',
+            'tenant.rollout.pilot_wave_outcome.recorded',
         ];
     }
 
@@ -683,6 +705,15 @@ class IncidentHistoryPage extends Component
         ]);
     }
 }
+
+
+
+
+
+
+
+
+
 
 
 

@@ -72,9 +72,9 @@
         </div>
     </div>
 
-    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7">
+    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-8">
         @if (! $readyToLoad)
-            @for ($i = 0; $i < 7; $i++)
+            @for ($i = 0; $i < 8; $i++)
                 <div class="rounded-2xl border border-slate-200 bg-white p-4">
                     <div class="mb-2 h-3 w-24 animate-pulse rounded bg-slate-200"></div>
                     <div class="mb-2 h-7 w-20 animate-pulse rounded bg-slate-200"></div>
@@ -130,6 +130,12 @@
                 <p class="mt-1 text-xs text-cyan-700">Open exceptions: {{ number_format((int) $metrics['treasury']['open_exceptions']) }}</p>
                 <p class="text-xs text-cyan-700">Unreconciled value: {{ $currencyCode }} {{ number_format((int) $metrics['treasury']['unreconciled_value']) }}</p>
             </div>
+            <div class="rounded-2xl border border-teal-200 bg-teal-50 p-4">
+                <p class="text-xs uppercase tracking-[0.1em] text-teal-700">Pilot Rollout Decisions</p>
+                <p class="mt-1 text-2xl font-semibold text-teal-900">{{ number_format((int) $metrics['rollout']['total']) }}</p>
+                <p class="mt-1 text-xs text-teal-700">Go: {{ number_format((int) $metrics['rollout']['go']) }}</p>
+                <p class="text-xs text-teal-700">Hold: {{ number_format((int) $metrics['rollout']['hold']) }} | No-go: {{ number_format((int) $metrics['rollout']['no_go']) }}</p>
+            </div>
         @endif
     </div>
 
@@ -168,15 +174,16 @@
                                     'Vendors' => 'bg-amber-100 text-amber-700',
                                     'Procurement' => 'bg-orange-100 text-orange-700',
                                     'Assets' => 'bg-indigo-100 text-indigo-700',
+                                    'Rollout' => 'bg-teal-100 text-teal-700',
                                     default => 'bg-slate-100 text-slate-700',
                                 };
 
                                 $statusClass = 'bg-slate-100 text-slate-700';
-                                if (in_array((string) $activity['status'], ['approved', 'posted', 'paid', 'active', 'assigned', 'resolved', 'waived'], true)) {
+                                if (in_array((string) $activity['status'], ['approved', 'posted', 'paid', 'active', 'assigned', 'resolved', 'waived', 'go'], true)) {
                                     $statusClass = 'bg-emerald-100 text-emerald-700';
-                                } elseif (in_array((string) $activity['status'], ['in_review', 'part_paid', 'in_maintenance'], true)) {
+                                } elseif (in_array((string) $activity['status'], ['in_review', 'part_paid', 'in_maintenance', 'hold'], true)) {
                                     $statusClass = 'bg-amber-100 text-amber-700';
-                                } elseif (in_array((string) $activity['status'], ['rejected', 'void', 'disposed', 'open'], true)) {
+                                } elseif (in_array((string) $activity['status'], ['rejected', 'void', 'disposed', 'open', 'no_go'], true)) {
                                     $statusClass = 'bg-red-100 text-red-700';
                                 }
                             @endphp
@@ -260,6 +267,3 @@
         @endif
     </div>
 </div>
-
-
-

@@ -39,7 +39,7 @@ class RequestPayoutExecutionOrchestrator
 
         $gate = $this->procurementPaymentGateService->evaluateForRequest($request);
         if (! (bool) ($gate['allowed'] ?? false)) {
-            $actor = $actorUserId ? User::query()->find($actorUserId) : null;
+            $actor = $actorUserId ? User::query()->where('company_id', (int) $request->company_id)->find($actorUserId) : null;
 
             // Control intent: keep request in approval-ready state while recording the explicit block reason.
             $request->forceFill([

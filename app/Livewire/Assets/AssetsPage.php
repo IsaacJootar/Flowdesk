@@ -777,7 +777,7 @@ class AssetsPage extends Component
             'assets' => $assets,
             'categories' => AssetCategory::query()->orderBy('name')->get(['id', 'name']),
             'departments' => Department::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']),
-            'assignees' => User::query()->where('is_active', true)->orderBy('name')->get(['id', 'name', 'role']),
+            'assignees' => $this->companyUserQuery()->where('is_active', true)->orderBy('name')->get(['id', 'name', 'role']),
             'statusOptions' => Asset::STATUSES,
             'conditionOptions' => ['excellent', 'good', 'fair', 'poor', 'damaged'],
         ]);
@@ -1056,7 +1056,7 @@ class AssetsPage extends Component
             return 0;
         }
 
-        $departmentId = (int) (User::query()
+        $departmentId = (int) ($this->companyUserQuery()
             ->where('id', $userId)
             ->where('is_active', true)
             ->value('department_id') ?? 0);
@@ -1071,6 +1071,11 @@ class AssetsPage extends Component
         }
 
         return (string) (Department::query()->where('id', $departmentId)->value('name') ?? 'No department assigned');
+    }
+
+    private function companyUserQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        return User::query()->where('company_id', (int) \Illuminate\Support\Facades\Auth::user()->company_id);
     }
 
     private function setFeedback(string $message): void

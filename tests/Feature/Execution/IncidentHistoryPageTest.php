@@ -147,6 +147,44 @@ class IncidentHistoryPageTest extends TestCase
             ->assertSee('Execution alert delivery sent')
             ->assertDontSee('Execution alert summary');
     }
+
+    public function test_incident_type_filter_can_show_rollout_decision_events(): void
+    {
+        $platformUser = $this->createPlatformUser(PlatformUserRole::PlatformOpsAdmin->value);
+        $tenant = $this->createTenantCompany('Incident Rollout Filter Tenant');
+
+        TenantAuditEvent::query()->create([
+            'company_id' => $tenant->id,
+            'actor_user_id' => $platformUser->id,
+            'action' => 'tenant.rollout.pilot_wave_outcome.recorded',
+            'description' => 'Pilot wave rollout outcome was recorded.',
+            'metadata' => [
+                'wave_label' => 'wave-2',
+                'outcome' => 'hold',
+                'decision_at' => now()->toDateTimeString(),
+            ],
+            'event_at' => now()->subMinutes(1),
+        ]);
+
+        TenantAuditEvent::query()->create([
+            'company_id' => $tenant->id,
+            'actor_user_id' => null,
+            'action' => 'tenant.execution.alert.summary_emitted',
+            'description' => 'Execution alert threshold breached during ops summary run.',
+            'metadata' => [
+                'pipeline' => 'billing',
+            ],
+            'event_at' => now()->subMinutes(2),
+        ]);
+
+        $this->actingAs($platformUser);
+
+        Livewire::test(IncidentHistoryPage::class)
+            ->call('loadData')
+            ->set('incidentTypeFilter', 'rollout_decision')
+            ->assertSee('Pilot wave outcome recorded')
+            ->assertDontSee('Execution alert summary');
+    }
     private function createPlatformUser(string $platformRole): User
     {
         return User::factory()->create([
@@ -171,5 +209,6 @@ class IncidentHistoryPageTest extends TestCase
         ]);
     }
 }
+
 
 

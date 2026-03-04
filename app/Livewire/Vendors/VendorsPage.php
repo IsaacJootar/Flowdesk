@@ -955,6 +955,9 @@ class VendorsPage extends Component
                     'description' => (string) ($invoice->description ?? ''),
                     'notes' => (string) ($invoice->notes ?? ''),
                     'payment_count' => (int) $invoice->payments->count(),
+                    // Keep historical "paid in parts" visibility even after an invoice reaches paid status.
+                    'was_partially_settled' => ((int) $invoice->paid_amount > 0 && (int) $invoice->outstanding_amount > 0)
+                        || ((int) $invoice->payments->count() > 1 && (int) $invoice->paid_amount > 0),
                     'attachments' => $invoice->attachments
                         ->map(fn ($attachment): array => [
                             'id' => (int) $attachment->id,
@@ -979,16 +982,26 @@ class VendorsPage extends Component
             ->where('display_status', VendorInvoice::STATUS_UNPAID)
             ->count();
         $this->vendorPartPaidInvoicesCount = (int) $invoiceCollection
-            ->where('display_status', VendorInvoice::STATUS_PART_PAID)
+            ->where('was_partially_settled', true)
             ->count();
-        // Count part-payment transactions (not just invoice rows) so repeated
-        // partial payments on the same invoice are visible in the summary badge.
+        // Count partial payment actions across invoice lifecycle, including invoices
+        // that are now fully paid but were settled in multiple installments.
         $this->vendorPartPaymentsCount = (int) $invoiceCollection
-            ->where('display_status', VendorInvoice::STATUS_PART_PAID)
-            ->sum(fn (array $invoice): int => max(
-                (int) ($invoice['payment_count'] ?? 0),
-                ((int) ($invoice['paid_amount'] ?? 0) > 0 ? 1 : 0)
-            ));
+            ->sum(function (array $invoice): int {
+                $wasPartiallySettled = (bool) ($invoice['was_partially_settled'] ?? false);
+                if (! $wasPartiallySettled) {
+                    return 0;
+                }
+
+                $paymentCount = (int) ($invoice['payment_count'] ?? 0);
+                $outstandingAmount = (int) ($invoice['outstanding_amount'] ?? 0);
+
+                if ($outstandingAmount > 0) {
+                    return max($paymentCount, 1);
+                }
+
+                return max($paymentCount - 1, 0);
+            });
         $this->vendorOverdueInvoicesCount = (int) $invoiceCollection
             ->where('display_status', VendorInvoice::STATUS_OVERDUE)
             ->count();

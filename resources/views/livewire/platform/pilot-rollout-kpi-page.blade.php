@@ -251,6 +251,85 @@
         </div>
     </section>
 
+    <section class="fd-card p-4">
+        <div class="mb-3">
+            <h3 class="text-sm font-semibold text-slate-900">Cohort Progress Tracker</h3>
+            <p class="text-xs text-slate-500">Track each tenant through baseline capture, pilot capture, and rollout outcome recording.</p>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="min-w-full text-sm">
+                <thead>
+                    <tr class="border-b border-slate-200 text-left text-xs uppercase tracking-[0.14em] text-slate-500">
+                        <th class="px-3 py-2">Tenant</th>
+                        <th class="px-3 py-2">Baseline Captured</th>
+                        <th class="px-3 py-2">Pilot Captured</th>
+                        <th class="px-3 py-2">Outcome Recorded</th>
+                        <th class="px-3 py-2">Stage</th>
+                        <th class="px-3 py-2">Next Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse ($cohortProgress as $row)
+                        <tr class="border-b border-slate-100 align-top">
+                            <td class="px-3 py-2 text-slate-700 font-medium">{{ $row['tenant_name'] }}</td>
+                            <td class="px-3 py-2">
+                                <span @class([
+                                    'inline-flex rounded-full px-2.5 py-1 text-xs font-semibold',
+                                    'bg-emerald-100 text-emerald-700' => $row['baseline_done'],
+                                    'bg-rose-100 text-rose-700' => ! $row['baseline_done'],
+                                ])>
+                                    {{ $row['baseline_done'] ? 'Captured' : 'Missing' }}
+                                </span>
+                                <p class="mt-1 text-xs text-slate-500">{{ $row['baseline_captured_at'] ?? '-' }}</p>
+                            </td>
+                            <td class="px-3 py-2">
+                                <span @class([
+                                    'inline-flex rounded-full px-2.5 py-1 text-xs font-semibold',
+                                    'bg-emerald-100 text-emerald-700' => $row['pilot_done'],
+                                    'bg-rose-100 text-rose-700' => ! $row['pilot_done'],
+                                ])>
+                                    {{ $row['pilot_done'] ? 'Captured' : 'Missing' }}
+                                </span>
+                                <p class="mt-1 text-xs text-slate-500">{{ $row['pilot_captured_at'] ?? '-' }}</p>
+                            </td>
+                            <td class="px-3 py-2">
+                                <span @class([
+                                    'inline-flex rounded-full px-2.5 py-1 text-xs font-semibold',
+                                    'bg-emerald-100 text-emerald-700' => $row['outcome_done'],
+                                    'bg-rose-100 text-rose-700' => ! $row['outcome_done'],
+                                ])>
+                                    {{ $row['outcome_done'] ? ($row['outcome_label'] ?? 'Recorded') : 'Missing' }}
+                                </span>
+                                <p class="mt-1 text-xs text-slate-500">{{ $row['outcome_recorded_at'] ?? '-' }}</p>
+                                @if ($row['outcome_done'])
+                                    <p class="mt-1 text-xs text-slate-500">
+                                        {{ $row['outcome_wave_label'] ?? '-' }}{{ ! empty($row['decided_by']) ? ' | '.$row['decided_by'] : '' }}
+                                    </p>
+                                @endif
+                            </td>
+                            <td class="px-3 py-2">
+                                <span @class([
+                                    'inline-flex rounded-full px-2.5 py-1 text-xs font-semibold',
+                                    'bg-emerald-100 text-emerald-700' => $row['stage'] === 'Ready for rollout',
+                                    'bg-amber-100 text-amber-700' => $row['stage'] === 'Decision pending' || $row['stage'] === 'Pilot capture pending',
+                                    'bg-rose-100 text-rose-700' => $row['stage'] === 'Baseline pending',
+                                ])>
+                                    {{ $row['stage'] }}
+                                </span>
+                            </td>
+                            <td class="px-3 py-2 text-slate-600">{{ $row['next_action'] }}</td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="6" class="px-3 py-8 text-center text-sm text-slate-500">No eligible tenants found for cohort progress tracking.</td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+    </section>
+
     @if ($delta)
         <section class="fd-card p-4">
             <h3 class="text-sm font-semibold text-slate-900">Latest Baseline vs Pilot Delta</h3>

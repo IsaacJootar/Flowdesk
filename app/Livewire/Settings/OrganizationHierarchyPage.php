@@ -18,6 +18,7 @@ use App\Models\User;
 use App\Services\ApprovalWorkflowStepOrderService;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\View\View;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
@@ -178,7 +179,7 @@ class OrganizationHierarchyPage extends Component
     public function saveUserAssignment(int $userId, UpdateCompanyUserAssignment $updateCompanyUserAssignment): void
     {
         $this->authorizeOwner();
-        $subject = User::query()->findOrFail($userId);
+        $subject = $this->companyUserQuery()->findOrFail($userId);
         $payload = $this->userAssignments[$userId] ?? null;
 
         if (! $payload) {
@@ -588,7 +589,7 @@ class OrganizationHierarchyPage extends Component
             ->orderBy('name')
             ->get(['id', 'name', 'code', 'manager_user_id']);
 
-        $users = User::query()
+        $users = $this->companyUserQuery()
             ->orderBy('name')
             ->get(['id', 'name', 'email', 'role', 'department_id', 'reports_to_user_id', 'is_active']);
 
@@ -613,23 +614,41 @@ class OrganizationHierarchyPage extends Component
 
     private function loadDepartmentAssignments(): void
     {
+        $managerOptionIds = $this->companyUserQuery()
+            ->pluck('id')
+            ->map(fn ($id): int => (int) $id)
+            ->all();
+
         $this->departmentManagers = Department::query()
             ->get(['id', 'manager_user_id'])
             ->mapWithKeys(fn (Department $department): array => [
-                $department->id => $department->manager_user_id ? (string) $department->manager_user_id : '',
+                $department->id => $this->normalizeReportsToUserId(
+                    $department->manager_user_id,
+                    0,
+                    $managerOptionIds
+                ),
             ])
             ->all();
     }
 
     private function loadUserAssignments(): void
     {
-        $this->userAssignments = User::query()
+        $managerOptionIds = $this->companyUserQuery()
+            ->pluck('id')
+            ->map(fn ($id): int => (int) $id)
+            ->all();
+
+        $this->userAssignments = $this->companyUserQuery()
             ->get(['id', 'role', 'department_id', 'reports_to_user_id', 'is_active'])
             ->mapWithKeys(fn (User $user): array => [
                 $user->id => [
                     'role' => $user->role,
                     'department_id' => (string) $user->department_id,
-                    'reports_to_user_id' => $user->reports_to_user_id ? (string) $user->reports_to_user_id : '',
+                    'reports_to_user_id' => $this->normalizeReportsToUserId(
+                        $user->reports_to_user_id,
+                        (int) $user->id,
+                        $managerOptionIds
+                    ),
                     'is_active' => (bool) $user->is_active,
                 ],
             ])
@@ -655,6 +674,31 @@ class OrganizationHierarchyPage extends Component
         if (! \Illuminate\Support\Facades\Auth::check() || \Illuminate\Support\Facades\Auth::user()->role !== UserRole::Owner->value) {
             throw new AuthorizationException('Only admin (owner) can manage organization hierarchy settings.');
         }
+    }
+
+    private function companyUserQuery(): Builder
+    {
+        return User::query()->where('company_id', (int) \Illuminate\Support\Facades\Auth::user()->company_id);
+    }
+
+    /**
+     * @param  array<int, int>  $managerOptionIds
+     */
+    private function normalizeReportsToUserId(?int $reportsToUserId, int $subjectUserId, array $managerOptionIds): string
+    {
+        if (! $reportsToUserId) {
+            return '';
+        }
+
+        if ($subjectUserId > 0 && $reportsToUserId === $subjectUserId) {
+            return '';
+        }
+
+        if (! in_array($reportsToUserId, $managerOptionIds, true)) {
+            return '';
+        }
+
+        return (string) $reportsToUserId;
     }
 
     private function defaultStepKeyForApproverSource(string $source, ?string $value): string

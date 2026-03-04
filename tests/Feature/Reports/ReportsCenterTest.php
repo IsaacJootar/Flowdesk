@@ -4,6 +4,7 @@ namespace Tests\Feature\Reports;
 
 use App\Domains\Company\Models\Company;
 use App\Domains\Company\Models\Department;
+use App\Domains\Company\Models\TenantPilotWaveOutcome;
 use App\Domains\Procurement\Models\InvoiceMatchException;
 use App\Domains\Procurement\Models\InvoiceMatchResult;
 use App\Domains\Procurement\Models\ProcurementCommitment;
@@ -125,6 +126,36 @@ class ReportsCenterTest extends TestCase
             ->assertSee('Stale commitments: 1');
     }
 
+
+    public function test_reports_center_shows_rollout_decision_summary_card(): void
+    {
+        [$company, $department] = $this->createCompanyContext('Reports Center Rollout KPI');
+        $owner = $this->createUser($company, $department, UserRole::Owner->value);
+
+        TenantPilotWaveOutcome::query()->create([
+            'company_id' => $company->id,
+            'wave_label' => 'wave-1',
+            'outcome' => TenantPilotWaveOutcome::OUTCOME_GO,
+            'decision_at' => now()->subDays(2),
+            'decided_by_user_id' => $owner->id,
+        ]);
+
+        TenantPilotWaveOutcome::query()->create([
+            'company_id' => $company->id,
+            'wave_label' => 'wave-2',
+            'outcome' => TenantPilotWaveOutcome::OUTCOME_HOLD,
+            'decision_at' => now()->subDay(),
+            'decided_by_user_id' => $owner->id,
+        ]);
+
+        $this->actingAs($owner);
+
+        Livewire::test(ReportsCenterPage::class)
+            ->call('loadData')
+            ->assertSee('Pilot Rollout Decisions')
+            ->assertSee('Go: 1')
+            ->assertSee('Hold: 1 | No-go: 0');
+    }
     /**
      * @return array{0: Company, 1: Department}
      */

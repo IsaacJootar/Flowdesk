@@ -179,11 +179,16 @@ class AssetReportsPage extends Component
             'assets' => $assets,
             'categories' => AssetCategory::query()->orderBy('name')->get(['id', 'name']),
             'departments' => Department::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']),
-            'assignees' => User::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'assignees' => $this->companyUserQuery()->where('is_active', true)->orderBy('name')->get(['id', 'name']),
             'statusOptions' => Asset::STATUSES,
             'metrics' => $metrics,
             'currencyCode' => strtoupper((string) (\Illuminate\Support\Facades\Auth::user()?->company?->currency_code ?: 'NGN')),
         ]);
+    }
+
+    private function companyUserQuery(): Builder
+    {
+        return User::query()->where('company_id', (int) \Illuminate\Support\Facades\Auth::user()->company_id);
     }
 
     private function baseQuery(): Builder

@@ -11,6 +11,7 @@ use App\Enums\UserRole;
 use App\Models\User;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\View\View;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -176,7 +177,7 @@ class TeamPage extends Component
     public function saveUserAssignment(int $userId, UpdateCompanyUserAssignment $updateCompanyUserAssignment): void
     {
         $this->authorizeOwner();
-        $subject = User::query()->findOrFail($userId);
+        $subject = $this->companyUserQuery()->findOrFail($userId);
         $payload = $this->userAssignments[$userId] ?? null;
 
         if (! $payload) {
@@ -210,7 +211,7 @@ class TeamPage extends Component
     public function openProfileModal(int $userId): void
     {
         $this->authorizeOwner();
-        $user = User::query()->findOrFail($userId);
+        $user = $this->companyUserQuery()->findOrFail($userId);
 
         $this->resetValidation();
         $this->feedbackError = null;
@@ -249,7 +250,7 @@ class TeamPage extends Component
             return;
         }
 
-        $subject = User::query()->findOrFail($this->profileUserId);
+        $subject = $this->companyUserQuery()->findOrFail($this->profileUserId);
 
         try {
             $updateCompanyUserProfile(\Illuminate\Support\Facades\Auth::user(), $subject, [
@@ -280,7 +281,7 @@ class TeamPage extends Component
             ->orderBy('name')
             ->get(['id', 'name']);
 
-        $users = User::query()
+        $users = $this->companyUserQuery()
             ->with(['department:id,name', 'reportsTo:id,name'])
             ->when(
                 $this->search !== '',
@@ -293,19 +294,33 @@ class TeamPage extends Component
             ->orderBy('name')
             ->paginate($this->perPage);
 
-        $managerOptions = User::query()
+        $managerOptions = $this->companyUserQuery()
             ->orderBy('name')
             ->get(['id', 'name', 'role']);
+        $managerOptionIds = $managerOptions->pluck('id')->map(fn ($id): int => (int) $id)->all();
 
         foreach ($users->items() as $user) {
             if (! array_key_exists($user->id, $this->userAssignments)) {
                 $this->userAssignments[$user->id] = [
                     'role' => $user->role,
                     'department_id' => (string) $user->department_id,
-                    'reports_to_user_id' => $user->reports_to_user_id ? (string) $user->reports_to_user_id : '',
+                    'reports_to_user_id' => $this->normalizeReportsToUserId(
+                        $user->reports_to_user_id,
+                        (int) $user->id,
+                        $managerOptionIds
+                    ),
                     'is_active' => (bool) $user->is_active,
                 ];
+
+                continue;
             }
+
+            $currentReportsTo = $this->userAssignments[$user->id]['reports_to_user_id'] ?? '';
+            $this->userAssignments[$user->id]['reports_to_user_id'] = $this->normalizeReportsToUserId(
+                $currentReportsTo !== '' ? (int) $currentReportsTo : null,
+                (int) $user->id,
+                $managerOptionIds
+            );
         }
 
         return view('livewire.organization.team-page', [
@@ -322,7 +337,7 @@ class TeamPage extends Component
             return null;
         }
 
-        return User::query()->find($this->profileUserId);
+        return $this->companyUserQuery()->find($this->profileUserId);
     }
 
     private function setFeedback(string $message): void
@@ -344,6 +359,31 @@ class TeamPage extends Component
         if (! \Illuminate\Support\Facades\Auth::check() || \Illuminate\Support\Facades\Auth::user()->role !== UserRole::Owner->value) {
             throw new AuthorizationException('Only admin (owner) can manage team assignments.');
         }
+    }
+
+    private function companyUserQuery(): Builder
+    {
+        return User::query()->where('company_id', (int) \Illuminate\Support\Facades\Auth::user()->company_id);
+    }
+
+    /**
+     * @param  array<int, int>  $managerOptionIds
+     */
+    private function normalizeReportsToUserId(?int $reportsToUserId, int $subjectUserId, array $managerOptionIds): string
+    {
+        if (! $reportsToUserId) {
+            return '';
+        }
+
+        if ($reportsToUserId === $subjectUserId) {
+            return '';
+        }
+
+        if (! in_array($reportsToUserId, $managerOptionIds, true)) {
+            return '';
+        }
+
+        return (string) $reportsToUserId;
     }
 
     /**

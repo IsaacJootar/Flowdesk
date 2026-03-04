@@ -141,9 +141,10 @@ class DepartmentsPage extends Component
     {
         $this->authorizeOwner();
 
-        $managerOptions = User::query()
+        $managerOptions = $this->companyUserQuery()
             ->orderBy('name')
             ->get(['id', 'name', 'role']);
+        $managerOptionIds = $managerOptions->pluck('id')->map(fn ($id): int => (int) $id)->all();
 
         $departments = Department::query()
             ->with(['manager:id,name'])
@@ -159,17 +160,21 @@ class DepartmentsPage extends Component
             ->paginate($this->perPage);
 
         foreach ($departments->items() as $department) {
-            if (! array_key_exists($department->id, $this->departmentManagers)) {
-                $this->departmentManagers[$department->id] = $department->manager_user_id
-                    ? (string) $department->manager_user_id
-                    : '';
-            }
+            $managerUserId = $department->manager_user_id ? (int) $department->manager_user_id : null;
+            $this->departmentManagers[$department->id] = ($managerUserId !== null && in_array($managerUserId, $managerOptionIds, true))
+                ? (string) $managerUserId
+                : '';
         }
 
         return view('livewire.organization.departments-page', [
             'departments' => $departments,
             'managerOptions' => $managerOptions,
         ]);
+    }
+
+    private function companyUserQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        return User::query()->where('company_id', (int) \Illuminate\Support\Facades\Auth::user()->company_id);
     }
 
     private function setFeedback(string $message): void

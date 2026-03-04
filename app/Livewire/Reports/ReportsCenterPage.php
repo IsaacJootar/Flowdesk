@@ -5,6 +5,7 @@ namespace App\Livewire\Reports;
 use App\Domains\Assets\Models\Asset;
 use App\Domains\Budgets\Models\DepartmentBudget;
 use App\Domains\Company\Models\Department;
+use App\Domains\Company\Models\TenantPilotWaveOutcome;
 use App\Domains\Procurement\Models\InvoiceMatchException;
 use App\Domains\Procurement\Models\InvoiceMatchResult;
 use App\Domains\Procurement\Models\ProcurementCommitment;
@@ -135,6 +136,7 @@ class ReportsCenterPage extends Component
             'assets' => 'Assets',
             'budgets' => 'Budgets',
             'treasury' => 'Treasury',
+            'rollout' => 'Rollout',
         ];
 
         if ($this->canViewVendors()) {
@@ -151,7 +153,9 @@ class ReportsCenterPage extends Component
      *   vendors: array{outstanding_count:int, outstanding_amount:int, overdue_count:int},
      *   assets: array{total:int, assigned:int, in_maintenance:int, disposed:int},
      *   procurement: array{linked_invoices:int, open_exceptions:int, match_pass_rate_percent:float, stale_commitments:int},
-     *   budgets: array{active_count:int, allocated:int, used:int, remaining:int}
+     *   budgets: array{active_count:int, allocated:int, used:int, remaining:int},
+     *   treasury: array{reconciled_lines:int, open_exceptions:int, unreconciled_value:int},
+     *   rollout: array{go:int, hold:int, no_go:int, total:int}
      * }
      */
     private function buildMetrics(): array
@@ -239,6 +243,14 @@ class ReportsCenterPage extends Component
                 ->sum('amount') ?? 0),
         ];
 
+        // Rollout outcome counts keep tenant leadership aligned on go/hold/no-go decision posture.
+        $rolloutOutcomeQuery = $this->pilotWaveOutcomeQuery();
+        $rollout = [
+            'go' => (int) (clone $rolloutOutcomeQuery)->where('outcome', TenantPilotWaveOutcome::OUTCOME_GO)->count(),
+            'hold' => (int) (clone $rolloutOutcomeQuery)->where('outcome', TenantPilotWaveOutcome::OUTCOME_HOLD)->count(),
+            'no_go' => (int) (clone $rolloutOutcomeQuery)->where('outcome', TenantPilotWaveOutcome::OUTCOME_NO_GO)->count(),
+            'total' => (int) (clone $rolloutOutcomeQuery)->count(),
+        ];
         $vendors = [
             'outstanding_count' => 0,
             'outstanding_amount' => 0,
@@ -247,6 +259,7 @@ class ReportsCenterPage extends Component
 
         if ($this->canViewVendors()) {
             $vendorQuery = $this->vendorInvoiceQuery();
+
             $vendors = [
                 'outstanding_count' => (clone $vendorQuery)->where('outstanding_amount', '>', 0)->count(),
                 'outstanding_amount' => (int) ((clone $vendorQuery)->where('outstanding_amount', '>', 0)->sum('outstanding_amount') ?? 0),
@@ -265,6 +278,7 @@ class ReportsCenterPage extends Component
             'procurement' => $procurement,
             'budgets' => $budgets,
             'treasury' => $treasury,
+            'rollout' => $rollout,
         ];
     }
     private function buildUnifiedActivityFeed(): LengthAwarePaginator
@@ -293,6 +307,10 @@ class ReportsCenterPage extends Component
 
         if ($this->isModuleVisible('treasury')) {
             $events = $events->concat($this->treasuryEvents());
+        }
+
+        if ($this->isModuleVisible('rollout')) {
+            $events = $events->concat($this->rolloutEvents());
         }
 
         $sorted = $events
@@ -471,6 +489,31 @@ class ReportsCenterPage extends Component
             });
     }
 
+    /**
+     * @return Collection<int, array<string, mixed>>
+     */
+    private function rolloutEvents(): Collection
+    {
+        return $this->pilotWaveOutcomeQuery()
+            ->with(['decidedBy:id,name'])
+            ->latest('decision_at')
+            ->limit(40)
+            ->get()
+            ->map(function (TenantPilotWaveOutcome $outcome): array {
+                return [
+                    'module' => 'Rollout',
+                    'code' => strtoupper((string) $outcome->wave_label),
+                    'title' => 'Pilot wave decision',
+                    'status' => (string) $outcome->outcome,
+                    'amount' => 0,
+                    'department' => '-',
+                    'owner' => $outcome->decidedBy?->name ?? '-',
+                    'occurred_at' => $outcome->decision_at ?? $outcome->created_at,
+                    'url' => route('reports.index'),
+                ];
+            });
+    }
+
     private function requestQuery(): Builder
     {
         $query = SpendRequest::query()
@@ -561,6 +604,22 @@ class ReportsCenterPage extends Component
             ->when($this->dateTo !== '', fn (Builder $builder) => $builder->whereDate('period_end', '<=', $this->dateTo));
 
         return $this->applyBudgetRoleScope($query);
+    }
+
+    private function pilotWaveOutcomeQuery(): Builder
+    {
+        return TenantPilotWaveOutcome::query()
+            ->where('company_id', (int) Auth::user()?->company_id)
+            ->when($this->search !== '', function (Builder $builder): void {
+                $search = trim($this->search);
+                $builder->where(function (Builder $inner) use ($search): void {
+                    $inner
+                        ->where('wave_label', 'like', '%'.$search.'%')
+                        ->orWhere('notes', 'like', '%'.$search.'%');
+                });
+            })
+            ->when($this->dateFrom !== '', fn (Builder $builder) => $builder->whereDate('decision_at', '>=', $this->dateFrom))
+            ->when($this->dateTo !== '', fn (Builder $builder) => $builder->whereDate('decision_at', '<=', $this->dateTo));
     }
 
     private function applyRequestRoleScope(Builder $query): Builder
@@ -719,7 +778,9 @@ class ReportsCenterPage extends Component
      *   vendors: array{outstanding_count:int, outstanding_amount:int, overdue_count:int},
      *   assets: array{total:int, assigned:int, in_maintenance:int, disposed:int},
      *   procurement: array{linked_invoices:int, open_exceptions:int, match_pass_rate_percent:float, stale_commitments:int},
-     *   budgets: array{active_count:int, allocated:int, used:int, remaining:int}
+     *   budgets: array{active_count:int, allocated:int, used:int, remaining:int},
+     *   treasury: array{reconciled_lines:int, open_exceptions:int, unreconciled_value:int},
+     *   rollout: array{go:int, hold:int, no_go:int, total:int}
      * }
      */
     private function emptyMetrics(): array
@@ -732,9 +793,17 @@ class ReportsCenterPage extends Component
             'procurement' => ['linked_invoices' => 0, 'open_exceptions' => 0, 'match_pass_rate_percent' => 0.0, 'stale_commitments' => 0],
             'budgets' => ['active_count' => 0, 'allocated' => 0, 'used' => 0, 'remaining' => 0],
             'treasury' => ['reconciled_lines' => 0, 'open_exceptions' => 0, 'unreconciled_value' => 0],
+            'rollout' => ['go' => 0, 'hold' => 0, 'no_go' => 0, 'total' => 0],
         ];
     }
 }
+
+
+
+
+
+
+
 
 
 

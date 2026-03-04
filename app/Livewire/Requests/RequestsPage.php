@@ -680,7 +680,7 @@ class RequestsPage extends Component
             ->orderBy('name')
             ->get(['id', 'name', 'code']);
 
-        $users = User::query()
+        $users = $this->companyUserQuery()
             ->where('is_active', true)
             ->orderBy('name')
             ->get(['id', 'name', 'role']);
@@ -1265,7 +1265,7 @@ class RequestsPage extends Component
 
         $explicitApproverProfiles = $explicitApproverIds->isEmpty()
             ? []
-            : User::query()
+            : $this->companyUserQuery()
                 ->whereIn('id', $explicitApproverIds->all())
                 ->get(['id', 'name', 'avatar_path', 'gender', 'updated_at'])
                 ->mapWithKeys(fn (User $user): array => [(int) $user->id => $this->presentUser($user)])
@@ -1969,6 +1969,11 @@ class RequestsPage extends Component
         $value = trim((string) $value);
 
         return $value === '' ? null : $value;
+    }
+
+    private function companyUserQuery(): Builder
+    {
+        return User::query()->where('company_id', (int) \Illuminate\Support\Facades\Auth::user()->company_id);
     }
 
     private function companyCurrency(): string

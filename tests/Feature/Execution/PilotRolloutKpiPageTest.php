@@ -10,7 +10,9 @@ use App\Enums\PlatformUserRole;
 use App\Enums\UserRole;
 use App\Livewire\Platform\PilotRolloutKpiPage;
 use App\Models\User;
+use DateTimeInterface;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -115,6 +117,44 @@ class PilotRolloutKpiPageTest extends TestCase
         $this->assertSame((int) $waveOutcome->id, (int) $auditEvent->entity_id);
     }
 
+    public function test_cohort_progress_tracker_shows_stage_and_missing_steps_per_tenant(): void
+    {
+        $platformUser = $this->createPlatformUser(PlatformUserRole::PlatformOpsAdmin->value);
+
+        $readyTenant = $this->createTenantCompany('Pilot Tracker Ready Tenant');
+        $decisionPendingTenant = $this->createTenantCompany('Pilot Tracker Decision Tenant');
+        $baselinePendingTenant = $this->createTenantCompany('Pilot Tracker Baseline Tenant');
+
+        $this->createKpiCapture((int) $readyTenant->id, 'baseline', now()->subDays(20));
+        $this->createKpiCapture((int) $readyTenant->id, 'pilot', now()->subDays(6));
+        TenantPilotWaveOutcome::query()->create([
+            'company_id' => (int) $readyTenant->id,
+            'wave_label' => 'wave-1',
+            'outcome' => TenantPilotWaveOutcome::OUTCOME_GO,
+            'decision_at' => now()->subDay(),
+            'notes' => 'Ready to move forward.',
+            'metadata' => ['source' => 'test'],
+            'decided_by_user_id' => (int) $platformUser->id,
+        ]);
+
+        $this->createKpiCapture((int) $decisionPendingTenant->id, 'baseline', now()->subDays(18));
+        $this->createKpiCapture((int) $decisionPendingTenant->id, 'pilot', now()->subDays(5));
+
+        $this->actingAs($platformUser);
+
+        Livewire::test(PilotRolloutKpiPage::class)
+            ->call('loadData')
+            ->assertSee('Cohort Progress Tracker')
+            ->assertSee('Pilot Tracker Ready Tenant')
+            ->assertSee('Pilot Tracker Decision Tenant')
+            ->assertSee('Pilot Tracker Baseline Tenant')
+            ->assertSee('Ready for rollout')
+            ->assertSee('Decision pending')
+            ->assertSee('Baseline pending')
+            ->assertSee('Capture baseline KPI window first.')
+            ->assertSee('Missing');
+    }
+
     private function createPlatformUser(string $platformRole): User
     {
         return User::factory()->create([
@@ -123,6 +163,32 @@ class PilotRolloutKpiPageTest extends TestCase
             'role' => UserRole::Owner->value,
             'platform_role' => $platformRole,
             'is_active' => true,
+        ]);
+    }
+
+    private function createKpiCapture(int $companyId, string $windowLabel, DateTimeInterface $capturedAt): TenantPilotKpiCapture
+    {
+        $windowEnd = Carbon::instance($capturedAt)->endOfDay();
+
+        return TenantPilotKpiCapture::query()->create([
+            'company_id' => $companyId,
+            'window_label' => $windowLabel,
+            'window_start' => $windowEnd->copy()->subDays(13)->startOfDay(),
+            'window_end' => $windowEnd,
+            'match_pass_rate_percent' => 80,
+            'open_procurement_exceptions' => 1,
+            'procurement_exception_avg_open_hours' => 12,
+            'auto_reconciliation_rate_percent' => 75,
+            'open_treasury_exceptions' => 1,
+            'treasury_exception_avg_open_hours' => 8,
+            'blocked_payout_count' => 0,
+            'manual_override_count' => 0,
+            'incident_count' => 0,
+            'incident_rate_per_week' => 0,
+            'metadata' => ['source' => 'test'],
+            'notes' => 'Test capture',
+            'captured_at' => $windowEnd,
+            'captured_by_user_id' => null,
         ]);
     }
 

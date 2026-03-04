@@ -328,13 +328,14 @@ Release gate addition:
    - Done: auto-match engine, confidence-scored candidate selection, exception queue aging prioritization, reports-center treasury metrics.
    - Done: direct-expense heuristic tuning (merchant text similarity + date window + confidence floor) with tenant controls.
    - Done: reversal/failure handoff workflow into treasury exceptions with incident linking for payout, billing, and webhook pipelines.
-7. Sprint 7 governance hardening: in progress.
+7. Sprint 7 governance hardening: completed.
    - Done: `POL-701` mandatory-PO policy controls (amount/category) with enforcement in payout gate and request expense handoff.
    - Done: `POL-702` maker-checker guardrail for procurement exception override actions (same-user override blocked by policy).
    - Done: `POL-703` policy-based role guardrails + maker-checker + denied-attempt audit logging for treasury/procurement exception actions.
    - Done: `ALRT-701` stale-commitment + reconciliation-backlog alerts emitted by `execution:ops:alert-summary`, delivered via tenant communication channels (`in_app` + `email`), and visible in platform incident/operations views and tenant execution health summaries.
    - Done: `UI-701` role-specific tenant dashboard lenses for finance, owner, and auditor with scoped summary cards, priority actions, and recent control signals.
-8. Sprint 8 rollout controls and enablement: in progress.
+8. Sprint 8 rollout controls and enablement: completed.
+   - Done: `ROL-801` procurement + treasury entitlements are active and tenant-plan configurable.
    - Done: `ROL-802` migration/backfill tooling via `procurement:backfill-vendor-links` with dry-run mode, conservative candidate matching, payment link alignment, and audit summary output.
    - Done: `ROL-803` SOP/runbook published in `FLOWDESK_ROL803_BACKFILL_SOP_RUNBOOK.md`.
    - Done: `ROL-804` Reports Center KPI cards expanded for procurement + treasury rollout metrics.
@@ -342,4 +343,18 @@ Release gate addition:
    - Done: `ROL-805` pilot execution tooling shipped: `rollout:pilot:capture-kpis` command + platform page `/platform/operations/pilot-rollout` for baseline/pilot capture and delta review.
    - Done: pilot wave go/hold/no-go outcome capture added to `/platform/operations/pilot-rollout` with decision notes and tenant audit events.
 
+## 17) Closeout Validation (2026-03-03)
+1. Full automated regression passed: php artisan test -> 198 passed (0 failed).
+2. Targeted onboarding/avatar regression fix validated: `tests/Feature/Organization/TeamAvatarTest.php` -> 3 passed.
+3. Backfill UAT dry-run completed: php artisan procurement:backfill-vendor-links --dry-run -> completed with 0 errors and no writes.
 
+## 18) Post-Core Deferred Backlog (Non-AI)
+1. FIN-901 - Tenant-facing `fintech` module foundation.
+   - Add tenant route/page shell and entitlement-gated navigation.
+   - Define phase-1 fintech workflows before implementation (kept out of current closeout scope).
+2. CHN-901 - Slack execution-alert delivery adapter.
+   - Wire Slack channel into `ExecutionAlertChannelDeliveryService` using tenant communication policy controls.
+3. CHN-902 - Telegram execution-alert delivery adapter.
+   - Wire Telegram channel into `ExecutionAlertChannelDeliveryService` using tenant communication policy controls.
+4. OPS-901 - Go-live operations hardening pack.
+   - Scheduler/queue monitoring checks, final seeded UAT rehearsal, and cutover rollback drill evidence.
