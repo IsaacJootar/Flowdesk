@@ -318,22 +318,22 @@
                                             type="button"
                                             wire:click="openViewModal({{ $request->id }})"
                                             wire:loading.attr="disabled"
-                                            wire:target="openViewModal"
+                                            wire:target="openViewModal({{ $request->id }})"
                                             class="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-70"
                                         >
-                                            <span wire:loading.remove wire:target="openViewModal">View</span>
-                                            <span wire:loading wire:target="openViewModal">Opening...</span>
+                                            <span wire:loading.remove wire:target="openViewModal({{ $request->id }})">View</span>
+                                            <span wire:loading wire:target="openViewModal({{ $request->id }})">Opening...</span>
                                         </button>
                                         @can('update', $request)
                                             <button
                                                 type="button"
                                                 wire:click="openEditModal({{ $request->id }})"
                                                 wire:loading.attr="disabled"
-                                                wire:target="openEditModal"
+                                                wire:target="openEditModal({{ $request->id }})"
                                                 class="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-70"
                                             >
-                                                <span wire:loading.remove wire:target="openEditModal">Edit</span>
-                                                <span wire:loading wire:target="openEditModal">Opening...</span>
+                                                <span wire:loading.remove wire:target="openEditModal({{ $request->id }})">Edit</span>
+                                                <span wire:loading wire:target="openEditModal({{ $request->id }})">Opening...</span>
                                             </button>
                                         @endcan
                                     </div>
