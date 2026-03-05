@@ -22,7 +22,7 @@ This file is the canonical module inventory so planning discussions stay aligned
   - `tests/Feature/Execution/TenantExecutionHealthPageTest.php`
   - `tests/Feature/Execution/TenantPayoutReadyQueuePageTest.php`
   - `tests/Feature/Execution/TenantExecutionUsageGuidePageTest.php`
-- Usage guide:
+- Usage guides:
   - `FLOWDESK_EXECUTION_OPERATIONS_USAGE.md`
 
 ## Procurement (Tenant)
@@ -34,7 +34,7 @@ This file is the canonical module inventory so planning discussions stay aligned
   - `app/Livewire/Procurement/PurchaseReceiptsPage.php`
   - `app/Livewire/Procurement/ProcurementMatchExceptionsPage.php`
 - Status: Implemented with a single sidebar entry (`Manage Procurement`) and Release Desk as the primary operator workspace.
-- Usage guide:
+- Usage guides:
   - `FLOWDESK_PROCUREMENT_RELEASE_DESK_USAGE.md`
 ## Treasury (Tenant)
 - Routes: `/treasury/reconciliation`, `/treasury/reconciliation/help`, `/treasury/reconciliation/exceptions`, `/treasury/payment-runs`, `/treasury/cash-position`
@@ -45,21 +45,25 @@ This file is the canonical module inventory so planning discussions stay aligned
   - `app/Livewire/Treasury/TreasuryPaymentRunsPage.php`
   - `app/Livewire/Treasury/TreasuryCashPositionPage.php`
 - Status: Implemented with Daily Reconciliation Desk as the single execution workspace for import, unmatched lines, exception decisions, and close-day checklist.
-- Usage guide:
+- Usage guides:
   - `FLOWDESK_TREASURY_DAILY_RECONCILIATION_DESK_USAGE.md`
 ## Requests & Approvals
-- Routes: `/requests`, `/requests/communications`, `/requests/communications/help`, `/requests/reports`
+- Routes: `/requests`, `/requests/lifecycle-desk`, `/requests/lifecycle-help`, `/requests/communications`, `/requests/communications/help`, `/requests/reports`
 - Entries:
   - `app/Livewire/Requests/RequestsPage.php`
+  - `app/Livewire/Requests/RequestLifecycleDeskPage.php`
+  - `app/Livewire/Requests/RequestLifecycleGuidePage.php`
   - `app/Livewire/Requests/RequestCommunicationsPage.php`
   - `app/Livewire/Requests/RequestReportsPage.php`
   - `app/Livewire/Organization/ApprovalWorkflowsPage.php`
-- Status: Implemented with approvals, reports, and a consolidated Communications Recovery Desk (requests/vendors/assets) with retry/backlog controls and issue breakdowns.
+- Status: Implemented with a consolidated Request Lifecycle Desk (approved -> procurement -> payout dispatch -> outcomes), plus communications recovery, approvals, and reports.
 - Test coverage:
   - `tests/Feature/Requests/RequestApprovalAutomationTest.php`
   - `tests/Feature/Requests/RequestApprovalHierarchyTest.php`
   - `tests/Feature/Requests/CommunicationsRecoveryDeskPageTest.php`
-- Usage guide:
+  - `tests/Feature/Requests/RequestLifecycleDeskPageTest.php`
+- Usage guides:
+  - `FLOWDESK_REQUEST_LIFECYCLE_DESK_USAGE.md`
   - `FLOWDESK_COMMUNICATIONS_RECOVERY_DESK_USAGE.md`
 
 ## Expenses
@@ -153,9 +157,11 @@ This file is the canonical module inventory so planning discussions stay aligned
 - Status: Implemented.
 
 ## Execution Operations
-- Route: `/platform/operations/execution`
-- Entry: `app/Livewire/Platform/ExecutionOperationsPage.php`
-- Status: Implemented with retry/recovery/reconcile workflows, incident cards, runbook links, and auto-recovery summary table.
+- Routes: `/platform/operations`, `/platform/operations/execution`
+- Entries:
+  - `app/Livewire/Platform/PlatformOperationsHubPage.php`
+  - `app/Livewire/Platform/ExecutionOperationsPage.php`
+- Status: Implemented with consolidated Operations Hub (`/platform/operations`) as primary platform workspace with tabs for execution ops, checklist, incident timeline, and pilot rollout. Existing dedicated pages remain as drill-down routes.
 - Test coverage:
   - `tests/Feature/Execution/ExecutionOperationsCenterPhaseFiveTest.php`
 
@@ -412,7 +418,7 @@ Before proposing "new" module work, check this file plus route map (`routes/web.
   - `resources/views/livewire/procurement/procurement-release-guide-page.blade.php`
 - Sidebar navigation is intentionally consolidated to one entry (`Manage Procurement`).
 - Subpages (`orders`, `receipts`, `match-exceptions`) include back navigation to Release Desk.
-- Usage guide:
+- Usage guides:
   - `FLOWDESK_PROCUREMENT_RELEASE_DESK_USAGE.md`
 
 ### Sprint 4 tests
@@ -464,6 +470,7 @@ Before proposing "new" module work, check this file plus route map (`routes/web.
 - Sprint 8 rollout controls and enablement: completed.
 - Regression validation: php artisan test passed (198 tests, 0 failures).
 - UAT dry-run validation: php artisan procurement:backfill-vendor-links --dry-run completed with 0 errors and no persisted changes.
+
 
 
 

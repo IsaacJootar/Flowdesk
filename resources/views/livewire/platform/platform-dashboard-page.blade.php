@@ -36,7 +36,7 @@
         @endif
     </section>
 
-    <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
+    <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         <a href="{{ route('platform.tenants') }}" class="block rounded-2xl border border-sky-200 bg-sky-50 p-5 transition hover:border-sky-300 hover:bg-sky-100">
             <p class="text-sm font-semibold text-sky-900">Tenant / Org Management</p>
             <p class="mt-1 text-sm text-sky-700">Manage lifecycle, plans, entitlements, and manual billing records.</p>
@@ -45,21 +45,9 @@
             <p class="text-sm font-semibold text-indigo-900">Platform Users</p>
             <p class="mt-1 text-sm text-indigo-700">Assign global roles for platform owner, billing admin, and ops admin.</p>
         </a>
-        <a href="{{ route('platform.operations.execution') }}" class="block rounded-2xl border border-emerald-200 bg-emerald-50 p-5 transition hover:border-emerald-300 hover:bg-emerald-100">
-            <p class="text-sm font-semibold text-emerald-900">Execution Operations</p>
-            <p class="mt-1 text-sm text-emerald-700">Retry failures, process stuck queues, and reconcile webhook dead-letter events.</p>
-        </a>
-        <a href="{{ route('platform.operations.execution-checklist') }}" class="block rounded-2xl border border-amber-200 bg-amber-50 p-5 transition hover:border-amber-300 hover:bg-amber-100">
-            <p class="text-sm font-semibold text-amber-900">Execution Test Checklist</p>
-            <p class="mt-1 text-sm text-amber-700">Run end-to-end dry-runs from UI for execution mode, retries, and reconciliation.</p>
-        </a>
-        <a href="{{ route('platform.operations.incident-history') }}" class="block rounded-2xl border border-violet-200 bg-violet-50 p-5 transition hover:border-violet-300 hover:bg-violet-100">
-            <p class="text-sm font-semibold text-violet-900">Incident History</p>
-            <p class="mt-1 text-sm text-violet-700">Review recovery and execution incident timelines with filters, trends, and exports.</p>
-        </a>
-        <a href="{{ route('platform.operations.pilot-rollout') }}" class="block rounded-2xl border border-cyan-200 bg-cyan-50 p-5 transition hover:border-cyan-300 hover:bg-cyan-100">
-            <p class="text-sm font-semibold text-cyan-900">Pilot Rollout KPIs</p>
-            <p class="mt-1 text-sm text-cyan-700">Capture baseline vs pilot windows and compare control outcomes by tenant.</p>
+        <a href="{{ route('platform.operations.hub') }}" class="block rounded-2xl border border-emerald-200 bg-emerald-50 p-5 transition hover:border-emerald-300 hover:bg-emerald-100">
+            <p class="text-sm font-semibold text-emerald-900">Operations Hub</p>
+            <p class="mt-1 text-sm text-emerald-700">Single control workspace for execution operations, test checklist, incident history, and pilot rollout KPIs.</p>
         </a>
     </div>
 </div>

@@ -49,7 +49,7 @@ class TenantModuleAccessService
         }
 
         return match ($route) {
-            'requests.index' => $this->moduleEnabled($user, 'requests'),
+            'requests.index', 'requests.lifecycle-desk', 'requests.lifecycle-help' => $this->moduleEnabled($user, 'requests'),
             'requests.communications', 'requests.communications-help' => $this->moduleEnabled($user, ['requests', 'communications']),
             'requests.reports' => $this->moduleEnabled($user, ['requests', 'reports']),
             'reports.index' => $this->moduleEnabled($user, 'reports'),
@@ -122,6 +122,8 @@ class TenantModuleAccessService
         ];
     }
 }
+
+
 
 
 

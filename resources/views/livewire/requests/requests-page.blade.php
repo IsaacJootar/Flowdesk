@@ -106,19 +106,18 @@
                 <input type="date" wire:model.live="dateTo" class="w-full rounded-xl border-slate-300 text-sm focus:border-slate-500 focus:ring-slate-500">
             </label>
 
-            <div class="flex items-end">
-                <label class="inline-flex items-center gap-2 text-xs text-slate-500">
-                    <span>Rows</span>
-                    <select wire:model.live="perPage" class="rounded-lg border-slate-300 text-xs focus:border-slate-500 focus:ring-slate-500">
-                        <option value="10">10</option>
-                        <option value="25">25</option>
-                        <option value="50">50</option>
-                    </select>
-                </label>
-            </div>
+            <label class="block">
+                <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Rows</span>
+                <select wire:model.live="perPage" class="w-full rounded-xl border-slate-300 text-sm focus:border-slate-500 focus:ring-slate-500">
+                    <option value="10">10</option>
+                    <option value="25">25</option>
+                    <option value="50">50</option>
+                </select>
+            </label>
 
-            <div class="lg:col-span-2 flex items-end justify-end">
-                <div class="inline-flex items-center gap-2">
+            <div class="lg:col-span-2">
+                <span class="mb-1 block select-none text-xs font-semibold uppercase tracking-[0.14em] text-transparent">Actions</span>
+                <div class="flex flex-wrap items-center justify-end gap-2">
                     <a
                         href="{{ route('requests.communications') }}"
                         class="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 px-3 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
@@ -127,6 +126,17 @@
                             <path d="M4 6h16a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H8l-4 3v-3H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2z"></path>
                         </svg>
                         <span>Inbox & Logs</span>
+                    </a>
+                    <a
+                        href="{{ route('requests.lifecycle-desk') }}"
+                        class="inline-flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2.5 text-sm font-semibold text-indigo-700 transition hover:bg-indigo-100"
+                    >
+                        <svg class="h-4 w-4 text-indigo-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                            <path d="M4 6h16"></path>
+                            <path d="M4 12h16"></path>
+                            <path d="M4 18h16"></path>
+                        </svg>
+                        <span>Lifecycle Desk</span>
                     </a>
                     @can('create', \App\Domains\Requests\Models\SpendRequest::class)
                         <button
@@ -1356,8 +1366,4 @@
         </div>
     @endif
 </div>
-
-
-
-
 

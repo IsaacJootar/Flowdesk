@@ -88,7 +88,7 @@ class NavAccessService
             ['route' => 'operations.control-desk', 'pattern' => ['operations.control-desk', 'operations.approval-desk', 'operations.vendor-payables-desk', 'operations.period-close-desk'], 'label' => 'Operations Desk'],
             ['route' => 'reports.index', 'pattern' => ['reports.index'], 'label' => 'Reports'],
             ['route' => 'execution.health', 'pattern' => ['execution.health', 'execution.payout-ready', 'execution.help'], 'label' => 'Execution & Payouts'],
-            ['route' => 'requests.index', 'pattern' => ['requests.index'], 'label' => 'Requests & Approvals'],
+            ['route' => 'requests.index', 'pattern' => ['requests.index', 'requests.lifecycle-desk', 'requests.lifecycle-help'], 'label' => 'Requests & Approvals'],
             ['route' => 'requests.communications', 'pattern' => ['requests.communications', 'requests.communications-help'], 'label' => 'Inbox & Logs'],
             ['route' => 'requests.reports', 'pattern' => ['requests.reports'], 'label' => 'Request Reports'],
             ['route' => 'expenses.index', 'pattern' => ['expenses.*'], 'label' => 'Expenses'],
@@ -122,7 +122,7 @@ class NavAccessService
             ['route' => 'operations.control-desk', 'pattern' => ['operations.control-desk', 'operations.approval-desk', 'operations.vendor-payables-desk', 'operations.period-close-desk'], 'label' => 'Operations Desk'],
             ['route' => 'reports.index', 'pattern' => ['reports.index'], 'label' => 'Reports'],
             ['route' => 'execution.health', 'pattern' => ['execution.health', 'execution.payout-ready', 'execution.help'], 'label' => 'Execution & Payouts'],
-            ['route' => 'requests.index', 'pattern' => ['requests.index'], 'label' => 'Requests & Approvals'],
+            ['route' => 'requests.index', 'pattern' => ['requests.index', 'requests.lifecycle-desk', 'requests.lifecycle-help'], 'label' => 'Requests & Approvals'],
             ['route' => 'requests.communications', 'pattern' => ['requests.communications', 'requests.communications-help'], 'label' => 'Inbox & Logs'],
             ['route' => 'requests.reports', 'pattern' => ['requests.reports'], 'label' => 'Request Reports'],
             ['route' => 'expenses.index', 'pattern' => ['expenses.*'], 'label' => 'Expenses'],
@@ -144,7 +144,7 @@ class NavAccessService
             ['route' => 'operations.control-desk', 'pattern' => ['operations.control-desk', 'operations.approval-desk', 'operations.vendor-payables-desk', 'operations.period-close-desk'], 'label' => 'Operations Desk'],
             ['route' => 'reports.index', 'pattern' => ['reports.index'], 'label' => 'Reports'],
             ['route' => 'execution.health', 'pattern' => ['execution.health', 'execution.payout-ready', 'execution.help'], 'label' => 'Execution & Payouts'],
-            ['route' => 'requests.index', 'pattern' => ['requests.index'], 'label' => 'Requests & Approvals'],
+            ['route' => 'requests.index', 'pattern' => ['requests.index', 'requests.lifecycle-desk', 'requests.lifecycle-help'], 'label' => 'Requests & Approvals'],
             ['route' => 'requests.communications', 'pattern' => ['requests.communications', 'requests.communications-help'], 'label' => 'Inbox & Logs'],
             ['route' => 'requests.reports', 'pattern' => ['requests.reports'], 'label' => 'Request Reports'],
             ['route' => 'expenses.index', 'pattern' => ['expenses.*'], 'label' => 'Expenses'],
@@ -162,7 +162,7 @@ class NavAccessService
     {
         return [
             ['route' => 'dashboard', 'pattern' => ['dashboard*'], 'label' => 'Dashboard'],
-            ['route' => 'requests.index', 'pattern' => ['requests.index'], 'label' => 'Requests & Approvals'],
+            ['route' => 'requests.index', 'pattern' => ['requests.index', 'requests.lifecycle-desk', 'requests.lifecycle-help'], 'label' => 'Requests & Approvals'],
             ['route' => 'requests.communications', 'pattern' => ['requests.communications', 'requests.communications-help'], 'label' => 'Inbox & Logs'],
             ['route' => 'requests.reports', 'pattern' => ['requests.reports'], 'label' => 'Request Reports'],
             ['route' => 'assets.index', 'pattern' => ['assets.*'], 'label' => 'Assets'],
@@ -178,7 +178,7 @@ class NavAccessService
             ['route' => 'dashboard', 'pattern' => ['dashboard*'], 'label' => 'Dashboard'],
             ['route' => 'operations.control-desk', 'pattern' => ['operations.control-desk', 'operations.approval-desk', 'operations.vendor-payables-desk', 'operations.period-close-desk'], 'label' => 'Operations Desk'],
             ['route' => 'execution.health', 'pattern' => ['execution.health', 'execution.payout-ready', 'execution.help'], 'label' => 'Execution & Payouts'],
-            ['route' => 'requests.index', 'pattern' => ['requests.index'], 'label' => 'Requests & Approvals'],
+            ['route' => 'requests.index', 'pattern' => ['requests.index', 'requests.lifecycle-desk', 'requests.lifecycle-help'], 'label' => 'Requests & Approvals'],
             ['route' => 'requests.communications', 'pattern' => ['requests.communications', 'requests.communications-help'], 'label' => 'Inbox & Logs'],
             ['route' => 'requests.reports', 'pattern' => ['requests.reports'], 'label' => 'Request Reports'],
             ['route' => 'expenses.index', 'pattern' => ['expenses.*'], 'label' => 'Expenses'],
@@ -199,10 +199,7 @@ class NavAccessService
             ['route' => 'platform.dashboard', 'pattern' => ['platform.dashboard'], 'label' => 'Dashboard'],
             ['route' => 'platform.tenants', 'pattern' => ['platform.tenants'], 'label' => 'Tenant / Org Management'],
             ['route' => 'platform.users', 'pattern' => ['platform.users'], 'label' => 'Platform Users'],
-            ['route' => 'platform.operations.execution', 'pattern' => ['platform.operations.execution'], 'label' => 'Execution Operations'],
-            ['route' => 'platform.operations.execution-checklist', 'pattern' => ['platform.operations.execution-checklist'], 'label' => 'Execution Test Checklist'],
-            ['route' => 'platform.operations.incident-history', 'pattern' => ['platform.operations.incident-history'], 'label' => 'Incident History'],
-            ['route' => 'platform.operations.pilot-rollout', 'pattern' => ['platform.operations.pilot-rollout'], 'label' => 'Pilot Rollout KPIs'],
+            ['route' => 'platform.operations.hub', 'pattern' => ['platform.operations.hub', 'platform.operations.execution', 'platform.operations.execution-checklist', 'platform.operations.incident-history', 'platform.operations.pilot-rollout'], 'label' => 'Operations Hub'],
         ];
 
         $activeTenantId = $this->currentPlatformTenantId() ?? $this->firstExternalTenantId();
@@ -237,7 +234,7 @@ class NavAccessService
         return match ($route) {
             'dashboard', 'platform.dashboard' => 'home',
             'reports.index', 'requests.reports' => 'chart',
-            'requests.index' => 'clipboard',
+            'requests.index', 'requests.lifecycle-desk', 'requests.lifecycle-help' => 'clipboard',
             'requests.communications' => 'inbox',
             'expenses.index' => 'receipt',
             'procurement.release-desk', 'procurement.release-help', 'procurement.orders', 'procurement.receipts', 'procurement.match-exceptions' => 'clipboard',
@@ -249,6 +246,7 @@ class NavAccessService
             'assets.index' => 'cube',
             'departments.index' => 'office',
             'team.index', 'platform.users' => 'users',
+            'platform.operations.hub' => 'flow',
             'platform.operations.execution' => 'flow',
             'platform.operations.execution-checklist' => 'clipboard',
             'platform.operations.incident-history' => 'chart',
@@ -335,6 +333,7 @@ class NavAccessService
         return $id ? (int) $id : null;
     }
 }
+
 
 
 

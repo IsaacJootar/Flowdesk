@@ -25,6 +25,8 @@ use App\Livewire\Operations\PeriodCloseDeskPage;
 use App\Livewire\Reports\ReportsCenterPage;
 use App\Livewire\Requests\RequestCommunicationsPage;
 use App\Livewire\Requests\RequestCommunicationsGuidePage;
+use App\Livewire\Requests\RequestLifecycleDeskPage;
+use App\Livewire\Requests\RequestLifecycleGuidePage;
 use App\Livewire\Requests\RequestReportsPage;
 use App\Livewire\Settings\CommunicationSettingsPage;
 use App\Livewire\Settings\CompanySetup;
@@ -39,6 +41,7 @@ use App\Livewire\Settings\TenantManagementPage;
 use App\Livewire\Settings\VendorControlsPage;
 use App\Livewire\Platform\PlatformUsersPage;
 use App\Livewire\Platform\PlatformDashboardPage;
+use App\Livewire\Platform\PlatformOperationsHubPage;
 use App\Livewire\Platform\TenantExecutionModePage;
 use App\Livewire\Platform\TenantExecutionPolicyPage;
 use App\Livewire\Platform\TenantPlanEntitlementsPage;
@@ -82,6 +85,7 @@ Route::middleware(['auth', 'platform.access'])->prefix('platform')->name('platfo
     Route::get('/tenants/{company}/execution-policy', TenantExecutionPolicyPage::class)->name('tenants.execution-policy');
     Route::get('/tenants/{company}', TenantProfilePage::class)->name('tenants.show');
     Route::get('/users', PlatformUsersPage::class)->name('users');
+    Route::get('/operations', PlatformOperationsHubPage::class)->name('operations.hub');
     Route::get('/operations/execution', ExecutionOperationsPage::class)->name('operations.execution');
     Route::get('/operations/execution-checklist', ExecutionTestChecklistPage::class)->name('operations.execution-checklist');
     Route::get('/operations/incident-history', IncidentHistoryPage::class)->name('operations.incident-history');
@@ -105,6 +109,8 @@ Route::middleware(['auth', 'company.context'])->group(function (): void {
 
     Route::prefix('requests')->middleware('module.enabled:requests')->name('requests.')->group(function (): void {
         Route::view('/', 'app.requests.index')->name('index');
+        Route::get('/lifecycle-desk', RequestLifecycleDeskPage::class)->name('lifecycle-desk');
+        Route::get('/lifecycle-help', RequestLifecycleGuidePage::class)->name('lifecycle-help');
         Route::get('/communications', RequestCommunicationsPage::class)->middleware('module.enabled:communications')->name('communications');
         Route::get('/communications/help', RequestCommunicationsGuidePage::class)->middleware('module.enabled:communications')->name('communications-help');
         Route::get('/reports', RequestReportsPage::class)->middleware('module.enabled:reports')->name('reports');
@@ -193,6 +199,8 @@ Route::middleware(['auth', 'company.context'])->group(function (): void {
 });
 
 require __DIR__.'/auth.php';
+
+
 
 
 
