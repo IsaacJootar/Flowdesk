@@ -1,5 +1,5 @@
 <div wire:init="loadData" class="space-y-6">
-    <section class="fd-card p-5">
+    <section class="fd-card border border-slate-200 bg-slate-50 p-5">
         <div class="flex flex-wrap items-start justify-between gap-3">
             <div>
                 <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Tenant Execution</p>
@@ -41,7 +41,7 @@
         </section>
     @else
         <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-            <div class="rounded-2xl border border-slate-200 bg-white p-5">
+            <div class="rounded-2xl border border-indigo-200 bg-indigo-50 p-5">
                 <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Total Waiting</p>
                 <p class="mt-2 text-2xl font-semibold text-slate-900">{{ number_format((int) ($summary['total'] ?? 0)) }}</p>
             </div>
@@ -63,7 +63,63 @@
             </div>
         </section>
 
-        <section class="fd-card p-4">
+        @php
+            $executionSegments = [
+                ['label' => 'Ready', 'count' => (int) ($summary['ready'] ?? 0), 'tone' => 'emerald'],
+                ['label' => 'Queued', 'count' => (int) ($summary['queued'] ?? 0), 'tone' => 'sky'],
+                ['label' => 'Processing', 'count' => (int) ($summary['processing'] ?? 0), 'tone' => 'amber'],
+                ['label' => 'Failed', 'count' => (int) ($summary['failed'] ?? 0), 'tone' => 'rose'],
+            ];
+            $executionTotal = max(0, (int) ($summary['total'] ?? 0));
+            $executionBottleneck = collect($executionSegments)
+                ->sortByDesc('count')
+                ->first();
+            $executionBottleneckLabel = (string) ($executionBottleneck['label'] ?? 'No blockers');
+            $executionBottleneckCount = (int) ($executionBottleneck['count'] ?? 0);
+        @endphp
+
+        <section class="fd-card border border-slate-200 bg-slate-50 p-5">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                    <span class="inline-flex rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-sky-700">Execution Workload Progress</span>
+                    <p class="mt-2 text-sm text-slate-700">Open payout workload: <span class="font-semibold">{{ number_format($executionTotal) }}</span></p>
+                    <p class="text-xs text-slate-500">Current bottleneck: {{ $executionBottleneckLabel }} ({{ number_format($executionBottleneckCount) }})</p>
+                </div>
+            </div>
+
+            <div class="mt-4 h-3 overflow-hidden rounded-full bg-slate-100">
+                <div class="flex h-full w-full">
+                    @foreach ($executionSegments as $segment)
+                        @if ((int) $segment['count'] > 0)
+                            @php
+                                $segmentClass = match ((string) ($segment['tone'] ?? 'slate')) {
+                                    'emerald' => 'bg-emerald-400',
+                                    'sky' => 'bg-sky-400',
+                                    'amber' => 'bg-amber-400',
+                                    'rose' => 'bg-rose-400',
+                                    default => 'bg-slate-400',
+                                };
+                                $segmentPercent = $executionTotal > 0
+                                    ? (((int) $segment['count'] / $executionTotal) * 100)
+                                    : 0;
+                            @endphp
+                            <div class="{{ $segmentClass }}" style="width: {{ max(0.5, $segmentPercent) }}%"></div>
+                        @endif
+                    @endforeach
+                </div>
+            </div>
+
+            <div class="mt-3 flex flex-wrap gap-2 text-xs text-slate-600">
+                @foreach ($executionSegments as $segment)
+                    <span class="inline-flex items-center gap-1 rounded-full border border-sky-200 bg-sky-50 px-2 py-1">
+                        <span>{{ $segment['label'] }}</span>
+                        <span class="font-semibold">{{ number_format((int) $segment['count']) }}</span>
+                    </span>
+                @endforeach
+            </div>
+        </section>
+
+        <section class="fd-card border border-indigo-200 bg-indigo-50 p-4">
             <div class="grid gap-3 md:grid-cols-4">
                 <div>
                     <label for="payout-ready-status-filter" class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Status</label>
@@ -89,7 +145,7 @@
             </div>
         </section>
 
-        <section class="fd-card p-4">
+        <section class="fd-card border border-slate-200 bg-slate-50 p-4">
             <div class="mb-3 flex items-center justify-between gap-3">
                 <div>
                     <h3 class="text-sm font-semibold text-slate-900">Requests Waiting for Payout</h3>

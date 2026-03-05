@@ -1,5 +1,5 @@
 <div wire:init="loadData" class="space-y-6">
-<section class="fd-card p-5">
+<section class="fd-card border border-slate-200 bg-slate-50 p-5">
         <div class="flex flex-wrap items-start justify-between gap-3">
             <div>
                 <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Tenant Execution Health</p>
@@ -47,29 +47,29 @@
                 @endif
             </div>
 
-            <div class="rounded-2xl border border-slate-200 bg-white p-5">
+            <div class="rounded-2xl border border-indigo-200 bg-indigo-50 p-5">
                 <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Last Recovery Outcome</p>
                 <p class="mt-2 text-lg font-semibold text-slate-900">{{ $summary['last_recovery_outcome_at'] ?? 'No recovery outcome yet.' }}</p>
             </div>
 
-            <div class="rounded-2xl border border-slate-200 bg-white p-5">
+            <div class="rounded-2xl border border-sky-200 bg-sky-50 p-5">
                 <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Affected Billings</p>
                 <p class="mt-2 text-2xl font-semibold text-slate-900">{{ number_format((int) ($summary['affected_billings'] ?? 0)) }}</p>
             </div>
 
-            <div class="rounded-2xl border border-slate-200 bg-white p-5">
+            <div class="rounded-2xl border border-rose-200 bg-rose-50 p-5">
                 <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Affected Payouts</p>
                 <p class="mt-2 text-2xl font-semibold text-slate-900">{{ number_format((int) ($summary['affected_payouts'] ?? 0)) }}</p>
             </div>
         </section>
 
-        <section class="fd-card p-5">
+        <section class="fd-card border border-slate-200 bg-slate-50 p-5">
             <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Next Action</p>
             <p class="mt-2 text-sm text-slate-800">{{ $summary['next_action'] ?? 'Retry later.' }}</p>
         </section>
 
         @if ($focusRequested)
-            <section class="fd-card p-5">
+            <section class="fd-card border border-slate-200 bg-slate-50 p-5">
                 <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Focused Execution Context</p>
 
                 @if ($focusContext)
@@ -118,7 +118,7 @@
             </section>
         @endif
 
-        <section class="fd-card p-4">
+        <section class="fd-card border border-indigo-200 bg-indigo-50 p-4">
             <div class="mb-3 flex items-center justify-between gap-3">
                 <div>
                     <h3 class="text-sm font-semibold text-slate-900">Recent Tenant Summaries</h3>

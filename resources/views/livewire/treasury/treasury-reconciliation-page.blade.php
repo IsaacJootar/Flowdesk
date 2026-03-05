@@ -61,6 +61,57 @@
         </div>
     </div>
 
+    @php
+        $workloadSegments = [
+            ['label' => 'Unmatched', 'count' => (int) ($summary['unreconciled'] ?? 0), 'tone' => 'amber'],
+            ['label' => 'Open Exceptions', 'count' => (int) ($summary['open_exceptions'] ?? 0), 'tone' => 'rose'],
+            ['label' => 'Processing Runs', 'count' => (int) ($summary['processing_runs'] ?? 0), 'tone' => 'indigo'],
+        ];
+        $workloadTotal = (int) collect($workloadSegments)->sum('count');
+        $bottleneck = collect($workloadSegments)->sortByDesc('count')->first();
+        $bottleneckLabel = (string) ($bottleneck['label'] ?? 'No blockers');
+        $bottleneckCount = (int) ($bottleneck['count'] ?? 0);
+    @endphp
+
+    <div class="fd-card border border-indigo-200 bg-indigo-50 p-5">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+            <div>
+                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-indigo-700">Treasury Workload Progress</p>
+                <p class="mt-1 text-sm text-slate-700">Open treasury workload: <span class="font-semibold">{{ number_format($workloadTotal) }}</span></p>
+                <p class="text-xs text-slate-500">Current bottleneck: {{ $bottleneckLabel }} ({{ number_format($bottleneckCount) }})</p>
+            </div>
+        </div>
+
+        <div class="mt-3 h-3 overflow-hidden rounded-full bg-slate-100">
+            <div class="flex h-full w-full">
+                @foreach ($workloadSegments as $segment)
+                    @if ((int) $segment['count'] > 0)
+                        @php
+                            $segmentColor = match ((string) ($segment['tone'] ?? 'slate')) {
+                                'amber' => 'bg-amber-400',
+                                'rose' => 'bg-rose-400',
+                                'indigo' => 'bg-indigo-400',
+                                default => 'bg-slate-400',
+                            };
+                            $segmentPercent = $workloadTotal > 0
+                                ? (((int) $segment['count'] / $workloadTotal) * 100)
+                                : 0;
+                        @endphp
+                        <div class="{{ $segmentColor }}" style="width: {{ max(0.5, $segmentPercent) }}%"></div>
+                    @endif
+                @endforeach
+            </div>
+        </div>
+
+        <div class="mt-3 flex flex-wrap gap-2 text-xs text-slate-600">
+            @foreach ($workloadSegments as $segment)
+                <span class="inline-flex items-center gap-1 rounded-full border border-indigo-200 bg-indigo-100 px-2 py-1 text-indigo-800">
+                    <span>{{ $segment['label'] }}</span>
+                    <span class="font-semibold">{{ number_format((int) $segment['count']) }}</span>
+                </span>
+            @endforeach
+        </div>
+    </div>
     <div class="fd-card p-5">
         <div class="grid gap-3 lg:grid-cols-4">
             <label class="block">

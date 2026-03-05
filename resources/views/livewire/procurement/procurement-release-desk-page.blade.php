@@ -52,7 +52,8 @@
     <section class="fd-card p-5">
         <div class="flex flex-wrap items-center justify-between gap-3">
             <div>
-                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Workload Progress</p>
+                <span class="inline-flex rounded-full border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-indigo-700">Workload Progress</span>
+                <p class="mt-2 text-xs font-semibold uppercase tracking-[0.12em] text-indigo-700">Focus Area: clear the biggest bottleneck first</p>
                 <p class="mt-1 text-sm text-slate-700">Open procurement workload: <span class="font-semibold">{{ number_format((int) ($summary['workload_total'] ?? 0)) }}</span></p>
                 <p class="text-xs text-slate-500">Current bottleneck: {{ $summary['bottleneck_label'] ?? 'No blockers' }} ({{ number_format((int) ($summary['bottleneck_count'] ?? 0)) }})</p>
             </div>
