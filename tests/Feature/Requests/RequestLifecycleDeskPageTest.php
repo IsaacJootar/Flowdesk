@@ -33,18 +33,20 @@ class RequestLifecycleDeskPageTest extends TestCase
             ->assertSee('How to Run the Lifecycle Desk');
     }
 
-    public function test_staff_cannot_open_lifecycle_desk_or_help_page(): void
+    public function test_staff_can_open_lifecycle_desk_and_help_page(): void
     {
         [$company, $department] = $this->createCompanyContext('Lifecycle Desk Staff');
         $staff = $this->createUser($company, $department, UserRole::Staff->value);
 
         $this->actingAs($staff)
             ->get(route('requests.lifecycle-desk'))
-            ->assertForbidden();
+            ->assertOk()
+            ->assertDontSee('execution/payout-ready');
 
         $this->actingAs($staff)
             ->get(route('requests.lifecycle-help'))
-            ->assertForbidden();
+            ->assertOk()
+            ->assertDontSee('execution/payout-ready');
     }
 
     public function test_lifecycle_rows_are_tenant_scoped(): void
@@ -127,3 +129,4 @@ class RequestLifecycleDeskPageTest extends TestCase
         ]);
     }
 }
+

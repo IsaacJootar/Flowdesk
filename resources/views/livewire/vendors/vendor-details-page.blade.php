@@ -33,7 +33,7 @@
         <div class="fd-card p-6">
             <p class="text-sm text-slate-600">Vendor not found or no longer available.</p>
             <a href="{{ route('vendors.index') }}" class="mt-3 inline-flex rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
-                Back to Vendors
+                Back to Vendor Management
             </a>
         </div>
     @else
@@ -42,7 +42,7 @@
                 <div>
                     <a href="{{ route('vendors.index') }}" class="inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-[0.1em] text-slate-500 hover:text-slate-700">
                         <span aria-hidden="true">&larr;</span>
-                        <span>Back to Vendors</span>
+                        <span>Back to Vendor Management</span>
                     </a>
                     <h2 class="mt-2 text-xl font-semibold text-slate-900">{{ $vendor->name }}</h2>
                     <p class="text-sm text-slate-500">{{ $vendor->vendor_type ? ucfirst($vendor->vendor_type) : 'Uncategorized' }}</p>
@@ -483,9 +483,17 @@
                 </div>
             @endif
 
-            <div class="flex items-center justify-between gap-2">
+            @php($vendorCommunicationLogs = $this->vendorCommunicationLogs)
+            <div class="flex flex-wrap items-center justify-between gap-2">
                 <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Vendor Communication Logs</p>
-                <span class="text-[11px] text-slate-500">Latest 20</span>
+                <label class="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
+                    <span>Rows</span>
+                    <select wire:model.live="vendorCommunicationPerPage" class="rounded-lg border-slate-300 text-[11px] font-semibold focus:border-slate-500 focus:ring-slate-500">
+                        <option value="10">10</option>
+                        <option value="25">25</option>
+                        <option value="50">50</option>
+                    </select>
+                </label>
             </div>
             <div class="mt-3 overflow-x-auto">
                 <table class="min-w-full divide-y divide-slate-200 text-sm">
@@ -501,7 +509,7 @@
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100">
-                        @forelse ($this->vendorCommunicationLogs as $log)
+                        @forelse ($vendorCommunicationLogs as $log)
                             @php
                                 $statusClass = match ($log['status']) {
                                     'sent' => 'border-emerald-200 bg-emerald-50 text-emerald-700',
@@ -553,6 +561,14 @@
                     </tbody>
                 </table>
             </div>
+            @if ($vendorCommunicationLogs->total() > 0)
+                <div class="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <p class="text-xs text-slate-500">
+                        Showing {{ $vendorCommunicationLogs->firstItem() ?? 0 }}-{{ $vendorCommunicationLogs->lastItem() ?? 0 }} of {{ $vendorCommunicationLogs->total() }}
+                    </p>
+                    {{ $vendorCommunicationLogs->links() }}
+                </div>
+            @endif
         </div>
     @endif
 
@@ -561,3 +577,7 @@
     @include('livewire.vendors.partials.vendor-payment-modal')
     @include('livewire.vendors.partials.vendor-void-invoice-modal')
 </div>
+
+
+
+

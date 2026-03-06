@@ -12,6 +12,8 @@ use Livewire\Component;
 #[Title('Request Lifecycle Help')]
 class RequestLifecycleGuidePage extends Component
 {
+    public bool $canOpenPayoutQueue = false;
+
     public function mount(): void
     {
         $user = auth()->user();
@@ -22,9 +24,17 @@ class RequestLifecycleGuidePage extends Component
                 UserRole::Finance->value,
                 UserRole::Manager->value,
                 UserRole::Auditor->value,
+                UserRole::Staff->value,
             ], true),
             403
         );
+
+        $this->canOpenPayoutQueue = in_array((string) ($user?->role ?? ''), [
+            UserRole::Owner->value,
+            UserRole::Finance->value,
+            UserRole::Manager->value,
+            UserRole::Auditor->value,
+        ], true);
     }
 
     public function render(): View

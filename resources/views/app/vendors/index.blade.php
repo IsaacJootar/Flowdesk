@@ -1,3 +1,3 @@
-<x-app-layout :title="'Vendors'" :subtitle="'Manage suppliers and service providers'">
+<x-app-layout :title="'Vendor Registry'" :subtitle="'Maintain vendor profiles, invoices, and payments'">
     <livewire:vendors.vendors-page />
 </x-app-layout>

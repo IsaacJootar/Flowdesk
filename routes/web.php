@@ -16,6 +16,7 @@ use App\Livewire\Execution\ExecutionUsageGuidePage;
 use App\Livewire\Execution\PayoutReadyQueuePage;
 use App\Livewire\Assets\AssetReportsPage;
 use App\Livewire\Organization\ApprovalWorkflowsPage;
+use App\Livewire\Organization\OrganizationAdminDeskPage;
 use App\Livewire\Organization\DepartmentsPage;
 use App\Livewire\Organization\TeamPage;
 use App\Livewire\Operations\OperationsControlDeskPage;
@@ -39,6 +40,7 @@ use App\Livewire\Settings\RequestConfigurationPage;
 use App\Livewire\Settings\TenantDetailsPage;
 use App\Livewire\Settings\TenantManagementPage;
 use App\Livewire\Settings\VendorControlsPage;
+use App\Livewire\Settings\SettingsControlCenterPage;
 use App\Livewire\Platform\PlatformUsersPage;
 use App\Livewire\Platform\PlatformDashboardPage;
 use App\Livewire\Platform\PlatformOperationsHubPage;
@@ -51,6 +53,7 @@ use App\Livewire\Platform\ExecutionTestChecklistPage;
 use App\Livewire\Platform\IncidentHistoryPage;
 use App\Livewire\Platform\PilotRolloutKpiPage;
 use App\Livewire\Vendors\VendorDetailsPage;
+use App\Livewire\Vendors\VendorCommandCenterPage;
 use App\Livewire\Vendors\VendorReportsPage;
 use App\Livewire\Treasury\TreasuryCashPositionPage;
 use App\Livewire\Procurement\ProcurementReleaseDeskPage;
@@ -125,7 +128,8 @@ Route::middleware(['auth', 'company.context'])->group(function (): void {
     });
 
     Route::prefix('vendors')->middleware('module.enabled:vendors')->name('vendors.')->group(function (): void {
-        Route::view('/', 'app.vendors.index')->name('index');
+        Route::get('/', VendorCommandCenterPage::class)->name('index');
+        Route::view('/registry', 'app.vendors.index')->name('registry');
         Route::get('/reports', VendorReportsPage::class)->middleware('module.enabled:reports')->name('reports');
         Route::get('/{vendor}/statement/export.csv', VendorStatementCsvExportController::class)
             ->name('statement.export.csv');
@@ -169,6 +173,9 @@ Route::middleware(['auth', 'company.context'])->group(function (): void {
     Route::prefix('team')->name('team.')->group(function (): void {
         Route::get('/', TeamPage::class)->name('index');
     });
+    Route::prefix('organization')->name('organization.')->group(function (): void {
+        Route::get('/admin-desk', OrganizationAdminDeskPage::class)->name('admin-desk');
+    });
 
     Route::get('/users/{user}/avatar', UserAvatarController::class)->name('users.avatar');
 
@@ -177,11 +184,8 @@ Route::middleware(['auth', 'company.context'])->group(function (): void {
     });
 
     Route::prefix('settings')->name('settings.')->group(function (): void {
-        Route::get('/', function () {
-            abort_unless(\Illuminate\Support\Facades\Auth::user()?->role === UserRole::Owner->value, 403);
-
-            return view('app.settings.index');
-        })->name('index');
+        Route::get('/', SettingsControlCenterPage::class)->name('index');
+        Route::get('/control-center', SettingsControlCenterPage::class)->name('control-center');
         Route::get('/communications', CommunicationSettingsPage::class)->middleware('module.enabled:communications')->name('communications');
         Route::get('/request-configuration', RequestConfigurationPage::class)->middleware('module.enabled:requests')->name('request-configuration');
         Route::get('/approval-timing-controls', ApprovalTimingControlsPage::class)->middleware('module.enabled:requests')->name('approval-timing-controls');
@@ -193,12 +197,15 @@ Route::middleware(['auth', 'company.context'])->group(function (): void {
         Route::get('/organization', function () {
             abort_unless(\Illuminate\Support\Facades\Auth::user()?->role === UserRole::Owner->value, 403);
 
-            return redirect()->route('departments.index');
+            return redirect()->route('organization.admin-desk');
         })->name('organization');
     });
 });
 
 require __DIR__.'/auth.php';
+
+
+
 
 
 

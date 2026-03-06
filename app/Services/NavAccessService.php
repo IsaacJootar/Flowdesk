@@ -87,28 +87,18 @@ class NavAccessService
             ['route' => 'dashboard', 'pattern' => ['dashboard*'], 'label' => 'Dashboard'],
             ['route' => 'operations.control-desk', 'pattern' => ['operations.control-desk', 'operations.approval-desk', 'operations.vendor-payables-desk', 'operations.period-close-desk'], 'label' => 'Operations Desk'],
             ['route' => 'reports.index', 'pattern' => ['reports.index'], 'label' => 'Reports'],
-            ['route' => 'execution.health', 'pattern' => ['execution.health', 'execution.payout-ready', 'execution.help'], 'label' => 'Execution & Payouts'],
+            ['route' => 'execution.health', 'pattern' => ['execution.health', 'execution.payout-ready', 'execution.help'], 'label' => 'Executions & Payouts'],
             ['route' => 'requests.index', 'pattern' => ['requests.index', 'requests.lifecycle-desk', 'requests.lifecycle-help'], 'label' => 'Requests & Approvals'],
             ['route' => 'requests.communications', 'pattern' => ['requests.communications', 'requests.communications-help'], 'label' => 'Inbox & Logs'],
             ['route' => 'requests.reports', 'pattern' => ['requests.reports'], 'label' => 'Request Reports'],
             ['route' => 'expenses.index', 'pattern' => ['expenses.*'], 'label' => 'Expenses'],
-            ['route' => 'vendors.index', 'pattern' => ['vendors.index', 'vendors.show', 'vendors.reports'], 'label' => 'Manage Vendors'],
+            ['route' => 'vendors.index', 'pattern' => ['vendors.index', 'vendors.registry', 'vendors.show', 'vendors.reports'], 'label' => 'Vendor Management'],
             ['route' => 'procurement.release-desk', 'pattern' => ['procurement.*'], 'label' => 'Manage Procurement'],
             ['route' => 'treasury.reconciliation', 'pattern' => ['treasury.*'], 'label' => 'Manage Treasury'],
             ['route' => 'budgets.index', 'pattern' => ['budgets.*'], 'label' => 'Budgets'],
             ['route' => 'assets.index', 'pattern' => ['assets.*'], 'label' => 'Assets'],
-            ['route' => 'departments.index', 'pattern' => ['departments.*'], 'label' => 'Departments'],
-            ['route' => 'team.index', 'pattern' => ['team.*'], 'label' => 'Team'],
-            ['route' => 'approval-workflows.index', 'pattern' => ['approval-workflows.*'], 'label' => 'Approval Workflows'],
-            ['route' => 'settings.communications', 'pattern' => ['settings.communications'], 'label' => 'Communications'],
-            ['route' => 'settings.request-configuration', 'pattern' => ['settings.request-configuration'], 'label' => 'Request Configuration'],
-            ['route' => 'settings.approval-timing-controls', 'pattern' => ['settings.approval-timing-controls'], 'label' => 'Approval Timing Controls'],
-            ['route' => 'settings.expense-controls', 'pattern' => ['settings.expense-controls'], 'label' => 'Expense Controls'],
-            ['route' => 'settings.asset-controls', 'pattern' => ['settings.asset-controls'], 'label' => 'Asset Controls'],
-            ['route' => 'settings.vendor-controls', 'pattern' => ['settings.vendor-controls'], 'label' => 'Vendor Controls'],
-            ['route' => 'settings.procurement-controls', 'pattern' => ['settings.procurement-controls'], 'label' => 'Procurement Controls'],
-            ['route' => 'settings.treasury-controls', 'pattern' => ['settings.treasury-controls'], 'label' => 'Treasury Controls'],
-            ['route' => 'settings.index', 'pattern' => ['settings.index'], 'label' => 'Settings'],
+            ['route' => 'organization.admin-desk', 'pattern' => ['organization.admin-desk', 'departments.*', 'team.*', 'approval-workflows.*'], 'label' => 'Organization Admin'],
+            ['route' => 'settings.index', 'pattern' => ['settings.*'], 'label' => 'Settings'],
         ];
     }
 
@@ -126,7 +116,7 @@ class NavAccessService
             ['route' => 'requests.communications', 'pattern' => ['requests.communications', 'requests.communications-help'], 'label' => 'Inbox & Logs'],
             ['route' => 'requests.reports', 'pattern' => ['requests.reports'], 'label' => 'Request Reports'],
             ['route' => 'expenses.index', 'pattern' => ['expenses.*'], 'label' => 'Expenses'],
-            ['route' => 'vendors.index', 'pattern' => ['vendors.index', 'vendors.show', 'vendors.reports'], 'label' => 'Vendors'],
+            ['route' => 'vendors.index', 'pattern' => ['vendors.index', 'vendors.registry', 'vendors.show', 'vendors.reports'], 'label' => 'Vendor Management Workspace'],
             ['route' => 'procurement.release-desk', 'pattern' => ['procurement.*'], 'label' => 'Manage Procurement'],
             ['route' => 'treasury.reconciliation', 'pattern' => ['treasury.*'], 'label' => 'Manage Treasury'],
             ['route' => 'budgets.index', 'pattern' => ['budgets.*'], 'label' => 'Budgets'],
@@ -182,7 +172,7 @@ class NavAccessService
             ['route' => 'requests.communications', 'pattern' => ['requests.communications', 'requests.communications-help'], 'label' => 'Inbox & Logs'],
             ['route' => 'requests.reports', 'pattern' => ['requests.reports'], 'label' => 'Request Reports'],
             ['route' => 'expenses.index', 'pattern' => ['expenses.*'], 'label' => 'Expenses'],
-            ['route' => 'vendors.index', 'pattern' => ['vendors.index', 'vendors.show', 'vendors.reports'], 'label' => 'Vendors'],
+            ['route' => 'vendors.index', 'pattern' => ['vendors.index', 'vendors.registry', 'vendors.show', 'vendors.reports'], 'label' => 'Vendor Management Workspace'],
             ['route' => 'procurement.release-desk', 'pattern' => ['procurement.*'], 'label' => 'Manage Procurement'],
             ['route' => 'treasury.reconciliation', 'pattern' => ['treasury.*'], 'label' => 'Manage Treasury'],
             ['route' => 'budgets.index', 'pattern' => ['budgets.*'], 'label' => 'Budgets'],
@@ -235,16 +225,16 @@ class NavAccessService
             'dashboard', 'platform.dashboard' => 'home',
             'reports.index', 'requests.reports' => 'chart',
             'requests.index', 'requests.lifecycle-desk', 'requests.lifecycle-help' => 'clipboard',
-            'requests.communications' => 'inbox',
+            'requests.communications' => 'chat',
             'expenses.index' => 'receipt',
             'procurement.release-desk', 'procurement.release-help', 'procurement.orders', 'procurement.receipts', 'procurement.match-exceptions' => 'clipboard',
             'treasury.reconciliation', 'treasury.reconciliation-exceptions' => 'flow',
             'treasury.payment-runs' => 'clipboard',
             'treasury.cash-position' => 'wallet',
-            'vendors.index', 'platform.tenants', 'platform.tenants.show' => 'building',
+            'vendors.index', 'vendors.registry', 'platform.tenants', 'platform.tenants.show' => 'building',
             'budgets.index', 'platform.tenants.billing' => 'wallet',
             'assets.index' => 'cube',
-            'departments.index' => 'office',
+            'organization.admin-desk', 'departments.index' => 'office',
             'team.index', 'platform.users' => 'users',
             'platform.operations.hub' => 'flow',
             'platform.operations.execution' => 'flow',
@@ -333,6 +323,13 @@ class NavAccessService
         return $id ? (int) $id : null;
     }
 }
+
+
+
+
+
+
+
 
 
 

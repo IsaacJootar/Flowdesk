@@ -33,7 +33,8 @@
     <div class="fd-card p-6">
         <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
             <div>
-                <h3 class="text-base font-semibold text-slate-900">Departments</h3>
+                <a href="{{ route('organization.admin-desk') }}" class="inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-[0.1em] text-slate-500 hover:text-slate-700"><span aria-hidden="true">&larr;</span><span>Back to Organization Admin Desk</span></a>
+                <h3 class="mt-2 text-base font-semibold text-slate-900">Departments</h3>
                 <p class="text-sm text-slate-600">Maintain departments and department-head assignments.</p>
             </div>
             <div class="flex flex-wrap items-center gap-2">
@@ -203,3 +204,4 @@
         </div>
     @endif
 </div>
+

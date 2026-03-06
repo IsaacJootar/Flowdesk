@@ -9,7 +9,9 @@
 
             <div class="flex flex-wrap gap-2">
                 <a href="{{ route('requests.index') }}" class="inline-flex items-center rounded-lg border border-indigo-200 bg-white px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100">Open Requests</a>
-                <a href="{{ route('execution.payout-ready') }}" class="inline-flex items-center rounded-lg border border-slate-700 bg-slate-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800" style="background-color:#334155;border-color:#334155;color:#ffffff;">Open Payout Queue</a>
+                @if (($canOpenPayoutQueue ?? false))
+                    <a href="{{ route('execution.payout-ready') }}" class="inline-flex items-center rounded-lg border border-slate-700 bg-slate-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800" style="background-color:#334155;border-color:#334155;color:#ffffff;">Open Payout Queue</a>
+                @endif
                 <a href="{{ route('requests.lifecycle-help') }}" class="inline-flex items-center rounded-lg border border-slate-700 bg-slate-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800" style="background-color:#334155;border-color:#334155;color:#ffffff;">Help / Usage Guide</a>
             </div>
         </div>
@@ -121,3 +123,4 @@
         </section>
     @endif
 </div>
+

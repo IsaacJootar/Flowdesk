@@ -23,6 +23,7 @@ use App\Services\VendorPaymentInsights;
 use App\Services\VendorReminderService;
 use Throwable;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Gate;
@@ -46,6 +47,7 @@ class VendorsPage extends Component
     public string $typeFilter = 'all';
 
     public int $perPage = 10;
+    public int $vendorCommunicationPerPage = 10;
 
     public bool $showFormModal = false;
 
@@ -208,6 +210,15 @@ class VendorsPage extends Component
         $this->resetPage();
     }
 
+    public function updatedVendorCommunicationPerPage(): void
+    {
+        if (! in_array($this->vendorCommunicationPerPage, [10, 25, 50], true)) {
+            $this->vendorCommunicationPerPage = 10;
+        }
+
+        $this->resetPage('vendor_comm_page');
+    }
+
     public function updatedVendorCommQueuedOlderThanMinutes(mixed $value): void
     {
         if ($value === null || $value === '') {
@@ -264,6 +275,7 @@ class VendorsPage extends Component
         Gate::authorize('view', $vendor);
 
         $this->selectedVendorId = $vendor->id;
+        $this->resetPage('vendor_comm_page');
         $this->loadVendorInsights($vendor);
         $this->showDetailPanel = true;
     }
@@ -272,6 +284,7 @@ class VendorsPage extends Component
     {
         $this->showDetailPanel = false;
         $this->selectedVendorId = null;
+        $this->resetPage('vendor_comm_page');
         $this->invoiceSearch = '';
         $this->invoiceStatusFilter = 'all';
         $this->statementDateFrom = '';
@@ -624,22 +637,22 @@ class VendorsPage extends Component
         return Vendor::query()->find($this->selectedVendorId);
     }
 
-    /**
-     * @return array<int, array<string, mixed>>
-     */
-    public function getVendorCommunicationLogsProperty(): array
+    public function getVendorCommunicationLogsProperty(): LengthAwarePaginator
     {
         if (! $this->selectedVendorId) {
-            return [];
+            return $this->emptyVendorCommunicationLogsPaginator();
         }
 
         return VendorCommunicationLog::query()
             ->where('vendor_id', (int) $this->selectedVendorId)
             ->with(['invoice:id,invoice_number', 'recipient:id,name,email'])
             ->latest('id')
-            ->limit(20)
-            ->get()
-            ->map(fn (VendorCommunicationLog $log): array => [
+            ->paginate(
+                $this->vendorCommunicationPerPage,
+                ['*'],
+                'vendor_comm_page'
+            )
+            ->through(fn (VendorCommunicationLog $log): array => [
                 'id' => (int) $log->id,
                 'event' => (string) $log->event,
                 'event_label' => $this->vendorCommunicationEventLabel((string) $log->event),
@@ -651,8 +664,18 @@ class VendorsPage extends Component
                 'message' => (string) ($log->message ?? ''),
                 'created_at' => optional($log->created_at)->format('M d, Y H:i'),
                 'sent_at' => optional($log->sent_at)->format('M d, Y H:i'),
-            ])
-            ->all();
+            ]);
+    }
+
+    private function emptyVendorCommunicationLogsPaginator(): LengthAwarePaginator
+    {
+        return VendorCommunicationLog::query()
+            ->whereRaw('1 = 0')
+            ->paginate(
+                $this->vendorCommunicationPerPage,
+                ['*'],
+                'vendor_comm_page'
+            );
     }
 
     /**
@@ -1461,3 +1484,4 @@ class VendorsPage extends Component
         ];
     }
 }
+

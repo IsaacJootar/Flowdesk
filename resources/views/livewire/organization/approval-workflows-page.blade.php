@@ -32,6 +32,9 @@
 
     <div class="fd-card p-6">
         <div class="mb-4">
+            <div class="mb-3 flex justify-end">
+                <a href="{{ route('organization.admin-desk') }}" class="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-slate-100 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.08em] text-slate-700 hover:bg-slate-200"><span aria-hidden="true">&larr;</span><span>Back to Organization Admin Desk</span></a>
+            </div>
             <span class="inline-flex items-center rounded-full border border-slate-300 bg-slate-200 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-800">
                 Workflow Governance
             </span>
@@ -117,7 +120,7 @@
                     wire:target="createPresetWorkflow"
                     class="inline-flex min-w-[170px] items-center justify-center rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-70"
                 >
-                    <span>Create Preset Workflow</span>
+                    <span>Create Default Workflow</span>
                     <span class="ml-2 inline-flex h-3.5 w-3.5 items-center justify-center">
                         <svg wire:loading wire:target="createPresetWorkflow" class="h-3.5 w-3.5 animate-spin text-slate-700" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                             <circle cx="12" cy="12" r="9" class="opacity-25" stroke="currentColor" stroke-width="3"></circle>
@@ -145,9 +148,9 @@
 
             <p class="mt-1 text-xs text-slate-600">
                 @if ($workflowScope === 'payment_authorization')
-                    Preset creates a standard 2-step payment authorization chain: Step 1 is Finance, Step 2 is Admin (Owner).
+                    Default workflow creates a standard 2-step payment authorization chain: Step 1 is Finance, Step 2 is Admin (Owner).
                 @else
-                    Preset creates a standard 2-step request chain: Step 1 is Direct Manager (Reports To), Step 2 is Finance role approval.
+                    Default workflow creates a standard 2-step request chain: Step 1 is Direct Manager (Reports To), Step 2 is Finance role approval.
                 @endif
             </p>
         </div>
@@ -498,3 +501,7 @@
         </div>
     @endif
 </div>
+
+
+
+

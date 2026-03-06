@@ -59,6 +59,7 @@ class RequestLifecycleDeskPage extends Component
 
         return view('livewire.requests.request-lifecycle-desk-page', [
             'desk' => $desk,
+            'canOpenPayoutQueue' => $this->canOpenPayoutQueue($user),
         ]);
     }
 
@@ -271,6 +272,7 @@ class RequestLifecycleDeskPage extends Component
 
         $rows = [];
         $count = 0;
+        $canOpenPayoutQueue = $this->canOpenPayoutQueue($user);
 
         foreach ((clone $baseQuery)->cursor() as $request) {
             /** @var SpendRequest $request */
@@ -294,10 +296,14 @@ class RequestLifecycleDeskPage extends Component
                     $finalApprover
                 ),
                 'status' => 'Ready for Payout Dispatch',
-                'context' => 'All approvals done. Dispatch payout from the execution queue.',
-                'next_action_label' => 'Run Payout',
-                'next_action_url' => route('execution.payout-ready', ['search' => (string) $request->request_code]),
-                'next_action_tone' => 'emerald',
+                'context' => $canOpenPayoutQueue
+                    ? 'All approvals done. Dispatch payout from the execution queue.'
+                    : 'All approvals done. Payout queue is restricted for your role. Open request to monitor status.',
+                'next_action_label' => $canOpenPayoutQueue ? 'Run Payout' : 'Open Request',
+                'next_action_url' => $canOpenPayoutQueue
+                    ? route('execution.payout-ready', ['search' => (string) $request->request_code])
+                    : route('requests.index', ['open_request_id' => (int) $request->id]),
+                'next_action_tone' => $canOpenPayoutQueue ? 'emerald' : 'indigo',
             ];
         }
 
@@ -320,6 +326,7 @@ class RequestLifecycleDeskPage extends Component
             ]);
 
         $count = (int) (clone $baseQuery)->count();
+        $canOpenPayoutQueue = $this->canOpenPayoutQueue($user);
 
         $rows = (clone $baseQuery)
             ->latest('updated_at')
@@ -355,11 +362,21 @@ class RequestLifecycleDeskPage extends Component
                     ),
                     'status' => ucwords(str_replace('_', ' ', (string) $request->status)),
                     'context' => $isFailed
-                        ? ($attemptError !== '' ? 'Failed: '.$attemptError : 'Failed execution. Check provider/config/state and rerun.')
-                        : 'Execution is in progress; re-check queue for latest state.',
-                    'next_action_label' => $isFailed ? 'Rerun Payout' : 'Re-check Queue',
-                    'next_action_url' => route('execution.payout-ready', ['search' => (string) $request->request_code]),
-                    'next_action_tone' => $isFailed ? 'rose' : 'sky',
+                        ? ($attemptError !== '' ? 'Failed: '.$attemptError : ($canOpenPayoutQueue
+                            ? 'Failed execution. Check provider/config/state and rerun.'
+                            : 'Failed execution. Payout rerun is restricted for your role; notify finance/owner.'))
+                        : ($canOpenPayoutQueue
+                            ? 'Execution is in progress; re-check queue for latest state.'
+                            : 'Execution is in progress. Payout queue is restricted for your role; open request to monitor status.'),
+                    'next_action_label' => $canOpenPayoutQueue
+                        ? ($isFailed ? 'Rerun Payout' : 'Re-check Queue')
+                        : 'Open Request',
+                    'next_action_url' => $canOpenPayoutQueue
+                        ? route('execution.payout-ready', ['search' => (string) $request->request_code])
+                        : route('requests.index', ['open_request_id' => (int) $request->id]),
+                    'next_action_tone' => $canOpenPayoutQueue
+                        ? ($isFailed ? 'rose' : 'sky')
+                        : 'indigo',
                 ];
             })
             ->all();
@@ -457,6 +474,16 @@ class RequestLifecycleDeskPage extends Component
         return (string) ($approval->actor?->name ?: 'System');
     }
 
+    private function canOpenPayoutQueue(User $user): bool
+    {
+        return in_array((string) $user->role, [
+            UserRole::Owner->value,
+            UserRole::Finance->value,
+            UserRole::Manager->value,
+            UserRole::Auditor->value,
+        ], true);
+    }
+
     private function canAccessPage(User $user): bool
     {
         return in_array((string) $user->role, [
@@ -464,6 +491,7 @@ class RequestLifecycleDeskPage extends Component
             UserRole::Finance->value,
             UserRole::Manager->value,
             UserRole::Auditor->value,
+            UserRole::Staff->value,
         ], true);
     }
 
@@ -587,3 +615,4 @@ class RequestLifecycleDeskPage extends Component
         ];
     }
 }
+

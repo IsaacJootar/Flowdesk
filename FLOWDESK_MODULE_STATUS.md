@@ -73,12 +73,13 @@ This file is the canonical module inventory so planning discussions stay aligned
 - Test coverage: `tests/Feature/Expenses/ExpenseModuleTest.php`
 
 ## Vendors
-- Routes: `/vendors`, `/vendors/{vendor}`, `/vendors/reports`, statement export/print
+- Routes: `/vendors` (Vendor Command Center), `/vendors/registry`, `/vendors/{vendor}`, `/vendors/reports`, statement export/print
 - Entries:
+  - `app/Livewire/Vendors/VendorCommandCenterPage.php`
   - `app/Livewire/Vendors/VendorsPage.php`
   - `app/Livewire/Vendors/VendorDetailsPage.php`
   - `app/Livewire/Vendors/VendorReportsPage.php`
-- Status: Implemented (profiles, invoices/payments timeline, reporting/export paths).
+- Status: Implemented with Vendor Command Center (`/vendors`) as the primary workspace; registry/detail/reports remain drill-down pages.
 - Test coverage: `tests/Feature/Vendors/VendorModuleTest.php`
 
 ## Budgets
@@ -104,29 +105,34 @@ This file is the canonical module inventory so planning discussions stay aligned
 - Test coverage: `tests/Feature/Reports/ReportsCenterTest.php`
 
 ## Organization
-- Routes: `/departments`, `/team`, `/approval-workflows`
+- Routes: `/organization/admin-desk`, `/departments`, `/team`, `/approval-workflows`
 - Entries:
+  - `app/Livewire/Organization/OrganizationAdminDeskPage.php`
   - `app/Livewire/Organization/DepartmentsPage.php`
   - `app/Livewire/Organization/TeamPage.php`
   - `app/Livewire/Organization/ApprovalWorkflowsPage.php`
-- Status: Implemented.
+- Status: Implemented with Organization Admin Desk (`/organization/admin-desk`) as the primary owner workspace for departments/team/workflow governance.
 - Test coverage:
   - `tests/Feature/Organization/OrganizationHierarchyManagementTest.php`
   - `tests/Feature/Organization/SeatGovernanceTest.php`
   - `tests/Feature/Organization/TeamAvatarTest.php`
 
 ## Tenant Settings
-- Routes under `/settings/*`
+- Routes under `/settings/*` (primary: `/settings` and `/settings/control-center`)
 - Entries:
+  - `app/Livewire/Settings/SettingsControlCenterPage.php`
   - `app/Livewire/Settings/CommunicationSettingsPage.php`
   - `app/Livewire/Settings/RequestConfigurationPage.php`
   - `app/Livewire/Settings/ApprovalTimingControlsPage.php`
   - `app/Livewire/Settings/ExpenseControlsPage.php`
   - `app/Livewire/Settings/VendorControlsPage.php`
   - `app/Livewire/Settings/AssetControlsPage.php`
-- Status: Implemented.
+- Status: Implemented with a consolidated Settings Control Center as the primary tenant settings workspace.
 - Test coverage:
   - `tests/Feature/Settings/ApprovalTimingControlsTest.php`
+  - `tests/Feature/Settings/SettingsControlCenterPageTest.php`
+- Usage guide:
+  - `FLOWDESK_SETTINGS_CONTROL_CENTER_USAGE.md`
 
 ## 2) Platform Modules
 
@@ -470,6 +476,9 @@ Before proposing "new" module work, check this file plus route map (`routes/web.
 - Sprint 8 rollout controls and enablement: completed.
 - Regression validation: php artisan test passed (198 tests, 0 failures).
 - UAT dry-run validation: php artisan procurement:backfill-vendor-links --dry-run completed with 0 errors and no persisted changes.
+
+
+
 
 
 

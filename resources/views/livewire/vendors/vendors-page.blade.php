@@ -99,6 +99,14 @@
                         <span wire:loading wire:target="openCreateModal">Opening...</span>
                     </button>
                 @endif
+
+                <a
+                    href="{{ route('vendors.index') }}"
+                    class="inline-flex h-10 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl border border-slate-300 bg-white px-3.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                >
+                    <span aria-hidden="true">&larr;</span>
+                    <span>Back to Vendor Management</span>
+                </a>
             </div>
         </div>
     </div>
@@ -205,9 +213,10 @@
                     {{ $vendors->links() }}
                 </div>
             </div>
-        @endif
-    </div>
+                        
+            </div>
 
+        @endif
     @if ($showFormModal)
         <div wire:click="closeFormModal" class="fixed left-0 right-0 bottom-0 top-0 z-40 overflow-y-auto bg-slate-900/40 p-3">
             <div class="flex items-start justify-center pt-1">
