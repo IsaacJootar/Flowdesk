@@ -65,6 +65,7 @@ class TenantModuleAccessService
             'settings.asset-controls' => $this->moduleEnabled($user, 'assets'),
             'settings.procurement-controls' => $this->moduleEnabled($user, 'procurement'),
             'settings.treasury-controls' => $this->moduleEnabled($user, 'treasury'),
+            'settings.payments-rails' => $this->moduleEnabled($user, 'fintech'),
             'treasury.reconciliation', 'treasury.reconciliation-help', 'treasury.reconciliation-exceptions', 'treasury.payment-runs', 'treasury.cash-position' => $this->moduleEnabled($user, 'treasury'),
             default => true,
         };
@@ -122,6 +123,7 @@ class TenantModuleAccessService
         ];
     }
 }
+
 
 
 

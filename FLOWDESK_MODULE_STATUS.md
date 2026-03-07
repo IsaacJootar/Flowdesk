@@ -1,6 +1,6 @@
 # Flowdesk Module Status (Ground Truth)
 
-Last updated: 2026-03-04
+Last updated: 2026-03-07
 
 This file is the canonical module inventory so planning discussions stay aligned to what is already implemented in code.
 
@@ -127,6 +127,7 @@ This file is the canonical module inventory so planning discussions stay aligned
   - `app/Livewire/Settings/ExpenseControlsPage.php`
   - `app/Livewire/Settings/VendorControlsPage.php`
   - `app/Livewire/Settings/AssetControlsPage.php`
+  - `app/Livewire/Settings/PaymentsRailsIntegrationPage.php`
 - Status: Implemented with a consolidated Settings Control Center as the primary tenant settings workspace.
 - Test coverage:
   - `tests/Feature/Settings/ApprovalTimingControlsTest.php`
@@ -242,7 +243,7 @@ This file is the canonical module inventory so planning discussions stay aligned
 
 Module entitlements are active and enforced:
 - `requests`, `expenses`, `vendors`, `budgets`, `assets`, `reports`, `communications`
-- Inactive by default in plan matrix: `ai`, `fintech`
+- Inactive by default in plan matrix: `ai`, `fintech` (used for Payments Rails Integration scope).
 
 Source files:
 - `config/tenant_plans.php`
@@ -252,18 +253,21 @@ Source files:
 ## 6) Gaps / Not Fully Enabled
 
 1. `ai` module: entitlement key exists, but no active AI module routes/pages in current app nav.
-2. `fintech` module: entitlement key exists, but no dedicated tenant-facing fintech module route/page.
+2. Payments Rails Integration (fintech entitlement): foundational tenant settings route/page now exists (`/settings/payments-rails`), but full provider onboarding/event-sync workflows are still pending.
 3. Slack/Telegram provider adapters are intentionally deferred; execution alerts currently deliver through tenant-configured `in_app` + `email` channels only.
 
 ## 6.1) Later Modules / Deferred Backlog (Non-AI Priority)
 
-1. `fintech` tenant module (post-core)
-   - Tenant-facing module shell + navigation + entitlement visibility.
+1. Payments Rails Integration (fintech entitlement, post-core)
+   - Tenant-facing status/config shell now implemented at `/settings/payments-rails`; expand to guided provider onboarding and rail sync operations.
    - Initial capabilities scoped for organization-level financial rails (to be defined per rollout phase).
 2. Execution alert channel expansion
    - Add Slack adapter for `execution:ops:alert-summary` delivery pipeline.
    - Add Telegram adapter for `execution:ops:alert-summary` delivery pipeline.
 3. Production hardening track (post-feature)
+
+Scope reference:
+- `FLOWDESK_PAYMENTS_RAILS_SCOPE.md`
    - Scheduler and queue observability dashboards/alerts.
    - Cutover runbook rehearsal with seeded tenant UAT data and rollback checkpoints.
 
@@ -483,3 +487,13 @@ Before proposing "new" module work, check this file plus route map (`routes/web.
 
 
 
+
+
+
+
+## 10) Payments Rails Action Map (2026-03-07)
+- Tenant route: /settings/payments-rails (owner-only, fintech-entitled).
+- Implemented actions: Connect, Test Connection, Sync Now, Pause/Resume.
+- Tenant audit visibility: Recent Payments Rail Actions (10 per page) on same tenant page.
+- Platform audit visibility: /platform/tenants/{company}/billing -> Tenant Audit Events includes 	enant.payments_rails.*.
+- Alignment note: /platform/operations/incident-history remains execution-incident focused and does not currently include payments-rails action stream.

@@ -15,9 +15,26 @@
         @vite(['resources/css/app.css', 'resources/js/app.js'])
         @livewireStyles
     </head>
+    @php
+        $authUserForShell = \Illuminate\Support\Facades\Auth::user();
+        $initialCompanyName = $authUserForShell?->company?->name;
+
+        // Resolve name by company_id in case relation is not hydrated on this request.
+        if (! $initialCompanyName && $authUserForShell?->company_id) {
+            $initialCompanyName = \App\Domains\Company\Models\Company::query()
+                ->whereKey((int) $authUserForShell->company_id)
+                ->value('name');
+        }
+
+        if (! $initialCompanyName) {
+            $initialCompanyName = app(\App\Services\PlatformAccessService::class)->isPlatformOperator($authUserForShell)
+                ? 'Platform Control'
+                : 'Organization';
+        }
+    @endphp
     <body
         class="bg-slate-50 text-slate-900 antialiased"
-        x-data="{ sidebarOpen: false, companyName: @js(\Illuminate\Support\Facades\Auth::user()?->company?->name ?? 'Flowdesk') }"
+        x-data="{ sidebarOpen: false, companyName: @js($initialCompanyName) }"
         x-on:company-name-updated.window="companyName = ($event.detail && $event.detail.name) ? $event.detail.name : companyName"
     >
         @php
@@ -30,7 +47,7 @@
             }
             $platformAccess = app(\App\Services\PlatformAccessService::class);
             $isPlatformOperator = $platformAccess->isPlatformOperator($user);
-            $companyName = $user?->company?->name ?? 'Flowdesk';
+            $companyName = (string) $initialCompanyName;
             $role = $user?->role ?? 'staff';
             $roleLabel = $isPlatformOperator
                 ? 'Flowdesk Platform Control Center'
@@ -43,6 +60,9 @@
                 };
             $departmentLabel = $isPlatformOperator ? 'Platform Control' : ($user?->department?->name ?? 'No department');
             $reportsToLabel = $isPlatformOperator ? 'N/A' : ($user?->reportsTo?->name ?? 'Not assigned');
+            $showReportsToSection = ! $isPlatformOperator
+                && (string) $role !== 'owner'
+                && filled($user?->reportsTo?->name);
             $navigation = app(\App\Services\NavAccessService::class)->forUser($user);
             $navItems = $navigation['items'];
             $showBackToSettings = request()->routeIs('settings.organization') || request()->routeIs('settings.company.setup');
@@ -50,12 +70,10 @@
 
         <div class="min-h-screen md:flex">
             <aside class="fixed inset-y-0 left-0 z-40 w-64 transform overflow-y-auto border-r border-slate-200 bg-white transition md:translate-x-0" :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'">
-                <div class="flex h-16 items-center border-b border-slate-200 px-5">
+                <div class="flex h-20 items-start border-b border-slate-200 px-5 py-3">
                     <div>
                         <img src="{{ asset('brand-logo.svg') }}" alt="Flowdesk" class="mt-1 h-6 w-auto">
-                        @if (! $isPlatformOperator)
-                            <p class="text-sm font-semibold text-slate-800" x-text="companyName">{{ $companyName }}</p>
-                        @endif
+                        <p class="mt-1 max-w-[13rem] truncate text-xs font-medium text-slate-600" x-text="companyName">{{ $companyName }}</p>
                     </div>
                 </div>
 
@@ -158,9 +176,11 @@
                                         <span class="inline-flex items-center rounded-full border border-slate-300 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-600">
                                             {{ $departmentLabel }}
                                         </span>
-                                        <span class="inline-flex items-center rounded-full border border-slate-300 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-600">
-                                            Reports to: {{ $reportsToLabel }}
-                                        </span>
+                                        @if ($showReportsToSection)
+                                            <span class="inline-flex items-center rounded-full border border-slate-300 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-600">
+                                                Reports to: {{ $reportsToLabel }}
+                                            </span>
+                                        @endif
                                     @endif
                                 </div>
 
@@ -212,12 +232,14 @@
                                     <p class="text-xs uppercase tracking-[0.1em] text-sky-700">Department</p>
                                     <p class="mt-1 text-sm font-semibold text-sky-900">{{ $departmentLabel }}</p>
                                 </div>
-                                <div>
-                                    <p class="text-xs uppercase tracking-[0.1em] text-sky-700">Reporting Line</p>
-                                    <p class="mt-1 text-sm font-semibold text-sky-900">
-                                        {{ $isPlatformOperator ? 'Global tenant oversight' : 'Direct Manager ('.$reportsToLabel.')' }}
-                                    </p>
-                                </div>
+                                @if ($isPlatformOperator || $showReportsToSection)
+                                    <div>
+                                        <p class="text-xs uppercase tracking-[0.1em] text-sky-700">Reporting Line</p>
+                                        <p class="mt-1 text-sm font-semibold text-sky-900">
+                                            {{ $isPlatformOperator ? 'Global tenant oversight' : 'Direct Manager ('.$reportsToLabel.')' }}
+                                        </p>
+                                    </div>
+                                @endif
                             </div>
                         </div>
                     @endauth
@@ -230,3 +252,12 @@
         @livewireScripts
     </body>
 </html>
+
+
+
+
+
+
+
+
+

@@ -41,6 +41,7 @@ use App\Livewire\Settings\TenantDetailsPage;
 use App\Livewire\Settings\TenantManagementPage;
 use App\Livewire\Settings\VendorControlsPage;
 use App\Livewire\Settings\SettingsControlCenterPage;
+use App\Livewire\Settings\PaymentsRailsIntegrationPage;
 use App\Livewire\Platform\PlatformUsersPage;
 use App\Livewire\Platform\PlatformDashboardPage;
 use App\Livewire\Platform\PlatformOperationsHubPage;
@@ -194,6 +195,7 @@ Route::middleware(['auth', 'company.context'])->group(function (): void {
         Route::get('/vendor-controls', VendorControlsPage::class)->middleware('module.enabled:vendors')->name('vendor-controls');
         Route::get('/procurement-controls', ProcurementControlsPage::class)->middleware('module.enabled:procurement')->name('procurement-controls');
         Route::get('/treasury-controls', TreasuryControlsPage::class)->middleware('module.enabled:treasury')->name('treasury-controls');
+        Route::get('/payments-rails', PaymentsRailsIntegrationPage::class)->middleware('module.enabled:fintech')->name('payments-rails');
         Route::get('/organization', function () {
             abort_unless(\Illuminate\Support\Facades\Auth::user()?->role === UserRole::Owner->value, 403);
 
@@ -203,6 +205,8 @@ Route::middleware(['auth', 'company.context'])->group(function (): void {
 });
 
 require __DIR__.'/auth.php';
+
+
 
 
 

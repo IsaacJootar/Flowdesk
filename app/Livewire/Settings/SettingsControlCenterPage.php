@@ -43,6 +43,7 @@ class SettingsControlCenterPage extends Component
             'assets' => $moduleAccessService->moduleEnabled($user, 'assets'),
             'procurement' => $moduleAccessService->moduleEnabled($user, 'procurement'),
             'treasury' => $moduleAccessService->moduleEnabled($user, 'treasury'),
+            'fintech' => $moduleAccessService->moduleEnabled($user, 'fintech'),
         ];
 
         $sectionMeta = [
@@ -146,6 +147,12 @@ class SettingsControlCenterPage extends Component
                     'route' => 'settings.treasury-controls',
                     'module' => 'treasury',
                 ],
+                [
+                    'label' => 'Payments Rails Integration',
+                    'description' => 'Business-level provider connection status and tenant rail readiness.',
+                    'route' => 'settings.payments-rails',
+                    'module' => 'fintech',
+                ],
             ],
             'security' => [
                 [
@@ -213,3 +220,5 @@ class SettingsControlCenterPage extends Component
         return (string) $user->role === UserRole::Owner->value;
     }
 }
+
+

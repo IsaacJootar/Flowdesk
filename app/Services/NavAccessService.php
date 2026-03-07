@@ -250,7 +250,7 @@ class NavAccessService
             'settings.communications' => 'chat',
             'settings.request-configuration', 'platform.tenants.plan-entitlements' => 'sliders',
             'settings.approval-timing-controls' => 'clock',
-            'settings.expense-controls', 'settings.asset-controls', 'settings.vendor-controls', 'settings.procurement-controls', 'settings.treasury-controls', 'platform.tenants.execution-policy' => 'shield',
+            'settings.expense-controls', 'settings.asset-controls', 'settings.vendor-controls', 'settings.procurement-controls', 'settings.treasury-controls', 'settings.payments-rails', 'platform.tenants.execution-policy' => 'shield',
             'settings.index' => 'cog',
             default => 'dot',
         };
@@ -323,6 +323,7 @@ class NavAccessService
         return $id ? (int) $id : null;
     }
 }
+
 
 
 

@@ -349,12 +349,13 @@ Release gate addition:
 3. Backfill UAT dry-run completed: php artisan procurement:backfill-vendor-links --dry-run -> completed with 0 errors and no writes.
 
 ## 18) Post-Core Deferred Backlog (Non-AI)
-1. FIN-901 - Tenant-facing `fintech` module foundation.
-   - Add tenant route/page shell and entitlement-gated navigation.
-   - Define phase-1 fintech workflows before implementation (kept out of current closeout scope).
+1. FIN-901 - Payments Rails Integration foundation (fintech entitlement).
+   - Tenant route/page shell is now implemented at `/settings/payments-rails`; continue with provider onboarding and sync workflows.
+   - Define phase-1 rails workflows (connect, verify, sync status) without duplicating execution/procurement/treasury desks.
 2. CHN-901 - Slack execution-alert delivery adapter.
    - Wire Slack channel into `ExecutionAlertChannelDeliveryService` using tenant communication policy controls.
 3. CHN-902 - Telegram execution-alert delivery adapter.
    - Wire Telegram channel into `ExecutionAlertChannelDeliveryService` using tenant communication policy controls.
 4. OPS-901 - Go-live operations hardening pack.
    - Scheduler/queue monitoring checks, final seeded UAT rehearsal, and cutover rollback drill evidence.
+

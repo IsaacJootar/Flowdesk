@@ -48,6 +48,11 @@ For full module-level implementation inventory, see `FLOWDESK_MODULE_STATUS.md`.
 5. `app/Livewire/Platform/IncidentHistoryPage.php`
 6. `resources/views/livewire/platform/incident-history-page.blade.php`
 
+## Tenant-facing rails status page (non-technical)
+1. Route: `/settings/payments-rails`
+2. Entry: `app/Livewire/Settings/PaymentsRailsIntegrationPage.php`
+3. Purpose: show business-friendly connection readiness (status, mode, provider key) without exposing raw API/webhook payload details.
+
 ---
 
 ## 2) Adapter Usage vs Guardrails
@@ -246,4 +251,5 @@ The dedicated Incident History page provides a cross-tenant incident ledger for 
 2. Trend: seven-day pipeline chart (billing, payout, webhook, system).
 3. Table: timestamp, tenant, pipeline, type, action, actor, details, metadata drill-down.
 4. Export: CSV download using the active filters.
+
 

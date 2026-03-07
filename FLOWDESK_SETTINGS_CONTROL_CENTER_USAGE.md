@@ -1,6 +1,6 @@
 # Flowdesk Settings Control Center Usage
 
-Last updated: 2026-03-05
+Last updated: 2026-03-07
 
 ## Purpose
 
@@ -16,10 +16,29 @@ It centralizes configuration navigation so teams stop jumping across many sideba
 - Request configuration, approval timing controls, communications channel controls.
 
 3. Module Controls
-- Expense, vendor, asset, procurement, and treasury controls.
+- Expense, vendor, asset, procurement, treasury, and Payments Rails Integration controls.
 
 4. Security
 - Profile and credential management.
+
+## Payments Rails Integration (owner action map)
+Route: `/settings/payments-rails`
+
+1. `Connect`
+- Saves selected provider and marks tenant rail as connected.
+
+2. `Test Connection`
+- Runs basic provider readiness check and stores pass/fail + message + test time.
+
+3. `Sync Now`
+- Records a manual sync timestamp for tenant operations tracking.
+
+4. `Pause/Resume`
+- Toggles tenant rail state between paused and connected.
+
+Audit trail:
+- Tenant page: `Recent Payments Rail Actions` (10 per page).
+- Platform page: `/platform/tenants/{company}/billing` -> `Tenant Audit Events`.
 
 ## State labels
 

@@ -373,7 +373,7 @@ Non-negotiable constraints:
 - All channel sends must execute asynchronously via queues.
 - Tenant-level communication preferences must be respected.
 
-### Stage 3 (fintech)
+### Stage 3 (Payments Rails Integration)
 - Wallet + virtual cards + transaction feeds
 - Limits, categories, policy enforcement
 - Integrations
@@ -404,4 +404,5 @@ When generating code:
 ## Addendum: Local XAMPP Subfolder Note
 When running from a subfolder URL (for example `http://localhost/flowdesk/public`), Livewire script/update paths must be path-aware.
 Preferred production and long-term local shape: use a virtual host/domain with document root pointing to `/public` to avoid subfolder routing overrides.
+
 

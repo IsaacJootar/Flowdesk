@@ -102,6 +102,8 @@
         Vendors {{ $moduleFlags['vendors'] ? 'enabled' : 'disabled' }} |
         Assets {{ $moduleFlags['assets'] ? 'enabled' : 'disabled' }} |
         Procurement {{ $moduleFlags['procurement'] ? 'enabled' : 'disabled' }} |
-        Treasury {{ $moduleFlags['treasury'] ? 'enabled' : 'disabled' }}.
+        Treasury {{ $moduleFlags['treasury'] ? 'enabled' : 'disabled' }} |
+        Payments Rails {{ $moduleFlags['fintech'] ? 'enabled' : 'disabled' }}.
     </section>
 </div>
+

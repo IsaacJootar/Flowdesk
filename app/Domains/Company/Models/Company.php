@@ -5,6 +5,7 @@ namespace App\Domains\Company\Models;
 use App\Domains\Approvals\Models\CompanyApprovalTimingSetting;
 use App\Domains\Approvals\Models\DepartmentApprovalTimingOverride;
 use App\Domains\Expenses\Models\CompanyExpensePolicySetting;
+use App\Domains\Fintech\Models\CompanyPaymentRailSetting;
 use App\Domains\Procurement\Models\CompanyProcurementControlSetting;
 use App\Domains\Requests\Models\CompanyRequestPolicySetting;
 use App\Domains\Requests\Models\CompanyRequestType;
@@ -92,6 +93,11 @@ class Company extends Model
         return $this->hasOne(CompanyTreasuryControlSetting::class);
     }
 
+
+    public function paymentRailSetting(): HasOne
+    {
+        return $this->hasOne(CompanyPaymentRailSetting::class);
+    }
     public function approvalTimingSetting(): HasOne
     {
         return $this->hasOne(CompanyApprovalTimingSetting::class);

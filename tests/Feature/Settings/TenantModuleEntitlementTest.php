@@ -271,6 +271,41 @@ class TenantModuleEntitlementTest extends TestCase
     }
 
 
+    public function test_disabled_fintech_module_blocks_payments_rails_settings_route(): void
+    {
+        [$company, $department] = $this->createCompanyContext('Entitlement Fintech Disabled');
+        $owner = $this->createUser($company, $department, UserRole::Owner->value);
+
+        TenantFeatureEntitlement::query()->create([
+            'company_id' => $company->id,
+            'fintech_enabled' => false,
+            'created_by' => $owner->id,
+            'updated_by' => $owner->id,
+        ]);
+
+        $this->actingAs($owner)
+            ->get(route('settings.payments-rails'))
+            ->assertForbidden();
+    }
+
+    public function test_enabled_fintech_module_allows_payments_rails_settings_route(): void
+    {
+        [$company, $department] = $this->createCompanyContext('Entitlement Fintech Enabled');
+        $owner = $this->createUser($company, $department, UserRole::Owner->value);
+
+        TenantFeatureEntitlement::query()->create([
+            'company_id' => $company->id,
+            'fintech_enabled' => true,
+            'created_by' => $owner->id,
+            'updated_by' => $owner->id,
+        ]);
+
+        $this->actingAs($owner)
+            ->get(route('settings.payments-rails'))
+            ->assertOk()
+            ->assertSee('Payments Rails Integration');
+    }
+
     /**
      * @return array{0: Company, 1: Department}
      */
@@ -303,4 +338,5 @@ class TenantModuleEntitlementTest extends TestCase
         ]);
     }
 }
+
 
