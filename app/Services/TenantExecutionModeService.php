@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Domains\Company\Models\Company;
+use App\Services\PaymentsRails\PaymentsRailsRolloutService;
 use Illuminate\Validation\ValidationException;
 
 class TenantExecutionModeService
@@ -11,7 +13,8 @@ class TenantExecutionModeService
     public const MODE_EXECUTION_ENABLED = 'execution_enabled';
 
     public function __construct(
-        private readonly PaymentAuthorizationWorkflowResolver $paymentAuthorizationWorkflowResolver
+        private readonly PaymentAuthorizationWorkflowResolver $paymentAuthorizationWorkflowResolver,
+        private readonly PaymentsRailsRolloutService $rolloutService,
     ) {
     }
 
@@ -109,8 +112,18 @@ class TenantExecutionModeService
             if ($companyId === null) {
                 $errors['subscriptionForm.payment_execution_mode'] = 'Save tenant first, then configure execution-enabled mode.';
             } elseif (! $this->paymentAuthorizationWorkflowResolver->hasActiveDefaultWorkflow($companyId)) {
-                // Execution-mode requires a second policy layer after request approval, after the fiinal approval from the request approval workflow.
+                // Execution-mode requires a second policy layer after request approval, after the final approval from the request approval workflow.
                 $errors['subscriptionForm.payment_execution_mode'] = 'Execution-enabled requires an active default Payment Authorization workflow in Approval Workflows.';
+            }
+
+            if ($normalizedProvider !== null && $companyId !== null) {
+                $companySlug = $this->companySlug($companyId);
+                $policy = $this->rolloutService->connectionPolicy($normalizedProvider, $companySlug);
+
+                // Real providers are staged by tenant; only pilot/go-live tenants can enable them.
+                if (! $policy['allowed']) {
+                    $errors['subscriptionForm.execution_provider'] = (string) ($policy['message'] ?: 'Selected execution provider is not allowed for this tenant yet.');
+                }
             }
         }
 
@@ -178,6 +191,11 @@ class TenantExecutionModeService
 
         return $trimmed !== '' ? $trimmed : null;
     }
+
+    private function companySlug(int $companyId): ?string
+    {
+        $slug = Company::query()->whereKey($companyId)->value('slug');
+
+        return is_string($slug) && trim($slug) !== '' ? strtolower(trim($slug)) : null;
+    }
 }
-
-

@@ -61,7 +61,7 @@ class PaymentsRailSettingsService
      *
      * @return array{passed:bool,message:string}
      */
-    public function testProvider(string $providerKey): array
+    public function testProvider(string $providerKey, bool $sandboxMode = false): array
     {
         $provider = strtolower(trim($providerKey));
 
@@ -80,25 +80,37 @@ class PaymentsRailSettingsService
         }
 
         if ($provider === 'paystack') {
-            $secret = trim((string) config('execution.providers.paystack.secret_key', ''));
+            $key = $sandboxMode
+                ? trim((string) config('execution.providers.paystack.sandbox_secret_key', ''))
+                : trim((string) config('execution.providers.paystack.secret_key', ''));
 
-            return $secret !== ''
-                ? ['passed' => true, 'message' => 'Connection test passed for Paystack.']
-                : ['passed' => false, 'message' => 'Paystack credentials are not configured yet.'];
+            if ($key === '' && $sandboxMode) {
+                $key = trim((string) config('execution.providers.paystack.secret_key', ''));
+            }
+
+            return $key !== ''
+                ? ['passed' => true, 'message' => $sandboxMode ? 'Sandbox connection test passed for Paystack.' : 'Connection test passed for Paystack.']
+                : ['passed' => false, 'message' => $sandboxMode ? 'Paystack sandbox credentials are not configured yet.' : 'Paystack credentials are not configured yet.'];
         }
 
         if ($provider === 'flutterwave') {
-            $secret = trim((string) config('execution.providers.flutterwave.secret_key', ''));
+            $key = $sandboxMode
+                ? trim((string) config('execution.providers.flutterwave.sandbox_secret_key', ''))
+                : trim((string) config('execution.providers.flutterwave.secret_key', ''));
 
-            return $secret !== ''
-                ? ['passed' => true, 'message' => 'Connection test passed for Flutterwave.']
-                : ['passed' => false, 'message' => 'Flutterwave credentials are not configured yet.'];
+            if ($key === '' && $sandboxMode) {
+                $key = trim((string) config('execution.providers.flutterwave.secret_key', ''));
+            }
+
+            return $key !== ''
+                ? ['passed' => true, 'message' => $sandboxMode ? 'Sandbox connection test passed for Flutterwave.' : 'Connection test passed for Flutterwave.']
+                : ['passed' => false, 'message' => $sandboxMode ? 'Flutterwave sandbox credentials are not configured yet.' : 'Flutterwave credentials are not configured yet.'];
         }
 
         $providerConfig = (array) config('execution.providers.'.$provider, []);
 
         return $providerConfig !== []
-            ? ['passed' => true, 'message' => 'Connection test passed.']
+            ? ['passed' => true, 'message' => $sandboxMode ? 'Sandbox connection test passed.' : 'Connection test passed.']
             : ['passed' => false, 'message' => 'Provider is not configured in this environment.'];
     }
 }

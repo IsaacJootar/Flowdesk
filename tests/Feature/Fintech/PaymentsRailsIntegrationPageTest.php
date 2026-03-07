@@ -49,7 +49,7 @@ class PaymentsRailsIntegrationPageTest extends TestCase
         Livewire::test(PaymentsRailsIntegrationPage::class)
             ->set('connectForm.provider_key', 'manual_ops')
             ->call('connect')
-            ->assertSet('feedbackMessage', 'Payment rail connected.')
+            ->assertSet('feedbackMessage', 'Payment rail connected (manual operations mode).')
             ->call('syncNow')
             ->assertSet('feedbackMessage', 'Sync completed.')
             ->call('togglePause')
@@ -66,6 +66,7 @@ class PaymentsRailsIntegrationPageTest extends TestCase
         $this->assertSame('manual_ops', (string) $setting->provider_key);
         $this->assertSame(CompanyPaymentRailSetting::STATUS_CONNECTED, (string) $setting->connection_status);
         $this->assertNotNull($setting->last_synced_at);
+        $this->assertSame('manual', (string) (($setting->metadata ?? [])['rollout_stage'] ?? ''));
 
         $this->assertSame(
             4,
@@ -100,6 +101,52 @@ class PaymentsRailsIntegrationPageTest extends TestCase
         $this->assertSame('Connection test completed (manual operations mode).', (string) $setting->last_test_message);
     }
 
+    public function test_non_pilot_tenant_cannot_connect_external_provider(): void
+    {
+        [$company, $department] = $this->createCompanyContext('Blocked External Tenant');
+        $owner = $this->createUser($company, $department, UserRole::Owner->value);
+
+        config()->set('execution.rails_rollout.allow_external_provider_without_pilot', false);
+        config()->set('execution.rails_rollout.pilot_company_slugs', ['internal-test']);
+        config()->set('execution.rails_rollout.go_live_company_slugs', []);
+
+        $this->actingAs($owner);
+
+        Livewire::test(PaymentsRailsIntegrationPage::class)
+            ->set('connectForm.provider_key', 'paystack')
+            ->call('connect')
+            ->assertSet('feedbackError', 'This provider is in staged rollout. Use manual_ops for now, or ask platform admin to enable pilot/go-live for your organization.');
+
+        $setting = CompanyPaymentRailSetting::query()->withoutGlobalScopes()->where('company_id', $company->id)->first();
+        $this->assertNull($setting?->provider_key);
+    }
+
+    public function test_pilot_tenant_can_connect_external_provider_in_sandbox_mode(): void
+    {
+        [$company, $department] = $this->createCompanyContext('Pilot External Tenant', 'pilot-external-tenant');
+        $owner = $this->createUser($company, $department, UserRole::Owner->value);
+
+        config()->set('execution.rails_rollout.allow_external_provider_without_pilot', false);
+        config()->set('execution.rails_rollout.pilot_company_slugs', ['pilot-external-tenant']);
+        config()->set('execution.rails_rollout.go_live_company_slugs', []);
+        config()->set('execution.providers.paystack.sandbox_secret_key', 'sandbox-secret');
+
+        $this->actingAs($owner);
+
+        Livewire::test(PaymentsRailsIntegrationPage::class)
+            ->set('connectForm.provider_key', 'paystack')
+            ->call('connect')
+            ->assertSet('feedbackMessage', 'Provider connected in Sandbox mode (pilot).')
+            ->call('testConnection')
+            ->assertSet('feedbackMessage', 'Sandbox connection test passed for Paystack.');
+
+        $setting = CompanyPaymentRailSetting::query()->withoutGlobalScopes()->where('company_id', $company->id)->first();
+        $this->assertNotNull($setting);
+        $this->assertSame('paystack', (string) $setting->provider_key);
+        $this->assertTrue((bool) (($setting->metadata ?? [])['sandbox_mode'] ?? false));
+        $this->assertSame('sandbox', (string) (($setting->metadata ?? [])['rollout_stage'] ?? ''));
+    }
+
     public function test_non_owner_is_forbidden_from_payments_rails_page(): void
     {
         [$company, $department] = $this->createCompanyContext('Payments Rails Staff');
@@ -120,11 +167,11 @@ class PaymentsRailsIntegrationPageTest extends TestCase
     /**
      * @return array{0: Company, 1: Department}
      */
-    private function createCompanyContext(string $name): array
+    private function createCompanyContext(string $name, ?string $forcedSlug = null): array
     {
         $company = Company::query()->create([
             'name' => $name,
-            'slug' => Str::slug($name).'-'.Str::lower(Str::random(6)),
+            'slug' => $forcedSlug ?: Str::slug($name).'-'.Str::lower(Str::random(6)),
             'email' => Str::slug($name).'+fintech@example.test',
             'is_active' => true,
             'lifecycle_status' => 'active',

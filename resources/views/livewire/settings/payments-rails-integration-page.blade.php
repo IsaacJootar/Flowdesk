@@ -230,11 +230,7 @@
         <p class="mt-1 text-xs text-slate-600">
             These controls are for your organization's payout rail status and routine checks.
         </p>
+        <p class="mt-2 text-xs text-slate-600"><span class="font-semibold text-slate-800">Current rollout stage:</span> {{ $rolloutStageLabel }}.</p>
+        <p class="mt-1 text-xs text-slate-600">{{ $rolloutStageNote }}</p>
     </section>
 </div>
-
-
-
-
-
-

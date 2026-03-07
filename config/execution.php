@@ -5,6 +5,16 @@ use App\Services\Execution\Adapters\NullPayoutExecutionAdapter;
 use App\Services\Execution\Adapters\NullProviderWebhookVerifier;
 use App\Services\Execution\Adapters\NullSubscriptionBillingAdapter;
 
+$rolloutPilotCompanySlugs = array_values(array_unique(array_filter(array_map(
+    static fn (string $slug): string => strtolower(trim($slug)),
+    explode(',', (string) env('FLOWDESK_RAILS_PILOT_COMPANY_SLUGS', ''))
+))));
+
+$rolloutGoLiveCompanySlugs = array_values(array_unique(array_filter(array_map(
+    static fn (string $slug): string => strtolower(trim($slug)),
+    explode(',', (string) env('FLOWDESK_RAILS_GO_LIVE_COMPANY_SLUGS', ''))
+))));
+
 return [
     // Used when provider key is missing or unknown.
     'fallback_provider' => env('FLOWDESK_EXECUTION_FALLBACK_PROVIDER', 'null'),
@@ -33,6 +43,8 @@ return [
         //     'webhook_verifier' => \App\Services\Execution\Adapters\PaystackWebhookVerifier::class,
         //     'base_url' => env('FLOWDESK_PAYSTACK_BASE_URL', 'https://api.paystack.co'),
         //     'secret_key' => env('FLOWDESK_PAYSTACK_SECRET_KEY', ''),
+        //     'sandbox_base_url' => env('FLOWDESK_PAYSTACK_SANDBOX_BASE_URL', 'https://api.paystack.co'),
+        //     'sandbox_secret_key' => env('FLOWDESK_PAYSTACK_SANDBOX_SECRET_KEY', ''),
         // ],
 
         // Uncomment when ready to use Flutterwave provider adapters.
@@ -42,16 +54,26 @@ return [
         //     'webhook_verifier' => \App\Services\Execution\Adapters\FlutterwaveWebhookVerifier::class,
         //     'base_url' => env('FLOWDESK_FLUTTERWAVE_BASE_URL', 'https://api.flutterwave.com/v3'),
         //     'secret_key' => env('FLOWDESK_FLUTTERWAVE_SECRET_KEY', ''),
+        //     'sandbox_base_url' => env('FLOWDESK_FLUTTERWAVE_SANDBOX_BASE_URL', 'https://api.flutterwave.com/v3'),
+        //     'sandbox_secret_key' => env('FLOWDESK_FLUTTERWAVE_SANDBOX_SECRET_KEY', ''),
         //     'webhook_secret_hash' => env('FLOWDESK_FLUTTERWAVE_WEBHOOK_SECRET_HASH', ''),
         //     'redirect_url' => env('FLOWDESK_FLUTTERWAVE_REDIRECT_URL', ''),
         // ],
+    ],
+
+    // Staged rollout controls for real providers.
+    'rails_rollout' => [
+        'default_provider' => strtolower(trim((string) env('FLOWDESK_RAILS_DEFAULT_PROVIDER', 'manual_ops'))),
+        'pilot_company_slugs' => $rolloutPilotCompanySlugs,
+        'go_live_company_slugs' => $rolloutGoLiveCompanySlugs,
+        'allow_external_provider_without_pilot' => filter_var(env('FLOWDESK_RAILS_ALLOW_EXTERNAL_WITHOUT_PILOT', false), FILTER_VALIDATE_BOOL),
     ],
 
     //  subscription auto-billing defaults.
     'billing' => [
         'default_currency' => env('FLOWDESK_BILLING_DEFAULT_CURRENCY', 'NGN'),
         'plan_amounts' => [
-            // i will bill tenants here appropriately. 
+            // i will bill tenants here appropriately.
             'pilot' => (float) env('FLOWDESK_PLAN_AMOUNT_PILOT', 0),
             'growth' => (float) env('FLOWDESK_PLAN_AMOUNT_GROWTH', 0),
             'business' => (float) env('FLOWDESK_PLAN_AMOUNT_BUSINESS', 0),
@@ -74,4 +96,3 @@ return [
         'cooldown_minutes' => (int) env('FLOWDESK_EXECUTION_OPS_AUTO_RECOVERY_COOLDOWN_MINUTES', 15),
     ],
 ];
-

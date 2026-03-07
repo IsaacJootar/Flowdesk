@@ -197,7 +197,7 @@ class TenantExecutionModePage extends Component
 
         $this->modeForm = [
             'payment_execution_mode' => (string) ($subscription?->payment_execution_mode ?? TenantExecutionModeService::MODE_DECISION_ONLY),
-            'execution_provider' => (string) ($subscription?->execution_provider ?? ''),
+            'execution_provider' => (string) ($subscription?->execution_provider ?? 'manual_ops'),
         ];
 
         $this->loadProviderOptions();
@@ -248,6 +248,10 @@ class TenantExecutionModePage extends Component
         $this->feedbackKey++;
     }
 }
+
+
+
+
 
 
 

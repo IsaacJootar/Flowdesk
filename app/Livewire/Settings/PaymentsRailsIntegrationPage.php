@@ -6,6 +6,7 @@ use App\Domains\Company\Models\TenantAuditEvent;
 use App\Domains\Fintech\Models\CompanyPaymentRailSetting;
 use App\Enums\UserRole;
 use App\Models\User;
+use App\Services\PaymentsRails\PaymentsRailsRolloutService;
 use App\Services\PaymentsRails\PaymentsRailSettingsService;
 use App\Services\TenantAuditLogger;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -46,8 +47,11 @@ class PaymentsRailsIntegrationPage extends Component
         $this->hydrateForm($settingsService);
     }
 
-    public function connect(PaymentsRailSettingsService $settingsService, TenantAuditLogger $tenantAuditLogger): void
-    {
+    public function connect(
+        PaymentsRailSettingsService $settingsService,
+        PaymentsRailsRolloutService $rolloutService,
+        TenantAuditLogger $tenantAuditLogger
+    ): void {
         $this->authorizeOwner();
         $this->loadProviderOptions($settingsService);
 
@@ -59,13 +63,27 @@ class PaymentsRailsIntegrationPage extends Component
         $companyId = (int) $user->company_id;
         $provider = strtolower(trim((string) $this->connectForm['provider_key']));
 
+        $user->loadMissing('company:id,slug');
+        $companySlug = strtolower(trim((string) ($user->company?->slug ?? '')));
+        $policy = $rolloutService->connectionPolicy($provider, $companySlug);
+
+        if (! $policy['allowed']) {
+            $this->setFeedbackError((string) ($policy['message'] ?: 'Selected provider is not available yet for this organization.'));
+
+            return;
+        }
+
         $setting = $settingsService->settingsForCompany($companyId);
+        $metadata = is_array($setting->metadata) ? $setting->metadata : [];
+        $metadata['rollout_stage'] = (string) $policy['stage'];
+        $metadata['sandbox_mode'] = (bool) $policy['sandbox_mode'];
 
         $setting->forceFill([
             'provider_key' => $provider,
             'connection_status' => CompanyPaymentRailSetting::STATUS_CONNECTED,
             'connected_at' => $setting->connected_at ?: now(),
             'paused_at' => null,
+            'metadata' => $metadata,
             'updated_by' => (int) auth()->id(),
             'created_by' => $setting->created_by ?: (int) auth()->id(),
         ])->save();
@@ -80,10 +98,12 @@ class PaymentsRailsIntegrationPage extends Component
             metadata: [
                 'provider_key' => $provider,
                 'connection_status' => (string) $setting->connection_status,
+                'rollout_stage' => (string) $policy['stage'],
+                'sandbox_mode' => (bool) $policy['sandbox_mode'],
             ],
         );
 
-        $this->setFeedback('Payment rail connected.');
+        $this->setFeedback($this->connectFeedback((string) $policy['stage']));
         $this->hydrateForm($settingsService);
     }
 
@@ -103,7 +123,10 @@ class PaymentsRailsIntegrationPage extends Component
             return;
         }
 
-        $result = $settingsService->testProvider($provider);
+        $metadata = is_array($setting->metadata) ? $setting->metadata : [];
+        $sandboxMode = (bool) ($metadata['sandbox_mode'] ?? false);
+
+        $result = $settingsService->testProvider($provider, $sandboxMode);
 
         $setting->forceFill([
             'provider_key' => $provider,
@@ -123,6 +146,7 @@ class PaymentsRailsIntegrationPage extends Component
             entityId: (int) $setting->id,
             metadata: [
                 'provider_key' => $provider,
+                'sandbox_mode' => $sandboxMode,
                 'passed' => (bool) $result['passed'],
                 'message' => (string) $result['message'],
             ],
@@ -157,6 +181,8 @@ class PaymentsRailsIntegrationPage extends Component
             return;
         }
 
+        $metadata = is_array($setting->metadata) ? $setting->metadata : [];
+
         $setting->forceFill([
             'last_synced_at' => now(),
             'updated_by' => (int) auth()->id(),
@@ -173,6 +199,8 @@ class PaymentsRailsIntegrationPage extends Component
             metadata: [
                 'provider_key' => (string) $setting->provider_key,
                 'connection_status' => (string) $setting->connection_status,
+                'rollout_stage' => (string) ($metadata['rollout_stage'] ?? 'manual'),
+                'sandbox_mode' => (bool) ($metadata['sandbox_mode'] ?? false),
             ],
         );
 
@@ -244,7 +272,7 @@ class PaymentsRailsIntegrationPage extends Component
         $this->hydrateForm($settingsService);
     }
 
-    public function render(PaymentsRailSettingsService $settingsService): View
+    public function render(PaymentsRailSettingsService $settingsService, PaymentsRailsRolloutService $rolloutService): View
     {
         $this->authorizeOwner();
 
@@ -256,7 +284,21 @@ class PaymentsRailsIntegrationPage extends Component
 
         $executionMode = (string) ($subscription?->payment_execution_mode ?? 'decision_only');
         $providerKey = strtolower(trim((string) ($setting->provider_key ?: ($subscription?->execution_provider ?? ''))));
-        $status = $this->resolveConnectionStatus($executionMode, (string) $setting->connection_status, $providerKey);
+        $metadata = is_array($setting->metadata) ? $setting->metadata : [];
+        $sandboxMode = (bool) ($metadata['sandbox_mode'] ?? false);
+        $companySlug = strtolower(trim((string) ($user->company?->slug ?? '')));
+        $rolloutPolicy = $rolloutService->connectionPolicy($providerKey, $companySlug);
+        $rolloutStage = (string) ($metadata['rollout_stage'] ?? $rolloutPolicy['stage'] ?? 'manual');
+
+        $status = $this->resolveConnectionStatus(
+            $executionMode,
+            (string) $setting->connection_status,
+            $providerKey,
+            $sandboxMode,
+            $rolloutStage,
+        );
+
+        $rolloutSummary = $this->rolloutSummary($rolloutStage);
 
         return view('livewire.settings.payments-rails-integration-page', [
             'executionMode' => $executionMode,
@@ -269,14 +311,21 @@ class PaymentsRailsIntegrationPage extends Component
             'isPaused' => (string) $setting->connection_status === CompanyPaymentRailSetting::STATUS_PAUSED,
             'isConnected' => (string) $setting->connection_status === CompanyPaymentRailSetting::STATUS_CONNECTED,
             'recentActions' => $this->recentActions((int) $user->company_id),
+            'rolloutStageLabel' => $rolloutSummary['label'],
+            'rolloutStageNote' => $rolloutSummary['note'],
         ]);
     }
 
     /**
      * @return array{key:string,label:string,description:string,tone:string}
      */
-    private function resolveConnectionStatus(string $executionMode, string $connectionStatus, string $providerKey): array
-    {
+    private function resolveConnectionStatus(
+        string $executionMode,
+        string $connectionStatus,
+        string $providerKey,
+        bool $sandboxMode,
+        string $rolloutStage,
+    ): array {
         if ($connectionStatus === CompanyPaymentRailSetting::STATUS_PAUSED) {
             return [
                 'key' => 'paused',
@@ -287,6 +336,15 @@ class PaymentsRailsIntegrationPage extends Component
         }
 
         if ($connectionStatus === CompanyPaymentRailSetting::STATUS_CONNECTED && $executionMode === 'execution_enabled') {
+            if ($sandboxMode && $providerKey !== '' && $providerKey !== 'manual_ops') {
+                return [
+                    'key' => 'connected_sandbox',
+                    'label' => 'Connected (sandbox)',
+                    'description' => 'Provider is connected in sandbox pilot mode. Live mode requires go-live approval.',
+                    'tone' => 'indigo',
+                ];
+            }
+
             return [
                 'key' => 'connected',
                 'label' => 'Connected',
@@ -296,6 +354,15 @@ class PaymentsRailsIntegrationPage extends Component
         }
 
         if ($connectionStatus === CompanyPaymentRailSetting::STATUS_CONNECTED) {
+            if ($sandboxMode && $providerKey !== '' && $providerKey !== 'manual_ops') {
+                return [
+                    'key' => 'connected_policy_only_sandbox',
+                    'label' => 'Connected (sandbox)',
+                    'description' => 'Provider is connected in sandbox mode. Switch to execution-enabled when go-live is approved.',
+                    'tone' => 'indigo',
+                ];
+            }
+
             return [
                 'key' => 'connected_policy_only',
                 'label' => 'Connected (activation pending)',
@@ -309,6 +376,15 @@ class PaymentsRailsIntegrationPage extends Component
                 'key' => 'action_needed',
                 'label' => 'Action needed',
                 'description' => 'Execution mode is enabled, but no provider is connected yet.',
+                'tone' => 'amber',
+            ];
+        }
+
+        if ($rolloutStage === 'blocked') {
+            return [
+                'key' => 'rollout_blocked',
+                'label' => 'Staged rollout',
+                'description' => 'External provider rollout is not enabled for this organization yet. Use manual operations mode for now.',
                 'tone' => 'amber',
             ];
         }
@@ -354,7 +430,8 @@ class PaymentsRailsIntegrationPage extends Component
                 } elseif ($action === 'tenant.payments_rails.resumed') {
                     $result = 'Resumed';
                 } elseif ($action === 'tenant.payments_rails.connected') {
-                    $result = 'Connected';
+                    $stage = strtolower(trim((string) ($metadata['rollout_stage'] ?? '')));
+                    $result = $stage === 'sandbox' ? 'Connected (sandbox)' : 'Connected';
                 } elseif ($action === 'tenant.payments_rails.sync_requested') {
                     $result = 'Synced';
                 }
@@ -408,5 +485,39 @@ class PaymentsRailsIntegrationPage extends Component
         if (! $user instanceof User || (string) $user->role !== UserRole::Owner->value) {
             throw new AuthorizationException('Only admin (owner) can manage Payments Rails settings.');
         }
+    }
+
+    private function connectFeedback(string $stage): string
+    {
+        return match ($stage) {
+            'sandbox' => 'Provider connected in Sandbox mode (pilot).',
+            'live' => 'Provider connected in Live mode.',
+            default => 'Payment rail connected (manual operations mode).',
+        };
+    }
+
+    /**
+     * @return array{label:string,note:string}
+     */
+    private function rolloutSummary(string $stage): array
+    {
+        return match ($stage) {
+            'live' => [
+                'label' => 'Live approved',
+                'note' => 'Your organization is approved for live provider usage.',
+            ],
+            'sandbox' => [
+                'label' => 'Sandbox pilot',
+                'note' => 'Your organization is in pilot mode. Keep provider tests in sandbox until go-live approval.',
+            ],
+            'blocked' => [
+                'label' => 'Staged rollout',
+                'note' => 'External providers are not enabled for this organization yet. Use manual operations mode for now.',
+            ],
+            default => [
+                'label' => 'Manual operations',
+                'note' => 'manual_ops is the default mode until provider pilot/go-live is enabled.',
+            ],
+        };
     }
 }

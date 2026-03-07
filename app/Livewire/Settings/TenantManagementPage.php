@@ -168,7 +168,7 @@ class TenantManagementPage extends Component
     public function updatedSubscriptionFormPaymentExecutionMode(string $value): void
     {
         if ($value !== TenantExecutionModeService::MODE_EXECUTION_ENABLED) {
-            $this->subscriptionForm['execution_provider'] = '';
+            $this->subscriptionForm['execution_provider'] = 'manual_ops';
             $this->subscriptionForm['execution_max_transaction_amount'] = '';
             $this->subscriptionForm['execution_daily_cap_amount'] = '';
             $this->subscriptionForm['execution_monthly_cap_amount'] = '';
@@ -220,7 +220,7 @@ class TenantManagementPage extends Component
             'plan_code' => (string) ($subscription?->plan_code ?? 'pilot'),
             'subscription_status' => (string) ($subscription?->subscription_status ?? 'current'),
             'payment_execution_mode' => (string) ($subscription?->payment_execution_mode ?? TenantExecutionModeService::MODE_DECISION_ONLY),
-            'execution_provider' => (string) ($subscription?->execution_provider ?? ''),
+            'execution_provider' => (string) ($subscription?->execution_provider ?? 'manual_ops'),
             'execution_max_transaction_amount' => $subscription?->execution_max_transaction_amount !== null ? (string) $subscription->execution_max_transaction_amount : '',
             'execution_daily_cap_amount' => $subscription?->execution_daily_cap_amount !== null ? (string) $subscription->execution_daily_cap_amount : '',
             'execution_monthly_cap_amount' => $subscription?->execution_monthly_cap_amount !== null ? (string) $subscription->execution_monthly_cap_amount : '',
@@ -1084,7 +1084,7 @@ class TenantManagementPage extends Component
             'plan_code' => (string) config('tenant_plans.default_plan', 'pilot'),
             'subscription_status' => 'current',
             'payment_execution_mode' => TenantExecutionModeService::MODE_DECISION_ONLY,
-            'execution_provider' => '',
+            'execution_provider' => 'manual_ops',
             'execution_max_transaction_amount' => '',
             'execution_daily_cap_amount' => '',
             'execution_monthly_cap_amount' => '',
@@ -1232,7 +1232,7 @@ class TenantManagementPage extends Component
     {
         return [
             'payment_execution_mode' => (string) ($subscription->payment_execution_mode ?? TenantExecutionModeService::MODE_DECISION_ONLY),
-            'execution_provider' => (string) ($subscription->execution_provider ?? ''),
+            'execution_provider' => (string) ($subscription->execution_provider ?? 'manual_ops'),
             'execution_max_transaction_amount' => $subscription->execution_max_transaction_amount !== null ? (float) $subscription->execution_max_transaction_amount : null,
             'execution_daily_cap_amount' => $subscription->execution_daily_cap_amount !== null ? (float) $subscription->execution_daily_cap_amount : null,
             'execution_monthly_cap_amount' => $subscription->execution_monthly_cap_amount !== null ? (float) $subscription->execution_monthly_cap_amount : null,
@@ -1366,6 +1366,10 @@ class TenantManagementPage extends Component
         app(PlatformAccessService::class)->authorizePlatformOperator();
     }
 }
+
+
+
+
 
 
 

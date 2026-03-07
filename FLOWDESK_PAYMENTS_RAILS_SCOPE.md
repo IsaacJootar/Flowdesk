@@ -74,3 +74,15 @@ These actions are on `/settings/payments-rails` and are tenant-scoped by `compan
 1. Keep existing operations desks as source of truth.
 2. Build provider onboarding + sync events behind the new Payments Rails settings shell.
 3. Integrate synced events into existing treasury/incident views.
+
+## 8) Staged Rollout Policy (implemented)
+1. Default provider for new tenant setup is `manual_ops`.
+2. External providers (`paystack`, `flutterwave`, etc.) are blocked unless tenant is in pilot or go-live allow-list.
+3. Pilot tenants connect external providers in `Sandbox` stage.
+4. Go-live approved tenants connect external providers in `Live` stage.
+5. Tenant execution mode save also enforces the same staged rollout guardrails.
+6. Rollout config keys:
+- `execution.rails_rollout.default_provider`
+- `execution.rails_rollout.pilot_company_slugs`
+- `execution.rails_rollout.go_live_company_slugs`
+- `execution.rails_rollout.allow_external_provider_without_pilot`

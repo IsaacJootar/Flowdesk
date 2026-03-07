@@ -492,8 +492,15 @@ Before proposing "new" module work, check this file plus route map (`routes/web.
 
 
 ## 10) Payments Rails Action Map (2026-03-07)
-- Tenant route: /settings/payments-rails (owner-only, fintech-entitled).
-- Implemented actions: Connect, Test Connection, Sync Now, Pause/Resume.
-- Tenant audit visibility: Recent Payments Rail Actions (10 per page) on same tenant page.
-- Platform audit visibility: /platform/tenants/{company}/billing -> Tenant Audit Events includes 	enant.payments_rails.*.
-- Alignment note: /platform/operations/incident-history remains execution-incident focused and does not currently include payments-rails action stream.
+- Tenant route: `/settings/payments-rails` (owner-only, fintech-entitled).
+- Implemented actions: `Connect`, `Test Connection`, `Sync Now`, `Pause/Resume`.
+- Tenant audit visibility: `Recent Payments Rail Actions` (10 per page) on same tenant page.
+- Platform audit visibility: `/platform/tenants/{company}/billing` -> `Tenant Audit Events` includes `tenant.payments_rails.*`.
+- Alignment note: `/platform/operations/incident-history` remains execution-incident focused and does not currently include payments-rails action stream.
+- AI roadmap reference: `FLOWDESK_AI_PLAN.md`
+
+AI implementation foundation status (2026-03-07):
+- Added local AI runtime config (`config/ai.php`) for low-cost stack (`Ollama`, local models, `Qdrant`).
+- Added tenant AI feature gate service: `app/Services/AI/AiFeatureGateService.php` (checks `ai_enabled` per company).
+- Added runtime profile service: `app/Services/AI/AiRuntimeProfileService.php` for consistent module consumption.
+- Added unit coverage: `tests/Unit/AI/AiFeatureGateServiceTest.php`.
