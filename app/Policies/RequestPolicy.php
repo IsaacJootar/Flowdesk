@@ -98,12 +98,11 @@ class RequestPolicy
             return false;
         }
 
-        if ($this->requestApprovalRouter->hasConfiguredWorkflow($request)) {
-            return $this->requestApprovalRouter->canApprove($user, $request);
+        if (! $this->requestApprovalRouter->hasConfiguredWorkflow($request)) {
+            return false;
         }
 
-        return $this->hasAnyRole($user, [UserRole::Owner, UserRole::Finance])
-            || ($user->role === UserRole::Manager->value && (int) $user->department_id === (int) $request->department_id);
+        return $this->requestApprovalRouter->canApprove($user, $request);
     }
 
     public function convertToPurchaseOrder(User $user, SpendRequest $request): bool

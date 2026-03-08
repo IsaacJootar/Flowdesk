@@ -3,7 +3,7 @@
 Last updated: 2026-03-07
 
 ## Purpose
-This document prevents duplication between existing platform operations tooling and the future Payments Rails Integration scope.
+This document prevents duplication between existing platform operations tooling and the Payments Rails Integration scope.
 
 ## 1) What already exists (do not duplicate)
 These are already implemented and remain the control/governance layer:
@@ -13,11 +13,11 @@ These are already implemented and remain the control/governance layer:
 
 Rule: do not rebuild payout/procurement/treasury desks under fintech scope.
 
-## 2) What Payments Rails Integration should do
-This scope is only for external provider rails connectivity and synchronization:
+## 2) What Payments Rails Integration does
+This scope is for external provider rails connectivity and synchronization readiness:
 1. Provider connection lifecycle (connect, verify, pause/resume, health).
-2. Rail event synchronization (settled, failed, reversed, fees).
-3. Settlement feed ingestion for treasury reconciliation support.
+2. Rail diagnostics sync for provider status checks.
+3. Webhook signature readiness validation before external provider activation.
 
 Rule: platform decides/governs, rails integration executes/syncs external state.
 
@@ -25,7 +25,7 @@ Rule: platform decides/governs, rails integration executes/syncs external state.
 ## Tenant-side
 1. Business-friendly status and readiness.
 2. No raw API/webhook payload handling.
-3. Current foundation page: `/settings/payments-rails`.
+3. Route: `/settings/payments-rails`.
 
 ## Platform-side
 1. Technical diagnostics and incident triage.
@@ -36,46 +36,51 @@ Rule: platform decides/governs, rails integration executes/syncs external state.
 These actions are on `/settings/payments-rails` and are tenant-scoped by `company_id`.
 
 1. `Connect`
-- Saves selected provider for the tenant.
-- Sets status to `connected`.
-- Writes audit event: `tenant.payments_rails.connected`.
+- Applies staged rollout policy (`manual` / `sandbox` / `live`).
+- Runs provider diagnostics probe (sandbox-aware for pilot tenants).
+- Validates webhook signature readiness before external provider is activated.
+- Success audit: `tenant.payments_rails.connected`.
+- Failure audit: `tenant.payments_rails.connect_failed`.
 
 2. `Test Connection`
-- Runs basic readiness check for selected provider.
-- Stores pass/fail result, message, and tested timestamp.
-- Writes audit event: `tenant.payments_rails.connection_tested`.
+- Runs provider diagnostics probe with current rail mode (`sandbox` or `live`).
+- Persists pass/fail status, message, and timestamp.
+- Success audit: `tenant.payments_rails.connection_tested`.
+- Failure audit: `tenant.payments_rails.connection_test_failed`.
 
 3. `Sync Now`
-- Records a manual sync timestamp for operations tracking.
-- Requires connected state.
-- Writes audit event: `tenant.payments_rails.sync_requested`.
+- Runs provider sync probe and updates health metadata.
+- Requires connected rail state.
+- Success audit: `tenant.payments_rails.sync_requested`.
+- Failure audit: `tenant.payments_rails.sync_failed`.
 
 4. `Pause/Resume`
-- Toggles rail status between `paused` and `connected`.
-- Writes audit events: `tenant.payments_rails.paused` and `tenant.payments_rails.resumed`.
+- `Pause` marks rail paused and updates health state.
+- `Resume` runs readiness check before reconnecting.
+- Success audits: `tenant.payments_rails.paused`, `tenant.payments_rails.resumed`.
+- Resume failure audit: `tenant.payments_rails.resume_failed`.
 
-## 5) Visibility and alignment
+## 5) Health + visibility
 1. Tenant side visibility:
-- `/settings/payments-rails` -> `Recent Payments Rail Actions` table (paged, 10 per page).
+- `/settings/payments-rails` cards now include:
+  - Connection status
+  - Rail health (`Healthy`, `Degraded`, `Action needed`, `Paused`)
+  - Webhook signature readiness (`Ready`, `Missing setup`, `Optional`)
+  - Last test and last sync timestamps
+- `Recent Payments Rail Actions` table is paged (10 per page).
 
 2. Platform side visibility:
-- `/platform/tenants/{company}/billing` -> `Tenant Audit Events` includes all `tenant.payments_rails.*` actions.
+- `/platform/tenants/{company}/billing` -> `Tenant Audit Events` includes all `tenant.payments_rails.*` actions (success and failure).
 
 3. Incident timeline scope note:
-- `/platform/operations/incident-history` is execution-incident focused and does not currently index `tenant.payments_rails.*` actions.
-- This is intentional to keep incident timeline focused on execution recoveries/alerts.
+- `/platform/operations/incident-history` remains execution-incident focused and does not currently index `tenant.payments_rails.*` actions.
 
 ## 6) UX guardrails
 1. Use plain labels: Connected, Action needed, Last sync.
-2. Hide raw technical payload details from tenant-facing screens.
-3. Keep all sensitive provider diagnostics platform-only.
+2. Keep diagnostics concise and actionable.
+3. Keep sensitive provider payload internals out of tenant-facing screens.
 
-## 7) Delivery order
-1. Keep existing operations desks as source of truth.
-2. Build provider onboarding + sync events behind the new Payments Rails settings shell.
-3. Integrate synced events into existing treasury/incident views.
-
-## 8) Staged Rollout Policy (implemented)
+## 7) Staged rollout policy (implemented)
 1. Default provider for new tenant setup is `manual_ops`.
 2. External providers (`paystack`, `flutterwave`, etc.) are blocked unless tenant is in pilot or go-live allow-list.
 3. Pilot tenants connect external providers in `Sandbox` stage.
@@ -86,3 +91,9 @@ These actions are on `/settings/payments-rails` and are tenant-scoped by `compan
 - `execution.rails_rollout.pilot_company_slugs`
 - `execution.rails_rollout.go_live_company_slugs`
 - `execution.rails_rollout.allow_external_provider_without_pilot`
+
+## 8) Webhook signature validation
+1. Runtime webhook verifiers now validate against configured live + sandbox secrets/hashes.
+2. `paystack`: verifies `x-paystack-signature` using configured signing secrets.
+3. `flutterwave`: verifies `verif-hash` (preferred) or HMAC signature fallback with signing keys.
+4. Route remains `POST /webhooks/execution/{provider}` with provider-specific verifier resolution.

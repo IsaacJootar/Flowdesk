@@ -36,7 +36,7 @@ class RequestPayoutExecutionAttemptProcessor
         $request = SpendRequest::query()
             ->withoutGlobalScopes()
             ->withTrashed()
-            ->with(['requester'])
+            ->with(['requester', 'vendor'])
             ->find((int) $attempt->request_id);
 
         $subscription = $attempt->subscription;
@@ -58,6 +58,13 @@ class RequestPayoutExecutionAttemptProcessor
             'updated_by' => $attempt->updated_by,
         ])->save();
 
+        $vendor = $request->vendor;
+        $attemptMetadata = (array) ($attempt->metadata ?? []);
+        // Keep a deterministic fallback from attempt metadata so retries still work if vendor profile changes later.
+        $accountNumber = trim((string) ($vendor?->account_number ?? $attemptMetadata['account_number'] ?? ''));
+        $bankCode = trim((string) ($vendor?->bank_code ?? $attemptMetadata['bank_code'] ?? ''));
+        $beneficiaryName = trim((string) ($vendor?->account_name ?? $vendor?->name ?? $attemptMetadata['beneficiary_name'] ?? ''));
+
         $adapter = $this->adapterFactory->payoutAdapterForSubscription($subscription);
         $response = $adapter->executePayout(new PayoutExecutionRequestData(
             companyId: (int) $attempt->company_id,
@@ -67,13 +74,20 @@ class RequestPayoutExecutionAttemptProcessor
             channel: (string) $attempt->execution_channel,
             beneficiary: [
                 'vendor_id' => (int) ($request->vendor_id ?? 0),
-                'vendor_name' => (string) ($request->vendor?->name ?? ''),
+                'vendor_name' => (string) ($vendor?->name ?? ''),
+                'name' => $beneficiaryName,
+                'account_number' => $accountNumber,
+                'bank_code' => $bankCode,
+                'recipient_code' => (string) ($attemptMetadata['recipient_code'] ?? ''),
             ],
             idempotencyKey: (string) $attempt->idempotency_key,
             narration: (string) $request->title,
             metadata: [
                 'request_code' => (string) $request->request_code,
                 'payout_attempt_id' => (int) $attempt->id,
+                'beneficiary_name' => $beneficiaryName,
+                'account_number' => $accountNumber,
+                'bank_code' => $bankCode,
             ],
         ));
 

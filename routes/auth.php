@@ -56,4 +56,8 @@ Route::middleware('auth')->group(function () {
 
     Route::post('logout', [AuthenticatedSessionController::class, 'destroy'])
         ->name('logout');
+
+    // UX fallback: some stale/legacy clients hit GET /logout.
+    Route::get('logout', [AuthenticatedSessionController::class, 'destroy']);
 });
+

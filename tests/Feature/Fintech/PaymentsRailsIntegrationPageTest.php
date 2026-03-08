@@ -11,6 +11,7 @@ use App\Enums\UserRole;
 use App\Livewire\Settings\PaymentsRailsIntegrationPage;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -131,20 +132,65 @@ class PaymentsRailsIntegrationPageTest extends TestCase
         config()->set('execution.rails_rollout.go_live_company_slugs', []);
         config()->set('execution.providers.paystack.sandbox_secret_key', 'sandbox-secret');
 
+        Http::fake([
+            'https://api.paystack.co/*' => Http::response(['status' => true, 'message' => 'ok', 'data' => []], 200),
+        ]);
+
         $this->actingAs($owner);
 
         Livewire::test(PaymentsRailsIntegrationPage::class)
             ->set('connectForm.provider_key', 'paystack')
             ->call('connect')
-            ->assertSet('feedbackMessage', 'Provider connected in Sandbox mode (pilot).')
+            ->assertSet('feedbackMessage', 'Paystack sandbox connection is ready.')
             ->call('testConnection')
-            ->assertSet('feedbackMessage', 'Sandbox connection test passed for Paystack.');
+            ->assertSet('feedbackMessage', 'Paystack sandbox connection test passed.');
 
         $setting = CompanyPaymentRailSetting::query()->withoutGlobalScopes()->where('company_id', $company->id)->first();
         $this->assertNotNull($setting);
         $this->assertSame('paystack', (string) $setting->provider_key);
         $this->assertTrue((bool) (($setting->metadata ?? [])['sandbox_mode'] ?? false));
         $this->assertSame('sandbox', (string) (($setting->metadata ?? [])['rollout_stage'] ?? ''));
+        $this->assertSame('healthy', (string) (($setting->metadata ?? [])['rail_health_status'] ?? ''));
+        $this->assertSame('ready', (string) (($setting->metadata ?? [])['webhook_status'] ?? ''));
+    }
+
+    public function test_connect_failed_is_audited_when_provider_probe_fails_after_webhook_validation_passes(): void
+    {
+        [$company, $department] = $this->createCompanyContext('Pilot Probe Failure', 'pilot-probe-failure');
+        $owner = $this->createUser($company, $department, UserRole::Owner->value);
+
+        config()->set('execution.rails_rollout.allow_external_provider_without_pilot', false);
+        config()->set('execution.rails_rollout.pilot_company_slugs', ['pilot-probe-failure']);
+        config()->set('execution.rails_rollout.go_live_company_slugs', []);
+        config()->set('execution.providers.flutterwave.sandbox_secret_key', 'sandbox-flw-key');
+        config()->set('execution.providers.flutterwave.sandbox_webhook_secret_hash', '');
+        config()->set('execution.providers.flutterwave.webhook_secret_hash', '');
+        config()->set('execution.providers.flutterwave.secret_key', '');
+
+        Http::fake([
+            'https://api.flutterwave.com/v3/*' => Http::response(['status' => 'error', 'message' => 'Invalid authorization key'], 401),
+        ]);
+
+        $this->actingAs($owner);
+
+        Livewire::test(PaymentsRailsIntegrationPage::class)
+            ->set('connectForm.provider_key', 'flutterwave')
+            ->call('connect')
+            ->assertSet('feedbackError', 'Flutterwave check failed: Invalid authorization key');
+
+        $this->assertDatabaseHas('tenant_audit_events', [
+            'company_id' => $company->id,
+            'action' => 'tenant.payments_rails.connect_failed',
+        ]);
+
+        $event = TenantAuditEvent::query()
+            ->where('company_id', $company->id)
+            ->where('action', 'tenant.payments_rails.connect_failed')
+            ->latest('id')
+            ->first();
+
+        $this->assertSame('ready', (string) data_get((array) ($event?->metadata ?? []), 'webhook_status'));
+        $this->assertSame('degraded', (string) data_get((array) ($event?->metadata ?? []), 'health_status'));
     }
 
     public function test_non_owner_is_forbidden_from_payments_rails_page(): void

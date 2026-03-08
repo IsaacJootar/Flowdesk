@@ -26,6 +26,7 @@ class Vendor extends Model
         'email',
         'address',
         'bank_name',
+        'bank_code',
         'account_name',
         'account_number',
         'notes',

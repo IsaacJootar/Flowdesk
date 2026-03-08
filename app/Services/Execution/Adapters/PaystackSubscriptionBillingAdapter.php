@@ -50,11 +50,13 @@ class PaystackSubscriptionBillingAdapter implements SubscriptionBillingAdapterIn
             );
         }
 
+        $providerReference = $this->paystackSafeReference($request->idempotencyKey);
+
         $payload = [
             'email' => $customerEmail,
             'amount' => $amountKobo,
             'currency' => strtoupper($request->currencyCode),
-            'reference' => $request->idempotencyKey,
+            'reference' => $providerReference,
             'metadata' => array_merge($request->metadata, [
                 'company_id' => $request->companyId,
                 'subscription_id' => $request->subscriptionId,
@@ -82,7 +84,7 @@ class PaystackSubscriptionBillingAdapter implements SubscriptionBillingAdapterIn
                     code: 'paystack_billing_request_failed',
                     message: (string) ($json['message'] ?? 'Paystack billing request failed.'),
                     retryable: $response->status() >= 500 || $response->status() === 429,
-                    providerReference: (string) (($json['data']['reference'] ?? '') ?: $request->idempotencyKey),
+                    providerReference: (string) (($json['data']['reference'] ?? '') ?: $providerReference),
                     details: [
                         'http_status' => $response->status(),
                         'response' => $json,
@@ -90,7 +92,7 @@ class PaystackSubscriptionBillingAdapter implements SubscriptionBillingAdapterIn
                 );
             }
 
-            $providerReference = trim((string) (($json['data']['reference'] ?? '') ?: $request->idempotencyKey));
+            $providerReference = trim((string) (($json['data']['reference'] ?? '') ?: $providerReference));
 
             return new SubscriptionBillingResponseData(
                 result: new AdapterOperationResult(
@@ -140,6 +142,18 @@ class PaystackSubscriptionBillingAdapter implements SubscriptionBillingAdapterIn
         return $companyEmail !== '' ? strtolower($companyEmail) : null;
     }
 
+    private function paystackSafeReference(string $rawReference): string
+    {
+        $normalized = preg_replace('/[^A-Za-z0-9._-]+/', '-', trim($rawReference)) ?? '';
+        $normalized = trim($normalized, '-');
+
+        if ($normalized === '') {
+            $seed = $rawReference !== '' ? $rawReference : uniqid('flowdesk-ref-', true);
+            $normalized = 'flowdesk-'.substr(sha1($seed), 0, 24);
+        }
+
+        return substr($normalized, 0, 100);
+    }
     /**
      * @param  array<string,mixed>  $details
      */

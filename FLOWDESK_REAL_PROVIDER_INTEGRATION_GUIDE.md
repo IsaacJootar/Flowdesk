@@ -146,8 +146,8 @@ A queued recovery can be successfully processed by the system but finalized as `
 
 ## 6) Enable a Real Provider (When Ready)
 
-## Step A: Uncomment provider block
-In `config/execution.php`, uncomment either `paystack` or `flutterwave` block under `providers`.
+## Step A: Provider map is already active
+`config/execution.php` now ships with active `manual_ops`, `paystack`, and `flutterwave` provider entries plus sandbox/live credential keys.
 
 ## Step B: Set env values
 Example:
@@ -163,6 +163,7 @@ FLOWDESK_PAYSTACK_SECRET_KEY=...
 FLOWDESK_FLUTTERWAVE_BASE_URL=https://api.flutterwave.com/v3
 FLOWDESK_FLUTTERWAVE_SECRET_KEY=...
 FLOWDESK_FLUTTERWAVE_WEBHOOK_SECRET_HASH=...
+FLOWDESK_FLUTTERWAVE_SANDBOX_WEBHOOK_SECRET_HASH=...
 FLOWDESK_FLUTTERWAVE_REDIRECT_URL=https://your-domain.com/payments/flutterwave/redirect
 ```
 

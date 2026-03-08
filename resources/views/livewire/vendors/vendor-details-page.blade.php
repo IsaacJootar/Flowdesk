@@ -108,6 +108,7 @@
                 <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Bank Information</p>
                 <div class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
                     <p><span class="text-slate-500">Bank:</span> <span class="font-medium text-slate-800">{{ $vendor->bank_name ?: '-' }}</span></p>
+                    <p><span class="text-slate-500">Bank Code:</span> <span class="font-medium text-slate-800">{{ $vendor->bank_code ?: '-' }}</span></p>
                     <p><span class="text-slate-500">Account Name:</span> <span class="font-medium text-slate-800">{{ $vendor->account_name ?: '-' }}</span></p>
                     <p><span class="text-slate-500">Account Number:</span> <span class="font-medium text-slate-800">{{ $vendor->account_number ?: '-' }}</span></p>
                 </div>
@@ -483,7 +484,9 @@
                 </div>
             @endif
 
-            @php($vendorCommunicationLogs = $this->vendorCommunicationLogs)
+            @php
+                $vendorCommunicationLogs = $this->vendorCommunicationLogs;
+            @endphp
             <div class="flex flex-wrap items-center justify-between gap-2">
                 <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Vendor Communication Logs</p>
                 <label class="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
@@ -577,7 +580,3 @@
     @include('livewire.vendors.partials.vendor-payment-modal')
     @include('livewire.vendors.partials.vendor-void-invoice-modal')
 </div>
-
-
-
-

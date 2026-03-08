@@ -50,13 +50,15 @@ class PaystackPayoutExecutionAdapter implements PayoutExecutionAdapterInterface
             );
         }
 
+        $providerReference = $this->paystackSafeReference($request->idempotencyKey);
+
         $payload = [
             'source' => 'balance',
             'amount' => $amountKobo,
             'recipient' => (string) $recipientCode['recipient_code'],
             'reason' => trim((string) ($request->narration ?? 'Flowdesk payout execution')),
             'currency' => strtoupper($request->currencyCode),
-            'reference' => $request->idempotencyKey,
+            'reference' => $providerReference,
         ];
 
         try {
@@ -76,7 +78,7 @@ class PaystackPayoutExecutionAdapter implements PayoutExecutionAdapterInterface
                     code: 'paystack_payout_request_failed',
                     message: (string) ($json['message'] ?? 'Paystack payout request failed.'),
                     retryable: $response->status() >= 500 || $response->status() === 429,
-                    providerReference: (string) (($json['data']['reference'] ?? '') ?: $request->idempotencyKey),
+                    providerReference: (string) (($json['data']['reference'] ?? '') ?: $providerReference),
                     details: [
                         'http_status' => $response->status(),
                         'response' => $json,
@@ -84,7 +86,7 @@ class PaystackPayoutExecutionAdapter implements PayoutExecutionAdapterInterface
                 );
             }
 
-            $providerReference = trim((string) (($json['data']['reference'] ?? '') ?: ($json['data']['transfer_code'] ?? '') ?: $request->idempotencyKey));
+            $providerReference = trim((string) (($json['data']['reference'] ?? '') ?: ($json['data']['transfer_code'] ?? '') ?: $providerReference));
             $externalTransferId = trim((string) (($json['data']['transfer_code'] ?? '') ?: ($json['data']['id'] ?? '')));
 
             $providerStatus = strtolower(trim((string) ($json['data']['status'] ?? '')));
@@ -204,16 +206,37 @@ class PaystackPayoutExecutionAdapter implements PayoutExecutionAdapterInterface
         } catch (Throwable $exception) {
             report($exception);
 
+            $exceptionMessage = trim((string) $exception->getMessage());
+            $normalizedError = strtolower($exceptionMessage);
+            $message = str_contains($normalizedError, 'resolving timed out')
+                || str_contains($normalizedError, 'operation timed out')
+                || str_contains($normalizedError, 'could not resolve host')
+                || str_contains($normalizedError, 'failed to connect')
+                ? 'Unable to reach Paystack API right now (network/DNS timeout). Check internet access and retry.'
+                : 'Exception while creating Paystack transfer recipient.'.($exceptionMessage !== '' ? ' '.$exceptionMessage : '');
+
             return [
                 'ok' => false,
                 'code' => 'recipient_create_exception',
-                'message' => 'Exception while creating Paystack transfer recipient.',
+                'message' => $message,
                 'retryable' => true,
                 'details' => ['error' => $exception->getMessage()],
             ];
         }
     }
 
+    private function paystackSafeReference(string $rawReference): string
+    {
+        $normalized = preg_replace('/[^A-Za-z0-9._-]+/', '-', trim($rawReference)) ?? '';
+        $normalized = trim($normalized, '-');
+
+        if ($normalized === '') {
+            $seed = $rawReference !== '' ? $rawReference : uniqid('flowdesk-ref-', true);
+            $normalized = 'flowdesk-'.substr(sha1($seed), 0, 24);
+        }
+
+        return substr($normalized, 0, 100);
+    }
     /**
      * @param  array<string,mixed>  $details
      */
@@ -246,3 +269,4 @@ class PaystackPayoutExecutionAdapter implements PayoutExecutionAdapterInterface
         );
     }
 }
+

@@ -148,9 +148,9 @@
                                     <div class="text-xs text-slate-500">{{ $vendor->phone ?: 'No phone' }}</div>
                                 </td>
                                 <td class="px-4 py-3 text-slate-600">
-                                    @if ($vendor->bank_name || $vendor->account_name || $vendor->account_number)
+                                    @if ($vendor->bank_name || $vendor->bank_code || $vendor->account_name || $vendor->account_number)
                                         <div>{{ $vendor->bank_name ?: 'Bank not set' }}</div>
-                                        <div class="text-xs text-slate-500">{{ $vendor->account_name ?: '-' }} {{ $vendor->account_number ? ' / '.$vendor->account_number : '' }}</div>
+                                        <div class="text-xs text-slate-500">{{ $vendor->account_name ?: '-' }} {{ $vendor->account_number ? ' / '.$vendor->account_number : '' }}{{ $vendor->bank_code ? ' ('.$vendor->bank_code.')' : '' }}</div>
                                     @else
                                         <span>-</span>
                                     @endif
@@ -290,11 +290,16 @@
 
                     <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
                         <p class="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Bank Details</p>
-                        <div class="grid gap-4 sm:grid-cols-3">
+                        <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                             <label class="block">
                                 <span class="mb-1 block text-sm font-medium text-slate-700">Bank Name</span>
                                 <input type="text" wire:model.defer="form.bank_name" class="w-full rounded-xl border-slate-300 text-sm focus:border-slate-500 focus:ring-slate-500">
                                 @error('form.bank_name')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+                            </label>
+                            <label class="block">
+                                <span class="mb-1 block text-sm font-medium text-slate-700">Bank Code</span>
+                                <input type="text" wire:model.defer="form.bank_code" class="w-full rounded-xl border-slate-300 text-sm focus:border-slate-500 focus:ring-slate-500" placeholder="e.g. 058">
+                                @error('form.bank_code')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
                             </label>
                             <label class="block">
                                 <span class="mb-1 block text-sm font-medium text-slate-700">Account Name</span>
@@ -379,6 +384,7 @@
                             <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Bank Information</p>
                             <div class="mt-3 space-y-2">
                                 <p><span class="text-slate-500">Bank:</span> <span class="font-medium text-slate-800">{{ $vendor->bank_name ?: '-' }}</span></p>
+                                <p><span class="text-slate-500">Bank Code:</span> <span class="font-medium text-slate-800">{{ $vendor->bank_code ?: '-' }}</span></p>
                                 <p><span class="text-slate-500">Account Name:</span> <span class="font-medium text-slate-800">{{ $vendor->account_name ?: '-' }}</span></p>
                                 <p><span class="text-slate-500">Account Number:</span> <span class="font-medium text-slate-800">{{ $vendor->account_number ?: '-' }}</span></p>
                             </div>

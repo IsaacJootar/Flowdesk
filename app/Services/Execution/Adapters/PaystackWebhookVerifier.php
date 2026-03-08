@@ -24,10 +24,11 @@ class PaystackWebhookVerifier implements ProviderWebhookVerifierInterface
             );
         }
 
-        $secret = trim((string) config('execution.providers.paystack.secret_key', ''));
-        $signature = trim((string) ($payload->signature ?: ($payload->headers['x-paystack-signature'] ?? '')));
+        $headers = array_change_key_case((array) $payload->headers, CASE_LOWER);
+        $signature = trim((string) ($payload->signature ?: ($headers['x-paystack-signature'] ?? '')));
+        $signingSecrets = $this->signingSecrets();
 
-        if ($secret !== '') {
+        if ($signingSecrets !== []) {
             if ($signature === '') {
                 return new WebhookVerificationResultData(
                     valid: false,
@@ -35,8 +36,16 @@ class PaystackWebhookVerifier implements ProviderWebhookVerifierInterface
                 );
             }
 
-            $computed = hash_hmac('sha512', $payload->body, $secret);
-            if (! hash_equals($computed, $signature)) {
+            $isValid = false;
+            foreach ($signingSecrets as $secret) {
+                $computed = hash_hmac('sha512', $payload->body, $secret);
+                if (hash_equals($computed, $signature)) {
+                    $isValid = true;
+                    break;
+                }
+            }
+
+            if (! $isValid) {
                 return new WebhookVerificationResultData(
                     valid: false,
                     reason: 'Invalid Paystack webhook signature.',
@@ -69,6 +78,22 @@ class PaystackWebhookVerifier implements ProviderWebhookVerifierInterface
             ],
             reason: null,
         );
+    }
+
+    /**
+     * @return array<int,string>
+     */
+    private function signingSecrets(): array
+    {
+        return array_values(array_unique(array_filter(array_map(
+            static fn (mixed $secret): string => trim((string) $secret),
+            [
+                config('execution.providers.paystack.webhook_secret', ''),
+                config('execution.providers.paystack.sandbox_webhook_secret', ''),
+                config('execution.providers.paystack.secret_key', ''),
+                config('execution.providers.paystack.sandbox_secret_key', ''),
+            ]
+        ))));
     }
 
     private function normalizeEventType(string $eventName, array $data): ?string

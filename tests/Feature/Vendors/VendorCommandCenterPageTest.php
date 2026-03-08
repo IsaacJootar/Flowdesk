@@ -50,6 +50,7 @@ class VendorCommandCenterPageTest extends TestCase
             'email' => '',
             'address' => 'A Street',
             'bank_name' => '',
+            'bank_code' => '',
             'account_name' => '',
             'account_number' => '',
             'is_active' => true,
@@ -64,6 +65,7 @@ class VendorCommandCenterPageTest extends TestCase
             'email' => '',
             'address' => 'B Street',
             'bank_name' => '',
+            'bank_code' => '',
             'account_name' => '',
             'account_number' => '',
             'is_active' => true,
@@ -125,4 +127,6 @@ class VendorCommandCenterPageTest extends TestCase
         ]);
     }
 }
+
+
 

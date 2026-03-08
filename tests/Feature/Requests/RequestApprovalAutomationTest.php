@@ -161,6 +161,67 @@ class RequestApprovalAutomationTest extends TestCase
             ->assertDontSee('FD-REQ-PENDING-001');
     }
 
+    public function test_pending_my_action_counts_finance_step_when_amount_bound_step_applies(): void
+    {
+        [$company, $department] = $this->createCompanyContext('Request Pending Amount Bound Approval');
+        $owner = $this->createUser($company, $department, UserRole::Owner->value);
+        $finance = $this->createUser($company, $department, UserRole::Finance->value);
+        $staff = $this->createUser($company, $department, UserRole::Staff->value, [
+            'reports_to_user_id' => $finance->id,
+        ]);
+
+        $workflow = $this->createDefaultRequestWorkflow($company, $owner);
+        $this->createWorkflowStep($company, $workflow, 1, 'role', UserRole::Finance->value, ['in_app'], 100, null);
+
+        $request = $this->createRequest($company, $department, $staff, $workflow, [
+            'request_code' => 'FD-REQ-AMOUNT-BOUND-001',
+            'status' => 'in_review',
+            'current_approval_step' => 1,
+            'amount' => 200,
+            'metadata' => [
+                'type' => 'spend',
+                'request_type_code' => 'spend',
+            ],
+        ]);
+
+        $this->assertTrue(Gate::forUser($finance)->allows('approve', $request->fresh()));
+
+        $this->actingAs($finance);
+
+        Livewire::test(RequestsPage::class)
+            ->call('loadData')
+            ->assertViewHas('requestAnalytics', fn (array $analytics): bool => (int) ($analytics['pending_my_action'] ?? 0) === 1)
+            ->set('scopeFilter', 'pending_my_approval')
+            ->assertSee('FD-REQ-AMOUNT-BOUND-001');
+    }
+    public function test_finance_pending_my_action_excludes_requests_without_configured_workflow(): void
+    {
+        [$company, $department] = $this->createCompanyContext('Request Pending Strict Workflow');
+        $finance = $this->createUser($company, $department, UserRole::Finance->value);
+        $staff = $this->createUser($company, $department, UserRole::Staff->value, [
+            'reports_to_user_id' => $finance->id,
+        ]);
+
+        $request = $this->createRequest($company, $department, $staff, null, [
+            'request_code' => 'FD-REQ-NO-WORKFLOW-001',
+            'status' => 'in_review',
+            'current_approval_step' => 1,
+            'metadata' => [
+                'type' => 'spend',
+                'request_type_code' => 'spend',
+            ],
+        ]);
+
+        $this->assertFalse(Gate::forUser($finance)->allows('approve', $request->fresh()));
+
+        $this->actingAs($finance);
+
+        Livewire::test(RequestsPage::class)
+            ->call('loadData')
+            ->assertViewHas('requestAnalytics', fn (array $analytics): bool => (int) ($analytics['pending_my_action'] ?? 0) === 0)
+            ->set('scopeFilter', 'pending_my_approval')
+            ->assertDontSee('FD-REQ-NO-WORKFLOW-001');
+    }
     public function test_submit_uses_only_amount_applicable_workflow_steps(): void
     {
         [$company, $department] = $this->createCompanyContext('Request Amount Range Submit');
@@ -1011,3 +1072,4 @@ class RequestApprovalAutomationTest extends TestCase
         ]);
     }
 }
+

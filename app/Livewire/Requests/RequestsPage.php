@@ -993,12 +993,13 @@ class RequestsPage extends Component
         if (! $user || ! $user->company_id) {
             return [];
         }
-        $router = app(RequestApprovalRouter::class);
+        $approvalGate = Gate::forUser($user);
 
         return SpendRequest::query()
+            ->where('company_id', (int) $user->company_id)
             ->where('status', 'in_review')
-            ->get(['id', 'company_id', 'requested_by', 'department_id', 'workflow_id', 'current_approval_step', 'status'])
-            ->filter(fn (SpendRequest $request): bool => $router->canApprove($user, $request))
+            ->get(['id', 'company_id', 'requested_by', 'department_id', 'workflow_id', 'current_approval_step', 'status', 'amount', 'approved_amount', 'metadata'])
+            ->filter(fn (SpendRequest $request): bool => $approvalGate->allows('approve', $request))
             ->pluck('id')
             ->map(fn ($id): int => (int) $id)
             ->values()
@@ -2181,14 +2182,4 @@ class RequestsPage extends Component
         return $mapped;
     }
 }
-
-
-
-
-
-
-
-
-
-
 

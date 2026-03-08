@@ -253,7 +253,7 @@ Source files:
 ## 6) Gaps / Not Fully Enabled
 
 1. `ai` module: entitlement key exists, but no active AI module routes/pages in current app nav.
-2. Payments Rails Integration (fintech entitlement): foundational tenant settings route/page now exists (`/settings/payments-rails`), but full provider onboarding/event-sync workflows are still pending.
+2. Payments Rails Integration (fintech entitlement): tenant route `/settings/payments-rails` now includes staged rollout enforcement, sandbox-aware Connect/Test/Sync/Pause actions, webhook readiness validation, and health/audit tracking. Full settlement-feed ingestion is still pending.
 3. Slack/Telegram provider adapters are intentionally deferred; execution alerts currently deliver through tenant-configured `in_app` + `email` channels only.
 
 ## 6.1) Later Modules / Deferred Backlog (Non-AI Priority)
@@ -493,7 +493,7 @@ Before proposing "new" module work, check this file plus route map (`routes/web.
 
 ## 10) Payments Rails Action Map (2026-03-07)
 - Tenant route: `/settings/payments-rails` (owner-only, fintech-entitled).
-- Implemented actions: `Connect`, `Test Connection`, `Sync Now`, `Pause/Resume`.
+- Implemented actions: `Connect`, `Test Connection`, `Sync Now`, `Pause/Resume` with sandbox provider probes, webhook readiness validation, and failed-action audits (`connect_failed`, `connection_test_failed`, `sync_failed`, `resume_failed`).
 - Tenant audit visibility: `Recent Payments Rail Actions` (10 per page) on same tenant page.
 - Platform audit visibility: `/platform/tenants/{company}/billing` -> `Tenant Audit Events` includes `tenant.payments_rails.*`.
 - Alignment note: `/platform/operations/incident-history` remains execution-incident focused and does not currently include payments-rails action stream.

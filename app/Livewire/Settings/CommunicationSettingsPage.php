@@ -14,30 +14,44 @@ use Livewire\Component;
 
 #[Layout('layouts.app')]
 #[Title('Communications')]
+/**
+ * CommunicationSettingsPage Livewire Component
+ *
+ * Manages company-wide communication channel settings for tenant administrators.
+ * Controls which communication channels (in-app, email, SMS) are enabled and configured,
+ * and defines the fallback order for message delivery when primary channels fail.
+ *
+ * Features:
+ * - Enable/disable communication channels
+ * - Mark channels as configured
+ * - Set fallback priority order for message delivery
+ * - Validation to ensure at least one channel remains enabled
+ * - Validation to prevent duplicate channels in fallback order
+ */
 class CommunicationSettingsPage extends Component
 {
+    // Feedback properties for user notifications
     public ?string $feedbackMessage = null;
-
     public ?string $feedbackError = null;
-
     public int $feedbackKey = 0;
 
+    // Channel enablement flags
     public bool $in_app_enabled = true;
-
     public bool $email_enabled = false;
-
     public bool $sms_enabled = false;
 
+    // Channel configuration status
     public bool $email_configured = false;
-
     public bool $sms_configured = false;
 
+    // Fallback order for message delivery (primary, secondary, tertiary)
     public string $fallback_primary = CompanyCommunicationSetting::CHANNEL_IN_APP;
-
     public string $fallback_secondary = CompanyCommunicationSetting::CHANNEL_EMAIL;
-
     public string $fallback_tertiary = CompanyCommunicationSetting::CHANNEL_SMS;
 
+    /**
+     * Initialize component with current communication settings
+     */
     public function mount(): void
     {
         $this->authorizeOwner();
@@ -47,6 +61,11 @@ class CommunicationSettingsPage extends Component
     }
 
     /**
+     * Save communication settings with validation
+     *
+     * Validates channel enablement, configuration status, and fallback order uniqueness.
+     * Ensures at least one channel remains enabled and configured channels are properly set.
+     *
      * @throws ValidationException
      */
     public function save(): void
@@ -71,18 +90,21 @@ class CommunicationSettingsPage extends Component
             $this->fallback_tertiary,
         ];
 
+        // Ensure no duplicate channels in fallback order
         if (count(array_unique($fallbackOrder)) !== count($fallbackOrder)) {
             throw ValidationException::withMessages([
                 'fallback_primary' => 'Fallback order must use each channel only once.',
             ]);
         }
 
+        // Ensure at least one channel is enabled
         if (! $this->in_app_enabled && ! $this->email_enabled && ! $this->sms_enabled) {
             throw ValidationException::withMessages([
                 'in_app_enabled' => 'At least one communication channel must remain enabled.',
             ]);
         }
 
+        // Ensure enabled channels are configured
         if ($this->email_enabled && ! $this->email_configured) {
             throw ValidationException::withMessages([
                 'email_enabled' => 'Email is enabled but not configured yet. Mark it configured or disable it.',
@@ -109,6 +131,9 @@ class CommunicationSettingsPage extends Component
         $this->setFeedback('Communication settings updated.');
     }
 
+    /**
+     * Render the communication settings page
+     */
     public function render(): View
     {
         return view('livewire.settings.communication-settings-page', [
@@ -116,6 +141,9 @@ class CommunicationSettingsPage extends Component
         ]);
     }
 
+    /**
+     * Get or create the communication settings record for the current company
+     */
     private function settingsRecord(): CompanyCommunicationSetting
     {
         return CompanyCommunicationSetting::query()
@@ -128,6 +156,9 @@ class CommunicationSettingsPage extends Component
             );
     }
 
+    /**
+     * Populate form properties from the settings record
+     */
     private function hydrateFromSetting(CompanyCommunicationSetting $setting): void
     {
         $this->in_app_enabled = (bool) $setting->in_app_enabled;
@@ -142,6 +173,9 @@ class CommunicationSettingsPage extends Component
         $this->fallback_tertiary = (string) ($fallback[2] ?? CompanyCommunicationSetting::CHANNEL_SMS);
     }
 
+    /**
+     * Set a success feedback message
+     */
     private function setFeedback(string $message): void
     {
         $this->feedbackError = null;
@@ -149,6 +183,11 @@ class CommunicationSettingsPage extends Component
         $this->feedbackKey++;
     }
 
+    /**
+     * Authorize that the current user is an owner/admin
+     *
+     * @throws AuthorizationException
+     */
     private function authorizeOwner(): void
     {
         if (! \Illuminate\Support\Facades\Auth::check() || \Illuminate\Support\Facades\Auth::user()->role !== UserRole::Owner->value) {

@@ -22,14 +22,34 @@
     </section>
 
     @if ($feedbackMessage)
-        <div wire:key="payout-ready-feedback-ok-{{ $feedbackKey }}" class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-            {{ $feedbackMessage }}
+        <div
+            wire:key="payout-ready-feedback-ok-{{ $feedbackKey }}"
+            x-data="{ show: true }"
+            x-init="setTimeout(() => show = false, 4200)"
+            x-show="show"
+            x-transition.opacity.duration.250ms
+            class="pointer-events-none fixed z-[90]"
+            style="right: 16px; top: 72px; width: 360px; max-width: calc(100vw - 24px);"
+        >
+            <div class="pointer-events-auto rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 shadow-lg">
+                {{ $feedbackMessage }}
+            </div>
         </div>
     @endif
 
     @if ($feedbackError)
-        <div wire:key="payout-ready-feedback-error-{{ $feedbackKey }}" class="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
-            {{ $feedbackError }}
+        <div
+            wire:key="payout-ready-feedback-error-{{ $feedbackKey }}"
+            x-data="{ show: true }"
+            x-init="setTimeout(() => show = false, 5200)"
+            x-show="show"
+            x-transition.opacity.duration.250ms
+            class="pointer-events-none fixed z-[90]"
+            style="right: 16px; top: 72px; width: 420px; max-width: calc(100vw - 24px);"
+        >
+            <div class="pointer-events-auto rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800 shadow-lg">
+                {{ $feedbackError }}
+            </div>
         </div>
     @endif
 
@@ -180,7 +200,7 @@
                                 $isProcessing = $attempt && in_array((string) $attempt->execution_status, ['processing', 'webhook_pending'], true);
                                 $isFailedRow = (string) $request->status === 'failed' || ($attempt && (string) $attempt->execution_status === 'failed');
                             @endphp
-                            <tr class="border-b border-slate-100 align-top">
+                            <tr wire:key="payout-ready-row-{{ (int) $request->id }}" class="border-b border-slate-100 align-top">
                                 <td class="px-3 py-3">
                                     <p class="font-semibold text-slate-900">{{ $request->request_code }}</p>
                                     <p class="mt-1 text-xs text-slate-500">{{ $request->title }}</p>
@@ -198,6 +218,7 @@
                                 <td class="px-3 py-3 text-right">
                                     @if ($canRunPayoutActions)
                                         <button
+                                            wire:key="payout-ready-run-{{ (int) $request->id }}"
                                             type="button"
                                             wire:click="runPayoutNow({{ (int) $request->id }})"
                                             wire:loading.attr="disabled"

@@ -30,6 +30,20 @@
             default => 'border-slate-200 bg-slate-50 text-slate-900',
         };
 
+        $healthBadgeClass = match ((string) ($health['tone'] ?? 'slate')) {
+            'emerald' => 'border-emerald-200 bg-emerald-50 text-emerald-700',
+            'amber' => 'border-amber-200 bg-amber-50 text-amber-700',
+            'indigo' => 'border-indigo-200 bg-indigo-50 text-indigo-700',
+            default => 'border-slate-200 bg-slate-100 text-slate-700',
+        };
+
+        $webhookBadgeClass = match ((string) ($webhook['tone'] ?? 'slate')) {
+            'emerald' => 'border-emerald-200 bg-emerald-50 text-emerald-700',
+            'amber' => 'border-amber-200 bg-amber-50 text-amber-700',
+            'indigo' => 'border-indigo-200 bg-indigo-50 text-indigo-700',
+            default => 'border-slate-200 bg-slate-100 text-slate-700',
+        };
+
         $testStatusClass = match ((string) $lastTestStatus) {
             'passed' => 'border-emerald-200 bg-emerald-50 text-emerald-700',
             'failed' => 'border-rose-200 bg-rose-50 text-rose-700',
@@ -45,7 +59,7 @@
                 </span>
                 <h2 class="mt-2 text-base font-semibold text-slate-900">Payments Rail Controls</h2>
                 <p class="mt-1 text-sm text-slate-600">
-                    Connect your payout rail, run quick connection checks, and pause or resume when needed.
+                    Connect your payout rail, run connection checks, and pause or resume when needed.
                 </p>
             </div>
 
@@ -125,11 +139,25 @@
         </div>
     </section>
 
-    <section class="grid gap-4 lg:grid-cols-5">
+    <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-7">
         <article class="rounded-2xl border p-5 {{ $statusCardClass }}">
             <p class="text-xs font-semibold uppercase tracking-[0.14em]">Connection Status</p>
             <p class="mt-2 text-base font-semibold">{{ $status['label'] }}</p>
             <span class="mt-2 inline-flex rounded-full border px-2 py-0.5 text-[11px] font-semibold {{ $statusBadgeClass }}">{{ $status['label'] }}</span>
+        </article>
+
+        <article class="rounded-2xl border border-cyan-200 bg-cyan-50 p-5 text-cyan-900">
+            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-cyan-700">Rail Health</p>
+            <p class="mt-2 text-base font-semibold">{{ $health['label'] }}</p>
+            <p class="mt-1 text-xs text-cyan-800">{{ $health['note'] }}</p>
+            <span class="mt-2 inline-flex rounded-full border px-2 py-0.5 text-[11px] font-semibold {{ $healthBadgeClass }}">{{ $health['label'] }}</span>
+        </article>
+
+        <article class="rounded-2xl border border-violet-200 bg-violet-50 p-5 text-violet-900">
+            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-violet-700">Webhook Signature</p>
+            <p class="mt-2 text-base font-semibold">{{ $webhook['label'] }}</p>
+            <p class="mt-1 text-xs text-violet-800">{{ $webhook['note'] }}</p>
+            <span class="mt-2 inline-flex rounded-full border px-2 py-0.5 text-[11px] font-semibold {{ $webhookBadgeClass }}">{{ $webhook['label'] }}</span>
         </article>
 
         <article class="rounded-2xl border border-sky-200 bg-sky-50 p-5 text-sky-900">

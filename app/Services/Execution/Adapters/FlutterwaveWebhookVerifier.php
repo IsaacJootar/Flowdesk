@@ -28,20 +28,36 @@ class FlutterwaveWebhookVerifier implements ProviderWebhookVerifierInterface
         $verifHash = trim((string) ($headers['verif-hash'] ?? $headers['verif_hash'] ?? ''));
         $signature = trim((string) ($headers['flutterwave-signature'] ?? $payload->signature ?? ''));
 
-        $secretHash = trim((string) config('execution.providers.flutterwave.webhook_secret_hash', ''));
-        $secretKey = trim((string) config('execution.providers.flutterwave.secret_key', ''));
+        $secretHashes = $this->candidateSecretHashes();
+        $secretKeys = $this->candidateSecretKeys();
 
-        if ($secretHash !== '') {
-            if ($verifHash === '' || ! hash_equals($secretHash, $verifHash)) {
+        if ($secretHashes !== []) {
+            $hashMatch = $verifHash !== '' && in_array($verifHash, $secretHashes, true);
+
+            if (! $hashMatch) {
                 return new WebhookVerificationResultData(
                     valid: false,
                     reason: 'Invalid Flutterwave verif-hash header.',
                 );
             }
-        } elseif ($secretKey !== '' && $signature !== '') {
-            // Optional alternate signature mode used by some Flutterwave setups.
-            $computed = hash_hmac('sha256', $payload->body, $secretKey);
-            if (! hash_equals($computed, $signature)) {
+        } elseif ($secretKeys !== []) {
+            if ($signature === '') {
+                return new WebhookVerificationResultData(
+                    valid: false,
+                    reason: 'Missing Flutterwave webhook signature.',
+                );
+            }
+
+            $isValid = false;
+            foreach ($secretKeys as $key) {
+                $computed = hash_hmac('sha256', $payload->body, $key);
+                if (hash_equals($computed, $signature)) {
+                    $isValid = true;
+                    break;
+                }
+            }
+
+            if (! $isValid) {
                 return new WebhookVerificationResultData(
                     valid: false,
                     reason: 'Invalid Flutterwave webhook signature.',
@@ -74,6 +90,34 @@ class FlutterwaveWebhookVerifier implements ProviderWebhookVerifierInterface
             ],
             reason: null,
         );
+    }
+
+    /**
+     * @return array<int,string>
+     */
+    private function candidateSecretHashes(): array
+    {
+        return array_values(array_unique(array_filter(array_map(
+            static fn (mixed $hash): string => trim((string) $hash),
+            [
+                config('execution.providers.flutterwave.webhook_secret_hash', ''),
+                config('execution.providers.flutterwave.sandbox_webhook_secret_hash', ''),
+            ]
+        ))));
+    }
+
+    /**
+     * @return array<int,string>
+     */
+    private function candidateSecretKeys(): array
+    {
+        return array_values(array_unique(array_filter(array_map(
+            static fn (mixed $key): string => trim((string) $key),
+            [
+                config('execution.providers.flutterwave.secret_key', ''),
+                config('execution.providers.flutterwave.sandbox_secret_key', ''),
+            ]
+        ))));
     }
 
     private function normalizeEventType(string $eventName, array $data): ?string

@@ -94,6 +94,7 @@ class VendorModuleTest extends TestCase
                 'email' => (string) $vendor->email,
                 'address' => (string) $vendor->address,
                 'bank_name' => (string) $vendor->bank_name,
+                'bank_code' => (string) $vendor->bank_code,
                 'account_name' => (string) $vendor->account_name,
                 'account_number' => (string) $vendor->account_number,
                 'notes' => (string) $vendor->notes,
@@ -358,6 +359,7 @@ class VendorModuleTest extends TestCase
                 'email' => '',
                 'address' => '',
                 'bank_name' => '',
+                'bank_code' => '',
                 'account_name' => '',
                 'account_number' => '',
                 'notes' => '',
@@ -374,6 +376,7 @@ class VendorModuleTest extends TestCase
             $this->assertArrayHasKey('email', $errors);
             $this->assertArrayHasKey('address', $errors);
             $this->assertArrayHasKey('bank_name', $errors);
+            $this->assertArrayHasKey('bank_code', $errors);
             $this->assertArrayHasKey('account_name', $errors);
             $this->assertArrayHasKey('account_number', $errors);
             $this->assertArrayHasKey('notes', $errors);
@@ -507,6 +510,7 @@ class VendorModuleTest extends TestCase
             'email' => 'vendor.'.$suffix.'@example.test',
             'address' => '12 Example Street',
             'bank_name' => 'Example Bank',
+            'bank_code' => '058',
             'account_name' => 'Vendor Account '.$suffix,
             'account_number' => (string) random_int(10000000, 99999999),
             'notes' => 'Testing vendor notes',
@@ -514,3 +518,4 @@ class VendorModuleTest extends TestCase
         ];
     }
 }
+

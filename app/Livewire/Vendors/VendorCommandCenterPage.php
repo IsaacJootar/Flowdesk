@@ -143,6 +143,8 @@ class VendorCommandCenterPage extends Component
                 $builder
                     ->whereNull('bank_name')
                     ->orWhere('bank_name', '')
+                    ->orWhereNull('bank_code')
+                    ->orWhere('bank_code', '')
                     ->orWhereNull('account_name')
                     ->orWhere('account_name', '')
                     ->orWhereNull('account_number')
@@ -167,10 +169,10 @@ class VendorCommandCenterPage extends Component
 
         $rows = (clone $query)
             ->limit(self::LANE_LIMIT)
-            ->get(['id', 'name', 'vendor_type', 'bank_name', 'account_name', 'account_number', 'contact_person', 'email'])
+            ->get(['id', 'name', 'vendor_type', 'bank_name', 'bank_code', 'account_name', 'account_number', 'contact_person', 'email'])
             ->map(function (Vendor $vendor): array {
                 $issues = [];
-                if (! $vendor->bank_name || ! $vendor->account_name || ! $vendor->account_number) {
+                if (! $vendor->bank_name || ! $vendor->bank_code || ! $vendor->account_name || ! $vendor->account_number) {
                     $issues[] = 'bank details';
                 }
 
@@ -450,4 +452,3 @@ class VendorCommandCenterPage extends Component
         return Gate::forUser($user)->allows('viewAny', Vendor::class);
     }
 }
-

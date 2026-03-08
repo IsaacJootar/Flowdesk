@@ -116,7 +116,7 @@ class NavAccessService
             ['route' => 'requests.communications', 'pattern' => ['requests.communications', 'requests.communications-help'], 'label' => 'Inbox & Logs'],
             ['route' => 'requests.reports', 'pattern' => ['requests.reports'], 'label' => 'Request Reports'],
             ['route' => 'expenses.index', 'pattern' => ['expenses.*'], 'label' => 'Expenses'],
-            ['route' => 'vendors.index', 'pattern' => ['vendors.index', 'vendors.registry', 'vendors.show', 'vendors.reports'], 'label' => 'Vendor Management Workspace'],
+            ['route' => 'vendors.index', 'pattern' => ['vendors.index', 'vendors.registry', 'vendors.show', 'vendors.reports'], 'label' => 'Expenses Vendor Workspace'],
             ['route' => 'procurement.release-desk', 'pattern' => ['procurement.*'], 'label' => 'Manage Procurement'],
             ['route' => 'treasury.reconciliation', 'pattern' => ['treasury.*'], 'label' => 'Manage Treasury'],
             ['route' => 'budgets.index', 'pattern' => ['budgets.*'], 'label' => 'Budgets'],

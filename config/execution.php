@@ -1,9 +1,15 @@
 <?php
 
+use App\Services\Execution\Adapters\FlutterwavePayoutExecutionAdapter;
+use App\Services\Execution\Adapters\FlutterwaveSubscriptionBillingAdapter;
+use App\Services\Execution\Adapters\FlutterwaveWebhookVerifier;
 use App\Services\Execution\Adapters\ManualOpsWebhookVerifier;
 use App\Services\Execution\Adapters\NullPayoutExecutionAdapter;
 use App\Services\Execution\Adapters\NullProviderWebhookVerifier;
 use App\Services\Execution\Adapters\NullSubscriptionBillingAdapter;
+use App\Services\Execution\Adapters\PaystackPayoutExecutionAdapter;
+use App\Services\Execution\Adapters\PaystackSubscriptionBillingAdapter;
+use App\Services\Execution\Adapters\PaystackWebhookVerifier;
 
 $rolloutPilotCompanySlugs = array_values(array_unique(array_filter(array_map(
     static fn (string $slug): string => strtolower(trim($slug)),
@@ -19,7 +25,7 @@ return [
     // Used when provider key is missing or unknown.
     'fallback_provider' => env('FLOWDESK_EXECUTION_FALLBACK_PROVIDER', 'null'),
 
-    // Provider adapter map. Real providers can be plugged in by replacing class bindings here.
+    // Provider adapter map. Tenant execution mode selects providers from this registry.
     'providers' => [
         'null' => [
             'subscription_billing_adapter' => NullSubscriptionBillingAdapter::class,
@@ -27,38 +33,37 @@ return [
             'webhook_verifier' => NullProviderWebhookVerifier::class,
         ],
 
-        // Placeholder provider for staged rollout.
-        // Billing/payout are still no-op adapters until a real provider adapter is wired.
         'manual_ops' => [
-            'subscription_billing_adapter' => NullSubscriptionBillingAdapter::class, // just placeholders for now, not real class files
+            'subscription_billing_adapter' => NullSubscriptionBillingAdapter::class,
             'payout_execution_adapter' => NullPayoutExecutionAdapter::class,
             'webhook_verifier' => ManualOpsWebhookVerifier::class,
             'webhook_secret' => env('FLOWDESK_MANUAL_OPS_WEBHOOK_SECRET', ''),
         ],
 
-        // Uncomment when ready to use Paystack provider adapters.
-        // 'paystack' => [
-        //     'subscription_billing_adapter' => \App\Services\Execution\Adapters\PaystackSubscriptionBillingAdapter::class,
-        //     'payout_execution_adapter' => \App\Services\Execution\Adapters\PaystackPayoutExecutionAdapter::class,
-        //     'webhook_verifier' => \App\Services\Execution\Adapters\PaystackWebhookVerifier::class,
-        //     'base_url' => env('FLOWDESK_PAYSTACK_BASE_URL', 'https://api.paystack.co'),
-        //     'secret_key' => env('FLOWDESK_PAYSTACK_SECRET_KEY', ''),
-        //     'sandbox_base_url' => env('FLOWDESK_PAYSTACK_SANDBOX_BASE_URL', 'https://api.paystack.co'),
-        //     'sandbox_secret_key' => env('FLOWDESK_PAYSTACK_SANDBOX_SECRET_KEY', ''),
-        // ],
+        'paystack' => [
+            'subscription_billing_adapter' => PaystackSubscriptionBillingAdapter::class,
+            'payout_execution_adapter' => PaystackPayoutExecutionAdapter::class,
+            'webhook_verifier' => PaystackWebhookVerifier::class,
+            'base_url' => env('FLOWDESK_PAYSTACK_BASE_URL', 'https://api.paystack.co'),
+            'secret_key' => env('FLOWDESK_PAYSTACK_SECRET_KEY', ''),
+            'webhook_secret' => env('FLOWDESK_PAYSTACK_WEBHOOK_SECRET', ''),
+            'sandbox_base_url' => env('FLOWDESK_PAYSTACK_SANDBOX_BASE_URL', 'https://api.paystack.co'),
+            'sandbox_secret_key' => env('FLOWDESK_PAYSTACK_SANDBOX_SECRET_KEY', ''),
+            'sandbox_webhook_secret' => env('FLOWDESK_PAYSTACK_SANDBOX_WEBHOOK_SECRET', ''),
+        ],
 
-        // Uncomment when ready to use Flutterwave provider adapters.
-        // 'flutterwave' => [
-        //     'subscription_billing_adapter' => \App\Services\Execution\Adapters\FlutterwaveSubscriptionBillingAdapter::class,
-        //     'payout_execution_adapter' => \App\Services\Execution\Adapters\FlutterwavePayoutExecutionAdapter::class,
-        //     'webhook_verifier' => \App\Services\Execution\Adapters\FlutterwaveWebhookVerifier::class,
-        //     'base_url' => env('FLOWDESK_FLUTTERWAVE_BASE_URL', 'https://api.flutterwave.com/v3'),
-        //     'secret_key' => env('FLOWDESK_FLUTTERWAVE_SECRET_KEY', ''),
-        //     'sandbox_base_url' => env('FLOWDESK_FLUTTERWAVE_SANDBOX_BASE_URL', 'https://api.flutterwave.com/v3'),
-        //     'sandbox_secret_key' => env('FLOWDESK_FLUTTERWAVE_SANDBOX_SECRET_KEY', ''),
-        //     'webhook_secret_hash' => env('FLOWDESK_FLUTTERWAVE_WEBHOOK_SECRET_HASH', ''),
-        //     'redirect_url' => env('FLOWDESK_FLUTTERWAVE_REDIRECT_URL', ''),
-        // ],
+        'flutterwave' => [
+            'subscription_billing_adapter' => FlutterwaveSubscriptionBillingAdapter::class,
+            'payout_execution_adapter' => FlutterwavePayoutExecutionAdapter::class,
+            'webhook_verifier' => FlutterwaveWebhookVerifier::class,
+            'base_url' => env('FLOWDESK_FLUTTERWAVE_BASE_URL', 'https://api.flutterwave.com/v3'),
+            'secret_key' => env('FLOWDESK_FLUTTERWAVE_SECRET_KEY', ''),
+            'webhook_secret_hash' => env('FLOWDESK_FLUTTERWAVE_WEBHOOK_SECRET_HASH', ''),
+            'sandbox_base_url' => env('FLOWDESK_FLUTTERWAVE_SANDBOX_BASE_URL', 'https://api.flutterwave.com/v3'),
+            'sandbox_secret_key' => env('FLOWDESK_FLUTTERWAVE_SANDBOX_SECRET_KEY', ''),
+            'sandbox_webhook_secret_hash' => env('FLOWDESK_FLUTTERWAVE_SANDBOX_WEBHOOK_SECRET_HASH', ''),
+            'redirect_url' => env('FLOWDESK_FLUTTERWAVE_REDIRECT_URL', ''),
+        ],
     ],
 
     // Staged rollout controls for real providers.
@@ -69,11 +74,10 @@ return [
         'allow_external_provider_without_pilot' => filter_var(env('FLOWDESK_RAILS_ALLOW_EXTERNAL_WITHOUT_PILOT', false), FILTER_VALIDATE_BOOL),
     ],
 
-    //  subscription auto-billing defaults.
+    // subscription auto-billing defaults.
     'billing' => [
         'default_currency' => env('FLOWDESK_BILLING_DEFAULT_CURRENCY', 'NGN'),
         'plan_amounts' => [
-            // i will bill tenants here appropriately.
             'pilot' => (float) env('FLOWDESK_PLAN_AMOUNT_PILOT', 0),
             'growth' => (float) env('FLOWDESK_PLAN_AMOUNT_GROWTH', 0),
             'business' => (float) env('FLOWDESK_PLAN_AMOUNT_BUSINESS', 0),

@@ -144,7 +144,7 @@ class PayoutReadyQueuePage extends Component
             'queued' => 'Queued and waiting for processing.',
             'processing' => 'Currently processing.',
             'webhook_pending' => 'Waiting for provider webhook confirmation.',
-            'failed' => 'Failed: '.trim((string) ($attempt->error_message ?: 'Check provider/config/state and retry.')),
+            'failed' => $this->formatFailureCondition($attempt->error_code, $attempt->error_message),
             'skipped' => 'Skipped by no-op provider configuration.',
             default => 'Execution state: '.str_replace('_', ' ', (string) $attempt->execution_status).'.',
         };
@@ -342,7 +342,7 @@ class PayoutReadyQueuePage extends Component
         }
 
         if ($status === 'failed') {
-            return [false, 'Payout run executed for '.(string) $request->request_code.', but outcome is failed. Check provider/config/state and retry.'];
+            return [false, $this->failedPayoutToast((string) $request->request_code, $attempt->error_code, $attempt->error_message)];
         }
 
         if ($status === 'skipped') {
@@ -352,6 +352,37 @@ class PayoutReadyQueuePage extends Component
         return [true, 'Processed payout for '.(string) $request->request_code.'. Outcome: '.$label.'.'];
     }
 
+
+    private function failedPayoutToast(string $requestCode, mixed $errorCode, mixed $errorMessage): string
+    {
+        $code = trim((string) $errorCode);
+        $message = trim((string) $errorMessage);
+
+        if ($code === '' && $message === '') {
+            return 'Payout run executed for '.$requestCode.', but outcome is failed. Check provider/config/state and retry.';
+        }
+
+        $reason = $message !== '' ? $message : 'Provider returned a failed outcome.';
+        if ($code !== '') {
+            $reason = '['.$code.'] '.$reason;
+        }
+
+        return 'Payout run executed for '.$requestCode.', but outcome is failed. '.$reason;
+    }
+
+    private function formatFailureCondition(mixed $errorCode, mixed $errorMessage): string
+    {
+        $code = trim((string) $errorCode);
+        $message = trim((string) $errorMessage);
+
+        if ($code === '' && $message === '') {
+            return 'Failed: Check provider/config/state and retry.';
+        }
+
+        $prefix = $code !== '' ? 'Failed ('.$code.'): ' : 'Failed: ';
+
+        return $prefix.($message !== '' ? $message : 'Provider returned a failed outcome.');
+    }
     private function queueBlockedMessage(?SpendRequest $request): string
     {
         if (! $request) {
@@ -418,3 +449,4 @@ class PayoutReadyQueuePage extends Component
         $this->feedbackKey++;
     }
 }
+

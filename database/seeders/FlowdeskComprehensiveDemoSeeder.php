@@ -408,6 +408,7 @@ class FlowdeskComprehensiveDemoSeeder extends Seeder
                 'email' => sprintf('vendor%d.%s@local.test', $i + 1, Str::before((string) $company->slug, '-')),
                 'address' => 'Seeded vendor address',
                 'bank_name' => 'Demo Bank',
+                'bank_code' => '058',
                 'account_name' => $name,
                 'account_number' => sprintf('00999%05d', ($company->id * 10) + $i),
                 'is_active' => true,
@@ -1150,3 +1151,5 @@ class FlowdeskComprehensiveDemoSeeder extends Seeder
         ]);
     }
 }
+
+

@@ -20,7 +20,7 @@ class RequestPayoutExecutionOrchestrator
 
     public function queueForApprovedRequest(SpendRequest $request, ?int $actorUserId = null): ?RequestPayoutExecutionAttempt
     {
-        $request->loadMissing(['company.subscription']);
+        $request->loadMissing(['company.subscription', 'vendor']);
 
         $subscription = $request->company?->subscription;
         if (! $subscription || (string) $subscription->payment_execution_mode !== TenantExecutionModeService::MODE_EXECUTION_ENABLED) {
@@ -92,6 +92,10 @@ class RequestPayoutExecutionOrchestrator
                 'metadata' => [
                     'request_code' => (string) $request->request_code,
                     'procurement_gate' => 'passed',
+                    // Snapshot beneficiary routing fields at queue-time for consistent retries/debugging.
+                    'beneficiary_name' => (string) ($request->vendor?->account_name ?: $request->vendor?->name ?: ''),
+                    'account_number' => (string) ($request->vendor?->account_number ?: ''),
+                    'bank_code' => (string) ($request->vendor?->bank_code ?: ''),
                 ],
                 'created_by' => $actorUserId,
                 'updated_by' => $actorUserId,

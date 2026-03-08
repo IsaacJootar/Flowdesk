@@ -345,7 +345,7 @@ class RequestLifecycleDeskPage extends Component
                 'metadata',
                 'updated_at',
             ])
-            ->map(function (SpendRequest $request): array {
+            ->map(function (SpendRequest $request) use ($canOpenPayoutQueue): array {
                 $attempt = $request->payoutExecutionAttempt;
                 $attemptStatus = (string) ($attempt?->execution_status ?: $request->status);
                 $attemptError = trim((string) ($attempt?->error_message ?: ''));
