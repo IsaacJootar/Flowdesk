@@ -1,6 +1,6 @@
 # Flowdesk Module Status (Ground Truth)
 
-Last updated: 2026-03-07
+Last updated: 2026-03-08
 
 This file is the canonical module inventory so planning discussions stay aligned to what is already implemented in code.
 
@@ -480,6 +480,32 @@ Before proposing "new" module work, check this file plus route map (`routes/web.
 - Sprint 8 rollout controls and enablement: completed.
 - Regression validation: php artisan test passed (198 tests, 0 failures).
 - UAT dry-run validation: php artisan procurement:backfill-vendor-links --dry-run completed with 0 errors and no persisted changes.
+
+## 9.1) Security Hardening Update (2026-03-08)
+- Route boundary:
+  - Platform operators are explicitly blocked from tenant route surface via `company.context` middleware (`EnsureCompanyContext`).
+- Tenant query scoping hardening:
+  - Added explicit `company_id` filters in critical dashboard and reports query paths as defense-in-depth beyond model scopes.
+- Sensitive endpoint throttling:
+  - `execution-webhooks`: `/webhooks/execution/{provider}`
+  - `tenant-downloads`: request/expense/vendor attachment downloads
+  - `tenant-exports`: vendor statement export/print
+- Input validation hardening:
+  - Vendor statement export/print controllers now strictly validate `from`, `to`, and `invoice_status`.
+- Authorization matrix hardening (Vendors + Procurement):
+  - Added procurement policies and policy registration:
+    - `app/Policies/PurchaseOrderPolicy.php`
+    - `app/Policies/GoodsReceiptPolicy.php`
+    - `app/Policies/InvoiceMatchExceptionPolicy.php`
+  - Procurement pages now use policy-based workspace access checks and order action checks.
+  - Vendor statement hardening tests now include explicit role/policy denial coverage.
+- Added hardening regression coverage:
+  - `tests/Feature/Auth/PlatformOperatorTenantBoundaryTest.php`
+  - `tests/Feature/Execution/ExecutionWebhookRateLimitTest.php`
+  - `tests/Feature/Vendors/VendorStatementEndpointHardeningTest.php`
+  - `tests/Feature/Finance/ProcurementAuthorizationMatrixTest.php`
+- Validation snapshot after update:
+  - `php artisan test` passed (`257 passed`, `0 failed`).
 
 
 

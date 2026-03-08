@@ -6,11 +6,11 @@ use App\Domains\Procurement\Models\InvoiceMatchException;
 use App\Domains\Procurement\Models\InvoiceMatchResult;
 use App\Domains\Procurement\Models\PurchaseOrder;
 use App\Domains\Requests\Models\SpendRequest;
-use App\Enums\UserRole;
 use App\Models\User;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -573,11 +573,6 @@ class ProcurementReleaseDeskPage extends Component
 
     private function canAccessPage(User $user): bool
     {
-        return in_array((string) $user->role, [
-            UserRole::Owner->value,
-            UserRole::Finance->value,
-            UserRole::Manager->value,
-            UserRole::Auditor->value,
-        ], true);
+        return Gate::forUser($user)->allows('viewAny', PurchaseOrder::class);
     }
 }

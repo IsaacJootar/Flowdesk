@@ -4,11 +4,11 @@ namespace App\Livewire\Procurement;
 
 use App\Domains\Procurement\Models\InvoiceMatchException;
 use App\Domains\Procurement\Models\InvoiceMatchResult;
-use App\Enums\UserRole;
 use App\Models\User;
 use App\Services\Procurement\ProcurementControlSettingsService;
 use App\Services\TenantAuditLogger;
 use Illuminate\Contracts\View\View;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -311,11 +311,6 @@ class ProcurementMatchExceptionsPage extends Component
 
     private function canAccessPage(User $user): bool
     {
-        return in_array((string) $user->role, [
-            UserRole::Owner->value,
-            UserRole::Finance->value,
-            UserRole::Manager->value,
-            UserRole::Auditor->value,
-        ], true);
+        return Gate::forUser($user)->allows('viewAny', InvoiceMatchException::class);
     }
 }

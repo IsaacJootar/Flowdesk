@@ -5,11 +5,17 @@ namespace App\Providers;
 use App\Domains\Assets\Models\Asset;
 use App\Domains\Budgets\Models\DepartmentBudget;
 use App\Domains\Expenses\Models\Expense;
+use App\Domains\Procurement\Models\GoodsReceipt;
+use App\Domains\Procurement\Models\InvoiceMatchException;
+use App\Domains\Procurement\Models\PurchaseOrder;
 use App\Domains\Requests\Models\SpendRequest;
 use App\Domains\Vendors\Models\Vendor;
 use App\Policies\AssetPolicy;
 use App\Policies\BudgetPolicy;
 use App\Policies\ExpensePolicy;
+use App\Policies\GoodsReceiptPolicy;
+use App\Policies\InvoiceMatchExceptionPolicy;
+use App\Policies\PurchaseOrderPolicy;
 use App\Policies\RequestPolicy;
 use App\Policies\VendorPolicy;
 use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
@@ -22,6 +28,9 @@ class AuthServiceProvider extends ServiceProvider
         Vendor::class => VendorPolicy::class,
         DepartmentBudget::class => BudgetPolicy::class,
         Asset::class => AssetPolicy::class,
+        PurchaseOrder::class => PurchaseOrderPolicy::class,
+        GoodsReceipt::class => GoodsReceiptPolicy::class,
+        InvoiceMatchException::class => InvoiceMatchExceptionPolicy::class,
     ];
 
     public function boot(): void

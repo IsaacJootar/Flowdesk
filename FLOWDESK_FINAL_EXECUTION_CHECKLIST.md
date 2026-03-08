@@ -149,7 +149,7 @@ There are 2 models, and orgs choose:
 ## Phase 4: Hardening and Operations
 ### 4.1 Security and Permissions
 - [ ] Final pass on authorization policies by module action
-- [ ] Rate limits on sensitive endpoints
+- [x] Rate limits on sensitive endpoints
 - [ ] Validation hardening on all create/update actions
 - [ ] Tenant boundary checks in all data queries
 
@@ -215,7 +215,27 @@ There are 2 models, and orgs choose:
 ## File Ownership
 - Product execution tracker: `FLOWDESK_FINAL_EXECUTION_CHECKLIST.md`
 
-## Latest Progress Update (2026-02-27)
+## Latest Progress Update (2026-03-08)
+- [x] Execution Health recent events/summaries expanded to include manual runs, auto-recovery outcomes, and alert delivery outcomes; tenant copy updated for clearer operator guidance.
+- [x] Tenant boundary hardening pass completed for platform-vs-tenant route separation (`EnsureCompanyContext`) and explicit `company_id` filters in dashboard/report query paths.
+- [x] Sensitive endpoint throttles wired:
+  - `execution-webhooks` for `/webhooks/execution/{provider}`
+  - `tenant-downloads` for attachment download endpoints
+  - `tenant-exports` for vendor statement export/print endpoints
+- [x] Vendor statement endpoint validation tightened (`from`, `to`, `invoice_status`) with strict date format/order and status allow-list checks.
+- [x] Authorization matrix hardening pass started for Vendors + Procurement:
+  - Added explicit procurement policies (`PurchaseOrder`, `GoodsReceipt`, `InvoiceMatchException`) and policy wiring in `AuthServiceProvider`.
+  - Procurement workspaces now rely on policy-based `viewAny` checks instead of duplicated role lists.
+  - Procurement order actions (`issue`, `recordReceipt`, `linkInvoice`) now perform explicit policy authorization checks in Livewire handlers.
+  - Vendor statement endpoints now have regression coverage for role/policy denial paths.
+- [x] Regression tests added and passing:
+  - `tests/Feature/Auth/PlatformOperatorTenantBoundaryTest.php`
+  - `tests/Feature/Execution/ExecutionWebhookRateLimitTest.php`
+  - `tests/Feature/Vendors/VendorStatementEndpointHardeningTest.php`
+  - `tests/Feature/Finance/ProcurementAuthorizationMatrixTest.php`
+- [x] Full automated test suite green after hardening updates (`php artisan test`: 257 passed, 0 failed).
+
+## Previous Progress Update (2026-02-27)
 - [x] Platform dashboard route finalized (`/platform`)
 - [x] Internal platform org slug filtering added for tenant counts/lists
 - [x] Tenant first-login provisioning implemented (auto + manual button)

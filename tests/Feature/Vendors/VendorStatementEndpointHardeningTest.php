@@ -4,6 +4,7 @@ namespace Tests\Feature\Vendors;
 
 use App\Domains\Company\Models\Company;
 use App\Domains\Company\Models\Department;
+use App\Domains\Vendors\Models\CompanyVendorPolicySetting;
 use App\Domains\Vendors\Models\Vendor;
 use App\Enums\UserRole;
 use App\Models\User;
@@ -60,6 +61,40 @@ class VendorStatementEndpointHardeningTest extends TestCase
             ]))
             ->assertStatus(422)
             ->assertJsonValidationErrors(['invoice_status']);
+    }
+
+    public function test_statement_export_and_print_require_export_permission(): void
+    {
+        [$company, $department] = $this->createCompanyContext('Vendor Statement Auth');
+        $owner = $this->createUser($company, $department, UserRole::Owner->value);
+        $staff = $this->createUser($company, $department, UserRole::Staff->value);
+        $vendor = $this->createVendor($company);
+
+        $this->actingAs($staff)
+            ->get(route('vendors.statement.export.csv', ['vendor' => $vendor->id]))
+            ->assertForbidden();
+
+        $this->actingAs($staff)
+            ->get(route('vendors.statement.print', ['vendor' => $vendor->id]))
+            ->assertForbidden();
+
+        $policies = CompanyVendorPolicySetting::defaultActionPolicies();
+        $policies[CompanyVendorPolicySetting::ACTION_EXPORT_STATEMENTS]['allowed_roles'] = [UserRole::Owner->value];
+
+        CompanyVendorPolicySetting::query()->updateOrCreate(
+            ['company_id' => $company->id],
+            [
+                'action_policies' => $policies,
+                'created_by' => $owner->id,
+                'updated_by' => $owner->id,
+            ]
+        );
+
+        $finance = $this->createUser($company, $department, UserRole::Finance->value);
+
+        $this->actingAs($finance)
+            ->get(route('vendors.statement.export.csv', ['vendor' => $vendor->id]))
+            ->assertForbidden();
     }
 
     /**

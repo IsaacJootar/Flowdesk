@@ -4,10 +4,10 @@ namespace App\Livewire\Procurement;
 
 use App\Domains\Procurement\Models\GoodsReceipt;
 use App\Domains\Procurement\Models\GoodsReceiptItem;
-use App\Enums\UserRole;
 use App\Models\User;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Gate;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -88,6 +88,8 @@ class PurchaseReceiptsPage extends Component
 
     public function exportCsv(): StreamedResponse
     {
+        Gate::authorize('viewAny', GoodsReceipt::class);
+
         $fileName = 'procurement_receipts_'.now()->format('Ymd_His').'.csv';
 
         // Export uses the active page filters so finance teams can reconcile exactly what they reviewed.
@@ -153,6 +155,7 @@ class PurchaseReceiptsPage extends Component
                 'items.orderItem:id,line_number,item_description,quantity,unit_price',
             ])
             ->findOrFail($receiptId);
+        Gate::authorize('view', $receipt);
 
         $this->selectedReceiptId = (int) $receipt->id;
         $this->selectedReceipt = [
@@ -256,11 +259,6 @@ class PurchaseReceiptsPage extends Component
 
     private function canAccessPage(User $user): bool
     {
-        return in_array((string) $user->role, [
-            UserRole::Owner->value,
-            UserRole::Finance->value,
-            UserRole::Manager->value,
-            UserRole::Auditor->value,
-        ], true);
+        return Gate::forUser($user)->allows('viewAny', GoodsReceipt::class);
     }
 }

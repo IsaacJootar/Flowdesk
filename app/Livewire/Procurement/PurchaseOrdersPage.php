@@ -4,13 +4,13 @@ namespace App\Livewire\Procurement;
 
 use App\Domains\Procurement\Models\PurchaseOrder;
 use App\Domains\Vendors\Models\VendorInvoice;
-use App\Enums\UserRole;
 use App\Models\User;
 use App\Services\Procurement\CreateGoodsReceiptService;
 use App\Services\Procurement\LinkVendorInvoiceToPurchaseOrderService;
 use App\Services\Procurement\ProcurementControlSettingsService;
 use App\Services\Procurement\PurchaseOrderIssuanceService;
 use Illuminate\Contracts\View\View;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -105,6 +105,7 @@ class PurchaseOrdersPage extends Component
                 'vendorInvoices',
             ])
             ->findOrFail($orderId);
+        Gate::authorize('view', $order);
 
         $this->selectedOrderId = (int) $order->id;
         $this->fillSelectedOrder($order);
@@ -131,6 +132,7 @@ class PurchaseOrdersPage extends Component
         }
 
         $order = PurchaseOrder::query()->with(['items', 'commitments'])->findOrFail($this->selectedOrderId);
+        Gate::authorize('issue', $order);
 
         try {
             $issued = $issuanceService->issue(auth()->user(), $order, 'Issued from procurement orders page');
@@ -166,6 +168,7 @@ class PurchaseOrdersPage extends Component
         ]);
 
         $order = PurchaseOrder::query()->findOrFail($this->selectedOrderId);
+        Gate::authorize('recordReceipt', $order);
 
         $lines = collect((array) $validated['receiptForm']['items'])
             ->map(static function (array $line): array {
@@ -209,6 +212,7 @@ class PurchaseOrdersPage extends Component
         }
 
         $order = PurchaseOrder::query()->findOrFail($this->selectedOrderId);
+        Gate::authorize('linkInvoice', $order);
         $invoice = VendorInvoice::query()->findOrFail($this->selectedVendorInvoiceId);
 
         try {
@@ -537,11 +541,6 @@ class PurchaseOrdersPage extends Component
 
     private function canAccessPage(User $user): bool
     {
-        return in_array((string) $user->role, [
-            UserRole::Owner->value,
-            UserRole::Finance->value,
-            UserRole::Manager->value,
-            UserRole::Auditor->value,
-        ], true);
+        return Gate::forUser($user)->allows('viewAny', PurchaseOrder::class);
     }
 }

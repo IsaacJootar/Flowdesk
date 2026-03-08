@@ -2,9 +2,10 @@
 
 namespace App\Livewire\Procurement;
 
-use App\Enums\UserRole;
+use App\Domains\Procurement\Models\PurchaseOrder;
 use App\Models\User;
 use Illuminate\Contracts\View\View;
+use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -26,11 +27,6 @@ class ProcurementReleaseGuidePage extends Component
 
     private function canAccessPage(User $user): bool
     {
-        return in_array((string) $user->role, [
-            UserRole::Owner->value,
-            UserRole::Finance->value,
-            UserRole::Manager->value,
-            UserRole::Auditor->value,
-        ], true);
+        return Gate::forUser($user)->allows('viewAny', PurchaseOrder::class);
     }
 }
