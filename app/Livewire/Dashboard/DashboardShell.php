@@ -19,6 +19,7 @@ use App\Services\Procurement\ProcurementControlSettingsService;
 use App\Services\TenantModuleAccessService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -76,106 +77,11 @@ class DashboardShell extends Component
         }
 
         $currencyCode = strtoupper((string) ($user?->company?->currency_code ?: 'NGN'));
-        $startOfMonth = now()->startOfMonth()->toDateString();
-        $endOfMonth = now()->endOfMonth()->toDateString();
-
-        $departmentCount = Department::query()
-            ->where('company_id', $companyId)
-            ->count();
-        $userCount = User::query()->where('company_id', $companyId)->count();
-        $monthSpend = (int) Expense::query()
-            ->where('company_id', $companyId)
-            ->where('status', 'posted')
-            ->whereBetween('expense_date', [$startOfMonth, $endOfMonth])
-            ->sum('amount');
-        $requestsInReviewCount = (int) SpendRequest::query()
-            ->where('company_id', $companyId)
-            ->where('status', 'in_review')
-            ->count();
-        $requestsInReviewValue = (int) SpendRequest::query()
-            ->where('company_id', $companyId)
-            ->where('status', 'in_review')
-            ->sum('amount');
-        $approvedThisMonthCount = (int) SpendRequest::query()
-            ->where('company_id', $companyId)
-            ->where('status', 'approved')
-            ->whereBetween('decided_at', [now()->startOfMonth(), now()->endOfMonth()])
-            ->count();
-        $approvedThisMonthValue = (int) SpendRequest::query()
-            ->where('company_id', $companyId)
-            ->where('status', 'approved')
-            ->whereBetween('decided_at', [now()->startOfMonth(), now()->endOfMonth()])
-            ->sum('approved_amount');
-        $activeBudgetBaseQuery = DepartmentBudget::query()
-            ->where('company_id', $companyId)
-            ->where('status', 'active')
-            ->whereDate('period_start', '<=', today())
-            ->whereDate('period_end', '>=', today());
-        $activeBudgetCount = (int) (clone $activeBudgetBaseQuery)->count();
-        $approvedBudgetTotal = (int) (clone $activeBudgetBaseQuery)->sum('allocated_amount');
-        $budgetRemainingTotal = (int) (clone $activeBudgetBaseQuery)->sum('remaining_amount');
-        $assetTotal = (int) Asset::query()
-            ->where('company_id', $companyId)
-            ->count();
-        $assetAssigned = (int) Asset::query()
-            ->where('company_id', $companyId)
-            ->whereNotNull('assigned_to_user_id')
-            ->where('status', '!=', Asset::STATUS_DISPOSED)
-            ->count();
-        $assetDisposed = (int) Asset::query()
-            ->where('company_id', $companyId)
-            ->where('status', Asset::STATUS_DISPOSED)
-            ->count();
-
-        $this->metrics = [
-            'total_spend' => [
-                'label' => 'Total Spend (This Month)',
-                'value' => sprintf('%s %s', $currencyCode, number_format($monthSpend, 2)),
-                'hint' => sprintf('Posted expenses for %s', now()->format('F Y')),
-                'words' => $this->formatAmountInWords($monthSpend, $currencyCode),
-            ],
-            'pending_approvals' => [
-                'label' => 'Requests In Review',
-                'value' => sprintf('%s requests', number_format($requestsInReviewCount)),
-                'hint' => sprintf('Pipeline value: %s %s', $currencyCode, number_format($requestsInReviewValue, 2)),
-                'words' => $this->formatAmountInWords($requestsInReviewValue, $currencyCode),
-            ],
-            'approved_value_month' => [
-                'label' => 'Approved Value (This Month)',
-                'value' => sprintf('%s %s', $currencyCode, number_format($approvedThisMonthValue, 2)),
-                'hint' => sprintf('%s approved requests this month', number_format($approvedThisMonthCount)),
-                'words' => $this->formatAmountInWords($approvedThisMonthValue, $currencyCode),
-            ],
-            'approved_budget' => [
-                'label' => 'Approved Budget (Active)',
-                'value' => sprintf('%s %s', $currencyCode, number_format($approvedBudgetTotal, 2)),
-                'hint' => sprintf('%s active department budgets', number_format($activeBudgetCount)),
-                'words' => $this->formatAmountInWords($approvedBudgetTotal, $currencyCode),
-            ],
-            'budget_remaining' => [
-                'label' => 'Budget Remaining (Active)',
-                'value' => sprintf('%s %s', $currencyCode, number_format($budgetRemainingTotal, 2)),
-                'hint' => 'Remaining balance across active budgets',
-                'words' => $this->formatAmountInWords($budgetRemainingTotal, $currencyCode),
-            ],
-            'assets_overview' => [
-                'label' => 'Assets Overview',
-                'value' => sprintf('%s total / %s assigned / %s disposed', number_format($assetTotal), number_format($assetAssigned), number_format($assetDisposed)),
-                'hint' => 'Custody and lifecycle tracking live',
-            ],
-            'departments' => [
-                'label' => 'Departments',
-                'value' => (string) $departmentCount,
-                'hint' => 'Departments configured in your organization',
-            ],
-            'users' => [
-                'label' => 'Users',
-                'value' => (string) $userCount,
-                'hint' => 'Active users in your organization',
-            ],
-        ];
-
-        $this->buildRoleLens($user, $companyId, $currencyCode);
+        $snapshot = $this->resolveDashboardSnapshot($user, $companyId, $currencyCode);
+        $this->metrics = (array) ($snapshot['metrics'] ?? $this->defaultMetrics());
+        $this->roleSummaryCards = (array) ($snapshot['roleSummaryCards'] ?? []);
+        $this->priorityActions = (array) ($snapshot['priorityActions'] ?? []);
+        $this->recentSignals = (array) ($snapshot['recentSignals'] ?? []);
     }
 
     public function render()
@@ -742,6 +648,170 @@ class DashboardShell extends Component
 
         return implode(' ', $words);
     }
-}
 
+    /**
+     * @return array{
+     *   metrics: array<string, array{label:string, value:string, hint:string, words?:string}>,
+     *   roleSummaryCards: array<int, array{label:string,value:string,hint:string,tone:string}>,
+     *   priorityActions: array<int, array{label:string,route:string,url:string,hint:string}>,
+     *   recentSignals: array<int, array{label:string,time:string,detail:string}>
+     * }
+     */
+    private function resolveDashboardSnapshot(User $user, int $companyId, string $currencyCode): array
+    {
+        if (! $this->canUsePerformanceCache()) {
+            return $this->buildDashboardSnapshot($user, $companyId, $currencyCode);
+        }
+
+        $cacheTtl = max(5, (int) config('performance.cache.dashboard_ttl_seconds', 45));
+        $cacheKey = $this->dashboardSnapshotCacheKey($user, $companyId, $currencyCode);
+
+        return Cache::remember($cacheKey, now()->addSeconds($cacheTtl), function () use ($user, $companyId, $currencyCode): array {
+            return $this->buildDashboardSnapshot($user, $companyId, $currencyCode);
+        });
+    }
+
+    /**
+     * @return array{
+     *   metrics: array<string, array{label:string, value:string, hint:string, words?:string}>,
+     *   roleSummaryCards: array<int, array{label:string,value:string,hint:string,tone:string}>,
+     *   priorityActions: array<int, array{label:string,route:string,url:string,hint:string}>,
+     *   recentSignals: array<int, array{label:string,time:string,detail:string}>
+     * }
+     */
+    private function buildDashboardSnapshot(User $user, int $companyId, string $currencyCode): array
+    {
+        $startOfMonth = now()->startOfMonth()->toDateString();
+        $endOfMonth = now()->endOfMonth()->toDateString();
+
+        $departmentCount = Department::query()
+            ->where('company_id', $companyId)
+            ->count();
+        $userCount = User::query()->where('company_id', $companyId)->count();
+        $monthSpend = (int) Expense::query()
+            ->where('company_id', $companyId)
+            ->where('status', 'posted')
+            ->whereBetween('expense_date', [$startOfMonth, $endOfMonth])
+            ->sum('amount');
+        $requestsInReviewCount = (int) SpendRequest::query()
+            ->where('company_id', $companyId)
+            ->where('status', 'in_review')
+            ->count();
+        $requestsInReviewValue = (int) SpendRequest::query()
+            ->where('company_id', $companyId)
+            ->where('status', 'in_review')
+            ->sum('amount');
+        $approvedThisMonthCount = (int) SpendRequest::query()
+            ->where('company_id', $companyId)
+            ->where('status', 'approved')
+            ->whereBetween('decided_at', [now()->startOfMonth(), now()->endOfMonth()])
+            ->count();
+        $approvedThisMonthValue = (int) SpendRequest::query()
+            ->where('company_id', $companyId)
+            ->where('status', 'approved')
+            ->whereBetween('decided_at', [now()->startOfMonth(), now()->endOfMonth()])
+            ->sum('approved_amount');
+        $activeBudgetBaseQuery = DepartmentBudget::query()
+            ->where('company_id', $companyId)
+            ->where('status', 'active')
+            ->whereDate('period_start', '<=', today())
+            ->whereDate('period_end', '>=', today());
+        $activeBudgetCount = (int) (clone $activeBudgetBaseQuery)->count();
+        $approvedBudgetTotal = (int) (clone $activeBudgetBaseQuery)->sum('allocated_amount');
+        $budgetRemainingTotal = (int) (clone $activeBudgetBaseQuery)->sum('remaining_amount');
+        $assetTotal = (int) Asset::query()
+            ->where('company_id', $companyId)
+            ->count();
+        $assetAssigned = (int) Asset::query()
+            ->where('company_id', $companyId)
+            ->whereNotNull('assigned_to_user_id')
+            ->where('status', '!=', Asset::STATUS_DISPOSED)
+            ->count();
+        $assetDisposed = (int) Asset::query()
+            ->where('company_id', $companyId)
+            ->where('status', Asset::STATUS_DISPOSED)
+            ->count();
+
+        $metrics = [
+            'total_spend' => [
+                'label' => 'Total Spend (This Month)',
+                'value' => sprintf('%s %s', $currencyCode, number_format($monthSpend, 2)),
+                'hint' => sprintf('Posted expenses for %s', now()->format('F Y')),
+                'words' => $this->formatAmountInWords($monthSpend, $currencyCode),
+            ],
+            'pending_approvals' => [
+                'label' => 'Requests In Review',
+                'value' => sprintf('%s requests', number_format($requestsInReviewCount)),
+                'hint' => sprintf('Pipeline value: %s %s', $currencyCode, number_format($requestsInReviewValue, 2)),
+                'words' => $this->formatAmountInWords($requestsInReviewValue, $currencyCode),
+            ],
+            'approved_value_month' => [
+                'label' => 'Approved Value (This Month)',
+                'value' => sprintf('%s %s', $currencyCode, number_format($approvedThisMonthValue, 2)),
+                'hint' => sprintf('%s approved requests this month', number_format($approvedThisMonthCount)),
+                'words' => $this->formatAmountInWords($approvedThisMonthValue, $currencyCode),
+            ],
+            'approved_budget' => [
+                'label' => 'Approved Budget (Active)',
+                'value' => sprintf('%s %s', $currencyCode, number_format($approvedBudgetTotal, 2)),
+                'hint' => sprintf('%s active department budgets', number_format($activeBudgetCount)),
+                'words' => $this->formatAmountInWords($approvedBudgetTotal, $currencyCode),
+            ],
+            'budget_remaining' => [
+                'label' => 'Budget Remaining (Active)',
+                'value' => sprintf('%s %s', $currencyCode, number_format($budgetRemainingTotal, 2)),
+                'hint' => 'Remaining balance across active budgets',
+                'words' => $this->formatAmountInWords($budgetRemainingTotal, $currencyCode),
+            ],
+            'assets_overview' => [
+                'label' => 'Assets Overview',
+                'value' => sprintf('%s total / %s assigned / %s disposed', number_format($assetTotal), number_format($assetAssigned), number_format($assetDisposed)),
+                'hint' => 'Custody and lifecycle tracking live',
+            ],
+            'departments' => [
+                'label' => 'Departments',
+                'value' => (string) $departmentCount,
+                'hint' => 'Departments configured in your organization',
+            ],
+            'users' => [
+                'label' => 'Users',
+                'value' => (string) $userCount,
+                'hint' => 'Active users in your organization',
+            ],
+        ];
+
+        $this->roleSummaryCards = [];
+        $this->priorityActions = [];
+        $this->recentSignals = [];
+        $this->buildRoleLens($user, $companyId, $currencyCode);
+
+        return [
+            'metrics' => $metrics,
+            'roleSummaryCards' => $this->roleSummaryCards,
+            'priorityActions' => $this->priorityActions,
+            'recentSignals' => $this->recentSignals,
+        ];
+    }
+
+    private function dashboardSnapshotCacheKey(User $user, int $companyId, string $currencyCode): string
+    {
+        $fingerprint = md5(json_encode([
+            'company_id' => $companyId,
+            'user_id' => (int) $user->id,
+            'role' => (string) $this->roleView,
+            'currency' => strtoupper($currencyCode),
+        ]) ?: '');
+
+        return 'flowdesk:dashboard:snapshot:'.$fingerprint;
+    }
+
+    private function canUsePerformanceCache(): bool
+    {
+        if (app()->environment('testing')) {
+            return false;
+        }
+
+        return (bool) config('performance.cache.enabled', true);
+    }
+}
 

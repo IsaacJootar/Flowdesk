@@ -39,8 +39,6 @@ class RequestCommunicationsPage extends Component
 
     private const MAX_SEARCH_LENGTH = 120;
 
-    private const MAX_QUEUED_OLDER_THAN_MINUTES = 10080;
-
     public bool $readyToLoad = false;
 
     public string $activeTab = 'inbox';
@@ -142,17 +140,17 @@ class RequestCommunicationsPage extends Component
 
         // One desk can execute retries across request/vendor/asset pipelines based on scope.
         if (in_array($scope, ['all', 'requests'], true)) {
-            $stats = $requestRetryService->retryFailed($companyId, 300);
+            $stats = $requestRetryService->retryFailed($companyId, $this->uiRetryFailedBatchSize());
             $parts[] = sprintf('Requests retried %d, sent %d, failed %d, skipped %d.', (int) $stats['retried'], (int) $stats['sent'], (int) $stats['failed'], (int) $stats['skipped']);
         }
 
         if (in_array($scope, ['all', 'vendors'], true)) {
-            $stats = $vendorRetryService->retryFailed($companyId, null, 300);
+            $stats = $vendorRetryService->retryFailed($companyId, null, $this->uiRetryFailedBatchSize());
             $parts[] = sprintf('Vendors retried %d, sent %d, failed %d, skipped %d.', (int) $stats['retried'], (int) $stats['sent'], (int) $stats['failed'], (int) $stats['skipped']);
         }
 
         if (in_array($scope, ['all', 'assets'], true)) {
-            $stats = $assetRetryService->retryFailed($companyId, 300);
+            $stats = $assetRetryService->retryFailed($companyId, $this->uiRetryFailedBatchSize());
             $parts[] = sprintf('Assets retried %d, sent %d, failed %d, skipped %d.', (int) $stats['retried'], (int) $stats['sent'], (int) $stats['failed'], (int) $stats['skipped']);
         }
 
@@ -176,7 +174,7 @@ class RequestCommunicationsPage extends Component
         $parts = [];
 
         if (in_array($scope, ['all', 'requests'], true)) {
-            $stats = $requestRetryService->processStuckQueued($companyId, $olderThan, 500);
+            $stats = $requestRetryService->processStuckQueued($companyId, $olderThan, $this->uiProcessQueuedBatchSize());
             $parts[] = sprintf(
                 'Requests processed %d, sent %d, failed %d, remaining queued %d.',
                 (int) $stats['processed'],
@@ -187,7 +185,7 @@ class RequestCommunicationsPage extends Component
         }
 
         if (in_array($scope, ['all', 'vendors'], true)) {
-            $stats = $vendorRetryService->processStuckQueued($companyId, null, $olderThan, 500);
+            $stats = $vendorRetryService->processStuckQueued($companyId, null, $olderThan, $this->uiProcessQueuedBatchSize());
             $parts[] = sprintf(
                 'Vendors processed %d, sent %d, failed %d, remaining queued %d.',
                 (int) $stats['processed'],
@@ -198,7 +196,7 @@ class RequestCommunicationsPage extends Component
         }
 
         if (in_array($scope, ['all', 'assets'], true)) {
-            $stats = $assetRetryService->processStuckQueued($companyId, $olderThan, 500);
+            $stats = $assetRetryService->processStuckQueued($companyId, $olderThan, $this->uiProcessQueuedBatchSize());
             $parts[] = sprintf(
                 'Assets processed %d, sent %d, failed %d, remaining queued %d.',
                 (int) $stats['processed'],
@@ -386,7 +384,7 @@ class RequestCommunicationsPage extends Component
             'recipient_issues' => [],
         ];
 
-        if ($canViewDeliveryLogs) {
+        if ($canViewDeliveryLogs && $this->readyToLoad && $this->activeTab === 'delivery') {
             $recoverySummary = $this->recoverySummary($companyId, $olderThan, $this->displayScope);
         }
 
@@ -1031,10 +1029,29 @@ class RequestCommunicationsPage extends Component
 
     private function normalizeQueuedOlderThanMinutes(mixed $value): int
     {
+        $maxOlderThan = max(0, (int) config('communications.recovery.max_older_than_minutes', 10080));
+
         return min(
-            self::MAX_QUEUED_OLDER_THAN_MINUTES,
+            $maxOlderThan,
             max(0, (int) $value)
         );
+    }
+
+    private function uiRetryFailedBatchSize(): int
+    {
+        return $this->normalizeUiBatchSize((int) config('communications.recovery.ui_retry_failed_batch', 300));
+    }
+
+    private function uiProcessQueuedBatchSize(): int
+    {
+        return $this->normalizeUiBatchSize((int) config('communications.recovery.ui_process_queued_batch', 500));
+    }
+
+    private function normalizeUiBatchSize(int $batchSize): int
+    {
+        $maxBatch = max(1, (int) config('communications.recovery.max_batch_size', 500));
+
+        return min($maxBatch, max(1, $batchSize));
     }
 
     private function emptyPaginator(): LengthAwarePaginator

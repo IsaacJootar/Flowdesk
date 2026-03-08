@@ -19,10 +19,12 @@ use App\Enums\UserRole;
 use App\Services\Procurement\ProcurementControlSettingsService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Pagination\LengthAwarePaginator;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -108,7 +110,7 @@ class ReportsCenterPage extends Component
             : collect();
 
         $metrics = $this->readyToLoad
-            ? $this->buildMetrics()
+            ? $this->cachedMetrics()
             : $this->emptyMetrics();
         $activities = $this->readyToLoad
             ? $this->buildUnifiedActivityFeed()
@@ -288,235 +290,481 @@ class ReportsCenterPage extends Component
     }
     private function buildUnifiedActivityFeed(): LengthAwarePaginator
     {
-        $events = collect();
+        $queries = $this->activitySectionQueries();
+        if ($queries === []) {
+            return $this->emptyPaginator();
+        }
+
+        /** @var QueryBuilder $union */
+        $union = array_shift($queries);
+        foreach ($queries as $query) {
+            $union->unionAll($query);
+        }
+
+        $paginator = DB::query()
+            ->fromSub($union, 'activity_rows')
+            ->orderByDesc('occurred_at')
+            ->orderByDesc('sort_id')
+            ->paginate($this->perPage);
+
+        $paginator->setCollection(
+            $paginator->getCollection()->map(fn ($row): array => $this->normalizeActivityRow($row))
+        );
+
+        return $paginator;
+    }
+
+    /**
+     * @return array<int, QueryBuilder>
+     */
+    private function activitySectionQueries(): array
+    {
+        $queries = [];
 
         if ($this->isModuleVisible('requests')) {
-            $events = $events->concat($this->requestEvents());
+            $queries[] = $this->requestActivityQuery();
         }
 
         if ($this->isModuleVisible('expenses')) {
-            $events = $events->concat($this->expenseEvents());
+            $queries[] = $this->expenseActivityQuery();
         }
 
         if ($this->canViewVendors() && $this->isModuleVisible('vendors')) {
-            $events = $events->concat($this->vendorEvents());
+            $queries[] = $this->vendorActivityQuery();
         }
 
         if ($this->isModuleVisible('assets')) {
-            $events = $events->concat($this->assetEvents());
+            $queries[] = $this->assetActivityQuery();
         }
 
         if ($this->isModuleVisible('budgets')) {
-            $events = $events->concat($this->budgetEvents());
+            $queries[] = $this->budgetActivityQuery();
         }
 
         if ($this->isModuleVisible('treasury')) {
-            $events = $events->concat($this->treasuryEvents());
+            $queries[] = $this->treasuryActivityQuery();
         }
 
         if ($this->isModuleVisible('rollout')) {
-            $events = $events->concat($this->rolloutEvents());
+            $queries[] = $this->rolloutActivityQuery();
         }
 
-        $sorted = $events
-            ->sortByDesc(fn (array $event) => $event['occurred_at'])
-            ->values();
+        return $queries;
+    }
 
-        $page = LengthAwarePaginator::resolveCurrentPage();
-        $total = $sorted->count();
-        $items = $sorted->forPage($page, $this->perPage)->values();
+    private function requestActivityQuery(): QueryBuilder
+    {
+        $companyId = (int) Auth::user()?->company_id;
+        $user = Auth::user();
 
-        return new LengthAwarePaginator(
-            $items,
-            $total,
-            $this->perPage,
-            $page,
-            [
-                'path' => request()->url(),
-                'query' => request()->query(),
-            ]
-        );
+        $query = DB::table('requests')
+            ->leftJoin('users as requester', 'requester.id', '=', 'requests.requested_by')
+            ->leftJoin('departments as dept', 'dept.id', '=', 'requests.department_id')
+            ->where('requests.company_id', $companyId)
+            ->whereNull('requests.deleted_at');
+
+        if ($this->search !== '') {
+            $search = trim($this->search);
+            $query->where(function (QueryBuilder $inner) use ($search): void {
+                $inner
+                    ->where('requests.request_code', 'like', '%'.$search.'%')
+                    ->orWhere('requests.title', 'like', '%'.$search.'%')
+                    ->orWhere('requester.name', 'like', '%'.$search.'%');
+            });
+        }
+
+        if ($this->departmentFilter !== 'all') {
+            $query->where('requests.department_id', (int) $this->departmentFilter);
+        }
+
+        if ($this->dateFrom !== '') {
+            $query->whereDate('requests.created_at', '>=', $this->dateFrom);
+        }
+
+        if ($this->dateTo !== '') {
+            $query->whereDate('requests.created_at', '<=', $this->dateTo);
+        }
+
+        if ($user && ! in_array((string) $user->role, [UserRole::Owner->value, UserRole::Finance->value, UserRole::Auditor->value], true)) {
+            if ((string) $user->role === UserRole::Manager->value) {
+                $query->where(function (QueryBuilder $inner) use ($user): void {
+                    if ($user->department_id) {
+                        $inner->where('requests.department_id', (int) $user->department_id)
+                            ->orWhere('requests.requested_by', (int) $user->id);
+                    } else {
+                        $inner->where('requests.requested_by', (int) $user->id);
+                    }
+                });
+            } else {
+                $query->where('requests.requested_by', (int) $user->id);
+            }
+        }
+
+        return $query->select([
+            DB::raw("'Requests' as module"),
+            DB::raw("'requests' as module_key"),
+            'requests.id as record_id',
+            DB::raw('NULL as related_id'),
+            'requests.id as sort_id',
+            'requests.request_code as code',
+            'requests.title as title',
+            'requests.status as status',
+            DB::raw('COALESCE(requests.amount, 0) as amount'),
+            DB::raw("COALESCE(dept.name, '-') as department"),
+            DB::raw("COALESCE(requester.name, '-') as owner"),
+            DB::raw('COALESCE(requests.updated_at, requests.created_at) as occurred_at'),
+        ]);
+    }
+
+    private function expenseActivityQuery(): QueryBuilder
+    {
+        $companyId = (int) Auth::user()?->company_id;
+        $user = Auth::user();
+
+        $query = DB::table('expenses')
+            ->leftJoin('users as creator', 'creator.id', '=', 'expenses.created_by')
+            ->leftJoin('departments as dept', 'dept.id', '=', 'expenses.department_id')
+            ->where('expenses.company_id', $companyId)
+            ->whereNull('expenses.deleted_at');
+
+        if ($this->search !== '') {
+            $search = trim($this->search);
+            $query->where(function (QueryBuilder $inner) use ($search): void {
+                $inner
+                    ->where('expenses.expense_code', 'like', '%'.$search.'%')
+                    ->orWhere('expenses.title', 'like', '%'.$search.'%');
+            });
+        }
+
+        if ($this->departmentFilter !== 'all') {
+            $query->where('expenses.department_id', (int) $this->departmentFilter);
+        }
+
+        if ($this->dateFrom !== '') {
+            $query->whereDate('expenses.expense_date', '>=', $this->dateFrom);
+        }
+
+        if ($this->dateTo !== '') {
+            $query->whereDate('expenses.expense_date', '<=', $this->dateTo);
+        }
+
+        if ($user && ! in_array((string) $user->role, [UserRole::Owner->value, UserRole::Finance->value, UserRole::Auditor->value], true)) {
+            $query->where(function (QueryBuilder $inner) use ($user): void {
+                if ($user->department_id) {
+                    $inner->where('expenses.department_id', (int) $user->department_id)
+                        ->orWhere('expenses.created_by', (int) $user->id);
+                } else {
+                    $inner->where('expenses.created_by', (int) $user->id);
+                }
+            });
+        }
+
+        return $query->select([
+            DB::raw("'Expenses' as module"),
+            DB::raw("'expenses' as module_key"),
+            'expenses.id as record_id',
+            DB::raw('NULL as related_id'),
+            'expenses.id as sort_id',
+            'expenses.expense_code as code',
+            'expenses.title as title',
+            'expenses.status as status',
+            DB::raw('COALESCE(expenses.amount, 0) as amount'),
+            DB::raw("COALESCE(dept.name, '-') as department"),
+            DB::raw("COALESCE(creator.name, '-') as owner"),
+            DB::raw('COALESCE(expenses.updated_at, expenses.created_at) as occurred_at'),
+        ]);
+    }
+
+    private function vendorActivityQuery(): QueryBuilder
+    {
+        $companyId = (int) Auth::user()?->company_id;
+
+        $query = DB::table('vendor_invoices')
+            ->leftJoin('vendors', 'vendors.id', '=', 'vendor_invoices.vendor_id')
+            ->where('vendor_invoices.company_id', $companyId)
+            ->where('vendor_invoices.status', '!=', VendorInvoice::STATUS_VOID);
+
+        if ($this->search !== '') {
+            $search = trim($this->search);
+            $query->where(function (QueryBuilder $inner) use ($search): void {
+                $inner
+                    ->where('vendor_invoices.invoice_number', 'like', '%'.$search.'%')
+                    ->orWhere('vendors.name', 'like', '%'.$search.'%');
+            });
+        }
+
+        if ($this->dateFrom !== '') {
+            $query->whereDate('vendor_invoices.invoice_date', '>=', $this->dateFrom);
+        }
+
+        if ($this->dateTo !== '') {
+            $query->whereDate('vendor_invoices.invoice_date', '<=', $this->dateTo);
+        }
+
+        return $query->select([
+            DB::raw("'Vendors' as module"),
+            DB::raw("'vendors' as module_key"),
+            'vendor_invoices.id as record_id',
+            'vendor_invoices.vendor_id as related_id',
+            'vendor_invoices.id as sort_id',
+            'vendor_invoices.invoice_number as code',
+            DB::raw("COALESCE(vendors.name, 'Vendor invoice') as title"),
+            'vendor_invoices.status as status',
+            DB::raw('COALESCE(vendor_invoices.outstanding_amount, 0) as amount'),
+            DB::raw("'-' as department"),
+            DB::raw("'-' as owner"),
+            DB::raw('COALESCE(vendor_invoices.updated_at, vendor_invoices.created_at) as occurred_at'),
+        ]);
+    }
+
+    private function assetActivityQuery(): QueryBuilder
+    {
+        $companyId = (int) Auth::user()?->company_id;
+        $user = Auth::user();
+
+        $query = DB::table('assets')
+            ->leftJoin('users as assignee', 'assignee.id', '=', 'assets.assigned_to_user_id')
+            ->leftJoin('departments as dept', 'dept.id', '=', 'assets.assigned_department_id')
+            ->where('assets.company_id', $companyId)
+            ->whereNull('assets.deleted_at');
+
+        if ($this->search !== '') {
+            $search = trim($this->search);
+            $query->where(function (QueryBuilder $inner) use ($search): void {
+                $inner
+                    ->where('assets.asset_code', 'like', '%'.$search.'%')
+                    ->orWhere('assets.name', 'like', '%'.$search.'%')
+                    ->orWhere('assets.serial_number', 'like', '%'.$search.'%');
+            });
+        }
+
+        if ($this->departmentFilter !== 'all') {
+            $query->where('assets.assigned_department_id', (int) $this->departmentFilter);
+        }
+
+        if ($this->dateFrom !== '') {
+            $query->whereDate('assets.acquisition_date', '>=', $this->dateFrom);
+        }
+
+        if ($this->dateTo !== '') {
+            $query->whereDate('assets.acquisition_date', '<=', $this->dateTo);
+        }
+
+        if ($user && ! in_array((string) $user->role, [UserRole::Owner->value, UserRole::Finance->value, UserRole::Auditor->value], true)) {
+            $query->where(function (QueryBuilder $inner) use ($user): void {
+                if ($user->department_id) {
+                    $inner->where('assets.assigned_department_id', (int) $user->department_id)
+                        ->orWhere('assets.assigned_to_user_id', (int) $user->id)
+                        ->orWhere('assets.created_by', (int) $user->id);
+                } else {
+                    $inner->where('assets.assigned_to_user_id', (int) $user->id)
+                        ->orWhere('assets.created_by', (int) $user->id);
+                }
+            });
+        }
+
+        return $query->select([
+            DB::raw("'Assets' as module"),
+            DB::raw("'assets' as module_key"),
+            'assets.id as record_id',
+            DB::raw('NULL as related_id'),
+            'assets.id as sort_id',
+            'assets.asset_code as code',
+            'assets.name as title',
+            'assets.status as status',
+            DB::raw('COALESCE(assets.purchase_amount, 0) as amount'),
+            DB::raw("COALESCE(dept.name, '-') as department"),
+            DB::raw("COALESCE(assignee.name, '-') as owner"),
+            DB::raw('COALESCE(assets.updated_at, assets.created_at) as occurred_at'),
+        ]);
+    }
+
+    private function budgetActivityQuery(): QueryBuilder
+    {
+        $companyId = (int) Auth::user()?->company_id;
+        $user = Auth::user();
+
+        $query = DB::table('department_budgets')
+            ->leftJoin('departments as dept', 'dept.id', '=', 'department_budgets.department_id')
+            ->where('department_budgets.company_id', $companyId)
+            ->whereNull('department_budgets.deleted_at');
+
+        if ($this->search !== '') {
+            $search = trim($this->search);
+            $query->where(function (QueryBuilder $inner) use ($search): void {
+                $inner
+                    ->where('department_budgets.period_type', 'like', '%'.$search.'%')
+                    ->orWhere('dept.name', 'like', '%'.$search.'%');
+            });
+        }
+
+        if ($this->departmentFilter !== 'all') {
+            $query->where('department_budgets.department_id', (int) $this->departmentFilter);
+        }
+
+        if ($this->dateFrom !== '') {
+            $query->whereDate('department_budgets.period_start', '>=', $this->dateFrom);
+        }
+
+        if ($this->dateTo !== '') {
+            $query->whereDate('department_budgets.period_end', '<=', $this->dateTo);
+        }
+
+        if ($user && ! in_array((string) $user->role, [UserRole::Owner->value, UserRole::Finance->value, UserRole::Auditor->value], true)) {
+            if ($user->department_id) {
+                $query->where('department_budgets.department_id', (int) $user->department_id);
+            } else {
+                $query->whereRaw('1 = 0');
+            }
+        }
+
+        return $query->select([
+            DB::raw("'Budgets' as module"),
+            DB::raw("'budgets' as module_key"),
+            'department_budgets.id as record_id',
+            DB::raw('NULL as related_id'),
+            'department_budgets.id as sort_id',
+            DB::raw('UPPER(COALESCE(department_budgets.period_type, \'budget\')) as code'),
+            DB::raw("'Budget period' as title"),
+            'department_budgets.status as status',
+            DB::raw('COALESCE(department_budgets.remaining_amount, 0) as amount'),
+            DB::raw("COALESCE(dept.name, '-') as department"),
+            DB::raw("'-' as owner"),
+            DB::raw('COALESCE(department_budgets.updated_at, department_budgets.created_at) as occurred_at'),
+        ]);
+    }
+
+    private function treasuryActivityQuery(): QueryBuilder
+    {
+        $companyId = (int) Auth::user()?->company_id;
+
+        $query = DB::table('reconciliation_exceptions')
+            ->where('reconciliation_exceptions.company_id', $companyId);
+
+        if ($this->search !== '') {
+            $search = trim($this->search);
+            $query->where(function (QueryBuilder $inner) use ($search): void {
+                $inner
+                    ->where('reconciliation_exceptions.exception_code', 'like', '%'.$search.'%')
+                    ->orWhere('reconciliation_exceptions.details', 'like', '%'.$search.'%');
+            });
+        }
+
+        if ($this->dateFrom !== '') {
+            $query->whereDate('reconciliation_exceptions.updated_at', '>=', $this->dateFrom);
+        }
+
+        if ($this->dateTo !== '') {
+            $query->whereDate('reconciliation_exceptions.updated_at', '<=', $this->dateTo);
+        }
+
+        return $query->select([
+            DB::raw("'Treasury' as module"),
+            DB::raw("'treasury' as module_key"),
+            'reconciliation_exceptions.id as record_id',
+            DB::raw('NULL as related_id'),
+            'reconciliation_exceptions.id as sort_id',
+            DB::raw('UPPER(COALESCE(reconciliation_exceptions.exception_code, \'exception\')) as code'),
+            DB::raw("'Reconciliation exception' as title"),
+            'reconciliation_exceptions.exception_status as status',
+            DB::raw('0 as amount'),
+            DB::raw("'-' as department"),
+            DB::raw("'-' as owner"),
+            DB::raw('COALESCE(reconciliation_exceptions.updated_at, reconciliation_exceptions.created_at) as occurred_at'),
+        ]);
+    }
+
+    private function rolloutActivityQuery(): QueryBuilder
+    {
+        $companyId = (int) Auth::user()?->company_id;
+
+        $query = DB::table('tenant_pilot_wave_outcomes')
+            ->leftJoin('users as decided_by', 'decided_by.id', '=', 'tenant_pilot_wave_outcomes.decided_by_user_id')
+            ->where('tenant_pilot_wave_outcomes.company_id', $companyId);
+
+        if ($this->search !== '') {
+            $search = trim($this->search);
+            $query->where(function (QueryBuilder $inner) use ($search): void {
+                $inner
+                    ->where('tenant_pilot_wave_outcomes.wave_label', 'like', '%'.$search.'%')
+                    ->orWhere('tenant_pilot_wave_outcomes.notes', 'like', '%'.$search.'%');
+            });
+        }
+
+        if ($this->dateFrom !== '') {
+            $query->whereDate('tenant_pilot_wave_outcomes.decision_at', '>=', $this->dateFrom);
+        }
+
+        if ($this->dateTo !== '') {
+            $query->whereDate('tenant_pilot_wave_outcomes.decision_at', '<=', $this->dateTo);
+        }
+
+        return $query->select([
+            DB::raw("'Rollout' as module"),
+            DB::raw("'rollout' as module_key"),
+            'tenant_pilot_wave_outcomes.id as record_id',
+            DB::raw('NULL as related_id'),
+            'tenant_pilot_wave_outcomes.id as sort_id',
+            DB::raw('UPPER(COALESCE(tenant_pilot_wave_outcomes.wave_label, \'wave\')) as code'),
+            DB::raw("'Pilot wave decision' as title"),
+            'tenant_pilot_wave_outcomes.outcome as status',
+            DB::raw('0 as amount'),
+            DB::raw("'-' as department"),
+            DB::raw("COALESCE(decided_by.name, '-') as owner"),
+            DB::raw('COALESCE(tenant_pilot_wave_outcomes.decision_at, tenant_pilot_wave_outcomes.created_at) as occurred_at'),
+        ]);
     }
 
     /**
-     * @return Collection<int, array<string, mixed>>
+     * @param  object|array<string,mixed>  $row
+     * @return array<string,mixed>
      */
-    private function requestEvents(): Collection
+    private function normalizeActivityRow(object|array $row): array
     {
-        return $this->requestQuery()
-            ->with(['requester:id,name', 'department:id,name'])
-            ->latest('updated_at')
-            ->limit(40)
-            ->get()
-            ->map(function (SpendRequest $request): array {
-                return [
-                    'module' => 'Requests',
-                    'code' => (string) $request->request_code,
-                    'title' => (string) $request->title,
-                    'status' => (string) $request->status,
-                    'amount' => (int) $request->amount,
-                    'department' => $request->department?->name ?? '-',
-                    'owner' => $request->requester?->name ?? '-',
-                    'occurred_at' => $request->updated_at ?? $request->created_at,
-                    'url' => route('requests.index', ['open_request_id' => $request->id]),
-                ];
-            });
+        $data = is_array($row) ? $row : (array) $row;
+        $moduleKey = (string) ($data['module_key'] ?? '');
+        $recordId = (int) ($data['record_id'] ?? 0);
+        $relatedId = isset($data['related_id']) ? (int) $data['related_id'] : null;
+        $code = (string) ($data['code'] ?? '-');
+
+        $occurredAt = null;
+        $occurredAtRaw = $data['occurred_at'] ?? null;
+        if ($occurredAtRaw) {
+            try {
+                $occurredAt = Carbon::parse((string) $occurredAtRaw);
+            } catch (\Throwable) {
+                $occurredAt = null;
+            }
+        }
+
+        return [
+            'module' => (string) ($data['module'] ?? 'Activity'),
+            'code' => $code,
+            'title' => (string) ($data['title'] ?? '-'),
+            'status' => (string) ($data['status'] ?? '-'),
+            'amount' => (int) ($data['amount'] ?? 0),
+            'department' => (string) ($data['department'] ?? '-'),
+            'owner' => (string) ($data['owner'] ?? '-'),
+            'occurred_at' => $occurredAt,
+            'url' => $this->activityRowUrl($moduleKey, $recordId, $code, $relatedId),
+        ];
     }
 
-    /**
-     * @return Collection<int, array<string, mixed>>
-     */
-    private function expenseEvents(): Collection
+    private function activityRowUrl(string $moduleKey, int $recordId, string $code, ?int $relatedId = null): string
     {
-        return $this->expenseQuery()
-            ->with(['creator:id,name', 'department:id,name'])
-            ->latest('updated_at')
-            ->limit(40)
-            ->get()
-            ->map(function (Expense $expense): array {
-                return [
-                    'module' => 'Expenses',
-                    'code' => (string) $expense->expense_code,
-                    'title' => (string) $expense->title,
-                    'status' => (string) $expense->status,
-                    'amount' => (int) $expense->amount,
-                    'department' => $expense->department?->name ?? '-',
-                    'owner' => $expense->creator?->name ?? '-',
-                    'occurred_at' => $expense->updated_at ?? $expense->created_at,
-                    'url' => route('expenses.index', ['search' => $expense->expense_code]),
-                ];
-            });
-    }
-
-    /**
-     * @return Collection<int, array<string, mixed>>
-     */
-    private function vendorEvents(): Collection
-    {
-        return $this->vendorInvoiceQuery()
-            ->with(['vendor:id,name'])
-            ->latest('updated_at')
-            ->limit(40)
-            ->get()
-            ->map(function (VendorInvoice $invoice): array {
-                return [
-                    'module' => 'Vendors',
-                    'code' => (string) $invoice->invoice_number,
-                    'title' => (string) ($invoice->vendor?->name ?? 'Vendor invoice'),
-                    'status' => (string) $invoice->status,
-                    'amount' => (int) $invoice->outstanding_amount,
-                    'department' => '-',
-                    'owner' => '-',
-                    'occurred_at' => $invoice->updated_at ?? $invoice->created_at,
-                    'url' => route('vendors.show', ['vendor' => $invoice->vendor_id]),
-                ];
-            });
-    }
-
-    /**
-     * @return Collection<int, array<string, mixed>>
-     */
-    private function assetEvents(): Collection
-    {
-        return $this->assetQuery()
-            ->with(['assignee:id,name', 'assignedDepartment:id,name'])
-            ->latest('updated_at')
-            ->limit(40)
-            ->get()
-            ->map(function (Asset $asset): array {
-                return [
-                    'module' => 'Assets',
-                    'code' => (string) $asset->asset_code,
-                    'title' => (string) $asset->name,
-                    'status' => (string) $asset->status,
-                    'amount' => (int) ($asset->purchase_amount ?? 0),
-                    'department' => $asset->assignedDepartment?->name ?? '-',
-                    'owner' => $asset->assignee?->name ?? '-',
-                    'occurred_at' => $asset->updated_at ?? $asset->created_at,
-                    'url' => route('assets.index', ['search' => $asset->asset_code]),
-                ];
-            });
-    }
-
-    /**
-     * @return Collection<int, array<string, mixed>>
-     */
-    private function budgetEvents(): Collection
-    {
-        return $this->budgetQuery()
-            ->with(['department:id,name'])
-            ->latest('updated_at')
-            ->limit(40)
-            ->get()
-            ->map(function (DepartmentBudget $budget): array {
-                $period = trim(
-                    (string) optional($budget->period_start)->format('M d, Y')
-                    .' - '
-                    .(string) optional($budget->period_end)->format('M d, Y')
-                );
-
-                return [
-                    'module' => 'Budgets',
-                    'code' => strtoupper((string) $budget->period_type),
-                    'title' => $period === '-' ? 'Budget period' : $period,
-                    'status' => (string) $budget->status,
-                    'amount' => (int) $budget->remaining_amount,
-                    'department' => $budget->department?->name ?? '-',
-                    'owner' => '-',
-                    'occurred_at' => $budget->updated_at ?? $budget->created_at,
-                    'url' => route('budgets.index'),
-                ];
-            });
-    }
-
-    /**
-     * @return Collection<int, array<string, mixed>>
-     */
-    private function treasuryEvents(): Collection
-    {
-        return ReconciliationException::query()
-            ->where('company_id', (int) Auth::user()?->company_id)
-            ->latest('updated_at')
-            ->limit(40)
-            ->get()
-            ->map(function (ReconciliationException $exception): array {
-                return [
-                    'module' => 'Treasury',
-                    'code' => strtoupper((string) $exception->exception_code),
-                    'title' => 'Reconciliation exception',
-                    'status' => (string) $exception->exception_status,
-                    'amount' => 0,
-                    'department' => '-',
-                    'owner' => '-',
-                    'occurred_at' => $exception->updated_at ?? $exception->created_at,
-                    'url' => route('treasury.reconciliation-exceptions'),
-                ];
-            });
-    }
-
-    /**
-     * @return Collection<int, array<string, mixed>>
-     */
-    private function rolloutEvents(): Collection
-    {
-        return $this->pilotWaveOutcomeQuery()
-            ->with(['decidedBy:id,name'])
-            ->latest('decision_at')
-            ->limit(40)
-            ->get()
-            ->map(function (TenantPilotWaveOutcome $outcome): array {
-                return [
-                    'module' => 'Rollout',
-                    'code' => strtoupper((string) $outcome->wave_label),
-                    'title' => 'Pilot wave decision',
-                    'status' => (string) $outcome->outcome,
-                    'amount' => 0,
-                    'department' => '-',
-                    'owner' => $outcome->decidedBy?->name ?? '-',
-                    'occurred_at' => $outcome->decision_at ?? $outcome->created_at,
-                    'url' => route('reports.index'),
-                ];
-            });
+        try {
+            return match ($moduleKey) {
+                'requests' => route('requests.index', ['open_request_id' => $recordId]),
+                'expenses' => route('expenses.index', ['search' => $code]),
+                'vendors' => $relatedId ? route('vendors.show', ['vendor' => $relatedId]) : route('vendors.index'),
+                'assets' => route('assets.index', ['search' => $code]),
+                'budgets' => route('budgets.index'),
+                'treasury' => route('treasury.reconciliation-exceptions'),
+                default => route('reports.index'),
+            };
+        } catch (\Throwable) {
+            return route('reports.index');
+        }
     }
 
     private function requestQuery(): Builder
@@ -815,6 +1063,58 @@ class ReportsCenterPage extends Component
             'treasury' => ['reconciled_lines' => 0, 'open_exceptions' => 0, 'unreconciled_value' => 0],
             'rollout' => ['go' => 0, 'hold' => 0, 'no_go' => 0, 'total' => 0],
         ];
+    }
+
+    /**
+     * @return array{
+     *   requests: array{total:int, in_review:int, approved:int, amount:int},
+     *   expenses: array{total:int, posted:int, void:int, amount:int},
+     *   vendors: array{outstanding_count:int, outstanding_amount:int, overdue_count:int},
+     *   assets: array{total:int, assigned:int, in_maintenance:int, disposed:int},
+     *   procurement: array{linked_invoices:int, open_exceptions:int, match_pass_rate_percent:float, stale_commitments:int},
+     *   budgets: array{active_count:int, allocated:int, used:int, remaining:int},
+     *   treasury: array{reconciled_lines:int, open_exceptions:int, unreconciled_value:int},
+     *   rollout: array{go:int, hold:int, no_go:int, total:int}
+     * }
+     */
+    private function cachedMetrics(): array
+    {
+        if (! $this->canUsePerformanceCache()) {
+            return $this->buildMetrics();
+        }
+
+        $cacheTtl = max(5, (int) config('performance.cache.reports_metrics_ttl_seconds', 60));
+
+        return Cache::remember($this->metricsCacheKey(), now()->addSeconds($cacheTtl), function (): array {
+            return $this->buildMetrics();
+        });
+    }
+
+    private function metricsCacheKey(): string
+    {
+        $user = Auth::user();
+        $fingerprint = md5(json_encode([
+            'company_id' => (int) ($user?->company_id ?? 0),
+            'user_id' => (int) ($user?->id ?? 0),
+            'role' => (string) ($user?->role ?? ''),
+            'module_filter' => $this->moduleFilter,
+            'search' => $this->search,
+            'department_filter' => $this->departmentFilter,
+            'date_from' => $this->dateFrom,
+            'date_to' => $this->dateTo,
+            'can_view_vendors' => $this->canViewVendors(),
+        ]) ?: '');
+
+        return 'flowdesk:reports:metrics:'.$fingerprint;
+    }
+
+    private function canUsePerformanceCache(): bool
+    {
+        if (app()->environment('testing')) {
+            return false;
+        }
+
+        return (bool) config('performance.cache.enabled', true);
     }
 }
 

@@ -228,16 +228,22 @@ class RequestReportsPage extends Component
      */
     private function buildMetrics(Builder $query): array
     {
-        $requestIds = (clone $query)->pluck('id')->map(fn ($id): int => (int) $id)->all();
+        $aggregate = (clone $query)
+            ->selectRaw(
+                'COUNT(*) as total_requests,
+                COALESCE(SUM(amount), 0) as total_amount,
+                SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as in_review,
+                SUM(CASE WHEN status IN (?, ?, ?) THEN 1 ELSE 0 END) as decided_count,
+                SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as approved_count',
+                ['in_review', 'approved', 'rejected', 'returned', 'approved']
+            )
+            ->first();
 
-        $totalRequests = (clone $query)->count();
-        $totalAmount = (int) ((clone $query)->sum('amount') ?? 0);
-        $inReview = (clone $query)->where('status', 'in_review')->count();
-
-        $decidedCount = (clone $query)
-            ->whereIn('status', ['approved', 'rejected', 'returned'])
-            ->count();
-        $approvedCount = (clone $query)->where('status', 'approved')->count();
+        $totalRequests = (int) data_get($aggregate, 'total_requests', 0);
+        $totalAmount = (int) data_get($aggregate, 'total_amount', 0);
+        $inReview = (int) data_get($aggregate, 'in_review', 0);
+        $decidedCount = (int) data_get($aggregate, 'decided_count', 0);
+        $approvedCount = (int) data_get($aggregate, 'approved_count', 0);
         $approvalRate = $decidedCount > 0 ? round(($approvedCount / $decidedCount) * 100, 1) : 0.0;
 
         $avgDecisionMinutes = $this->averageDecisionMinutes(clone $query);
@@ -245,7 +251,7 @@ class RequestReportsPage extends Component
         // Guard against bad historical timestamps (decided_at < submitted_at).
         $avgDecisionHours = round(max(0.0, $avgDecisionMinutes) / 60, 1);
 
-        if ($requestIds === []) {
+        if ($totalRequests === 0) {
             return [
                 'total_requests' => $totalRequests,
                 'total_amount' => $totalAmount,
@@ -257,8 +263,10 @@ class RequestReportsPage extends Component
             ];
         }
 
+        $requestIdSubQuery = (clone $query)->select($query->getModel()->qualifyColumn($query->getModel()->getKeyName()));
+
         $overdueSteps = RequestApproval::query()
-            ->whereIn('request_id', $requestIds)
+            ->whereIn('request_id', $requestIdSubQuery)
             ->where('status', 'pending')
             ->whereNull('acted_at')
             ->whereNotNull('due_at')
@@ -266,7 +274,7 @@ class RequestReportsPage extends Component
             ->count();
 
         $escalatedSteps = RequestApproval::query()
-            ->whereIn('request_id', $requestIds)
+            ->whereIn('request_id', (clone $query)->select($query->getModel()->qualifyColumn($query->getModel()->getKeyName())))
             ->whereNotNull('escalated_at')
             ->count();
 

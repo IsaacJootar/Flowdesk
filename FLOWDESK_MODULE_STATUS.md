@@ -531,6 +531,31 @@ Before proposing "new" module work, check this file plus route map (`routes/web.
 - Validation snapshot after update:
   - `php artisan test` passed (`264 passed`, `0 failed`).
 
+## 9.2) Performance Hardening Update (2026-03-08)
+- Reports and inbox optimization pass completed for high-volume request operations surfaces:
+  - `RequestCommunicationsPage` now skips recovery summary query work unless the delivery tab is active and hydrated, reducing inbox-tab render load.
+  - `RequestReportsPage` metrics now use DB-side aggregate projection for totals/in-review/approval-rate inputs instead of multiple repeated scans.
+  - `RequestReportsPage` overdue/escalated step metrics now use subquery scoping (`whereIn` subselect) rather than plucking request IDs into PHP memory.
+  - `ReportsCenterPage` unified activity feed now executes pagination in SQL (`UNION ALL` activity stream + ordered `paginate`) instead of loading and sorting module rows in memory.
+- Queue throughput/retry tuning pass completed for communications stack:
+  - Added `config/communications.php` for centralized retry guardrails (`max_batch_size`, defaults, `chunk_size`, `max_older_than_minutes`, UI batch defaults).
+  - `RequestCommunicationRetryService`, `VendorCommunicationRetryService`, and `AssetCommunicationRetryService` now enforce batch caps and process retry workloads in chunks to keep memory stable.
+  - Communication retry Artisan commands now clamp `--batch` and `--older-than` to configured guardrails.
+- Expensive dashboard/report caching enabled:
+  - Added `config/performance.php` cache controls.
+  - `DashboardShell` now resolves a short-lived cached snapshot for metrics + role cards/actions/signals.
+  - `ReportsCenterPage` now caches metrics payload by tenant/user/filter fingerprint.
+  - Cache path is intentionally bypassed in testing to keep deterministic test behavior.
+- Regression validation:
+  - `tests/Feature/Requests/RequestApprovalAutomationTest.php`
+  - `tests/Feature/Requests/CommunicationsRecoveryDeskPageTest.php`
+  - `tests/Feature/Requests/RequestReportsValidationHardeningTest.php`
+  - `tests/Feature/Dashboard/RoleSpecificDashboardTest.php`
+  - `tests/Feature/Reports/ReportsCenterTest.php`
+  - `tests/Feature/Vendors/VendorModuleTest.php`
+- Validation snapshot after performance pass:
+  - `php artisan test` passed (`265 passed`, `0 failed`).
+
 
 
 

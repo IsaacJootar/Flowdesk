@@ -154,10 +154,10 @@ There are 2 models, and orgs choose:
 - [ ] Tenant boundary checks in all data queries
 
 ### 4.2 Performance and Reliability
-- [ ] Pagination everywhere high-volume data exists
-- [ ] Query optimization for reports and inbox pages
-- [ ] Queue throughput and retry tuning
-- [ ] Caching strategy for expensive dashboards
+- [x] Pagination everywhere high-volume data exists
+- [x] Query optimization for reports and inbox pages
+- [x] Queue throughput and retry tuning
+- [x] Caching strategy for expensive dashboards
 
 ### 4.3 Observability and Support
 - [ ] Structured logging with correlation IDs
@@ -238,6 +238,14 @@ There are 2 models, and orgs choose:
   - Treasury reconciliation/payment runs/exceptions filters now normalize per-page/search/status/type/stream values to safe allow-lists.
   - Request reports filters now normalize status/type/department/date/per-page and enforce explicit tenant `company_id` filter in base query.
   - Communications Recovery Desk now normalizes tab/filter state and blocks delivery-log tab forcing via tampered component state.
+- [x] Performance hardening wave completed (reports + inbox + retry throughput):
+  - Communications Recovery Desk now computes expensive recovery summary only when `delivery` tab is active and data is loaded.
+  - Request Reports metrics now use DB-side aggregate query (single pass for totals/in-review/decision-rate inputs) instead of repeated filtered scans.
+  - Request Reports approval-step metrics now use DB subqueries (`whereIn` subselect) instead of loading request IDs into PHP memory.
+  - Reports Center unified activity feed now paginates in SQL (unioned module activity subqueries) instead of in-memory collection sort/pagination.
+  - Communication retry services (`request`, `vendor`, `asset`) now enforce configurable max batch caps and process in chunks to stabilize memory and throughput.
+  - Request/Vendor/Asset communication CLI commands and the Communications Recovery Desk now use centralized retry batch/older-than guardrails from `config/communications.php`.
+  - Dashboard and Reports Center now use short-lived performance cache snapshots (disabled in testing) via `config/performance.php`.
 - [x] Regression tests added and passing:
   - `tests/Feature/Auth/PlatformOperatorTenantBoundaryTest.php`
   - `tests/Feature/Execution/ExecutionWebhookRateLimitTest.php`
@@ -247,7 +255,7 @@ There are 2 models, and orgs choose:
   - `tests/Feature/Finance/TreasuryReconciliationWorkflowTest.php` (tenant-bound import + invalid resolution action payload)
   - `tests/Feature/Requests/CommunicationsRecoveryDeskPageTest.php` (delivery tab tamper guard)
   - `tests/Feature/Requests/RequestReportsValidationHardeningTest.php`
-- [x] Full automated test suite green after hardening updates (`php artisan test`: 264 passed, 0 failed).
+- [x] Full automated test suite green after hardening updates (`php artisan test`: 265 passed, 0 failed).
 
 ## Previous Progress Update (2026-02-27)
 - [x] Platform dashboard route finalized (`/platform`)

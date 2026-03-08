@@ -27,15 +27,17 @@ class VendorCommunicationRetryService
     public function retryFailed(?int $companyId = null, ?int $vendorId = null, int $batchSize = 200): array
     {
         $stats = ['retried' => 0, 'sent' => 0, 'failed' => 0, 'skipped' => 0];
+        $batchLimit = $this->normalizeBatchSize($batchSize, (int) config('communications.recovery.default_retry_failed_batch', 200));
 
-        $this->failedQuery($companyId, $vendorId)
-            ->limit(max(1, $batchSize))
-            ->get()
-            ->each(function (VendorCommunicationLog $log) use (&$stats): void {
+        $this->processQueryInChunks(
+            $this->failedQuery($companyId, $vendorId),
+            $batchLimit,
+            function (VendorCommunicationLog $log) use (&$stats): void {
                 $stats['retried']++;
                 $after = $this->retryLog($log);
                 $this->incrementStatusCount($stats, (string) $after->status);
-            });
+            }
+        );
 
         return $stats;
     }
@@ -50,12 +52,14 @@ class VendorCommunicationRetryService
         int $batchSize = 500
     ): array {
         $stats = ['processed' => 0, 'sent' => 0, 'failed' => 0, 'skipped' => 0, 'remaining_queued' => 0];
-        $cutoff = now()->subMinutes(max(0, $olderThanMinutes));
+        $olderThan = $this->normalizeOlderThanMinutes($olderThanMinutes);
+        $batchLimit = $this->normalizeBatchSize($batchSize, (int) config('communications.recovery.default_process_queued_batch', 500));
+        $cutoff = now()->subMinutes($olderThan);
 
-        $this->queuedQuery($companyId, $vendorId, $cutoff->toImmutable())
-            ->limit(max(1, $batchSize))
-            ->get()
-            ->each(function (VendorCommunicationLog $log) use (&$stats): void {
+        $this->processQueryInChunks(
+            $this->queuedQuery($companyId, $vendorId, $cutoff->toImmutable()),
+            $batchLimit,
+            function (VendorCommunicationLog $log) use (&$stats): void {
                 $stats['processed']++;
 
                 if ((string) $log->status === 'queued') {
@@ -64,7 +68,8 @@ class VendorCommunicationRetryService
 
                 $after = $log->fresh() ?? $log;
                 $this->incrementStatusCount($stats, (string) $after->status);
-            });
+            }
+        );
 
         $stats['remaining_queued'] = $this->queuedQuery($companyId, $vendorId, $cutoff->toImmutable())->count();
 
@@ -104,8 +109,7 @@ class VendorCommunicationRetryService
         return VendorCommunicationLog::query()
             ->when($companyId !== null, fn (Builder $query) => $query->where('company_id', $companyId))
             ->when($vendorId !== null, fn (Builder $query) => $query->where('vendor_id', $vendorId))
-            ->where('status', 'failed')
-            ->orderBy('id');
+            ->where('status', 'failed');
     }
 
     private function queuedQuery(?int $companyId, ?int $vendorId, CarbonImmutable $cutoff): Builder
@@ -114,7 +118,53 @@ class VendorCommunicationRetryService
             ->when($companyId !== null, fn (Builder $query) => $query->where('company_id', $companyId))
             ->when($vendorId !== null, fn (Builder $query) => $query->where('vendor_id', $vendorId))
             ->where('status', 'queued')
-            ->where('created_at', '<=', $cutoff)
-            ->orderBy('id');
+            ->where('created_at', '<=', $cutoff);
+    }
+
+    /**
+     * @param  callable(VendorCommunicationLog):void  $callback
+     */
+    private function processQueryInChunks(Builder $query, int $batchLimit, callable $callback): void
+    {
+        $processed = 0;
+        $chunkSize = $this->chunkSize();
+
+        $query->chunkById($chunkSize, function ($logs) use (&$processed, $batchLimit, $callback): bool {
+            foreach ($logs as $log) {
+                if ($processed >= $batchLimit) {
+                    return false;
+                }
+
+                if ($log instanceof VendorCommunicationLog) {
+                    $callback($log);
+                    $processed++;
+                }
+            }
+
+            return $processed < $batchLimit;
+        });
+    }
+
+    private function normalizeBatchSize(int $batchSize, int $default): int
+    {
+        $maxBatch = max(1, (int) config('communications.recovery.max_batch_size', 500));
+        $candidate = $batchSize > 0 ? $batchSize : $default;
+
+        return min($maxBatch, max(1, $candidate));
+    }
+
+    private function normalizeOlderThanMinutes(int $olderThanMinutes): int
+    {
+        $maxOlderThan = max(0, (int) config('communications.recovery.max_older_than_minutes', 10080));
+
+        return min($maxOlderThan, max(0, $olderThanMinutes));
+    }
+
+    private function chunkSize(): int
+    {
+        $configured = (int) config('communications.recovery.chunk_size', 100);
+        $maxBatch = max(1, (int) config('communications.recovery.max_batch_size', 500));
+
+        return min($maxBatch, max(1, $configured));
     }
 }

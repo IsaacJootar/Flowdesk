@@ -239,11 +239,13 @@ Artisan::command('rollout:pilot:capture-kpis {--company=} {--label=pilot} {--sta
 Artisan::command('requests:communications:retry-failed {--company=} {--batch=200}', function (RequestCommunicationRetryService $retryService): int {
     $companyId = $this->option('company');
     $companyId = is_numeric($companyId) ? (int) $companyId : null;
-    $batch = is_numeric($this->option('batch')) ? (int) $this->option('batch') : 200;
+    $maxBatch = max(1, (int) config('communications.recovery.max_batch_size', 500));
+    $defaultBatch = max(1, (int) config('communications.recovery.default_retry_failed_batch', 200));
+    $batch = is_numeric($this->option('batch')) ? (int) $this->option('batch') : $defaultBatch;
 
     $stats = $retryService->retryFailed(
         companyId: $companyId,
-        batchSize: max(1, $batch)
+        batchSize: min($maxBatch, max(1, $batch))
     );
 
     $this->info('Retry failed communications completed.');
@@ -258,13 +260,16 @@ Artisan::command('requests:communications:retry-failed {--company=} {--batch=200
 Artisan::command('requests:communications:process-queued {--company=} {--older-than=2} {--batch=500}', function (RequestCommunicationRetryService $retryService): int {
     $companyId = $this->option('company');
     $companyId = is_numeric($companyId) ? (int) $companyId : null;
+    $maxBatch = max(1, (int) config('communications.recovery.max_batch_size', 500));
+    $defaultBatch = max(1, (int) config('communications.recovery.default_process_queued_batch', 500));
+    $maxOlderThan = max(0, (int) config('communications.recovery.max_older_than_minutes', 10080));
     $olderThan = is_numeric($this->option('older-than')) ? (int) $this->option('older-than') : 2;
-    $batch = is_numeric($this->option('batch')) ? (int) $this->option('batch') : 500;
+    $batch = is_numeric($this->option('batch')) ? (int) $this->option('batch') : $defaultBatch;
 
     $stats = $retryService->processStuckQueued(
         companyId: $companyId,
-        olderThanMinutes: max(0, $olderThan),
-        batchSize: max(1, $batch)
+        olderThanMinutes: min($maxOlderThan, max(0, $olderThan)),
+        batchSize: min($maxBatch, max(1, $batch))
     );
 
     $this->info('Process queued communications completed.');
@@ -309,9 +314,11 @@ Artisan::command('vendors:communications:retry-failed {--company=} {--vendor=} {
     $companyId = is_numeric($companyId) ? (int) $companyId : null;
     $vendorId = $this->option('vendor');
     $vendorId = is_numeric($vendorId) ? (int) $vendorId : null;
-    $batch = is_numeric($this->option('batch')) ? (int) $this->option('batch') : 200;
+    $maxBatch = max(1, (int) config('communications.recovery.max_batch_size', 500));
+    $defaultBatch = max(1, (int) config('communications.recovery.default_retry_failed_batch', 200));
+    $batch = is_numeric($this->option('batch')) ? (int) $this->option('batch') : $defaultBatch;
 
-    $stats = $retryService->retryFailed($companyId, $vendorId, max(1, $batch));
+    $stats = $retryService->retryFailed($companyId, $vendorId, min($maxBatch, max(1, $batch)));
 
     $this->info('Retry failed vendor communications completed.');
     $this->line('Retried: '.$stats['retried']);
@@ -327,10 +334,18 @@ Artisan::command('vendors:communications:process-queued {--company=} {--vendor=}
     $companyId = is_numeric($companyId) ? (int) $companyId : null;
     $vendorId = $this->option('vendor');
     $vendorId = is_numeric($vendorId) ? (int) $vendorId : null;
+    $maxBatch = max(1, (int) config('communications.recovery.max_batch_size', 500));
+    $defaultBatch = max(1, (int) config('communications.recovery.default_process_queued_batch', 500));
+    $maxOlderThan = max(0, (int) config('communications.recovery.max_older_than_minutes', 10080));
     $olderThan = is_numeric($this->option('older-than')) ? (int) $this->option('older-than') : 2;
-    $batch = is_numeric($this->option('batch')) ? (int) $this->option('batch') : 500;
+    $batch = is_numeric($this->option('batch')) ? (int) $this->option('batch') : $defaultBatch;
 
-    $stats = $retryService->processStuckQueued($companyId, $vendorId, max(0, $olderThan), max(1, $batch));
+    $stats = $retryService->processStuckQueued(
+        $companyId,
+        $vendorId,
+        min($maxOlderThan, max(0, $olderThan)),
+        min($maxBatch, max(1, $batch))
+    );
 
     $this->info('Process queued vendor communications completed.');
     $this->line('Processed: '.$stats['processed']);
@@ -370,9 +385,11 @@ Schedule::command('assets:reminders:dispatch --days-ahead=7')
 Artisan::command('assets:communications:retry-failed {--company=} {--batch=200}', function (AssetCommunicationRetryService $retryService): int {
     $companyId = $this->option('company');
     $companyId = is_numeric($companyId) ? (int) $companyId : null;
-    $batch = is_numeric($this->option('batch')) ? (int) $this->option('batch') : 200;
+    $maxBatch = max(1, (int) config('communications.recovery.max_batch_size', 500));
+    $defaultBatch = max(1, (int) config('communications.recovery.default_retry_failed_batch', 200));
+    $batch = is_numeric($this->option('batch')) ? (int) $this->option('batch') : $defaultBatch;
 
-    $stats = $retryService->retryFailed($companyId, max(1, $batch));
+    $stats = $retryService->retryFailed($companyId, min($maxBatch, max(1, $batch)));
 
     $this->info('Retry failed asset communications completed.');
     $this->line('Retried: '.$stats['retried']);
@@ -386,10 +403,17 @@ Artisan::command('assets:communications:retry-failed {--company=} {--batch=200}'
 Artisan::command('assets:communications:process-queued {--company=} {--older-than=2} {--batch=500}', function (AssetCommunicationRetryService $retryService): int {
     $companyId = $this->option('company');
     $companyId = is_numeric($companyId) ? (int) $companyId : null;
+    $maxBatch = max(1, (int) config('communications.recovery.max_batch_size', 500));
+    $defaultBatch = max(1, (int) config('communications.recovery.default_process_queued_batch', 500));
+    $maxOlderThan = max(0, (int) config('communications.recovery.max_older_than_minutes', 10080));
     $olderThan = is_numeric($this->option('older-than')) ? (int) $this->option('older-than') : 2;
-    $batch = is_numeric($this->option('batch')) ? (int) $this->option('batch') : 500;
+    $batch = is_numeric($this->option('batch')) ? (int) $this->option('batch') : $defaultBatch;
 
-    $stats = $retryService->processStuckQueued($companyId, max(0, $olderThan), max(1, $batch));
+    $stats = $retryService->processStuckQueued(
+        $companyId,
+        min($maxOlderThan, max(0, $olderThan)),
+        min($maxBatch, max(1, $batch))
+    );
 
     $this->info('Process queued asset communications completed.');
     $this->line('Processed: '.$stats['processed']);

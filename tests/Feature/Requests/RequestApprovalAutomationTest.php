@@ -664,6 +664,59 @@ class RequestApprovalAutomationTest extends TestCase
         ]);
     }
 
+    public function test_retry_service_enforces_max_batch_guardrail(): void
+    {
+        [$company, $department] = $this->createCompanyContext('Retry Batch Guardrail');
+        $owner = $this->createUser($company, $department, UserRole::Owner->value);
+        $recipient = $this->createUser($company, $department, UserRole::Staff->value);
+        $request = $this->createRequest($company, $department, $owner, null, [
+            'request_code' => 'FD-REQ-BATCH-001',
+            'status' => 'in_review',
+        ]);
+
+        config()->set('communications.recovery.max_batch_size', 2);
+
+        RequestCommunicationLog::query()->create([
+            'company_id' => $company->id,
+            'request_id' => $request->id,
+            'recipient_user_id' => $recipient->id,
+            'event' => 'request.submitted',
+            'channel' => 'in_app',
+            'status' => 'failed',
+            'message' => 'Failed row 1',
+            'metadata' => null,
+        ]);
+
+        RequestCommunicationLog::query()->create([
+            'company_id' => $company->id,
+            'request_id' => $request->id,
+            'recipient_user_id' => $recipient->id,
+            'event' => 'request.submitted',
+            'channel' => 'in_app',
+            'status' => 'failed',
+            'message' => 'Failed row 2',
+            'metadata' => null,
+        ]);
+
+        RequestCommunicationLog::query()->create([
+            'company_id' => $company->id,
+            'request_id' => $request->id,
+            'recipient_user_id' => $recipient->id,
+            'event' => 'request.submitted',
+            'channel' => 'in_app',
+            'status' => 'failed',
+            'message' => 'Failed row 3',
+            'metadata' => null,
+        ]);
+
+        $this->actingAs($owner);
+        $stats = app(RequestCommunicationRetryService::class)->retryFailed($company->id, 50);
+
+        $this->assertSame(2, (int) $stats['retried']);
+        $this->assertSame(2, RequestCommunicationLog::query()->where('company_id', $company->id)->where('status', 'sent')->count());
+        $this->assertSame(1, RequestCommunicationLog::query()->where('company_id', $company->id)->where('status', 'failed')->count());
+    }
+
     public function test_staff_cannot_view_delivery_logs_or_execute_delivery_operations(): void
     {
         [$company, $department] = $this->createCompanyContext('Comm Role Guard Staff');
