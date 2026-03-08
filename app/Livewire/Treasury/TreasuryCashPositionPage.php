@@ -5,9 +5,9 @@ namespace App\Livewire\Treasury;
 use App\Domains\Treasury\Models\BankAccount;
 use App\Domains\Treasury\Models\BankStatement;
 use App\Domains\Treasury\Models\BankStatementLine;
-use App\Enums\UserRole;
 use App\Models\User;
 use Illuminate\Contracts\View\View;
+use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -79,11 +79,6 @@ class TreasuryCashPositionPage extends Component
 
     private function canAccessPage(User $user): bool
     {
-        return in_array((string) $user->role, [
-            UserRole::Owner->value,
-            UserRole::Finance->value,
-            UserRole::Manager->value,
-            UserRole::Auditor->value,
-        ], true);
+        return Gate::forUser($user)->allows('viewAny', BankStatement::class);
     }
 }

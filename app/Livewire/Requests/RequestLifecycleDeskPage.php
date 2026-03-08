@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Services\TenantModuleAccessService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -486,13 +487,7 @@ class RequestLifecycleDeskPage extends Component
 
     private function canAccessPage(User $user): bool
     {
-        return in_array((string) $user->role, [
-            UserRole::Owner->value,
-            UserRole::Finance->value,
-            UserRole::Manager->value,
-            UserRole::Auditor->value,
-            UserRole::Staff->value,
-        ], true);
+        return Gate::forUser($user)->allows('viewAny', SpendRequest::class);
     }
 
     private function baseRequestQuery(User $user): Builder

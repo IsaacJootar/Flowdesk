@@ -499,13 +499,28 @@ Before proposing "new" module work, check this file plus route map (`routes/web.
     - `app/Policies/InvoiceMatchExceptionPolicy.php`
   - Procurement pages now use policy-based workspace access checks and order action checks.
   - Vendor statement hardening tests now include explicit role/policy denial coverage.
+- Authorization matrix hardening (Treasury + Requests):
+  - Added treasury policies and policy registration:
+    - `app/Policies/BankStatementPolicy.php`
+    - `app/Policies/BankAccountPolicy.php`
+    - `app/Policies/PaymentRunPolicy.php`
+    - `app/Policies/ReconciliationExceptionPolicy.php`
+  - Treasury workspaces now use policy-based access checks:
+    - `TreasuryReconciliationPage`
+    - `TreasuryReconciliationExceptionsPage`
+    - `TreasuryReconciliationGuidePage`
+    - `TreasuryPaymentRunsPage`
+    - `TreasuryCashPositionPage`
+  - Request guide/lifecycle entry checks now use `SpendRequest` policy gate (`viewAny`) for consistent active-user enforcement.
 - Added hardening regression coverage:
   - `tests/Feature/Auth/PlatformOperatorTenantBoundaryTest.php`
   - `tests/Feature/Execution/ExecutionWebhookRateLimitTest.php`
   - `tests/Feature/Vendors/VendorStatementEndpointHardeningTest.php`
   - `tests/Feature/Finance/ProcurementAuthorizationMatrixTest.php`
+  - `tests/Feature/Finance/TreasuryAuthorizationMatrixTest.php`
+  - `tests/Feature/Requests/RequestGuidesAuthorizationTest.php`
 - Validation snapshot after update:
-  - `php artisan test` passed (`257 passed`, `0 failed`).
+  - `php artisan test` passed (`260 passed`, `0 failed`).
 
 
 

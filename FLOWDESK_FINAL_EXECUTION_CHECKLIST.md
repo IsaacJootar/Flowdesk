@@ -228,12 +228,16 @@ There are 2 models, and orgs choose:
   - Procurement workspaces now rely on policy-based `viewAny` checks instead of duplicated role lists.
   - Procurement order actions (`issue`, `recordReceipt`, `linkInvoice`) now perform explicit policy authorization checks in Livewire handlers.
   - Vendor statement endpoints now have regression coverage for role/policy denial paths.
+- [x] Authorization matrix hardening expanded for Treasury + Requests:
+  - Added treasury policies (`BankStatement`, `BankAccount`, `PaymentRun`, `ReconciliationException`) and wired policy mapping in `AuthServiceProvider`.
+  - Treasury reconciliation, exceptions, payment runs, cash position, and help pages now use policy-based access checks instead of duplicated role arrays.
+  - Request lifecycle/help and communications-help entry checks now use `SpendRequest` policy gate (`viewAny`) to enforce active-user scope consistently.
 - [x] Regression tests added and passing:
   - `tests/Feature/Auth/PlatformOperatorTenantBoundaryTest.php`
   - `tests/Feature/Execution/ExecutionWebhookRateLimitTest.php`
   - `tests/Feature/Vendors/VendorStatementEndpointHardeningTest.php`
   - `tests/Feature/Finance/ProcurementAuthorizationMatrixTest.php`
-- [x] Full automated test suite green after hardening updates (`php artisan test`: 257 passed, 0 failed).
+- [x] Full automated test suite green after hardening updates (`php artisan test`: 260 passed, 0 failed).
 
 ## Previous Progress Update (2026-02-27)
 - [x] Platform dashboard route finalized (`/platform`)

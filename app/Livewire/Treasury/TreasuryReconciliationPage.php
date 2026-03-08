@@ -8,7 +8,6 @@ use App\Domains\Treasury\Models\BankStatement;
 use App\Domains\Treasury\Models\BankStatementLine;
 use App\Domains\Treasury\Models\PaymentRun;
 use App\Domains\Treasury\Models\ReconciliationException;
-use App\Enums\UserRole;
 use App\Models\User;
 use App\Services\TenantAuditLogger;
 use App\Services\Treasury\AutoReconcileStatementService;
@@ -16,6 +15,7 @@ use App\Services\Treasury\ImportBankStatementCsvService;
 use App\Services\Treasury\TreasuryControlSettingsService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -259,7 +259,7 @@ class TreasuryReconciliationPage extends Component
         $allowedRoles = $this->normalizeRoles((array) ($controls['exception_action_allowed_roles'] ?? ['owner', 'finance']));
         $requiresMakerChecker = (bool) ($controls['exception_action_requires_maker_checker'] ?? true);
 
-        if (! $this->canOperateExceptions($user, $allowedRoles)) {
+        if (! $this->canOperateExceptions($user)) {
             $this->setFeedbackError(sprintf('Only [%s] can resolve or waive treasury exceptions.', implode(', ', $allowedRoles)));
 
             $tenantAuditLogger->log(
@@ -545,7 +545,7 @@ class TreasuryReconciliationPage extends Component
             'exceptionActionAllowedRoles' => $exceptionActionAllowedRoles,
             'makerCheckerRequired' => $makerCheckerRequired,
             'canOperate' => auth()->check() && $this->canOperateDesk(auth()->user()),
-            'canResolveExceptions' => auth()->check() && $this->canOperateExceptions(auth()->user(), $exceptionActionAllowedRoles),
+            'canResolveExceptions' => auth()->check() && $this->canOperateExceptions(auth()->user()),
         ]);
     }
 
@@ -631,28 +631,17 @@ class TreasuryReconciliationPage extends Component
 
     private function canAccessPage(User $user): bool
     {
-        return in_array((string) $user->role, [
-            UserRole::Owner->value,
-            UserRole::Finance->value,
-            UserRole::Manager->value,
-            UserRole::Auditor->value,
-        ], true);
+        return Gate::forUser($user)->allows('viewAny', BankStatement::class);
     }
 
     private function canOperateDesk(User $user): bool
     {
-        return in_array((string) $user->role, [
-            UserRole::Owner->value,
-            UserRole::Finance->value,
-        ], true);
+        return Gate::forUser($user)->allows('operate', BankStatement::class);
     }
 
-    /**
-     * @param  array<int, string>  $allowedRoles
-     */
-    private function canOperateExceptions(User $user, array $allowedRoles): bool
+    private function canOperateExceptions(User $user): bool
     {
-        return in_array(strtolower((string) $user->role), $this->normalizeRoles($allowedRoles), true);
+        return Gate::forUser($user)->allows('resolveAny', ReconciliationException::class);
     }
 
     /**

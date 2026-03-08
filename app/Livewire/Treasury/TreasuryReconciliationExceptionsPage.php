@@ -4,11 +4,11 @@ namespace App\Livewire\Treasury;
 
 use App\Domains\Treasury\Models\BankStatementLine;
 use App\Domains\Treasury\Models\ReconciliationException;
-use App\Enums\UserRole;
 use App\Models\User;
 use App\Services\TenantAuditLogger;
 use App\Services\Treasury\TreasuryControlSettingsService;
 use Illuminate\Contracts\View\View;
+use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -121,7 +121,7 @@ class TreasuryReconciliationExceptionsPage extends Component
         $allowedRoles = $this->normalizeRoles((array) ($controls['exception_action_allowed_roles'] ?? ['owner', 'finance']));
         $requiresMakerChecker = (bool) ($controls['exception_action_requires_maker_checker'] ?? true);
 
-        if (! $this->canOperate($user, $allowedRoles)) {
+        if (! $this->canOperate($user)) {
             $this->setFeedbackError(sprintf('Only [%s] can resolve or waive treasury exceptions.', implode(', ', $allowedRoles)));
 
             $tenantAuditLogger->log(
@@ -309,7 +309,7 @@ class TreasuryReconciliationExceptionsPage extends Component
             'slaHours' => $slaHours,
             'exceptionActionAllowedRoles' => $allowedRoles,
             'makerCheckerRequired' => $makerCheckerRequired,
-            'canOperate' => auth()->check() && $this->canOperate(auth()->user(), $allowedRoles),
+            'canOperate' => auth()->check() && $this->canOperate(auth()->user()),
         ]);
     }
 
@@ -368,20 +368,12 @@ class TreasuryReconciliationExceptionsPage extends Component
 
     private function canAccessPage(User $user): bool
     {
-        return in_array((string) $user->role, [
-            UserRole::Owner->value,
-            UserRole::Finance->value,
-            UserRole::Manager->value,
-            UserRole::Auditor->value,
-        ], true);
+        return Gate::forUser($user)->allows('viewAny', ReconciliationException::class);
     }
 
-    /**
-     * @param  array<int, string>  $allowedRoles
-     */
-    private function canOperate(User $user, array $allowedRoles): bool
+    private function canOperate(User $user): bool
     {
-        return in_array(strtolower((string) $user->role), $this->normalizeRoles($allowedRoles), true);
+        return Gate::forUser($user)->allows('resolveAny', ReconciliationException::class);
     }
 
     /**
