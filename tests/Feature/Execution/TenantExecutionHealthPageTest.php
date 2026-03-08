@@ -242,7 +242,7 @@ class TenantExecutionHealthPageTest extends TestCase
             ->assertSet('summary.status_label', 'Delayed')
             ->assertSet('summary.affected_billings', 1)
             ->assertSet('summary.affected_payouts', 1)
-            ->assertSet('summary.next_action', 'Retry later.');
+            ->assertSet('summary.next_action', 'Open Execution & Payouts to run recovery or retry affected records.');
     }
     public function test_execution_health_can_show_focused_billing_context_from_deep_link(): void
     {

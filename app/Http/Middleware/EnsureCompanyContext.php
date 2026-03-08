@@ -3,12 +3,18 @@
 namespace App\Http\Middleware;
 
 use App\Models\User;
+use App\Services\PlatformAccessService;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 class EnsureCompanyContext
 {
+    public function __construct(
+        private readonly PlatformAccessService $platformAccessService
+    ) {
+    }
+
     public function handle(Request $request, Closure $next): Response
     {
         if (! $request->user()) {
@@ -16,6 +22,12 @@ class EnsureCompanyContext
         }
 
         $user = $request->user();
+
+        // Tenant routes are scoped to tenant operators only; platform operators stay on /platform/*
+        // to avoid accidental cross-surface access with mixed account attributes.
+        if ($user instanceof User && $this->platformAccessService->isPlatformOperator($user)) {
+            abort(403);
+        }
 
         if ($user instanceof User && $user->company_id) {
             $user->loadMissing('company:id,timezone');

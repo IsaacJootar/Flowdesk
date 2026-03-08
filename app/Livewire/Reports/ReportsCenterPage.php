@@ -101,6 +101,7 @@ class ReportsCenterPage extends Component
     {
         $departments = $this->readyToLoad
             ? Department::query()
+                ->where('company_id', (int) Auth::user()?->company_id)
                 ->where('is_active', true)
                 ->orderBy('name')
                 ->get(['id', 'name'])
@@ -195,6 +196,7 @@ class ReportsCenterPage extends Component
         ];
 
         $matchResultsBaseQuery = InvoiceMatchResult::query()
+            ->where('company_id', $companyId)
             ->whereIn('match_status', [
                 InvoiceMatchResult::STATUS_MATCHED,
                 InvoiceMatchResult::STATUS_MISMATCH,
@@ -212,16 +214,19 @@ class ReportsCenterPage extends Component
 
         $procurement = [
             'linked_invoices' => (int) VendorInvoice::query()
+                ->where('company_id', $companyId)
                 ->whereNotNull('purchase_order_id')
                 ->where('status', '!=', VendorInvoice::STATUS_VOID)
                 ->count(),
             'open_exceptions' => (int) InvoiceMatchException::query()
+                ->where('company_id', $companyId)
                 ->where('exception_status', InvoiceMatchException::STATUS_OPEN)
                 ->count(),
             'match_pass_rate_percent' => $matchResultsTotal > 0
                 ? round(($matchResultsPassed / $matchResultsTotal) * 100, 1)
                 : 0.0,
             'stale_commitments' => (int) ProcurementCommitment::query()
+                ->where('company_id', $companyId)
                 ->where('commitment_status', ProcurementCommitment::STATUS_ACTIVE)
                 ->where('effective_at', '<=', $staleCommitmentCutoff)
                 ->count(),
@@ -516,7 +521,10 @@ class ReportsCenterPage extends Component
 
     private function requestQuery(): Builder
     {
+        $companyId = (int) Auth::user()?->company_id;
+
         $query = SpendRequest::query()
+            ->where('company_id', $companyId)
             ->when($this->search !== '', function (Builder $builder): void {
                 $search = trim($this->search);
                 $builder->where(function (Builder $inner) use ($search): void {
@@ -535,7 +543,10 @@ class ReportsCenterPage extends Component
 
     private function expenseQuery(): Builder
     {
+        $companyId = (int) Auth::user()?->company_id;
+
         $query = Expense::query()
+            ->where('company_id', $companyId)
             ->when($this->search !== '', function (Builder $builder): void {
                 $search = trim($this->search);
                 $builder->where(function (Builder $inner) use ($search): void {
@@ -553,7 +564,10 @@ class ReportsCenterPage extends Component
 
     private function vendorInvoiceQuery(): Builder
     {
+        $companyId = (int) Auth::user()?->company_id;
+
         $query = VendorInvoice::query()
+            ->where('company_id', $companyId)
             ->where('status', '!=', VendorInvoice::STATUS_VOID)
             ->when($this->search !== '', function (Builder $builder): void {
                 $search = trim($this->search);
@@ -571,7 +585,10 @@ class ReportsCenterPage extends Component
 
     private function assetQuery(): Builder
     {
+        $companyId = (int) Auth::user()?->company_id;
+
         $query = Asset::query()
+            ->where('company_id', $companyId)
             ->when($this->search !== '', function (Builder $builder): void {
                 $search = trim($this->search);
                 $builder->where(function (Builder $inner) use ($search): void {
@@ -590,7 +607,10 @@ class ReportsCenterPage extends Component
 
     private function budgetQuery(): Builder
     {
+        $companyId = (int) Auth::user()?->company_id;
+
         $query = DepartmentBudget::query()
+            ->where('company_id', $companyId)
             ->when($this->search !== '', function (Builder $builder): void {
                 $search = trim($this->search);
                 $builder->where(function (Builder $inner) use ($search): void {

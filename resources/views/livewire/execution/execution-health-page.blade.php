@@ -65,7 +65,7 @@
 
         <section class="fd-card border border-slate-200 bg-slate-50 p-5">
             <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Next Action</p>
-            <p class="mt-2 text-sm text-slate-800">{{ $summary['next_action'] ?? 'Retry later.' }}</p>
+            <p class="mt-2 text-sm text-slate-800">{{ $summary['next_action'] ?? 'No action needed right now.' }}</p>
         </section>
 
         @if ($focusRequested)
@@ -121,8 +121,8 @@
         <section class="fd-card border border-indigo-200 bg-indigo-50 p-4">
             <div class="mb-3 flex items-center justify-between gap-3">
                 <div>
-                    <h3 class="text-sm font-semibold text-slate-900">Recent Tenant Summaries</h3>
-                    <p class="text-xs text-slate-500">Latest alert and recovery summaries for your tenant.</p>
+                    <h3 class="text-sm font-semibold text-slate-900">Recent Execution Events</h3>
+                    <p class="text-xs text-slate-500">Latest manual runs, auto-recovery, and alert delivery outcomes for your organization.</p>
                 </div>
             </div>
 
@@ -144,7 +144,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="3" class="px-3 py-6 text-center text-sm text-slate-500">No tenant execution summaries yet.</td>
+                                <td colspan="3" class="px-3 py-6 text-center text-sm text-slate-500">No execution events yet.</td>
                             </tr>
                         @endforelse
                     </tbody>

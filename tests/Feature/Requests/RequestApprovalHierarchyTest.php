@@ -67,7 +67,7 @@ class RequestApprovalHierarchyTest extends TestCase
         $this->assertFalse(Gate::forUser($owner)->allows('approve', $request));
     }
 
-    public function test_policy_falls_back_to_default_role_logic_without_workflow_configuration(): void
+    public function test_policy_denies_approval_without_workflow_configuration(): void
     {
         [$company, $department] = $this->createCompanyContext('Req Hierarchy Fallback');
         $manager = $this->createUser($company, $department, UserRole::Manager->value);
@@ -78,8 +78,8 @@ class RequestApprovalHierarchyTest extends TestCase
 
         $request = $this->createSpendRequest($company, $department, $staff, null, 1);
 
-        $this->assertTrue(Gate::forUser($manager)->allows('approve', $request));
-        $this->assertTrue(Gate::forUser($finance)->allows('approve', $request));
+        $this->assertFalse(Gate::forUser($manager)->allows('approve', $request));
+        $this->assertFalse(Gate::forUser($finance)->allows('approve', $request));
     }
 
     /**

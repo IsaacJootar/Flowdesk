@@ -162,7 +162,7 @@ class ExecutionHealthPage extends Component
         $statusLabel = 'Healthy';
         $statusTone = 'healthy';
         $currentIncidentId = null;
-        $nextAction = 'Retry later.';
+        $nextAction = 'No action needed right now.';
 
         if ($hasRecentAlert) {
             $statusLabel = 'Action needed';
@@ -172,7 +172,7 @@ class ExecutionHealthPage extends Component
         } elseif (($affectedBillings + $affectedPayouts) > 0) {
             $statusLabel = 'Delayed';
             $statusTone = 'delayed';
-            $nextAction = 'Retry later.';
+            $nextAction = 'Open Execution & Payouts to run recovery or retry affected records.';
         }
 
         return [
@@ -203,6 +203,17 @@ class ExecutionHealthPage extends Component
                 'tenant.execution.auto_recovery.run_summary',
                 'tenant.execution.alert.notification.sent',
                 'tenant.execution.alert.notification.failed',
+                'tenant.execution.payout.manual_queue_run',
+                'tenant.execution.billing.process_stuck_queued',
+                'tenant.execution.payout.process_stuck_queued',
+                'tenant.execution.billing.auto_recovered_queued',
+                'tenant.execution.payout.auto_recovered_queued',
+                'tenant.execution.webhook.auto_recovered_queued',
+                'tenant.execution.webhook.manual_reconciled_billing',
+                'tenant.execution.webhook.manual_reconciled_payout',
+                'tenant.execution.webhook.manual_failed',
+                'tenant.execution.webhook.manual_ignored',
+                'tenant.execution.alert.notification.skipped',
             ])
             ->latest('event_at')
             ->latest('id')
@@ -297,6 +308,17 @@ class ExecutionHealthPage extends Component
             'tenant.execution.auto_recovery.run_summary' => $pipeline.' recovery run completed.',
             'tenant.execution.alert.notification.sent' => 'Execution alert delivered via '.$channelLabel.'.',
             'tenant.execution.alert.notification.failed' => 'Execution alert delivery failed via '.$channelLabel.'.',
+            'tenant.execution.payout.manual_queue_run' => 'Manual payout queue recovery run completed.',
+            'tenant.execution.billing.process_stuck_queued' => 'Billing queued records were reviewed for recovery.',
+            'tenant.execution.payout.process_stuck_queued' => 'Payout queued records were reviewed for recovery.',
+            'tenant.execution.billing.auto_recovered_queued' => 'Billing queued records were auto-recovered.',
+            'tenant.execution.payout.auto_recovered_queued' => 'Payout queued records were auto-recovered.',
+            'tenant.execution.webhook.auto_recovered_queued' => 'Webhook queued records were auto-recovered.',
+            'tenant.execution.webhook.manual_reconciled_billing' => 'Webhook manually reconciled to billing.',
+            'tenant.execution.webhook.manual_reconciled_payout' => 'Webhook manually reconciled to payout.',
+            'tenant.execution.webhook.manual_failed' => 'Webhook marked as manually failed.',
+            'tenant.execution.webhook.manual_ignored' => 'Webhook marked as manually ignored.',
+            'tenant.execution.alert.notification.skipped' => 'Execution alert delivery was skipped.',
             default => 'Execution summary recorded.',
         };
     }
@@ -486,7 +508,7 @@ class ExecutionHealthPage extends Component
             'last_recovery_outcome_at' => 'No recovery outcome yet.',
             'affected_billings' => 0,
             'affected_payouts' => 0,
-            'next_action' => 'Retry later.',
+            'next_action' => 'No action needed right now.',
             'current_incident_id' => null,
         ];
     }

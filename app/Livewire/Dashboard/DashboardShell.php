@@ -79,36 +79,53 @@ class DashboardShell extends Component
         $startOfMonth = now()->startOfMonth()->toDateString();
         $endOfMonth = now()->endOfMonth()->toDateString();
 
-        $departmentCount = Department::query()->count();
+        $departmentCount = Department::query()
+            ->where('company_id', $companyId)
+            ->count();
         $userCount = User::query()->where('company_id', $companyId)->count();
         $monthSpend = (int) Expense::query()
+            ->where('company_id', $companyId)
             ->where('status', 'posted')
             ->whereBetween('expense_date', [$startOfMonth, $endOfMonth])
             ->sum('amount');
         $requestsInReviewCount = (int) SpendRequest::query()
+            ->where('company_id', $companyId)
             ->where('status', 'in_review')
             ->count();
         $requestsInReviewValue = (int) SpendRequest::query()
+            ->where('company_id', $companyId)
             ->where('status', 'in_review')
             ->sum('amount');
         $approvedThisMonthCount = (int) SpendRequest::query()
+            ->where('company_id', $companyId)
             ->where('status', 'approved')
             ->whereBetween('decided_at', [now()->startOfMonth(), now()->endOfMonth()])
             ->count();
         $approvedThisMonthValue = (int) SpendRequest::query()
+            ->where('company_id', $companyId)
             ->where('status', 'approved')
             ->whereBetween('decided_at', [now()->startOfMonth(), now()->endOfMonth()])
             ->sum('approved_amount');
         $activeBudgetBaseQuery = DepartmentBudget::query()
+            ->where('company_id', $companyId)
             ->where('status', 'active')
             ->whereDate('period_start', '<=', today())
             ->whereDate('period_end', '>=', today());
         $activeBudgetCount = (int) (clone $activeBudgetBaseQuery)->count();
         $approvedBudgetTotal = (int) (clone $activeBudgetBaseQuery)->sum('allocated_amount');
         $budgetRemainingTotal = (int) (clone $activeBudgetBaseQuery)->sum('remaining_amount');
-        $assetTotal = (int) Asset::query()->count();
-        $assetAssigned = (int) Asset::query()->whereNotNull('assigned_to_user_id')->where('status', '!=', Asset::STATUS_DISPOSED)->count();
-        $assetDisposed = (int) Asset::query()->where('status', Asset::STATUS_DISPOSED)->count();
+        $assetTotal = (int) Asset::query()
+            ->where('company_id', $companyId)
+            ->count();
+        $assetAssigned = (int) Asset::query()
+            ->where('company_id', $companyId)
+            ->whereNotNull('assigned_to_user_id')
+            ->where('status', '!=', Asset::STATUS_DISPOSED)
+            ->count();
+        $assetDisposed = (int) Asset::query()
+            ->where('company_id', $companyId)
+            ->where('status', Asset::STATUS_DISPOSED)
+            ->count();
 
         $this->metrics = [
             'total_spend' => [
@@ -242,17 +259,21 @@ class DashboardShell extends Component
     {
         $staleCommitments = $this->staleCommitmentCount($companyId);
         $procurementOpen = (int) InvoiceMatchException::query()
+            ->where('company_id', $companyId)
             ->where('exception_status', InvoiceMatchException::STATUS_OPEN)
             ->count();
         $procurementCritical = (int) InvoiceMatchException::query()
+            ->where('company_id', $companyId)
             ->where('exception_status', InvoiceMatchException::STATUS_OPEN)
             ->whereIn('severity', [InvoiceMatchException::SEVERITY_HIGH, InvoiceMatchException::SEVERITY_CRITICAL])
             ->count();
 
         $treasuryOpen = (int) ReconciliationException::query()
+            ->where('company_id', $companyId)
             ->where('exception_status', ReconciliationException::STATUS_OPEN)
             ->count();
         $treasuryCritical = (int) ReconciliationException::query()
+            ->where('company_id', $companyId)
             ->where('exception_status', ReconciliationException::STATUS_OPEN)
             ->whereIn('severity', [ReconciliationException::SEVERITY_HIGH, ReconciliationException::SEVERITY_CRITICAL])
             ->count();
@@ -449,6 +470,7 @@ class DashboardShell extends Component
 
         // Keep manager/staff dashboard simple and operational.
         $postedExpenseCount = (int) Expense::query()
+            ->where('company_id', $companyId)
             ->where('status', 'posted')
             ->whereBetween('expense_date', [now()->startOfMonth()->toDateString(), now()->endOfMonth()->toDateString()])
             ->count();
@@ -461,11 +483,11 @@ class DashboardShell extends Component
                 'tone' => 'emerald',
             ],
             [
-                'label' => 'In-Review Request Value',
-                'value' => sprintf('%s %s', $currencyCode, number_format((int) SpendRequest::query()->where('status', 'in_review')->sum('amount'), 2)),
-                'hint' => 'Requests waiting for approval decisions',
-                'tone' => 'sky',
-            ],
+                    'label' => 'In-Review Request Value',
+                    'value' => sprintf('%s %s', $currencyCode, number_format((int) SpendRequest::query()->where('company_id', $companyId)->where('status', 'in_review')->sum('amount'), 2)),
+                    'hint' => 'Requests waiting for approval decisions',
+                    'tone' => 'sky',
+                ],
         ];
 
         $this->pushPriorityAction($user, 'requests.index', 'Open requests', 'Create and track spend requests.');
@@ -484,6 +506,7 @@ class DashboardShell extends Component
         $cutoff = Carbon::now()->subHours($ageHours);
 
         return (int) ProcurementCommitment::query()
+            ->where('company_id', $companyId)
             ->where('commitment_status', ProcurementCommitment::STATUS_ACTIVE)
             ->where('effective_at', '<=', $cutoff)
             ->count();
@@ -720,6 +743,5 @@ class DashboardShell extends Component
         return implode(' ', $words);
     }
 }
-
 
 

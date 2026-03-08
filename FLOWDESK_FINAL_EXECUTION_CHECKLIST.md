@@ -3,6 +3,30 @@
 ## Objective
 Ship Flowdesk to production-ready quality for small and large organizations with clear controls, stable operations, and release governance.
 
+## Implemented Modules Snapshot (2026-03-08)
+### Tenant Application Modules
+- [x] Dashboard
+- [x] Execution (Health, Payout Ready Queue, Help)
+- [x] Procurement (Release Desk, Orders, Receipts, Match Exceptions)
+- [x] Treasury (Reconciliation Desk, Exceptions, Payment Runs, Cash Position)
+- [x] Requests and Approvals (Lifecycle Desk, Communications Recovery, Reports)
+- [x] Expenses
+- [x] Vendors (Command Center, Registry, Details, Reports)
+- [x] Budgets
+- [x] Assets (Register and Reports)
+- [x] Reports Center
+- [x] Organization (Admin Desk, Departments, Team, Approval Workflows)
+- [x] Tenant Settings (Control Center + module control pages)
+
+### Platform Modules
+- [x] Tenant and Organization Management
+- [x] Platform Users
+- [x] Tenant Execution Mode and Execution Policy
+- [x] Platform Operations Hub and Execution Operations
+- [x] Execution Test Checklist
+- [x] Incident History
+- [x] Pilot Rollout KPI Capture
+
 ## Current Scope Baseline (Already Built)
 - [x] Requests and approvals module with workflow routing, inbox, reports, escalation timers, and communication logging
 - [x] Expense module with budget guardrails, duplicate detection, controls, and audit timelines
@@ -48,9 +72,9 @@ There are 2 models, and orgs choose:
 - [x] Flowdesk records status/history but does not initiate external transfer by default
 
 ### Model 2: Execution (Deeper integration, planned for later)
-- [ ] Flowdesk can trigger payouts/transfers through approved provider APIs
-- [ ] Webhook-confirmed settlement status updates into Flowdesk timelines
-- [ ] Optional per organization/tenant, contract and compliance dependent
+- [x] Flowdesk can trigger payouts/transfers through approved provider APIs
+- [x] Webhook-confirmed settlement status updates into Flowdesk timelines
+- [x] Optional per organization/tenant, contract and compliance dependent
 
 ---
 
@@ -87,9 +111,9 @@ There are 2 models, and orgs choose:
 - [ ] Idempotent ingest and duplicate suppression
 
 ### 2.2 Reconciliation
-- [ ] Match expenses/payments to external transactions
-- [ ] Manual reconcile UI for unresolved items
-- [ ] Reconcile status in reports and audit timeline
+- [x] Match expenses/payments to external transactions
+- [x] Manual reconcile UI for unresolved items
+- [x] Reconcile status in reports and audit timeline
 
 ### 2.3 Failure Handling
 - [ ] Retry queue and dead-letter visibility
@@ -110,15 +134,15 @@ There are 2 models, and orgs choose:
 - [x] Enforce both UI and server-side authorization gates
 
 ### 3.2 Subscription/Billing
-- [ ] Subscription model and plan lifecycle states
-- [ ] Billing provider integration
-- [ ] Upgrade/downgrade flow with guardrails
-- [ ] Grace period and suspension behavior
+- [x] Subscription model and plan lifecycle states
+- [x] Billing provider integration
+- [x] Upgrade/downgrade flow with guardrails
+- [x] Grace period and suspension behavior
 
 ### Exit Criteria
-- [ ] Module access changes immediately with plan changes
-- [ ] No unauthorized API access through direct routes
-- [ ] Billing events and entitlement states are consistent
+- [x] Module access changes immediately with plan changes
+- [x] No unauthorized API access through direct routes
+- [x] Billing events and entitlement states are consistent
 
 ---
 

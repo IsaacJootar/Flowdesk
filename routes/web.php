@@ -70,6 +70,7 @@ Route::redirect('/', '/dashboard');
 // Provider webhooks are external callbacks, so CSRF is intentionally disabled for this endpoint.
 Route::post('/webhooks/execution/{provider}', ExecutionWebhookController::class)
     ->withoutMiddleware([VerifyCsrfToken::class])
+    ->middleware('throttle:execution-webhooks')
     ->name('webhooks.execution');
 
 Route::middleware('auth')->group(function (): void {
@@ -119,12 +120,14 @@ Route::middleware(['auth', 'company.context'])->group(function (): void {
         Route::get('/communications/help', RequestCommunicationsGuidePage::class)->middleware('module.enabled:communications')->name('communications-help');
         Route::get('/reports', RequestReportsPage::class)->middleware('module.enabled:reports')->name('reports');
         Route::get('/attachments/{attachment}/download', RequestAttachmentDownloadController::class)
+            ->middleware('throttle:tenant-downloads')
             ->name('attachments.download');
     });
 
     Route::prefix('expenses')->middleware('module.enabled:expenses')->name('expenses.')->group(function (): void {
         Route::view('/', 'app.expenses.index')->name('index');
         Route::get('/attachments/{attachment}/download', ExpenseAttachmentDownloadController::class)
+            ->middleware('throttle:tenant-downloads')
             ->name('attachments.download');
     });
 
@@ -133,12 +136,16 @@ Route::middleware(['auth', 'company.context'])->group(function (): void {
         Route::view('/registry', 'app.vendors.index')->name('registry');
         Route::get('/reports', VendorReportsPage::class)->middleware('module.enabled:reports')->name('reports');
         Route::get('/{vendor}/statement/export.csv', VendorStatementCsvExportController::class)
+            ->middleware('throttle:tenant-exports')
             ->name('statement.export.csv');
         Route::get('/{vendor}/statement/print', VendorStatementPrintController::class)
+            ->middleware('throttle:tenant-exports')
             ->name('statement.print');
         Route::get('/attachments/invoices/{attachment}/download', VendorInvoiceAttachmentDownloadController::class)
+            ->middleware('throttle:tenant-downloads')
             ->name('attachments.invoices.download');
         Route::get('/attachments/payments/{attachment}/download', VendorInvoicePaymentAttachmentDownloadController::class)
+            ->middleware('throttle:tenant-downloads')
             ->name('attachments.payments.download');
         Route::get('/{vendor}', VendorDetailsPage::class)->name('show');
     });
