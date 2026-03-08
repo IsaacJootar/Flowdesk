@@ -9,6 +9,7 @@ use App\Services\TenantAuditLogger;
 use App\Services\Treasury\TreasuryControlSettingsService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\Rule;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -19,6 +20,12 @@ use Livewire\WithPagination;
 class TreasuryReconciliationExceptionsPage extends Component
 {
     use WithPagination;
+
+    private const ALLOWED_PER_PAGE = [10, 25, 50];
+
+    private const ALLOWED_QUEUE_SORT = ['priority', 'newest', 'oldest'];
+
+    private const MAX_SEARCH_LENGTH = 120;
 
     public bool $readyToLoad = false;
 
@@ -52,6 +59,7 @@ class TreasuryReconciliationExceptionsPage extends Component
     {
         $user = auth()->user();
         abort_unless($user instanceof User && $this->canAccessPage($user), 403);
+        $this->normalizeFilterState();
     }
 
     public function loadData(): void
@@ -61,30 +69,38 @@ class TreasuryReconciliationExceptionsPage extends Component
 
     public function updatedStatusFilter(): void
     {
+        $this->statusFilter = $this->normalizeStatusFilter($this->statusFilter);
         $this->resetPage();
     }
 
     public function updatedSeverityFilter(): void
     {
+        $this->severityFilter = $this->normalizeSeverityFilter($this->severityFilter);
         $this->resetPage();
     }
 
     public function updatedStreamFilter(): void
     {
+        $this->streamFilter = $this->normalizeStreamFilter($this->streamFilter);
         $this->resetPage();
     }
 
     public function updatedQueueSort(): void
     {
-        if (! in_array($this->queueSort, ['priority', 'newest', 'oldest'], true)) {
-            $this->queueSort = 'priority';
-        }
+        $this->queueSort = $this->normalizeQueueSort($this->queueSort);
 
         $this->resetPage();
     }
 
     public function updatedSearch(): void
     {
+        $this->search = $this->normalizeSearch($this->search);
+        $this->resetPage();
+    }
+
+    public function updatedPerPage(): void
+    {
+        $this->perPage = $this->normalizePerPage($this->perPage);
         $this->resetPage();
     }
 
@@ -147,6 +163,7 @@ class TreasuryReconciliationExceptionsPage extends Component
         }
 
         $validated = $this->validate([
+            'resolutionAction' => ['required', Rule::in(['resolved', 'waived'])],
             'resolutionNotes' => ['required', 'string', 'max:2000'],
         ]);
 
@@ -191,7 +208,7 @@ class TreasuryReconciliationExceptionsPage extends Component
             }
         }
 
-        $newStatus = $this->resolutionAction === 'waived'
+        $newStatus = (string) $validated['resolutionAction'] === 'waived'
             ? ReconciliationException::STATUS_WAIVED
             : ReconciliationException::STATUS_RESOLVED;
 
@@ -243,6 +260,8 @@ class TreasuryReconciliationExceptionsPage extends Component
 
     public function render(TreasuryControlSettingsService $treasuryControlSettingsService): View
     {
+        $this->normalizeFilterState();
+
         $companyId = (int) auth()->user()->company_id;
         $controls = $treasuryControlSettingsService->effectiveControls($companyId);
         $slaHours = (int) ($controls['exception_alert_age_hours'] ?? 48);
@@ -386,5 +405,66 @@ class TreasuryReconciliationExceptionsPage extends Component
             static fn (mixed $role): string => strtolower(trim((string) $role)),
             $roles
         )));
+    }
+
+    private function normalizeFilterState(): void
+    {
+        $this->statusFilter = $this->normalizeStatusFilter($this->statusFilter);
+        $this->severityFilter = $this->normalizeSeverityFilter($this->severityFilter);
+        $this->streamFilter = $this->normalizeStreamFilter($this->streamFilter);
+        $this->queueSort = $this->normalizeQueueSort($this->queueSort);
+        $this->perPage = $this->normalizePerPage($this->perPage);
+        $this->search = $this->normalizeSearch($this->search);
+    }
+
+    private function normalizeStatusFilter(string $status): string
+    {
+        $normalized = strtolower(trim($status));
+        $allowed = ['all', ReconciliationException::STATUS_OPEN, ReconciliationException::STATUS_RESOLVED, ReconciliationException::STATUS_WAIVED];
+
+        return in_array($normalized, $allowed, true)
+            ? $normalized
+            : 'open';
+    }
+
+    private function normalizeSeverityFilter(string $severity): string
+    {
+        $normalized = strtolower(trim($severity));
+        $allowed = ['all', ReconciliationException::SEVERITY_LOW, ReconciliationException::SEVERITY_MEDIUM, ReconciliationException::SEVERITY_HIGH, ReconciliationException::SEVERITY_CRITICAL];
+
+        return in_array($normalized, $allowed, true)
+            ? $normalized
+            : 'all';
+    }
+
+    private function normalizeStreamFilter(string $stream): string
+    {
+        $normalized = strtolower(trim($stream));
+        $allowed = ['all', ReconciliationException::STREAM_EXECUTION_PAYMENT, ReconciliationException::STREAM_EXPENSE_EVIDENCE, ReconciliationException::STREAM_REIMBURSEMENT];
+
+        return in_array($normalized, $allowed, true)
+            ? $normalized
+            : 'all';
+    }
+
+    private function normalizeQueueSort(string $queueSort): string
+    {
+        $normalized = strtolower(trim($queueSort));
+
+        return in_array($normalized, self::ALLOWED_QUEUE_SORT, true)
+            ? $normalized
+            : 'priority';
+    }
+
+    private function normalizePerPage(int $perPage): int
+    {
+        return in_array($perPage, self::ALLOWED_PER_PAGE, true)
+            ? $perPage
+            : self::ALLOWED_PER_PAGE[0];
+    }
+
+    private function normalizeSearch(string $search): string
+    {
+        return mb_substr(trim($search), 0, self::MAX_SEARCH_LENGTH);
     }
 }

@@ -232,12 +232,22 @@ There are 2 models, and orgs choose:
   - Added treasury policies (`BankStatement`, `BankAccount`, `PaymentRun`, `ReconciliationException`) and wired policy mapping in `AuthServiceProvider`.
   - Treasury reconciliation, exceptions, payment runs, cash position, and help pages now use policy-based access checks instead of duplicated role arrays.
   - Request lifecycle/help and communications-help entry checks now use `SpendRequest` policy gate (`viewAny`) to enforce active-user scope consistently.
+- [x] Validation hardening wave completed for Treasury + Requests:
+  - Treasury reconciliation import now validates selected bank account via tenant-bound `exists` check (`company_id` + active account).
+  - Treasury reconciliation and exception closure now validate `resolutionAction` with explicit allow-list (`resolved`, `waived`).
+  - Treasury reconciliation/payment runs/exceptions filters now normalize per-page/search/status/type/stream values to safe allow-lists.
+  - Request reports filters now normalize status/type/department/date/per-page and enforce explicit tenant `company_id` filter in base query.
+  - Communications Recovery Desk now normalizes tab/filter state and blocks delivery-log tab forcing via tampered component state.
 - [x] Regression tests added and passing:
   - `tests/Feature/Auth/PlatformOperatorTenantBoundaryTest.php`
   - `tests/Feature/Execution/ExecutionWebhookRateLimitTest.php`
   - `tests/Feature/Vendors/VendorStatementEndpointHardeningTest.php`
   - `tests/Feature/Finance/ProcurementAuthorizationMatrixTest.php`
-- [x] Full automated test suite green after hardening updates (`php artisan test`: 260 passed, 0 failed).
+- [x] Validation hardening regression tests added and passing:
+  - `tests/Feature/Finance/TreasuryReconciliationWorkflowTest.php` (tenant-bound import + invalid resolution action payload)
+  - `tests/Feature/Requests/CommunicationsRecoveryDeskPageTest.php` (delivery tab tamper guard)
+  - `tests/Feature/Requests/RequestReportsValidationHardeningTest.php`
+- [x] Full automated test suite green after hardening updates (`php artisan test`: 264 passed, 0 failed).
 
 ## Previous Progress Update (2026-02-27)
 - [x] Platform dashboard route finalized (`/platform`)

@@ -27,6 +27,20 @@ class RequestCommunicationsPage extends Component
 {
     use WithPagination;
 
+    private const ALLOWED_TABS = ['inbox', 'delivery'];
+
+    private const ALLOWED_CHANNELS = ['all', 'in_app', 'email', 'sms'];
+
+    private const ALLOWED_STATUSES = ['all', 'queued', 'sent', 'failed', 'skipped'];
+
+    private const ALLOWED_SCOPES = ['all', 'requests', 'vendors', 'assets'];
+
+    private const ALLOWED_PER_PAGE = [10, 25, 50];
+
+    private const MAX_SEARCH_LENGTH = 120;
+
+    private const MAX_QUEUED_OLDER_THAN_MINUTES = 10080;
+
     public bool $readyToLoad = false;
 
     public string $activeTab = 'inbox';
@@ -56,6 +70,10 @@ class RequestCommunicationsPage extends Component
     {
         $user = auth()->user();
         abort_unless($user && Gate::forUser($user)->allows('viewAny', SpendRequest::class), 403);
+        $this->normalizeUiState();
+        if ($this->activeTab === 'delivery' && ! $this->canViewDeliveryLogs()) {
+            $this->activeTab = 'inbox';
+        }
     }
 
     public function retryLog(int $logId, RequestCommunicationRetryService $retryService): void
@@ -153,7 +171,7 @@ class RequestCommunicationsPage extends Component
         }
 
         $scope = $this->normalizeScope($this->displayScope);
-        $olderThan = max(0, (int) $this->queuedOlderThanMinutes);
+        $olderThan = $this->normalizeQueuedOlderThanMinutes($this->queuedOlderThanMinutes);
         $companyId = $this->companyId();
         $parts = [];
 
@@ -200,21 +218,29 @@ class RequestCommunicationsPage extends Component
 
     public function updatedActiveTab(): void
     {
+        $this->activeTab = $this->normalizeTab($this->activeTab);
+        if ($this->activeTab === 'delivery' && ! $this->canViewDeliveryLogs()) {
+            $this->activeTab = 'inbox';
+        }
+
         $this->resetPage(pageName: $this->pageName());
     }
 
     public function updatedSearch(): void
     {
+        $this->search = $this->normalizeSearch($this->search);
         $this->resetPage(pageName: $this->pageName());
     }
 
     public function updatedChannelFilter(): void
     {
+        $this->channelFilter = $this->normalizeChannel($this->channelFilter);
         $this->resetPage(pageName: $this->pageName());
     }
 
     public function updatedStatusFilter(): void
     {
+        $this->statusFilter = $this->normalizeStatus($this->statusFilter);
         $this->resetPage(pageName: $this->pageName());
     }
 
@@ -226,9 +252,7 @@ class RequestCommunicationsPage extends Component
 
     public function updatedPerPage(): void
     {
-        if (! in_array($this->perPage, [10, 25, 50], true)) {
-            $this->perPage = 10;
-        }
+        $this->perPage = $this->normalizePerPage($this->perPage);
 
         $this->resetPage(pageName: $this->pageName());
     }
@@ -240,7 +264,7 @@ class RequestCommunicationsPage extends Component
             return;
         }
 
-        $this->queuedOlderThanMinutes = max(0, (int) $value);
+        $this->queuedOlderThanMinutes = $this->normalizeQueuedOlderThanMinutes($value);
         $this->resetPage(pageName: $this->pageName());
     }
 
@@ -317,13 +341,15 @@ class RequestCommunicationsPage extends Component
 
     public function render(): View
     {
+        $this->normalizeUiState();
+
         $canViewDeliveryLogs = $this->canViewDeliveryLogs();
         if ($this->activeTab === 'delivery' && ! $canViewDeliveryLogs) {
             $this->activeTab = 'inbox';
         }
 
         $companyId = $this->companyId() ?? 0;
-        $olderThan = max(0, (int) $this->queuedOlderThanMinutes);
+        $olderThan = $this->normalizeQueuedOlderThanMinutes($this->queuedOlderThanMinutes);
 
         $requestInboxUnreadCount = RequestCommunicationLog::query()
             ->where('company_id', $companyId)
@@ -392,7 +418,7 @@ class RequestCommunicationsPage extends Component
     private function recoveryLogsQuery(): QueryBuilder
     {
         $companyId = $this->companyId() ?? 0;
-        $cutoff = now()->subMinutes(max(0, (int) $this->queuedOlderThanMinutes));
+        $cutoff = now()->subMinutes($this->normalizeQueuedOlderThanMinutes($this->queuedOlderThanMinutes));
 
         $query = $this->recoveryBaseQuery($companyId)
             ->leftJoin('requests as requests', 'requests.id', '=', 'logs.request_id')
@@ -940,7 +966,7 @@ class RequestCommunicationsPage extends Component
     {
         $normalized = strtolower(trim($scope));
 
-        return in_array($normalized, ['all', 'requests', 'vendors', 'assets'], true)
+        return in_array($normalized, self::ALLOWED_SCOPES, true)
             ? $normalized
             : 'all';
     }
@@ -952,6 +978,63 @@ class RequestCommunicationsPage extends Component
         return in_array($normalized, ['requests', 'vendors', 'assets'], true)
             ? $normalized
             : '';
+    }
+
+    private function normalizeUiState(): void
+    {
+        $this->activeTab = $this->normalizeTab($this->activeTab);
+        $this->search = $this->normalizeSearch($this->search);
+        $this->channelFilter = $this->normalizeChannel($this->channelFilter);
+        $this->statusFilter = $this->normalizeStatus($this->statusFilter);
+        $this->displayScope = $this->normalizeScope($this->displayScope);
+        $this->perPage = $this->normalizePerPage($this->perPage);
+    }
+
+    private function normalizeTab(string $tab): string
+    {
+        $normalized = strtolower(trim($tab));
+
+        return in_array($normalized, self::ALLOWED_TABS, true)
+            ? $normalized
+            : 'inbox';
+    }
+
+    private function normalizeSearch(string $search): string
+    {
+        return mb_substr(trim($search), 0, self::MAX_SEARCH_LENGTH);
+    }
+
+    private function normalizeChannel(string $channel): string
+    {
+        $normalized = strtolower(trim($channel));
+
+        return in_array($normalized, self::ALLOWED_CHANNELS, true)
+            ? $normalized
+            : 'all';
+    }
+
+    private function normalizeStatus(string $status): string
+    {
+        $normalized = strtolower(trim($status));
+
+        return in_array($normalized, self::ALLOWED_STATUSES, true)
+            ? $normalized
+            : 'all';
+    }
+
+    private function normalizePerPage(int $perPage): int
+    {
+        return in_array($perPage, self::ALLOWED_PER_PAGE, true)
+            ? $perPage
+            : self::ALLOWED_PER_PAGE[0];
+    }
+
+    private function normalizeQueuedOlderThanMinutes(mixed $value): int
+    {
+        return min(
+            self::MAX_QUEUED_OLDER_THAN_MINUTES,
+            max(0, (int) $value)
+        );
     }
 
     private function emptyPaginator(): LengthAwarePaginator

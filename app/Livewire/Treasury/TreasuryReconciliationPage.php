@@ -16,6 +16,7 @@ use App\Services\Treasury\TreasuryControlSettingsService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\Rule;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -28,6 +29,10 @@ class TreasuryReconciliationPage extends Component
 {
     use WithFileUploads;
     use WithPagination;
+
+    private const ALLOWED_LINE_PER_PAGE = [10, 25, 50];
+
+    private const MAX_LINE_SEARCH_LENGTH = 120;
 
     public bool $readyToLoad = false;
 
@@ -72,6 +77,7 @@ class TreasuryReconciliationPage extends Component
     {
         $user = auth()->user();
         abort_unless($user instanceof User && $this->canAccessPage($user), 403);
+        $this->normalizeWorkspaceFilters();
     }
 
     public function loadData(): void
@@ -81,14 +87,13 @@ class TreasuryReconciliationPage extends Component
 
     public function updatedLineSearch(): void
     {
+        $this->lineSearch = $this->normalizeSearch($this->lineSearch);
         $this->resetPage();
     }
 
     public function updatedLinePerPage(): void
     {
-        if (! in_array($this->linePerPage, [10, 25, 50], true)) {
-            $this->linePerPage = 10;
-        }
+        $this->linePerPage = $this->normalizeLinePerPage($this->linePerPage);
 
         $this->resetPage();
     }
@@ -127,9 +132,11 @@ class TreasuryReconciliationPage extends Component
             'bankAccountForm.bank_name' => ['required', 'string', 'max:120'],
             'bankAccountForm.account_reference' => ['nullable', 'string', 'max:120'],
             'bankAccountForm.account_number_masked' => ['nullable', 'string', 'max:40'],
-            'bankAccountForm.currency_code' => ['required', 'string', 'size:3'],
+            'bankAccountForm.currency_code' => ['required', 'string', 'size:3', 'regex:/^[A-Za-z]{3}$/'],
             'bankAccountForm.is_primary' => ['boolean'],
         ]);
+
+        $form = (array) ($validated['bankAccountForm'] ?? []);
 
         if ((bool) $validated['bankAccountForm']['is_primary']) {
             BankAccount::query()
@@ -139,12 +146,12 @@ class TreasuryReconciliationPage extends Component
 
         $account = BankAccount::query()->create([
             'company_id' => (int) $user->company_id,
-            'account_name' => (string) $validated['bankAccountForm']['account_name'],
-            'bank_name' => (string) $validated['bankAccountForm']['bank_name'],
-            'account_reference' => (string) ($validated['bankAccountForm']['account_reference'] ?? ''),
-            'account_number_masked' => (string) ($validated['bankAccountForm']['account_number_masked'] ?? ''),
-            'currency_code' => strtoupper((string) $validated['bankAccountForm']['currency_code']),
-            'is_primary' => (bool) $validated['bankAccountForm']['is_primary'],
+            'account_name' => trim((string) ($form['account_name'] ?? '')),
+            'bank_name' => trim((string) ($form['bank_name'] ?? '')),
+            'account_reference' => trim((string) ($form['account_reference'] ?? '')),
+            'account_number_masked' => trim((string) ($form['account_number_masked'] ?? '')),
+            'currency_code' => strtoupper(trim((string) ($form['currency_code'] ?? 'NGN'))),
+            'is_primary' => (bool) ($form['is_primary'] ?? false),
             'is_active' => true,
             'created_by' => (int) $user->id,
             'updated_by' => (int) $user->id,
@@ -187,7 +194,14 @@ class TreasuryReconciliationPage extends Component
         }
 
         $validated = $this->validate([
-            'selectedBankAccountId' => ['required', 'integer', 'min:1'],
+            'selectedBankAccountId' => [
+                'required',
+                'integer',
+                'min:1',
+                Rule::exists('bank_accounts', 'id')->where(
+                    fn ($query) => $query->where('company_id', (int) $user->company_id)->where('is_active', true)
+                ),
+            ],
             'statementFile' => ['required', 'file', 'mimes:csv,txt', 'max:10240'],
         ]);
 
@@ -219,11 +233,14 @@ class TreasuryReconciliationPage extends Component
 
         $statement = null;
         if ($this->selectedStatementId) {
-            $statement = BankStatement::query()->find($this->selectedStatementId);
+            $statement = BankStatement::query()
+                ->where('company_id', (int) $user->company_id)
+                ->find((int) $this->selectedStatementId);
         }
 
         if (! $statement instanceof BankStatement) {
             $statement = BankStatement::query()
+                ->where('company_id', (int) $user->company_id)
                 ->when($this->selectedBankAccountId, fn (Builder $query) => $query->where('bank_account_id', (int) $this->selectedBankAccountId))
                 ->latest('id')
                 ->first();
@@ -285,6 +302,7 @@ class TreasuryReconciliationPage extends Component
         }
 
         $validated = $this->validate([
+            'resolutionAction' => ['required', Rule::in(['resolved', 'waived'])],
             'resolutionNotes' => ['required', 'string', 'max:2000'],
         ]);
 
@@ -329,7 +347,7 @@ class TreasuryReconciliationPage extends Component
             }
         }
 
-        $newStatus = $this->resolutionAction === 'waived'
+        $newStatus = (string) $validated['resolutionAction'] === 'waived'
             ? ReconciliationException::STATUS_WAIVED
             : ReconciliationException::STATUS_RESOLVED;
 
@@ -381,6 +399,8 @@ class TreasuryReconciliationPage extends Component
 
     public function render(TreasuryControlSettingsService $treasuryControlSettingsService): View
     {
+        $this->normalizeWorkspaceFilters();
+
         $user = auth()->user();
         $companyId = (int) ($user?->company_id ?? 0);
 
@@ -654,5 +674,40 @@ class TreasuryReconciliationPage extends Component
             static fn (mixed $role): string => strtolower(trim((string) $role)),
             $roles
         )));
+    }
+
+    private function normalizeWorkspaceFilters(): void
+    {
+        $this->linePerPage = $this->normalizeLinePerPage($this->linePerPage);
+        $this->lineSearch = $this->normalizeSearch($this->lineSearch);
+        $this->selectedBankAccountId = $this->normalizeOptionalPositiveInt($this->selectedBankAccountId);
+        $this->selectedStatementId = $this->normalizeOptionalPositiveInt($this->selectedStatementId);
+    }
+
+    private function normalizeLinePerPage(int $linePerPage): int
+    {
+        return in_array($linePerPage, self::ALLOWED_LINE_PER_PAGE, true)
+            ? $linePerPage
+            : self::ALLOWED_LINE_PER_PAGE[0];
+    }
+
+    private function normalizeSearch(?string $search): ?string
+    {
+        if ($search === null) {
+            return null;
+        }
+
+        $normalized = trim($search);
+
+        return $normalized === ''
+            ? null
+            : mb_substr($normalized, 0, self::MAX_LINE_SEARCH_LENGTH);
+    }
+
+    private function normalizeOptionalPositiveInt(?int $value): ?int
+    {
+        return $value && $value > 0
+            ? (int) $value
+            : null;
     }
 }

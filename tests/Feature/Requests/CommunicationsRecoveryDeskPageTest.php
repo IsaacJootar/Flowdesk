@@ -190,6 +190,53 @@ class CommunicationsRecoveryDeskPageTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_staff_cannot_force_delivery_tab_via_state_tampering(): void
+    {
+        [$company, $department] = $this->createCompanyContext('Communications Recovery Staff Tamper');
+        $owner = $this->createUser($company, $department, UserRole::Owner->value);
+        $staff = $this->createUser($company, $department, UserRole::Staff->value);
+
+        TenantFeatureEntitlement::query()->create([
+            'company_id' => $company->id,
+            'requests_enabled' => true,
+            'communications_enabled' => true,
+            'created_by' => $owner->id,
+            'updated_by' => $owner->id,
+        ]);
+
+        $request = SpendRequest::query()->create([
+            'company_id' => $company->id,
+            'request_code' => 'REQ-COMM-TAMPER-001',
+            'requested_by' => $staff->id,
+            'department_id' => $department->id,
+            'title' => 'Tamper visibility request',
+            'amount' => 50000,
+            'currency' => 'NGN',
+            'status' => 'in_review',
+            'created_by' => $staff->id,
+            'updated_by' => $staff->id,
+        ]);
+
+        RequestCommunicationLog::query()->create([
+            'company_id' => $company->id,
+            'request_id' => $request->id,
+            'recipient_user_id' => $owner->id,
+            'event' => 'request.delivery.test',
+            'channel' => 'email',
+            'status' => 'failed',
+            'message' => 'Delivery-only failure row',
+        ]);
+
+        $this->actingAs($staff);
+
+        Livewire::test(RequestCommunicationsPage::class)
+            ->call('loadData')
+            ->set('activeTab', 'delivery-hijack')
+            ->call('$refresh')
+            ->assertSet('activeTab', 'inbox')
+            ->assertDontSee('Delivery-only failure row');
+    }
+
     /**
      * @return array{0: Company, 1: Department}
      */

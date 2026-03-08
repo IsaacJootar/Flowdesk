@@ -9,6 +9,7 @@ use App\Domains\Requests\Models\SpendRequest;
 use App\Enums\UserRole;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Collection;
 use Livewire\Attributes\Layout;
@@ -21,6 +22,12 @@ use Livewire\WithPagination;
 class RequestReportsPage extends Component
 {
     use WithPagination;
+
+    private const ALLOWED_PER_PAGE = [10, 25, 50];
+
+    private const ALLOWED_STATUS_FILTERS = ['all', 'draft', 'in_review', 'approved', 'rejected', 'returned'];
+
+    private const MAX_SEARCH_LENGTH = 120;
 
     public bool $readyToLoad = false;
 
@@ -42,6 +49,7 @@ class RequestReportsPage extends Component
     {
         $user = \Illuminate\Support\Facades\Auth::user();
         abort_unless($user && Gate::forUser($user)->allows('viewAny', SpendRequest::class), 403);
+        $this->normalizeFilterState();
     }
 
     public function loadData(): void
@@ -51,45 +59,53 @@ class RequestReportsPage extends Component
 
     public function updatedSearch(): void
     {
+        $this->search = $this->normalizeSearch($this->search);
         $this->resetPage();
     }
 
     public function updatedStatusFilter(): void
     {
+        $this->statusFilter = $this->normalizeStatusFilter($this->statusFilter);
         $this->resetPage();
     }
 
     public function updatedTypeFilter(): void
     {
+        $this->typeFilter = $this->normalizeTypeFilter($this->typeFilter);
         $this->resetPage();
     }
 
     public function updatedDepartmentFilter(): void
     {
+        $this->departmentFilter = $this->normalizeDepartmentFilter($this->departmentFilter);
         $this->resetPage();
     }
 
     public function updatedDateFrom(): void
     {
+        $this->dateFrom = $this->normalizeDate($this->dateFrom);
+        $this->normalizeDateRange();
         $this->resetPage();
     }
 
     public function updatedDateTo(): void
     {
+        $this->dateTo = $this->normalizeDate($this->dateTo);
+        $this->normalizeDateRange();
         $this->resetPage();
     }
 
     public function updatedPerPage(): void
     {
-        if (! in_array($this->perPage, [10, 25, 50], true)) {
-            $this->perPage = 10;
-        }
+        $this->perPage = $this->normalizePerPage($this->perPage);
 
         $this->resetPage();
     }
 
     public function render(): View
     {
+        $this->normalizeFilterState();
+
         $departments = Department::query()
             ->where('is_active', true)
             ->orderBy('name')
@@ -136,8 +152,10 @@ class RequestReportsPage extends Component
             return $query->whereRaw('1 = 0');
         }
 
+        $query->where('company_id', (int) $user->company_id);
+
         if ($this->search !== '') {
-            $search = trim($this->search);
+            $search = $this->normalizeSearch($this->search);
             $query->where(function (Builder $builder) use ($search): void {
                 $builder
                     ->where('request_code', 'like', '%'.$search.'%')
@@ -326,6 +344,88 @@ class RequestReportsPage extends Component
             ->orderByDesc('total_requests')
             ->limit(5)
             ->get();
+    }
+
+    private function normalizeFilterState(): void
+    {
+        $this->search = $this->normalizeSearch($this->search);
+        $this->statusFilter = $this->normalizeStatusFilter($this->statusFilter);
+        $this->typeFilter = $this->normalizeTypeFilter($this->typeFilter);
+        $this->departmentFilter = $this->normalizeDepartmentFilter($this->departmentFilter);
+        $this->dateFrom = $this->normalizeDate($this->dateFrom);
+        $this->dateTo = $this->normalizeDate($this->dateTo);
+        $this->normalizeDateRange();
+        $this->perPage = $this->normalizePerPage($this->perPage);
+    }
+
+    private function normalizeSearch(string $search): string
+    {
+        return mb_substr(trim($search), 0, self::MAX_SEARCH_LENGTH);
+    }
+
+    private function normalizeStatusFilter(string $status): string
+    {
+        $normalized = strtolower(trim($status));
+
+        return in_array($normalized, self::ALLOWED_STATUS_FILTERS, true)
+            ? $normalized
+            : 'all';
+    }
+
+    private function normalizeTypeFilter(string $type): string
+    {
+        $normalized = trim($type);
+        if (strtolower($normalized) === 'all') {
+            return 'all';
+        }
+
+        return preg_match('/^[A-Za-z0-9._-]{1,60}$/', $normalized) === 1
+            ? $normalized
+            : 'all';
+    }
+
+    private function normalizeDepartmentFilter(string $department): string
+    {
+        $normalized = trim($department);
+        if (strtolower($normalized) === 'all') {
+            return 'all';
+        }
+
+        return preg_match('/^[1-9][0-9]{0,9}$/', $normalized) === 1
+            ? $normalized
+            : 'all';
+    }
+
+    private function normalizeDate(string $date): string
+    {
+        $normalized = trim($date);
+        if ($normalized === '') {
+            return '';
+        }
+
+        try {
+            $parsed = Carbon::createFromFormat('Y-m-d', $normalized);
+        } catch (\Throwable) {
+            return '';
+        }
+
+        return $parsed && $parsed->format('Y-m-d') === $normalized
+            ? $normalized
+            : '';
+    }
+
+    private function normalizeDateRange(): void
+    {
+        if ($this->dateFrom !== '' && $this->dateTo !== '' && $this->dateFrom > $this->dateTo) {
+            $this->dateTo = $this->dateFrom;
+        }
+    }
+
+    private function normalizePerPage(int $perPage): int
+    {
+        return in_array($perPage, self::ALLOWED_PER_PAGE, true)
+            ? $perPage
+            : self::ALLOWED_PER_PAGE[0];
     }
 }
 

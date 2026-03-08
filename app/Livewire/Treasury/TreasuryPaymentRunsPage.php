@@ -17,6 +17,12 @@ class TreasuryPaymentRunsPage extends Component
 {
     use WithPagination;
 
+    private const ALLOWED_PER_PAGE = [10, 25, 50];
+
+    private const ALLOWED_STATUS_FILTERS = ['all', 'draft', 'processing', 'completed', 'failed', 'canceled'];
+
+    private const ALLOWED_TYPE_FILTERS = ['all', 'mixed', 'payout', 'vendor', 'reimbursement'];
+
     public bool $readyToLoad = false;
 
     public string $statusFilter = 'all';
@@ -29,6 +35,7 @@ class TreasuryPaymentRunsPage extends Component
     {
         $user = auth()->user();
         abort_unless($user instanceof User && $this->canAccessPage($user), 403);
+        $this->normalizeFilters();
     }
 
     public function loadData(): void
@@ -38,25 +45,27 @@ class TreasuryPaymentRunsPage extends Component
 
     public function updatedStatusFilter(): void
     {
+        $this->statusFilter = $this->normalizeStatusFilter($this->statusFilter);
         $this->resetPage();
     }
 
     public function updatedTypeFilter(): void
     {
+        $this->typeFilter = $this->normalizeTypeFilter($this->typeFilter);
         $this->resetPage();
     }
 
     public function updatedPerPage(): void
     {
-        if (! in_array($this->perPage, [10, 25, 50], true)) {
-            $this->perPage = 10;
-        }
+        $this->perPage = $this->normalizePerPage($this->perPage);
 
         $this->resetPage();
     }
 
     public function render(): View
     {
+        $this->normalizeFilters();
+
         $query = PaymentRun::query()
             ->where('company_id', (int) auth()->user()->company_id)
             ->when($this->statusFilter !== 'all', fn ($builder) => $builder->where('run_status', $this->statusFilter))
@@ -86,5 +95,37 @@ class TreasuryPaymentRunsPage extends Component
     private function canAccessPage(User $user): bool
     {
         return Gate::forUser($user)->allows('viewAny', PaymentRun::class);
+    }
+
+    private function normalizeFilters(): void
+    {
+        $this->statusFilter = $this->normalizeStatusFilter($this->statusFilter);
+        $this->typeFilter = $this->normalizeTypeFilter($this->typeFilter);
+        $this->perPage = $this->normalizePerPage($this->perPage);
+    }
+
+    private function normalizeStatusFilter(string $status): string
+    {
+        $normalized = strtolower(trim($status));
+
+        return in_array($normalized, self::ALLOWED_STATUS_FILTERS, true)
+            ? $normalized
+            : 'all';
+    }
+
+    private function normalizeTypeFilter(string $type): string
+    {
+        $normalized = strtolower(trim($type));
+
+        return in_array($normalized, self::ALLOWED_TYPE_FILTERS, true)
+            ? $normalized
+            : 'all';
+    }
+
+    private function normalizePerPage(int $perPage): int
+    {
+        return in_array($perPage, self::ALLOWED_PER_PAGE, true)
+            ? $perPage
+            : self::ALLOWED_PER_PAGE[0];
     }
 }

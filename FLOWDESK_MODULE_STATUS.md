@@ -492,6 +492,12 @@ Before proposing "new" module work, check this file plus route map (`routes/web.
   - `tenant-exports`: vendor statement export/print
 - Input validation hardening:
   - Vendor statement export/print controllers now strictly validate `from`, `to`, and `invoice_status`.
+- Validation hardening (Treasury + Requests):
+  - Treasury reconciliation statement import now enforces tenant-bound bank account selection using explicit `exists` constraints (`company_id` + `is_active`).
+  - Treasury exception resolution payloads now enforce allow-listed `resolutionAction` values (`resolved`, `waived`) in both reconciliation desk and exceptions workbench.
+  - Treasury workbench filters now normalize status/severity/stream/type/per-page/search inputs to safe allow-lists before query execution.
+  - Request reports filters now normalize status/type/department/date/per-page/search inputs and include explicit `company_id` filter in base query.
+  - Communications recovery desk now normalizes tab/filter state and prevents delivery-log tab forcing through tampered Livewire state.
 - Authorization matrix hardening (Vendors + Procurement):
   - Added procurement policies and policy registration:
     - `app/Policies/PurchaseOrderPolicy.php`
@@ -519,8 +525,11 @@ Before proposing "new" module work, check this file plus route map (`routes/web.
   - `tests/Feature/Finance/ProcurementAuthorizationMatrixTest.php`
   - `tests/Feature/Finance/TreasuryAuthorizationMatrixTest.php`
   - `tests/Feature/Requests/RequestGuidesAuthorizationTest.php`
+  - `tests/Feature/Finance/TreasuryReconciliationWorkflowTest.php` (tenant import validation + invalid resolution action checks)
+  - `tests/Feature/Requests/CommunicationsRecoveryDeskPageTest.php` (delivery tab tamper guard)
+  - `tests/Feature/Requests/RequestReportsValidationHardeningTest.php`
 - Validation snapshot after update:
-  - `php artisan test` passed (`260 passed`, `0 failed`).
+  - `php artisan test` passed (`264 passed`, `0 failed`).
 
 
 

@@ -14,6 +14,7 @@ use App\Domains\Treasury\Models\CompanyTreasuryControlSetting;
 use App\Domains\Treasury\Models\ReconciliationException;
 use App\Domains\Treasury\Models\ReconciliationMatch;
 use App\Enums\UserRole;
+use App\Livewire\Treasury\TreasuryReconciliationPage;
 use App\Livewire\Treasury\TreasuryReconciliationExceptionsPage;
 use App\Models\User;
 use App\Services\Treasury\AutoReconcileStatementService;
@@ -163,6 +164,86 @@ class TreasuryReconciliationWorkflowTest extends TestCase
             'resolved_by_user_id' => (int) $finance->id,
         ]);
     }
+
+    public function test_statement_import_requires_selected_bank_account_within_tenant_scope(): void
+    {
+        [$companyA, $departmentA] = $this->createCompanyContext('Treasury Import Scope A');
+        [$companyB, $departmentB] = $this->createCompanyContext('Treasury Import Scope B');
+
+        $ownerA = $this->createUser($companyA, $departmentA, UserRole::Owner->value);
+        $ownerB = $this->createUser($companyB, $departmentB, UserRole::Owner->value);
+
+        $foreignAccount = BankAccount::query()->create([
+            'company_id' => $companyB->id,
+            'account_name' => 'Foreign Account',
+            'bank_name' => 'Foreign Bank',
+            'account_reference' => 'FD-FOREIGN-001',
+            'currency_code' => 'NGN',
+            'is_primary' => true,
+            'is_active' => true,
+            'created_by' => $ownerB->id,
+            'updated_by' => $ownerB->id,
+        ]);
+
+        $csv = UploadedFile::fake()->createWithContent(
+            'invalid-scope.csv',
+            implode("\n", [
+                'posted_at,value_date,line_reference,description,direction,amount,currency_code,balance_after',
+                now()->format('Y-m-d H:i:s').','.now()->toDateString().',SCOPE-001,Scope validation row,debit,10000,NGN,100000',
+            ])
+        );
+
+        $this->actingAs($ownerA);
+
+        Livewire::test(TreasuryReconciliationPage::class)
+            ->set('selectedBankAccountId', (int) $foreignAccount->id)
+            ->set('statementFile', $csv)
+            ->call('importStatement')
+            ->assertHasErrors(['selectedBankAccountId']);
+    }
+
+    public function test_treasury_exception_action_rejects_invalid_resolution_action_payload(): void
+    {
+        [$company, $department] = $this->createCompanyContext('Treasury Invalid Resolution Action');
+        $owner = $this->createUser($company, $department, UserRole::Owner->value);
+
+        CompanyTreasuryControlSetting::query()->create([
+            'company_id' => $company->id,
+            'controls' => [
+                'exception_action_allowed_roles' => ['owner', 'finance'],
+                'exception_action_requires_maker_checker' => false,
+            ],
+            'created_by' => $owner->id,
+            'updated_by' => $owner->id,
+        ]);
+
+        $exception = ReconciliationException::query()->create([
+            'company_id' => $company->id,
+            'exception_code' => 'execution_invalid_action',
+            'exception_status' => ReconciliationException::STATUS_OPEN,
+            'severity' => ReconciliationException::SEVERITY_MEDIUM,
+            'match_stream' => ReconciliationException::STREAM_EXECUTION_PAYMENT,
+            'next_action' => 'Inspect settlement pipeline.',
+            'details' => 'Invalid resolution action hardening test.',
+            'created_by' => $owner->id,
+            'updated_by' => $owner->id,
+        ]);
+
+        $this->actingAs($owner);
+
+        Livewire::test(TreasuryReconciliationExceptionsPage::class)
+            ->set('selectedExceptionId', (int) $exception->id)
+            ->set('resolutionAction', 'archive')
+            ->set('resolutionNotes', 'Attempting unsupported action.')
+            ->call('applyResolution')
+            ->assertHasErrors(['resolutionAction']);
+
+        $this->assertDatabaseHas('reconciliation_exceptions', [
+            'id' => (int) $exception->id,
+            'exception_status' => ReconciliationException::STATUS_OPEN,
+        ]);
+    }
+
     public function test_statement_import_and_auto_reconciliation_create_matches_and_exceptions(): void
     {
         [$company, $department] = $this->createCompanyContext('Treasury Reconciliation Tenant');

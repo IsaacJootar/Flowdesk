@@ -42,7 +42,7 @@ class RequestLifecycleDeskPage extends Component
 
     public function updatedSearch(): void
     {
-        $this->search = trim($this->search);
+        $this->search = mb_substr(trim($this->search), 0, 120);
     }
 
     public function render(TenantModuleAccessService $moduleAccessService): View
