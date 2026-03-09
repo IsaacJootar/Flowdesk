@@ -12,6 +12,7 @@ use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -77,29 +78,31 @@ class BudgetsPage extends Component
 
     public function updatedSearch(): void
     {
+        $this->search = trim($this->search);
         $this->resetPage();
     }
 
     public function updatedDepartmentFilter(): void
     {
+        $this->departmentFilter = $this->normalizeDepartmentFilter($this->departmentFilter);
         $this->resetPage();
     }
 
     public function updatedStatusFilter(): void
     {
+        $this->statusFilter = $this->normalizeStatusFilter($this->statusFilter);
         $this->resetPage();
     }
 
     public function updatedPeriodTypeFilter(): void
     {
+        $this->periodTypeFilter = $this->normalizePeriodTypeFilter($this->periodTypeFilter);
         $this->resetPage();
     }
 
     public function updatedPerPage(): void
     {
-        if (! in_array($this->perPage, [10, 25, 50], true)) {
-            $this->perPage = 10;
-        }
+        $this->perPage = $this->normalizePerPage($this->perPage);
 
         $this->resetPage();
     }
@@ -214,6 +217,8 @@ class BudgetsPage extends Component
 
     public function render(): View
     {
+        $this->normalizeFilterState();
+
         $departments = Department::query()->orderBy('name')->get(['id', 'name']);
 
         $budgets = $this->readyToLoad
@@ -348,8 +353,15 @@ class BudgetsPage extends Component
      */
     private function formRules(): array
     {
+        $companyId = (int) (Auth::user()?->company_id ?? 0);
+
         return [
-            'form.department_id' => ['required', 'integer'],
+            'form.department_id' => [
+                'required',
+                'integer',
+                Rule::exists('departments', 'id')
+                    ->where(fn ($query) => $query->where('company_id', $companyId)->whereNull('deleted_at')),
+            ],
             'form.period_type' => ['required', 'in:monthly,quarterly,yearly'],
             'form.period_start' => ['required', 'date'],
             'form.period_end' => ['required', 'date', 'after_or_equal:form.period_start'],
@@ -397,5 +409,46 @@ class BudgetsPage extends Component
         }
 
         return $mapped;
+    }
+
+    private function normalizeFilterState(): void
+    {
+        $this->departmentFilter = $this->normalizeDepartmentFilter($this->departmentFilter);
+        $this->statusFilter = $this->normalizeStatusFilter($this->statusFilter);
+        $this->periodTypeFilter = $this->normalizePeriodTypeFilter($this->periodTypeFilter);
+        $this->perPage = $this->normalizePerPage($this->perPage);
+    }
+
+    private function normalizeDepartmentFilter(string $value): string
+    {
+        $normalized = trim($value);
+        if ($normalized === '' || strtolower($normalized) === 'all') {
+            return 'all';
+        }
+
+        if (! ctype_digit($normalized)) {
+            return 'all';
+        }
+
+        return ((int) $normalized) > 0 ? (string) ((int) $normalized) : 'all';
+    }
+
+    private function normalizeStatusFilter(string $value): string
+    {
+        $normalized = strtolower(trim($value));
+
+        return in_array($normalized, ['all', 'active', 'closed'], true) ? $normalized : 'all';
+    }
+
+    private function normalizePeriodTypeFilter(string $value): string
+    {
+        $normalized = strtolower(trim($value));
+
+        return in_array($normalized, ['all', 'monthly', 'quarterly', 'yearly'], true) ? $normalized : 'all';
+    }
+
+    private function normalizePerPage(int $value): int
+    {
+        return in_array($value, [10, 25, 50], true) ? $value : 10;
     }
 }

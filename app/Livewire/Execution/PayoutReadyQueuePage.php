@@ -3,18 +3,18 @@
 namespace App\Livewire\Execution;
 
 use App\Domains\Approvals\Models\RequestApproval;
+use App\Domains\Requests\Models\RequestPayoutExecutionAttempt;
 use App\Domains\Requests\Models\SpendRequest;
-use App\Enums\UserRole;
 use App\Models\User;
 use App\Services\Execution\RequestPayoutExecutionAttemptProcessor;
 use App\Services\Execution\RequestPayoutExecutionOrchestrator;
-use App\Services\PlatformAccessService;
 use App\Services\TenantAuditLogger;
 use App\Services\TenantExecutionModeService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -77,7 +77,7 @@ class PayoutReadyQueuePage extends Component
 
     public function runPayoutNow(int $requestId): void
     {
-        abort_unless($this->canRunPayoutActions(), 403);
+        Gate::authorize('queueAny', RequestPayoutExecutionAttempt::class);
 
         $request = $this->queueBaseQuery()
             ->whereKey($requestId)
@@ -178,31 +178,12 @@ class PayoutReadyQueuePage extends Component
 
     private function canAccessPage(): bool
     {
-        $user = Auth::user();
-        if (! $user || app(PlatformAccessService::class)->isPlatformOperator($user)) {
-            return false;
-        }
-
-        return in_array((string) $user->role, [
-            UserRole::Owner->value,
-            UserRole::Finance->value,
-            UserRole::Manager->value,
-            UserRole::Auditor->value,
-        ], true);
+        return Gate::allows('viewAny', RequestPayoutExecutionAttempt::class);
     }
 
     private function canRunPayoutActions(): bool
     {
-        $user = Auth::user();
-        if (! $user || app(PlatformAccessService::class)->isPlatformOperator($user)) {
-            return false;
-        }
-
-        return in_array((string) $user->role, [
-            UserRole::Owner->value,
-            UserRole::Finance->value,
-            UserRole::Manager->value,
-        ], true);
+        return Gate::allows('queueAny', RequestPayoutExecutionAttempt::class);
     }
 
     private function companyId(): int

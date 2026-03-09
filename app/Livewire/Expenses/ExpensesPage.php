@@ -43,7 +43,7 @@ class ExpensesPage extends Component
 
     public string $statusFilter = 'all';
 
-    public int $perPage = 12;
+    public int $perPage = 10;
 
     public bool $showFormModal = false;
 
@@ -112,39 +112,45 @@ class ExpensesPage extends Component
 
     public function updatedDateFrom(): void
     {
+        $this->dateFrom = $this->normalizeDateInput($this->dateFrom);
+        $this->normalizeDateRange();
         $this->resetPage();
     }
 
     public function updatedDateTo(): void
     {
+        $this->dateTo = $this->normalizeDateInput($this->dateTo);
+        $this->normalizeDateRange();
         $this->resetPage();
     }
 
     public function updatedVendorFilter(): void
     {
+        $this->vendorFilter = $this->normalizeEntityFilter($this->vendorFilter);
         $this->resetPage();
     }
 
     public function updatedDepartmentFilter(): void
     {
+        $this->departmentFilter = $this->normalizeEntityFilter($this->departmentFilter);
         $this->resetPage();
     }
 
     public function updatedPaymentMethodFilter(): void
     {
+        $this->paymentMethodFilter = $this->normalizePaymentMethodFilter($this->paymentMethodFilter);
         $this->resetPage();
     }
 
     public function updatedStatusFilter(): void
     {
+        $this->statusFilter = $this->normalizeStatusFilter($this->statusFilter);
         $this->resetPage();
     }
 
     public function updatedPerPage(): void
     {
-        if (! in_array($this->perPage, [10, 25, 50], true)) {
-            $this->perPage = 12;
-        }
+        $this->perPage = $this->normalizePerPage($this->perPage);
 
         $this->resetPage();
     }
@@ -358,6 +364,8 @@ class ExpensesPage extends Component
 
     public function render(): View
     {
+        $this->normalizeFilterState();
+
         $departments = Department::query()
             ->orderBy('name')
             ->get(['id', 'name']);
@@ -489,15 +497,32 @@ class ExpensesPage extends Component
      */
     private function formRules(): array
     {
+        $companyId = (int) (\Illuminate\Support\Facades\Auth::user()?->company_id ?? 0);
+
         return [
-            'form.department_id' => ['required', 'integer'],
-            'form.vendor_id' => ['nullable', 'integer'],
+            'form.department_id' => [
+                'required',
+                'integer',
+                Rule::exists('departments', 'id')
+                    ->where(fn ($query) => $query->where('company_id', $companyId)->whereNull('deleted_at')),
+            ],
+            'form.vendor_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('vendors', 'id')
+                    ->where(fn ($query) => $query->where('company_id', $companyId)->whereNull('deleted_at')),
+            ],
             'form.title' => ['required', 'string', 'max:180'],
             'form.description' => ['nullable', 'string', 'max:2000'],
             'form.amount' => ['required', 'integer', 'min:1'],
             'form.expense_date' => ['required', 'date'],
             'form.payment_method' => ['nullable', Rule::in($this->paymentMethods())],
-            'form.paid_by_user_id' => ['nullable', 'integer'],
+            'form.paid_by_user_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('users', 'id')
+                    ->where(fn ($query) => $query->where('company_id', $companyId)->where('is_active', true)),
+            ],
             'newAttachments.*' => ['nullable', 'file', 'max:10240', 'mimes:jpg,jpeg,png,pdf,webp'],
         ];
     }
@@ -546,6 +571,79 @@ class ExpensesPage extends Component
     {
         return Carbon::now($this->companyTimezone())->toDateString();
     }
+
+    private function normalizeFilterState(): void
+    {
+        $this->statusFilter = $this->normalizeStatusFilter($this->statusFilter);
+        $this->paymentMethodFilter = $this->normalizePaymentMethodFilter($this->paymentMethodFilter);
+        $this->vendorFilter = $this->normalizeEntityFilter($this->vendorFilter);
+        $this->departmentFilter = $this->normalizeEntityFilter($this->departmentFilter);
+        $this->dateFrom = $this->normalizeDateInput($this->dateFrom);
+        $this->dateTo = $this->normalizeDateInput($this->dateTo);
+        $this->normalizeDateRange();
+        $this->perPage = $this->normalizePerPage($this->perPage);
+    }
+
+    private function normalizeStatusFilter(string $value): string
+    {
+        $normalized = strtolower(trim($value));
+
+        return in_array($normalized, ['all', 'posted', 'void'], true) ? $normalized : 'all';
+    }
+
+    private function normalizePaymentMethodFilter(string $value): string
+    {
+        $normalized = strtolower(trim($value));
+
+        return $normalized === 'all' || in_array($normalized, $this->paymentMethods(), true)
+            ? $normalized
+            : 'all';
+    }
+
+    private function normalizeEntityFilter(string $value): string
+    {
+        $normalized = trim($value);
+        if ($normalized === '' || strtolower($normalized) === 'all') {
+            return 'all';
+        }
+
+        if (! ctype_digit($normalized)) {
+            return 'all';
+        }
+
+        return ((int) $normalized) > 0 ? (string) ((int) $normalized) : 'all';
+    }
+
+    private function normalizeDateInput(string $value): string
+    {
+        $normalized = trim($value);
+        if ($normalized === '') {
+            return '';
+        }
+
+        $parsed = \DateTimeImmutable::createFromFormat('!Y-m-d', $normalized);
+        $errors = \DateTimeImmutable::getLastErrors();
+        $hasWarnings = is_array($errors) && (($errors['warning_count'] ?? 0) > 0 || ($errors['error_count'] ?? 0) > 0);
+
+        if (! $parsed instanceof \DateTimeImmutable || $hasWarnings) {
+            return '';
+        }
+
+        return $parsed->format('Y-m-d');
+    }
+
+    private function normalizeDateRange(): void
+    {
+        if ($this->dateFrom !== '' && $this->dateTo !== '' && $this->dateFrom > $this->dateTo) {
+            $this->dateTo = '';
+        }
+    }
+
+    private function normalizePerPage(int $value): int
+    {
+        return in_array($value, [10, 25, 50], true) ? $value : 10;
+    }
+
     private function setFeedback(string $message): void
     {
         $this->feedbackError = null;

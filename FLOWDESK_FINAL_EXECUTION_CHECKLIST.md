@@ -232,17 +232,35 @@ There are 2 models, and orgs choose:
   - Added treasury policies (`BankStatement`, `BankAccount`, `PaymentRun`, `ReconciliationException`) and wired policy mapping in `AuthServiceProvider`.
   - Treasury reconciliation, exceptions, payment runs, cash position, and help pages now use policy-based access checks instead of duplicated role arrays.
   - Request lifecycle/help and communications-help entry checks now use `SpendRequest` policy gate (`viewAny`) to enforce active-user scope consistently.
+- [x] Authorization matrix hardening expanded for tenant Execution pages:
+  - Added `RequestPayoutExecutionAttemptPolicy` and mapped it in `AuthServiceProvider`.
+  - `ExecutionHealthPage`, `PayoutReadyQueuePage`, and `ExecutionUsageGuidePage` now use policy abilities instead of duplicated inline role arrays.
+  - Manual payout run permission now uses explicit policy ability `queueAny` (owner/finance/manager only), while read access uses `viewAny` (owner/finance/manager/auditor).
+  - Added regression coverage for manual-run guardrail: auditors can monitor queue but cannot trigger `runPayoutNow` (`TenantPayoutReadyQueuePageTest`).
 - [x] Validation hardening wave completed for Treasury + Requests:
   - Treasury reconciliation import now validates selected bank account via tenant-bound `exists` check (`company_id` + active account).
   - Treasury reconciliation and exception closure now validate `resolutionAction` with explicit allow-list (`resolved`, `waived`).
   - Treasury reconciliation/payment runs/exceptions filters now normalize per-page/search/status/type/stream values to safe allow-lists.
   - Request reports filters now normalize status/type/department/date/per-page and enforce explicit tenant `company_id` filter in base query.
   - Communications Recovery Desk now normalizes tab/filter state and blocks delivery-log tab forcing via tampered component state.
+- [x] Validation hardening expanded for Expenses page:
+  - Added strict filter normalization in `ExpensesPage` for `status`, `payment_method`, `vendor`, `department`, `dateFrom/dateTo`, and `perPage` to block tampered component state values.
+  - Hardened local form validation with tenant-bound `exists` checks for `department_id`, `vendor_id`, and `paid_by_user_id`.
+  - Added Livewire regression coverage: `tests/Feature/Expenses/ExpensesPageValidationHardeningTest.php`.
+- [x] Validation hardening expanded for Budgets page:
+  - Added strict filter normalization in `BudgetsPage` for `department`, `status`, `period type`, and `perPage` to block tampered component state values.
+  - Hardened local form validation with tenant-bound `exists` check for `department_id`.
+  - Added Livewire regression coverage: `tests/Feature/Budgets/BudgetsPageValidationHardeningTest.php`.
 - [x] Performance hardening wave completed (reports + inbox + retry throughput):
   - Communications Recovery Desk now computes expensive recovery summary only when `delivery` tab is active and data is loaded.
   - Request Reports metrics now use DB-side aggregate query (single pass for totals/in-review/decision-rate inputs) instead of repeated filtered scans.
   - Request Reports approval-step metrics now use DB subqueries (`whereIn` subselect) instead of loading request IDs into PHP memory.
-  - Reports Center unified activity feed now paginates in SQL (unioned module activity subqueries) instead of in-memory collection sort/pagination.
+  - Reports Center activity stream now uses DB `UNION ALL` aggregation + SQL pagination (row loading bounded to page size) instead of in-memory collection merge/sort/pagination.
+  - Participating activity tables in this stream: `requests`, `expenses`, `vendor_invoices`, `assets`, `department_budgets`, `reconciliation_exceptions`, `tenant_pilot_wave_outcomes`.
+  - Activity-stream index coverage completed for stream sort key (`occurred_at` source timestamp):
+    - Added migration: `database/migrations/2026_03_08_130000_add_activity_stream_timestamp_indexes.php`.
+    - New composites added: `expenses`, `vendor_invoices`, `assets`, `department_budgets`, `reconciliation_exceptions` on `(company_id, updated_at)` and `(company_id, created_at)`.
+    - Existing coverage retained: `requests` (`company_id` + `updated_at` variants, `company_id` + `created_at`), `tenant_pilot_wave_outcomes` (`company_id`, `decision_at`).
   - Communication retry services (`request`, `vendor`, `asset`) now enforce configurable max batch caps and process in chunks to stabilize memory and throughput.
   - Request/Vendor/Asset communication CLI commands and the Communications Recovery Desk now use centralized retry batch/older-than guardrails from `config/communications.php`.
   - Dashboard and Reports Center now use short-lived performance cache snapshots (disabled in testing) via `config/performance.php`.

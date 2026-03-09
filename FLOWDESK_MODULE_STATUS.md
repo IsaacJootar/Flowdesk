@@ -518,6 +518,19 @@ Before proposing "new" module work, check this file plus route map (`routes/web.
     - `TreasuryPaymentRunsPage`
     - `TreasuryCashPositionPage`
   - Request guide/lifecycle entry checks now use `SpendRequest` policy gate (`viewAny`) for consistent active-user enforcement.
+- Authorization matrix hardening (Execution tenant workspace):
+  - Added `app/Policies/RequestPayoutExecutionAttemptPolicy.php` and policy registration in `AuthServiceProvider`.
+  - `ExecutionHealthPage`, `PayoutReadyQueuePage`, and `ExecutionUsageGuidePage` now authorize tenant access through policy (`viewAny`) instead of inline role lists.
+  - Payout run action access now uses policy ability `queueAny` (owner/finance/manager), keeping read-only execution users limited to monitoring.
+  - Regression coverage added: `TenantPayoutReadyQueuePageTest` now asserts auditors cannot trigger manual payout queue runs.
+- Validation hardening (Expenses workspace):
+  - `ExpensesPage` now normalizes filter state (`status`, `payment_method`, `vendor`, `department`, `dateFrom/dateTo`, `perPage`) to allow-lists/strict date format before query execution.
+  - `ExpensesPage` form validation now enforces tenant-bound `exists` checks for `department_id`, `vendor_id`, and `paid_by_user_id`.
+  - Added regression coverage: `tests/Feature/Expenses/ExpensesPageValidationHardeningTest.php`.
+- Validation hardening (Budgets workspace):
+  - `BudgetsPage` now normalizes filter state (`department`, `status`, `period_type`, `perPage`) to allow-lists before query execution.
+  - `BudgetsPage` form validation now enforces tenant-bound `exists` check for `department_id`.
+  - Added regression coverage: `tests/Feature/Budgets/BudgetsPageValidationHardeningTest.php`.
 - Added hardening regression coverage:
   - `tests/Feature/Auth/PlatformOperatorTenantBoundaryTest.php`
   - `tests/Feature/Execution/ExecutionWebhookRateLimitTest.php`
@@ -536,7 +549,12 @@ Before proposing "new" module work, check this file plus route map (`routes/web.
   - `RequestCommunicationsPage` now skips recovery summary query work unless the delivery tab is active and hydrated, reducing inbox-tab render load.
   - `RequestReportsPage` metrics now use DB-side aggregate projection for totals/in-review/approval-rate inputs instead of multiple repeated scans.
   - `RequestReportsPage` overdue/escalated step metrics now use subquery scoping (`whereIn` subselect) rather than plucking request IDs into PHP memory.
-  - `ReportsCenterPage` unified activity feed now executes pagination in SQL (`UNION ALL` activity stream + ordered `paginate`) instead of loading and sorting module rows in memory.
+  - `ReportsCenterPage` activity stream now executes DB `UNION ALL` aggregation + ordered SQL pagination (bounded row loading at page size) instead of loading/sorting all module rows in memory.
+  - Activity stream source tables: `requests`, `expenses`, `vendor_invoices`, `assets`, `department_budgets`, `reconciliation_exceptions`, `tenant_pilot_wave_outcomes`.
+  - Activity-stream index coverage completed for activity sort key (`occurred_at` source timestamp):
+    - Added migration `database/migrations/2026_03_08_130000_add_activity_stream_timestamp_indexes.php`.
+    - New composites: `expenses`, `vendor_invoices`, `assets`, `department_budgets`, `reconciliation_exceptions` on `(company_id, updated_at)` and `(company_id, created_at)`.
+    - Existing coverage: `requests` (composite indexes including `updated_at` and `created_at` with `company_id`), `tenant_pilot_wave_outcomes` (`company_id`, `decision_at`).
 - Queue throughput/retry tuning pass completed for communications stack:
   - Added `config/communications.php` for centralized retry guardrails (`max_batch_size`, defaults, `chunk_size`, `max_older_than_minutes`, UI batch defaults).
   - `RequestCommunicationRetryService`, `VendorCommunicationRetryService`, and `AssetCommunicationRetryService` now enforce batch caps and process retry workloads in chunks to keep memory stable.

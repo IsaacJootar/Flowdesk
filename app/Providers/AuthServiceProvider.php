@@ -8,6 +8,7 @@ use App\Domains\Expenses\Models\Expense;
 use App\Domains\Procurement\Models\GoodsReceipt;
 use App\Domains\Procurement\Models\InvoiceMatchException;
 use App\Domains\Procurement\Models\PurchaseOrder;
+use App\Domains\Requests\Models\RequestPayoutExecutionAttempt;
 use App\Domains\Requests\Models\SpendRequest;
 use App\Domains\Treasury\Models\BankAccount;
 use App\Domains\Treasury\Models\BankStatement;
@@ -25,6 +26,7 @@ use App\Policies\PaymentRunPolicy;
 use App\Policies\PurchaseOrderPolicy;
 use App\Policies\ReconciliationExceptionPolicy;
 use App\Policies\RequestPolicy;
+use App\Policies\RequestPayoutExecutionAttemptPolicy;
 use App\Policies\VendorPolicy;
 use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
 
@@ -32,6 +34,7 @@ class AuthServiceProvider extends ServiceProvider
 {
     protected $policies = [
         SpendRequest::class => RequestPolicy::class,
+        RequestPayoutExecutionAttempt::class => RequestPayoutExecutionAttemptPolicy::class,
         Expense::class => ExpensePolicy::class,
         Vendor::class => VendorPolicy::class,
         DepartmentBudget::class => BudgetPolicy::class,

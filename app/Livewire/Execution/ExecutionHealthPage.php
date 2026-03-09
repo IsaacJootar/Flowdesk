@@ -6,11 +6,10 @@ use App\Domains\Company\Models\ExecutionWebhookEvent;
 use App\Domains\Company\Models\TenantAuditEvent;
 use App\Domains\Company\Models\TenantSubscriptionBillingAttempt;
 use App\Domains\Requests\Models\RequestPayoutExecutionAttempt;
-use App\Enums\UserRole;
-use App\Services\PlatformAccessService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -253,17 +252,7 @@ class ExecutionHealthPage extends Component
 
     private function canAccessPage(): bool
     {
-        $user = Auth::user();
-        if (! $user || app(PlatformAccessService::class)->isPlatformOperator($user)) {
-            return false;
-        }
-
-        return in_array((string) $user->role, [
-            UserRole::Owner->value,
-            UserRole::Finance->value,
-            UserRole::Manager->value,
-            UserRole::Auditor->value,
-        ], true);
+        return Gate::allows('viewAny', RequestPayoutExecutionAttempt::class);
     }
 
     private function latestRecoveryEvent(int $companyId): ?TenantAuditEvent

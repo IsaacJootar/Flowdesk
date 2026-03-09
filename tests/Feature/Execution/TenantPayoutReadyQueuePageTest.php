@@ -151,6 +151,54 @@ class TenantPayoutReadyQueuePageTest extends TestCase
         ]);
     }
 
+    public function test_auditor_can_view_queue_but_cannot_run_manual_payout_action(): void
+    {
+        [$company, $department] = $this->createCompanyContext('Queue Auditor Guardrail Tenant');
+
+        $auditor = $this->createUser($company, $department, UserRole::Auditor->value);
+        $requester = $this->createUser($company, $department, UserRole::Staff->value);
+
+        TenantSubscription::query()->create([
+            'company_id' => $company->id,
+            'plan_code' => 'growth',
+            'subscription_status' => 'current',
+            'payment_execution_mode' => 'execution_enabled',
+            'execution_provider' => 'manual_ops',
+            'execution_allowed_channels' => ['bank_transfer'],
+            'created_by' => $auditor->id,
+            'updated_by' => $auditor->id,
+        ]);
+
+        $request = SpendRequest::query()->create([
+            'company_id' => $company->id,
+            'request_code' => 'FD-QUEUE-AUD-001',
+            'requested_by' => $requester->id,
+            'department_id' => $department->id,
+            'title' => 'Auditor guardrail request',
+            'amount' => 115000,
+            'currency' => 'NGN',
+            'status' => 'approved_for_execution',
+            'approved_amount' => 115000,
+            'created_by' => $auditor->id,
+            'updated_by' => $auditor->id,
+        ]);
+
+        $this->actingAs($auditor);
+
+        Livewire::test(PayoutReadyQueuePage::class)
+            ->call('loadData')
+            ->assertViewHas('canRunPayoutActions', false);
+
+        Livewire::test(PayoutReadyQueuePage::class)
+            ->call('runPayoutNow', (int) $request->id)
+            ->assertForbidden();
+
+        $this->assertDatabaseMissing('request_payout_execution_attempts', [
+            'company_id' => $company->id,
+            'request_id' => (int) $request->id,
+        ]);
+    }
+
     /**
      * @return array{0:Company,1:Department}
      */
