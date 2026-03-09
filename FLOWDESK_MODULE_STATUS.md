@@ -1,6 +1,6 @@
 # Flowdesk Module Status (Ground Truth)
 
-Last updated: 2026-03-08
+Last updated: 2026-03-09
 
 This file is the canonical module inventory so planning discussions stay aligned to what is already implemented in code.
 
@@ -573,6 +573,27 @@ Before proposing "new" module work, check this file plus route map (`routes/web.
   - `tests/Feature/Vendors/VendorModuleTest.php`
 - Validation snapshot after performance pass:
   - `php artisan test` passed (`265 passed`, `0 failed`).
+
+## 9.3) Validation and UI Consistency Update (2026-03-09)
+- Validation hardening (Vendors workspace):
+  - `VendorsPage` now normalizes tamper-prone filter/query state and operator inputs:
+    - list filters: `statusFilter`, `typeFilter`, `perPage`
+    - invoice filters: `invoiceSearch`, `invoiceStatusFilter`
+    - statement export filters: `statementDateFrom`, `statementDateTo`, `statementInvoiceStatus`
+    - communication/retry controls: `reminderDaysAhead`, `vendorCommunicationPerPage`, `vendorCommQueuedOlderThanMinutes`
+  - Added regression coverage: `tests/Feature/Vendors/VendorsPageValidationHardeningTest.php`.
+  - Scope guard regression included: retry action remains scoped to selected vendor logs.
+- UI consistency rollout (Edit/View actions):
+  - Added icons to Edit/View action buttons to match Expenses workspace style in:
+    - `budgets-page`
+    - `assets-page`
+    - `purchase-orders-page`
+    - `purchase-receipts-page`
+    - `requests-page`
+    - `vendors-page`
+    - `vendor-details-page`
+    - `approval-timing-controls-page`
+    - `request-configuration-page`
 
 
 

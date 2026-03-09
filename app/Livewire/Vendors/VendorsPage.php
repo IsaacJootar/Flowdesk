@@ -189,44 +189,71 @@ class VendorsPage extends Component
 
     public function updatedSearch(): void
     {
+        $this->search = trim($this->search);
         $this->resetPage();
     }
 
     public function updatedStatusFilter(): void
     {
+        $this->statusFilter = $this->normalizeStatusFilter($this->statusFilter);
         $this->resetPage();
     }
 
     public function updatedTypeFilter(): void
     {
+        $this->typeFilter = $this->normalizeTypeFilter($this->typeFilter);
         $this->resetPage();
     }
 
     public function updatedPerPage(): void
     {
-        if (! in_array($this->perPage, [10, 25, 50], true)) {
-            $this->perPage = 10;
-        }
+        $this->perPage = $this->normalizePerPage($this->perPage);
 
         $this->resetPage();
     }
 
     public function updatedVendorCommunicationPerPage(): void
     {
-        if (! in_array($this->vendorCommunicationPerPage, [10, 25, 50], true)) {
-            $this->vendorCommunicationPerPage = 10;
-        }
+        $this->vendorCommunicationPerPage = $this->normalizePerPage($this->vendorCommunicationPerPage);
 
         $this->resetPage('vendor_comm_page');
     }
 
     public function updatedVendorCommQueuedOlderThanMinutes(mixed $value): void
     {
-        if ($value === null || $value === '') {
-            return;
-        }
+        $this->vendorCommQueuedOlderThanMinutes = $this->normalizeQueuedOlderThanMinutes($value);
+    }
 
-        $this->vendorCommQueuedOlderThanMinutes = max(0, (int) $value);
+    public function updatedInvoiceSearch(): void
+    {
+        $this->invoiceSearch = trim($this->invoiceSearch);
+    }
+
+    public function updatedInvoiceStatusFilter(): void
+    {
+        $this->invoiceStatusFilter = $this->normalizeInvoiceStatusFilter($this->invoiceStatusFilter);
+    }
+
+    public function updatedStatementDateFrom(): void
+    {
+        $this->statementDateFrom = $this->normalizeDateInput($this->statementDateFrom);
+        $this->normalizeStatementDateRange();
+    }
+
+    public function updatedStatementDateTo(): void
+    {
+        $this->statementDateTo = $this->normalizeDateInput($this->statementDateTo);
+        $this->normalizeStatementDateRange();
+    }
+
+    public function updatedStatementInvoiceStatus(): void
+    {
+        $this->statementInvoiceStatus = $this->normalizeInvoiceStatusFilter($this->statementInvoiceStatus);
+    }
+
+    public function updatedReminderDaysAhead(): void
+    {
+        $this->reminderDaysAhead = $this->normalizeReminderDaysAhead($this->reminderDaysAhead);
     }
 
     public function updated(string $propertyName, mixed $value = null): void
@@ -813,6 +840,8 @@ class VendorsPage extends Component
 
     public function render(): View
     {
+        $this->normalizeFilterState();
+
         $vendors = $this->readyToLoad
             ? $this->vendorQuery()->paginate($this->perPage)
             : Vendor::query()->whereRaw('1 = 0')->paginate($this->perPage);
@@ -848,6 +877,96 @@ class VendorsPage extends Component
         $vendor = Vendor::query()->findOrFail($vendorId);
 
         return $vendor;
+    }
+
+    private function normalizeFilterState(): void
+    {
+        $this->search = trim($this->search);
+        $this->statusFilter = $this->normalizeStatusFilter($this->statusFilter);
+        $this->typeFilter = $this->normalizeTypeFilter($this->typeFilter);
+        $this->perPage = $this->normalizePerPage($this->perPage);
+        $this->invoiceSearch = trim($this->invoiceSearch);
+        $this->invoiceStatusFilter = $this->normalizeInvoiceStatusFilter($this->invoiceStatusFilter);
+        $this->statementDateFrom = $this->normalizeDateInput($this->statementDateFrom);
+        $this->statementDateTo = $this->normalizeDateInput($this->statementDateTo);
+        $this->normalizeStatementDateRange();
+        $this->statementInvoiceStatus = $this->normalizeInvoiceStatusFilter($this->statementInvoiceStatus);
+        $this->reminderDaysAhead = $this->normalizeReminderDaysAhead($this->reminderDaysAhead);
+        $this->vendorCommunicationPerPage = $this->normalizePerPage($this->vendorCommunicationPerPage);
+        $this->vendorCommQueuedOlderThanMinutes = $this->normalizeQueuedOlderThanMinutes($this->vendorCommQueuedOlderThanMinutes);
+    }
+
+    private function normalizeStatusFilter(string $value): string
+    {
+        $normalized = strtolower(trim($value));
+
+        return in_array($normalized, ['all', 'active', 'inactive'], true) ? $normalized : 'all';
+    }
+
+    private function normalizeTypeFilter(string $value): string
+    {
+        $normalized = strtolower(trim($value));
+
+        return $normalized === 'all' || in_array($normalized, ['supplier', 'contractor', 'service', 'other'], true)
+            ? $normalized
+            : 'all';
+    }
+
+    private function normalizeInvoiceStatusFilter(string $value): string
+    {
+        $normalized = strtolower(trim($value));
+
+        return $normalized === 'all' || in_array($normalized, VendorInvoice::DISPLAY_STATUSES, true)
+            ? $normalized
+            : 'all';
+    }
+
+    private function normalizeDateInput(string $value): string
+    {
+        $normalized = trim($value);
+        if ($normalized === '') {
+            return '';
+        }
+
+        $parsed = \DateTimeImmutable::createFromFormat('!Y-m-d', $normalized);
+        $errors = \DateTimeImmutable::getLastErrors();
+        $hasWarnings = is_array($errors) && (($errors['warning_count'] ?? 0) > 0 || ($errors['error_count'] ?? 0) > 0);
+
+        if (! $parsed instanceof \DateTimeImmutable || $hasWarnings) {
+            return '';
+        }
+
+        return $parsed->format('Y-m-d');
+    }
+
+    private function normalizeStatementDateRange(): void
+    {
+        if ($this->statementDateFrom !== '' && $this->statementDateTo !== '' && $this->statementDateFrom > $this->statementDateTo) {
+            $this->statementDateTo = '';
+        }
+    }
+
+    private function normalizeReminderDaysAhead(int $value): int
+    {
+        return max(0, min($value, 30));
+    }
+
+    private function normalizeQueuedOlderThanMinutes(mixed $value): int
+    {
+        if ($value === null) {
+            return 2;
+        }
+
+        if (! is_numeric($value)) {
+            return 2;
+        }
+
+        return max(0, min((int) $value, 1440));
+    }
+
+    private function normalizePerPage(int $value): int
+    {
+        return in_array($value, [10, 25, 50], true) ? $value : 10;
     }
 
     /**

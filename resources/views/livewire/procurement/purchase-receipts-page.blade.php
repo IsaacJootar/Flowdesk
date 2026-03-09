@@ -112,7 +112,15 @@
                                     </span>
                                 </td>
                                 <td class="px-4 py-3 text-right">
-                                    <button type="button" wire:click="openDetails({{ $receipt->id }})" class="rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100">View</button>
+                                    <button type="button" wire:click="openDetails({{ $receipt->id }})" class="rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100">
+                                        <span class="inline-flex items-center gap-1.5">
+                                            <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                                <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"></path>
+                                                <circle cx="12" cy="12" r="3"></circle>
+                                            </svg>
+                                            <span>View</span>
+                                        </span>
+                                    </button>
                                 </td>
                             </tr>
                         @empty

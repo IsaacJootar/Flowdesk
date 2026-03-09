@@ -166,7 +166,13 @@
                                             href="{{ route('vendors.show', ['vendor' => $vendor->id]) }}"
                                             class="inline-flex items-center rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
                                         >
-                                            Details
+                                            <span class="inline-flex items-center gap-1.5">
+                                                <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                                    <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"></path>
+                                                    <circle cx="12" cy="12" r="3"></circle>
+                                                </svg>
+                                                <span>Details</span>
+                                            </span>
                                         </a>
                                         @can('update', $vendor)
                                             <button
@@ -176,7 +182,13 @@
                                                 wire:target="openEditModal({{ $vendor->id }})"
                                                 class="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-70"
                                             >
-                                                <span wire:loading.remove wire:target="openEditModal({{ $vendor->id }})">Edit</span>
+                                                <span wire:loading.remove wire:target="openEditModal({{ $vendor->id }})" class="inline-flex items-center gap-1.5">
+                                                    <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                                        <path d="M12 20h9"></path>
+                                                        <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"></path>
+                                                    </svg>
+                                                    <span>Edit</span>
+                                                </span>
                                                 <span wire:loading wire:target="openEditModal({{ $vendor->id }})">Opening...</span>
                                             </button>
                                         @endcan
@@ -568,7 +580,15 @@
                                         @if ($this->canManageVendorFinance || $this->canRecordVendorPayments)
                                             <div class="mt-3 flex flex-wrap items-center justify-end gap-2">
                                                 @if ($this->canManageVendorFinance)
-                                                    <button type="button" wire:click="openEditInvoiceModal({{ $invoice['id'] }})" class="rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50">Edit</button>
+                                                    <button type="button" wire:click="openEditInvoiceModal({{ $invoice['id'] }})" class="rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50">
+                                                        <span class="inline-flex items-center gap-1.5">
+                                                            <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                                                <path d="M12 20h9"></path>
+                                                                <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"></path>
+                                                            </svg>
+                                                            <span>Edit</span>
+                                                        </span>
+                                                    </button>
                                                 @endif
                                                 @if ($this->canRecordVendorPayments && $invoice['can_receive_payment'])
                                                     <button type="button" wire:click="openPaymentModal({{ $invoice['id'] }})" class="rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 hover:bg-emerald-100">Record Payment</button>
@@ -647,7 +667,13 @@
                                     wire:target="openEditModal"
                                     class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-70"
                                 >
-                                    <span wire:loading.remove wire:target="openEditModal">Edit</span>
+                                    <span wire:loading.remove wire:target="openEditModal" class="inline-flex items-center gap-1.5">
+                                        <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                            <path d="M12 20h9"></path>
+                                            <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"></path>
+                                        </svg>
+                                        <span>Edit</span>
+                                    </span>
                                     <span wire:loading wire:target="openEditModal">Opening...</span>
                                 </button>
                             @endcan

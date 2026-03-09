@@ -215,9 +215,14 @@ There are 2 models, and orgs choose:
 ## File Ownership
 - Product execution tracker: `FLOWDESK_FINAL_EXECUTION_CHECKLIST.md`
 
-## Latest Progress Update (2026-03-08)
+## Latest Progress Update (2026-03-09)
 - [x] Execution Health recent events/summaries expanded to include manual runs, auto-recovery outcomes, and alert delivery outcomes; tenant copy updated for clearer operator guidance.
 - [x] Tenant boundary hardening pass completed for platform-vs-tenant route separation (`EnsureCompanyContext`) and explicit `company_id` filters in dashboard/report query paths.
+- [x] Validation hardening expanded for Vendors page:
+  - `VendorsPage` now normalizes list/detail filter state and operator inputs (`status`, `type`, invoice/statement status, statement date range, reminders, communication queue thresholds, per-page values) to strict allow-lists/ranges.
+  - Added Livewire regression coverage: `tests/Feature/Vendors/VendorsPageValidationHardeningTest.php`.
+- [x] UI consistency pass completed for Edit/View actions:
+  - Added iconized Edit/View action buttons (matching Expenses page pattern) across Budgets, Vendors (registry/details), Requests, Procurement Orders/Receipts, Assets, and Settings control pages.
 - [x] Sensitive endpoint throttles wired:
   - `execution-webhooks` for `/webhooks/execution/{provider}`
   - `tenant-downloads` for attachment download endpoints
