@@ -1,6 +1,6 @@
 # FLOWDESK_AI_PLAN.md
 
-Last updated: 2026-03-07
+Last updated: 2026-03-09
 
 ## 1) Goal
 Add practical AI features that make Flowdesk faster and safer for operations and finance teams, without expensive subscriptions.
@@ -10,6 +10,13 @@ Primary outcome:
 - Better exception handling
 - Better operator clarity
 - No tenant data mixing
+
+Current rollout status (2026-03-09):
+- Requests workflow now exposes AI as **Flow Agents** (advisory side panel in draft and request view modals).
+- Flow Agents is tenant-gated via `ai_enabled` entitlement and remains human-in-control (`advisory_only` guard respected).
+- Flow Agents now supports user-triggered workflow execution in Requests (for example: convert/create expense) when the user explicitly clicks the action.
+- Redundant agent-submit and agent-approve actions were removed; Requests Flow Agents now focuses on higher-value actions (convert-to-PO, create-expense) plus risk analysis.
+- Initial implementation is `app/Services/AI/RequestFlowAgentService.php` with feature coverage in `tests/Feature/Requests/RequestFlowAgentsTest.php`.
 
 ## 2) Non-Negotiable Rules
 
@@ -72,14 +79,15 @@ No expensive subscriptions required.
 ## 5) AI Features by Module
 
 ## 5.1 Requests and Approvals
-Feature: Approval Copilot
+Feature: Flow Agents (Requests)
 - What it does:
   - Summarizes request context, policy checks, and risk signals.
   - Suggests `Approve`, `Return`, or `Escalate` with reasons.
 - Where:
-  - Requests details modal
-  - Approval desk
+  - Requests draft modal (side panel)
+  - Requests details modal (side panel)
 - Clear labels:
+  - `Flow Agents`
   - `Recommendation`
   - `Why this suggestion`
   - `Confidence`

@@ -97,6 +97,11 @@ There are 2 models, and orgs choose:
 - [ ] In-app assistant panel for summaries and recommendations
 - [ ] Audit log of assistant actions and data access
 
+Progress note (2026-03-09):
+- Requests module now includes tenant-gated **Flow Agents** advisory panels in draft/view modals (`app/Livewire/Requests/RequestsPage.php`, `resources/views/livewire/requests/requests-page.blade.php`).
+- Flow Agents now includes user-triggered workflow actions in Requests while keeping user as first actor (no autonomous execution).
+- Advisory engine implemented in `app/Services/AI/RequestFlowAgentService.php` with feature tests in `tests/Feature/Requests/RequestFlowAgentsTest.php`.
+
 ### Exit Criteria
 - [ ] AI suggestions are visible, explainable, and overridable
 - [ ] AI never bypasses policy controls
@@ -221,6 +226,16 @@ There are 2 models, and orgs choose:
 - [x] Validation hardening expanded for Vendors page:
   - `VendorsPage` now normalizes list/detail filter state and operator inputs (`status`, `type`, invoice/statement status, statement date range, reminders, communication queue thresholds, per-page values) to strict allow-lists/ranges.
   - Added Livewire regression coverage: `tests/Feature/Vendors/VendorsPageValidationHardeningTest.php`.
+- [x] Validation hardening expanded for Assets + Procurement + Requests workspaces:
+  - `AssetsPage` now normalizes search/status/category/assignment/per-page filters to strict allow-lists.
+  - `PurchaseOrdersPage` now normalizes search/status/per-page and enforces tenant/order-scoped `exists` validation for goods-receipt line item IDs.
+  - `PurchaseOrdersPage` invoice-link action now rejects cross-tenant / wrong-vendor / invalid invoice IDs at page boundary.
+  - `PurchaseReceiptsPage` now normalizes search/status/date-range/per-page filters with strict date parsing.
+  - `RequestsPage` now normalizes search/status/type/department/scope/date-range/per-page filters before query execution.
+  - Added regression coverage:
+    - `tests/Feature/Assets/AssetsPageValidationHardeningTest.php`
+    - `tests/Feature/Finance/ProcurementPagesValidationHardeningTest.php`
+    - `tests/Feature/Requests/RequestsPageValidationHardeningTest.php`
 - [x] UI consistency pass completed for Edit/View actions:
   - Added iconized Edit/View action buttons (matching Expenses page pattern) across Budgets, Vendors (registry/details), Requests, Procurement Orders/Receipts, Assets, and Settings control pages.
 - [x] Sensitive endpoint throttles wired:

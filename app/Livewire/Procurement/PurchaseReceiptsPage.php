@@ -59,35 +59,40 @@ class PurchaseReceiptsPage extends Component
 
     public function updatedSearch(): void
     {
+        $this->search = $this->normalizeSearch($this->search);
         $this->resetPage();
     }
 
     public function updatedStatusFilter(): void
     {
+        $this->statusFilter = $this->normalizeStatusFilter($this->statusFilter);
         $this->resetPage();
     }
 
     public function updatedReceivedFrom(): void
     {
+        $this->receivedFrom = $this->normalizeDateInput($this->receivedFrom);
+        $this->normalizeReceivedDateRange();
         $this->resetPage();
     }
 
     public function updatedReceivedTo(): void
     {
+        $this->receivedTo = $this->normalizeDateInput($this->receivedTo);
+        $this->normalizeReceivedDateRange();
         $this->resetPage();
     }
 
     public function updatedPerPage(): void
     {
-        if (! in_array($this->perPage, [10, 25, 50], true)) {
-            $this->perPage = 10;
-        }
+        $this->perPage = $this->normalizePerPage($this->perPage);
 
         $this->resetPage();
     }
 
     public function exportCsv(): StreamedResponse
     {
+        $this->normalizeFilterState();
         Gate::authorize('viewAny', GoodsReceipt::class);
 
         $fileName = 'procurement_receipts_'.now()->format('Ymd_His').'.csv';
@@ -210,6 +215,8 @@ class PurchaseReceiptsPage extends Component
 
     public function render(): View
     {
+        $this->normalizeFilterState();
+
         $query = $this->filteredReceiptsQuery()
             ->with([
                 'order:id,po_number,po_status,currency_code,vendor_id',
@@ -260,5 +267,59 @@ class PurchaseReceiptsPage extends Component
     private function canAccessPage(User $user): bool
     {
         return Gate::forUser($user)->allows('viewAny', GoodsReceipt::class);
+    }
+
+    private function normalizeFilterState(): void
+    {
+        $this->search = $this->normalizeSearch($this->search);
+        $this->statusFilter = $this->normalizeStatusFilter($this->statusFilter);
+        $this->receivedFrom = $this->normalizeDateInput($this->receivedFrom);
+        $this->receivedTo = $this->normalizeDateInput($this->receivedTo);
+        $this->normalizeReceivedDateRange();
+        $this->perPage = $this->normalizePerPage($this->perPage);
+    }
+
+    private function normalizeSearch(string $value): string
+    {
+        return mb_substr(trim($value), 0, 120);
+    }
+
+    private function normalizeStatusFilter(string $value): string
+    {
+        $normalized = strtolower(trim($value));
+
+        return $normalized === 'all' || in_array($normalized, GoodsReceipt::STATUSES, true)
+            ? $normalized
+            : 'all';
+    }
+
+    private function normalizeDateInput(?string $value): ?string
+    {
+        $normalized = trim((string) $value);
+        if ($normalized === '') {
+            return null;
+        }
+
+        $parsed = \DateTimeImmutable::createFromFormat('!Y-m-d', $normalized);
+        $errors = \DateTimeImmutable::getLastErrors();
+        $hasWarnings = is_array($errors) && (($errors['warning_count'] ?? 0) > 0 || ($errors['error_count'] ?? 0) > 0);
+
+        if (! $parsed instanceof \DateTimeImmutable || $hasWarnings) {
+            return null;
+        }
+
+        return $parsed->format('Y-m-d');
+    }
+
+    private function normalizeReceivedDateRange(): void
+    {
+        if ($this->receivedFrom !== null && $this->receivedTo !== null && $this->receivedFrom > $this->receivedTo) {
+            $this->receivedTo = null;
+        }
+    }
+
+    private function normalizePerPage(int $value): int
+    {
+        return in_array($value, [10, 25, 50], true) ? $value : 10;
     }
 }

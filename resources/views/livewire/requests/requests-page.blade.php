@@ -394,7 +394,7 @@
     @if ($showFormModal)
         <div wire:click="closeFormModal" class="fixed left-0 right-0 bottom-0 top-0 z-40 overflow-y-auto bg-slate-900/40 p-3">
             <div class="flex items-start justify-center pt-1">
-                <div wire:click.stop class="fd-card w-full max-w-4xl p-6" style="max-height: calc(100vh - 3rem); overflow-y: auto;">
+                <div wire:click.stop class="fd-card w-full {{ $showFlowAgentsPanel && $flowAgentsContext === 'draft' ? 'max-w-6xl' : 'max-w-4xl' }} p-6" style="max-height: calc(100vh - 3rem); overflow-y: auto;">
                     <div class="mb-4 flex items-start justify-between">
                         <div>
                             <span class="inline-flex items-center rounded-full border border-indigo-200 bg-indigo-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-indigo-700">
@@ -403,11 +403,31 @@
                             <h2 class="text-lg font-semibold text-slate-900">{{ $isEditing ? 'Edit Request Draft' : 'Create Request Draft' }}</h2>
                             <p class="text-sm text-slate-500">Capture request details, items, and workflow before submission.</p>
                         </div>
-                        <button type="button" wire:click="closeFormModal" class="rounded-lg border border-slate-200 px-3 py-1 text-sm text-slate-600 hover:bg-slate-50">
-                            Close
-                        </button>
+                        <div class="flex items-center gap-2">
+                            @if ($flowAgentsEnabled)
+                                <button type="button" wire:click="runFlowAgentsForDraft" wire:loading.attr="disabled" wire:target="runFlowAgentsForDraft" class="inline-flex items-center gap-1.5 rounded-lg border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-semibold text-sky-700 hover:bg-sky-100 disabled:opacity-70">
+                                    <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                        <path d="M12 3v3"></path>
+                                        <path d="M12 18v3"></path>
+                                        <path d="M3 12h3"></path>
+                                        <path d="M18 12h3"></path>
+                                        <path d="M6.3 6.3l2.1 2.1"></path>
+                                        <path d="M15.6 15.6l2.1 2.1"></path>
+                                        <path d="M17.7 6.3l-2.1 2.1"></path>
+                                        <path d="M8.4 15.6l-2.1 2.1"></path>
+                                    </svg>
+                                    <span wire:loading.remove wire:target="runFlowAgentsForDraft">Flow Agents</span>
+                                    <span wire:loading wire:target="runFlowAgentsForDraft">Analyzing...</span>
+                                </button>
+                            @endif
+                            <button type="button" wire:click="closeFormModal" class="rounded-lg border border-slate-200 px-3 py-1 text-sm text-slate-600 hover:bg-slate-50">
+                                Close
+                            </button>
+                        </div>
                     </div>
 
+                    <div class="{{ $showFlowAgentsPanel && $flowAgentsContext === 'draft' ? 'grid gap-4 xl:grid-cols-3' : '' }}">
+                    <div class="{{ $showFlowAgentsPanel && $flowAgentsContext === 'draft' ? 'xl:col-span-2' : '' }}">
                     <form wire:submit.prevent="saveDraft" class="space-y-4">
                         @error('form.no_changes')
                             <div class="rounded-xl px-4 py-3 text-sm" style="background:#fffbeb;border:1px solid #f59e0b;color:#92400e;">
@@ -697,6 +717,74 @@
                             </button>
                         </div>
                     </form>
+                    </div>
+                    @if ($flowAgentsEnabled && $showFlowAgentsPanel && $flowAgentsContext === 'draft')
+                        <aside class="rounded-xl border border-slate-200 bg-slate-50 p-4 xl:sticky xl:top-2 xl:self-start">
+                            <div class="flex items-start justify-between gap-2">
+                                <div>
+                                    <p class="text-sm font-semibold text-slate-900">Flow Agents</p>
+                                    <p class="mt-1 text-xs text-slate-500">Draft guidance for policy readiness and approval quality.</p>
+                                </div>
+                                <button type="button" wire:click="closeFlowAgentsPanel" class="rounded-lg border border-slate-300 px-2 py-1 text-[11px] font-semibold text-slate-600 hover:bg-white">
+                                    Hide
+                                </button>
+                            </div>
+
+                            @if ($flowAgentsAdvisoryOnly)
+                                <p class="mt-3 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-[11px] text-indigo-700">
+                                    Advisory only: Flow Agents does not auto-submit or override policy.
+                                </p>
+                            @endif
+
+                            <div class="mt-3 flex items-center gap-2">
+                                <button type="button" wire:click="runFlowAgentsForDraft" wire:loading.attr="disabled" wire:target="runFlowAgentsForDraft" class="rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-70">
+                                    <span wire:loading.remove wire:target="runFlowAgentsForDraft">Refresh</span>
+                                    <span wire:loading wire:target="runFlowAgentsForDraft">Running...</span>
+                                </button>
+                                @if ($flowAgentsGeneratedAt)
+                                    <span class="text-[11px] text-slate-500">Updated {{ $flowAgentsGeneratedAt }}</span>
+                                @endif
+                            </div>
+
+                            @if ($flowAgentsSummary !== '')
+                                <p class="mt-3 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700">{{ $flowAgentsSummary }}</p>
+                            @endif
+
+                            <div class="mt-3 space-y-2">
+                                @forelse ($flowAgentsItems as $item)
+                                    @php
+                                        $itemClass = 'border-emerald-200 bg-emerald-50 text-emerald-800';
+                                        if (($item['severity'] ?? '') === 'action') {
+                                            $itemClass = 'border-red-200 bg-red-50 text-red-800';
+                                        } elseif (($item['severity'] ?? '') === 'watch') {
+                                            $itemClass = 'border-amber-200 bg-amber-50 text-amber-800';
+                                        }
+                                    @endphp
+                                    <div class="rounded-lg border px-3 py-2 {{ $itemClass }}">
+                                        <p class="text-xs font-semibold">{{ $item['title'] ?? 'Flow Agent Suggestion' }}</p>
+                                        <p class="mt-1 text-xs">{{ $item['message'] ?? '' }}</p>
+                                        @if (! empty($item['action_key']) && $flowAgentsContext === 'view')
+                                            <div class="mt-2">
+                                                <button
+                                                    type="button"
+                                                    wire:click="runFlowAgentAction('{{ $item['action_key'] }}')"
+                                                    wire:loading.attr="disabled"
+                                                    wire:target="runFlowAgentAction"
+                                                    class="rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-70"
+                                                >
+                                                    <span wire:loading.remove wire:target="runFlowAgentAction">{{ $item['action_label'] ?? 'Run With Flow Agent' }}</span>
+                                                    <span wire:loading wire:target="runFlowAgentAction">Running...</span>
+                                                </button>
+                                            </div>
+                                        @endif
+                                    </div>
+                                @empty
+                                    <p class="text-xs text-slate-500">No flow agent suggestions available yet.</p>
+                                @endforelse
+                            </div>
+                        </aside>
+                    @endif
+                    </div>
                 </div>
             </div>
         </div>
@@ -705,7 +793,7 @@
     @if ($showViewModal && $selectedRequest)
         <div wire:click="closeViewModal" class="fixed left-0 right-0 bottom-0 top-0 z-50 overflow-y-auto bg-slate-900/40 p-3">
             <div class="flex items-start justify-center pt-1">
-                <div wire:click.stop class="w-full max-w-4xl rounded-2xl border border-slate-200 bg-white shadow-2xl" style="max-height: calc(100vh - 3rem); overflow-y: auto;">
+                <div wire:click.stop class="w-full {{ $showFlowAgentsPanel && $flowAgentsContext === 'view' ? 'max-w-6xl' : 'max-w-4xl' }} rounded-2xl border border-slate-200 bg-white shadow-2xl" style="max-height: calc(100vh - 3rem); overflow-y: auto;">
                     <div class="flex items-start justify-between border-b border-slate-200 px-6 py-5">
                         <div>
                             <span class="inline-flex items-center rounded-full border border-indigo-200 bg-indigo-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-indigo-700">
@@ -714,12 +802,32 @@
                             <h3 class="mt-1 text-xl font-semibold text-slate-900">{{ $selectedRequest['title'] }}</h3>
                             <p class="text-sm text-slate-500">{{ $selectedRequest['request_code'] }} &middot; {{ $selectedRequest['request_type_name'] }}</p>
                         </div>
-                        <button type="button" wire:click="closeViewModal" class="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50">
-                            Close
-                        </button>
+                        <div class="flex items-center gap-2">
+                            @if ($flowAgentsEnabled)
+                                <button type="button" wire:click="runFlowAgentsForSelectedRequest" wire:loading.attr="disabled" wire:target="runFlowAgentsForSelectedRequest" class="inline-flex items-center gap-1.5 rounded-lg border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-semibold text-sky-700 hover:bg-sky-100 disabled:opacity-70">
+                                    <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                        <path d="M12 3v3"></path>
+                                        <path d="M12 18v3"></path>
+                                        <path d="M3 12h3"></path>
+                                        <path d="M18 12h3"></path>
+                                        <path d="M6.3 6.3l2.1 2.1"></path>
+                                        <path d="M15.6 15.6l2.1 2.1"></path>
+                                        <path d="M17.7 6.3l-2.1 2.1"></path>
+                                        <path d="M8.4 15.6l-2.1 2.1"></path>
+                                    </svg>
+                                    <span wire:loading.remove wire:target="runFlowAgentsForSelectedRequest">Flow Agents</span>
+                                    <span wire:loading wire:target="runFlowAgentsForSelectedRequest">Analyzing...</span>
+                                </button>
+                            @endif
+                            <button type="button" wire:click="closeViewModal" class="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50">
+                                Close
+                            </button>
+                        </div>
                     </div>
 
-                    <div class="space-y-4 p-6">
+                    <div class="p-6">
+                        <div class="{{ $showFlowAgentsPanel && $flowAgentsContext === 'view' ? 'grid gap-4 xl:grid-cols-3' : '' }}">
+                        <div class="space-y-4 {{ $showFlowAgentsPanel && $flowAgentsContext === 'view' ? 'xl:col-span-2' : '' }}">
                         <div class="grid gap-3 sm:grid-cols-3">
                             @php
                                 $statusClass = 'bg-slate-100 text-slate-700';
@@ -1332,6 +1440,74 @@
                                 @error('submitPolicy')<p class="mt-2 text-xs text-red-600">{{ $message }}</p>@enderror
                             </div>
                         @endif
+                        </div>
+                        @if ($flowAgentsEnabled && $showFlowAgentsPanel && $flowAgentsContext === 'view')
+                            <aside class="rounded-xl border border-slate-200 bg-slate-50 p-4 xl:sticky xl:top-2 xl:self-start">
+                                <div class="flex items-start justify-between gap-2">
+                                    <div>
+                                        <p class="text-sm font-semibold text-slate-900">Flow Agents</p>
+                                        <p class="mt-1 text-xs text-slate-500">Live guidance for approval, handoff, and execution readiness.</p>
+                                    </div>
+                                    <button type="button" wire:click="closeFlowAgentsPanel" class="rounded-lg border border-slate-300 px-2 py-1 text-[11px] font-semibold text-slate-600 hover:bg-white">
+                                        Hide
+                                    </button>
+                                </div>
+
+                                @if ($flowAgentsAdvisoryOnly)
+                                    <p class="mt-3 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-[11px] text-indigo-700">
+                                        Advisory only: Flow Agents does not auto-approve or execute actions.
+                                    </p>
+                                @endif
+
+                                <div class="mt-3 flex items-center gap-2">
+                                    <button type="button" wire:click="runFlowAgentsForSelectedRequest" wire:loading.attr="disabled" wire:target="runFlowAgentsForSelectedRequest" class="rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-70">
+                                        <span wire:loading.remove wire:target="runFlowAgentsForSelectedRequest">Refresh</span>
+                                        <span wire:loading wire:target="runFlowAgentsForSelectedRequest">Running...</span>
+                                    </button>
+                                    @if ($flowAgentsGeneratedAt)
+                                        <span class="text-[11px] text-slate-500">Updated {{ $flowAgentsGeneratedAt }}</span>
+                                    @endif
+                                </div>
+
+                                @if ($flowAgentsSummary !== '')
+                                    <p class="mt-3 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700">{{ $flowAgentsSummary }}</p>
+                                @endif
+
+                                <div class="mt-3 space-y-2">
+                                    @forelse ($flowAgentsItems as $item)
+                                        @php
+                                            $itemClass = 'border-emerald-200 bg-emerald-50 text-emerald-800';
+                                            if (($item['severity'] ?? '') === 'action') {
+                                                $itemClass = 'border-red-200 bg-red-50 text-red-800';
+                                            } elseif (($item['severity'] ?? '') === 'watch') {
+                                                $itemClass = 'border-amber-200 bg-amber-50 text-amber-800';
+                                            }
+                                        @endphp
+                                        <div class="rounded-lg border px-3 py-2 {{ $itemClass }}">
+                                            <p class="text-xs font-semibold">{{ $item['title'] ?? 'Flow Agent Suggestion' }}</p>
+                                            <p class="mt-1 text-xs">{{ $item['message'] ?? '' }}</p>
+                                            @if (! empty($item['action_key']))
+                                                <div class="mt-2">
+                                                    <button
+                                                        type="button"
+                                                        wire:click="runFlowAgentAction('{{ $item['action_key'] }}')"
+                                                        wire:loading.attr="disabled"
+                                                        wire:target="runFlowAgentAction"
+                                                        class="rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-70"
+                                                    >
+                                                        <span wire:loading.remove wire:target="runFlowAgentAction">{{ $item['action_label'] ?? 'Run With Flow Agent' }}</span>
+                                                        <span wire:loading wire:target="runFlowAgentAction">Running...</span>
+                                                    </button>
+                                                </div>
+                                            @endif
+                                        </div>
+                                    @empty
+                                        <p class="text-xs text-slate-500">No flow agent suggestions available yet.</p>
+                                    @endforelse
+                                </div>
+                            </aside>
+                        @endif
+                        </div>
                     </div>
 
                     <div class="flex items-center justify-end gap-3 border-t border-slate-200 px-6 py-4">

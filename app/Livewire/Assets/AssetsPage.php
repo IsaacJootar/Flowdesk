@@ -170,33 +170,35 @@ class AssetsPage extends Component
 
     public function updatedSearch(): void
     {
+        $this->search = trim($this->search);
         $this->selectedAssetIds = [];
         $this->resetPage();
     }
 
     public function updatedStatusFilter(): void
     {
+        $this->statusFilter = $this->normalizeStatusFilter($this->statusFilter);
         $this->selectedAssetIds = [];
         $this->resetPage();
     }
 
     public function updatedCategoryFilter(): void
     {
+        $this->categoryFilter = $this->normalizeCategoryFilter($this->categoryFilter);
         $this->selectedAssetIds = [];
         $this->resetPage();
     }
 
     public function updatedAssignmentFilter(): void
     {
+        $this->assignmentFilter = $this->normalizeAssignmentFilter($this->assignmentFilter);
         $this->selectedAssetIds = [];
         $this->resetPage();
     }
 
     public function updatedPerPage(): void
     {
-        if (! in_array($this->perPage, [10, 25, 50], true)) {
-            $this->perPage = 10;
-        }
+        $this->perPage = $this->normalizePerPage($this->perPage);
 
         $this->resetPage();
     }
@@ -769,6 +771,8 @@ class AssetsPage extends Component
 
     public function render(): View
     {
+        $this->normalizeFilterState();
+
         $assets = $this->readyToLoad
             ? $this->assetQuery()->paginate($this->perPage)
             : Asset::query()->whereRaw('1 = 0')->paginate($this->perPage);
@@ -1090,5 +1094,51 @@ class AssetsPage extends Component
         $this->feedbackMessage = null;
         $this->feedbackError = $message;
         $this->feedbackKey++;
+    }
+
+    private function normalizeFilterState(): void
+    {
+        $this->search = trim($this->search);
+        $this->statusFilter = $this->normalizeStatusFilter($this->statusFilter);
+        $this->categoryFilter = $this->normalizeCategoryFilter($this->categoryFilter);
+        $this->assignmentFilter = $this->normalizeAssignmentFilter($this->assignmentFilter);
+        $this->perPage = $this->normalizePerPage($this->perPage);
+    }
+
+    private function normalizeStatusFilter(string $value): string
+    {
+        $normalized = strtolower(trim($value));
+
+        return $normalized === 'all' || in_array($normalized, Asset::STATUSES, true)
+            ? $normalized
+            : 'all';
+    }
+
+    private function normalizeCategoryFilter(string $value): string
+    {
+        $normalized = trim($value);
+        if ($normalized === '' || strtolower($normalized) === 'all') {
+            return 'all';
+        }
+
+        if (! ctype_digit($normalized)) {
+            return 'all';
+        }
+
+        return ((int) $normalized) > 0 ? (string) ((int) $normalized) : 'all';
+    }
+
+    private function normalizeAssignmentFilter(string $value): string
+    {
+        $normalized = strtolower(trim($value));
+
+        return in_array($normalized, ['all', 'assigned', 'unassigned', 'disposed'], true)
+            ? $normalized
+            : 'all';
+    }
+
+    private function normalizePerPage(int $value): int
+    {
+        return in_array($value, [10, 25, 50], true) ? $value : 10;
     }
 }

@@ -25,6 +25,8 @@ use App\Domains\Company\Models\Department;
 use App\Domains\Vendors\Models\Vendor;
 use App\Enums\UserRole;
 use App\Models\User;
+use App\Services\AI\AiFeatureGateService;
+use App\Services\AI\RequestFlowAgentService;
 use App\Services\ExpensePolicyResolver;
 use App\Services\RequestApprovalRouter;
 use App\Services\TenantModuleAccessService;
@@ -130,10 +132,28 @@ class RequestsPage extends Component
     /** @var array<int, mixed> */
     public array $viewNewAttachments = [];
 
+    public bool $flowAgentsEnabled = false;
+
+    public bool $flowAgentsAdvisoryOnly = true;
+
+    public bool $showFlowAgentsPanel = false;
+
+    public string $flowAgentsContext = 'draft';
+
+    public string $flowAgentsSummary = '';
+
+    /** @var array<int, array{severity:string,title:string,message:string,action_key:string|null,action_label:string|null}> */
+    public array $flowAgentsItems = [];
+
+    public ?string $flowAgentsGeneratedAt = null;
+
     public function mount(): void
     {
         $user = \Illuminate\Support\Facades\Auth::user();
         abort_unless($user && Gate::forUser($user)->allows('viewAny', SpendRequest::class), 403);
+
+        $this->flowAgentsEnabled = app(AiFeatureGateService::class)->enabledForCompany((int) $user->company_id);
+        $this->flowAgentsAdvisoryOnly = (bool) config('ai.guards.advisory_only', true);
 
         // Deep-link support: allow other modules to prefill request lookup on load.
         $deepLinkRequestCode = trim((string) request()->query('request_code', ''));
@@ -168,44 +188,51 @@ class RequestsPage extends Component
 
     public function updatedSearch(): void
     {
+        $this->search = $this->normalizeSearch($this->search);
         $this->resetPage();
     }
 
     public function updatedStatusFilter(): void
     {
+        $this->statusFilter = $this->normalizeStatusFilter($this->statusFilter);
         $this->resetPage();
     }
 
     public function updatedTypeFilter(): void
     {
+        $this->typeFilter = $this->normalizeTypeFilter($this->typeFilter);
         $this->resetPage();
     }
 
     public function updatedDepartmentFilter(): void
     {
+        $this->departmentFilter = $this->normalizeDepartmentFilter($this->departmentFilter);
         $this->resetPage();
     }
 
     public function updatedDateFrom(): void
     {
+        $this->dateFrom = $this->normalizeDateInput($this->dateFrom);
+        $this->normalizeDateRange();
         $this->resetPage();
     }
 
     public function updatedDateTo(): void
     {
+        $this->dateTo = $this->normalizeDateInput($this->dateTo);
+        $this->normalizeDateRange();
         $this->resetPage();
     }
 
     public function updatedScopeFilter(): void
     {
+        $this->scopeFilter = $this->normalizeScopeFilter($this->scopeFilter);
         $this->resetPage();
     }
 
     public function updatedPerPage(): void
     {
-        if (! in_array($this->perPage, [10, 25, 50], true)) {
-            $this->perPage = 10;
-        }
+        $this->perPage = $this->normalizePerPage($this->perPage);
 
         $this->resetPage();
     }
@@ -232,6 +259,7 @@ class RequestsPage extends Component
         $this->isEditing = false;
         $this->editingRequestId = null;
         $this->resetForm();
+        $this->resetFlowAgentsPanel('draft');
         $this->showFormModal = true;
     }
 
@@ -250,6 +278,7 @@ class RequestsPage extends Component
         $this->isEditing = true;
         $this->editingRequestId = $request->id;
         $this->fillFormFromRequest($request);
+        $this->resetFlowAgentsPanel('draft');
         $this->showFormModal = true;
     }
 
@@ -268,6 +297,7 @@ class RequestsPage extends Component
         $this->selectedRequestId = $request->id;
         $this->decisionComment = '';
         $this->showViewModal = true;
+        $this->resetFlowAgentsPanel('view');
         $this->markInAppNotificationsAsRead($request->id);
         $this->fillSelectedRequestData($request);
         $this->prepareSubmitChannels($request);
@@ -282,6 +312,7 @@ class RequestsPage extends Component
         $this->newAttachments = [];
         $this->resetValidation();
         $this->resetForm();
+        $this->resetFlowAgentsPanel('draft');
     }
 
     public function closeViewModal(): void
@@ -297,6 +328,99 @@ class RequestsPage extends Component
         $this->decisionChannelPolicies = [];
         $this->viewNewAttachments = [];
         $this->resetValidation();
+        $this->resetFlowAgentsPanel('draft');
+    }
+
+    public function runFlowAgentsForDraft(RequestFlowAgentService $requestFlowAgentService): void
+    {
+        if (! $this->flowAgentsEnabled) {
+            $this->setFeedbackWarning('Flow Agents is not enabled for this tenant.');
+
+            return;
+        }
+
+        $this->showFlowAgentsPanel = true;
+        $this->flowAgentsContext = 'draft';
+        $this->syncFlowAgentResult($requestFlowAgentService->analyzeDraft([
+            'title' => (string) ($this->form['title'] ?? ''),
+            'workflow_id' => (int) ($this->form['workflow_id'] ?? 0),
+            'amount' => (int) ($this->form['amount'] ?? 0),
+            'needed_by' => (string) ($this->form['needed_by'] ?? ''),
+            'line_items' => $this->lineItems,
+            'attachments_count' => count($this->newAttachments),
+            'requires_amount' => (bool) (($this->requestTypeMap[(string) ($this->form['type'] ?? '')]['requires_amount'] ?? false)),
+            'requires_line_items' => (bool) (($this->requestTypeMap[(string) ($this->form['type'] ?? '')]['requires_line_items'] ?? false)),
+            'requires_vendor' => (bool) (($this->requestTypeMap[(string) ($this->form['type'] ?? '')]['requires_vendor'] ?? false)),
+            'requires_attachments' => (bool) (($this->requestTypeMap[(string) ($this->form['type'] ?? '')]['requires_attachments'] ?? false)),
+        ]));
+    }
+
+    public function runFlowAgentsForSelectedRequest(RequestFlowAgentService $requestFlowAgentService): void
+    {
+        if (! $this->flowAgentsEnabled) {
+            $this->setFeedbackWarning('Flow Agents is not enabled for this tenant.');
+
+            return;
+        }
+
+        if (! $this->selectedRequestId) {
+            return;
+        }
+
+        $request = $this->loadRequestForView($this->selectedRequestId);
+        if (Gate::denies('view', $request)) {
+            $this->setFeedbackError('You do not have access to run Flow Agents for this request.');
+
+            return;
+        }
+
+        $this->fillSelectedRequestData($request);
+        $this->showFlowAgentsPanel = true;
+        $this->flowAgentsContext = 'view';
+        $this->syncFlowAgentResult($requestFlowAgentService->analyzeRequest($request, [
+            'can_convert_to_po' => (bool) ($this->selectedRequest['can_convert_to_po'] ?? false),
+            'can_create_expense' => (bool) ($this->selectedRequest['can_create_expense'] ?? false),
+        ]));
+    }
+
+    public function closeFlowAgentsPanel(): void
+    {
+        $this->showFlowAgentsPanel = false;
+    }
+
+    public function runFlowAgentAction(
+        string $actionKey,
+        CreateExpense $createExpense,
+        ExpensePolicyResolver $expensePolicyResolver,
+        CreatePurchaseOrderFromRequestService $createPurchaseOrderFromRequestService,
+        RequestFlowAgentService $requestFlowAgentService
+    ): void {
+        if (! $this->flowAgentsEnabled) {
+            $this->setFeedbackWarning('Flow Agents is not enabled for this tenant.');
+
+            return;
+        }
+
+        if (! $this->selectedRequestId) {
+            return;
+        }
+
+        $normalizedAction = strtolower(trim($actionKey));
+        if ($normalizedAction === '') {
+            $this->setFeedbackError('Invalid Flow Agent action.');
+
+            return;
+        }
+
+        match ($normalizedAction) {
+            'convert_to_po' => $this->convertSelectedRequestToPurchaseOrder($createPurchaseOrderFromRequestService),
+            'create_expense' => $this->createExpenseFromSelectedRequest($createExpense, $expensePolicyResolver),
+            default => $this->setFeedbackError('Unsupported Flow Agent action.'),
+        };
+
+        if ($this->feedbackError === null) {
+            $this->runFlowAgentsForSelectedRequest($requestFlowAgentService);
+        }
     }
 
     public function addThreadComment(AddRequestComment $addRequestComment): void
@@ -642,6 +766,7 @@ class RequestsPage extends Component
     public function render(): View
     {
         $this->refreshRequestTypeMap();
+        $this->normalizeFilterState();
         $approvableRequestIds = $this->approvableRequestIds();
 
         $departments = Department::query()
@@ -722,7 +847,7 @@ class RequestsPage extends Component
             'requestTypes' => $requestTypes,
             'spendCategories' => $spendCategories,
             'users' => $users,
-            'statuses' => ['draft', 'in_review', 'approved_for_execution', 'execution_queued', 'execution_processing', 'settled', 'failed', 'reversed', 'approved', 'rejected', 'returned'],
+            'statuses' => $this->requestStatusOptions(),
             'approvableRequestIds' => $approvableRequestIds,
             'requestAnalytics' => $requestAnalytics,
             'rowApprovalContexts' => $rowApprovalContexts,
@@ -1663,6 +1788,64 @@ class RequestsPage extends Component
         $this->newAttachments = [];
     }
 
+    private function resetFlowAgentsPanel(string $context = 'draft'): void
+    {
+        $this->showFlowAgentsPanel = false;
+        $this->flowAgentsContext = in_array($context, ['draft', 'view'], true) ? $context : 'draft';
+        $this->flowAgentsSummary = '';
+        $this->flowAgentsItems = [];
+        $this->flowAgentsGeneratedAt = null;
+    }
+
+    /**
+     * @param  array{summary?:mixed,items?:mixed,generated_at?:mixed}  $result
+     */
+    private function syncFlowAgentResult(array $result): void
+    {
+        $items = [];
+        foreach ((array) ($result['items'] ?? []) as $item) {
+            if (! is_array($item)) {
+                continue;
+            }
+
+            $severity = (string) ($item['severity'] ?? 'ok');
+            if (! in_array($severity, ['action', 'watch', 'ok'], true)) {
+                $severity = 'ok';
+            }
+
+            $title = trim((string) ($item['title'] ?? 'Flow Agent Suggestion'));
+            $message = trim((string) ($item['message'] ?? ''));
+            if ($message === '') {
+                continue;
+            }
+
+            $actionKey = trim((string) ($item['action_key'] ?? ''));
+            $actionLabel = trim((string) ($item['action_label'] ?? ''));
+
+            $items[] = [
+                'severity' => $severity,
+                'title' => $title !== '' ? $title : 'Flow Agent Suggestion',
+                'message' => $message,
+                'action_key' => $actionKey !== '' ? $actionKey : null,
+                'action_label' => $actionLabel !== '' ? $actionLabel : null,
+            ];
+        }
+
+        if ($items === []) {
+            $items[] = [
+                'severity' => 'ok',
+                'title' => 'No Suggestions',
+                'message' => 'Flow Agents did not return any additional recommendations.',
+                'action_key' => null,
+                'action_label' => null,
+            ];
+        }
+
+        $this->flowAgentsSummary = trim((string) ($result['summary'] ?? ''));
+        $this->flowAgentsItems = $items;
+        $this->flowAgentsGeneratedAt = trim((string) ($result['generated_at'] ?? now()->format('M d, Y H:i')));
+    }
+
     public function requestAttachmentDownloadUrlById(int $attachmentId): string
     {
         return route('requests.attachments.download', ['attachment' => $attachmentId]);
@@ -2180,6 +2363,140 @@ class RequestsPage extends Component
         }
 
         return $mapped;
+    }
+
+    private function normalizeFilterState(): void
+    {
+        $this->search = $this->normalizeSearch($this->search);
+        $this->statusFilter = $this->normalizeStatusFilter($this->statusFilter);
+        $this->typeFilter = $this->normalizeTypeFilter($this->typeFilter);
+        $this->departmentFilter = $this->normalizeDepartmentFilter($this->departmentFilter);
+        $this->scopeFilter = $this->normalizeScopeFilter($this->scopeFilter);
+        $this->dateFrom = $this->normalizeDateInput($this->dateFrom);
+        $this->dateTo = $this->normalizeDateInput($this->dateTo);
+        $this->normalizeDateRange();
+        $this->perPage = $this->normalizePerPage($this->perPage);
+    }
+
+    private function normalizeSearch(string $value): string
+    {
+        return mb_substr(trim($value), 0, 120);
+    }
+
+    private function normalizeStatusFilter(string $value): string
+    {
+        $normalized = strtolower(trim($value));
+
+        return in_array($normalized, $this->requestStatusOptions(), true) ? $normalized : 'all';
+    }
+
+    private function normalizeTypeFilter(string $value): string
+    {
+        $normalized = trim($value);
+        if ($normalized === '' || strtolower($normalized) === 'all') {
+            return 'all';
+        }
+
+        foreach ($this->availableRequestTypeCodes() as $code) {
+            if (strtolower($code) === strtolower($normalized)) {
+                return $code;
+            }
+        }
+
+        return 'all';
+    }
+
+    private function normalizeDepartmentFilter(string $value): string
+    {
+        $normalized = trim($value);
+        if ($normalized === '' || strtolower($normalized) === 'all') {
+            return 'all';
+        }
+
+        if (! ctype_digit($normalized)) {
+            return 'all';
+        }
+
+        return ((int) $normalized) > 0 ? (string) ((int) $normalized) : 'all';
+    }
+
+    private function normalizeScopeFilter(string $value): string
+    {
+        $normalized = strtolower(trim($value));
+
+        return in_array($normalized, ['all', 'mine', 'pending_my_approval', 'decided_by_me'], true)
+            ? $normalized
+            : 'all';
+    }
+
+    private function normalizeDateInput(string $value): string
+    {
+        $normalized = trim($value);
+        if ($normalized === '') {
+            return '';
+        }
+
+        $parsed = \DateTimeImmutable::createFromFormat('!Y-m-d', $normalized);
+        $errors = \DateTimeImmutable::getLastErrors();
+        $hasWarnings = is_array($errors) && (($errors['warning_count'] ?? 0) > 0 || ($errors['error_count'] ?? 0) > 0);
+
+        if (! $parsed instanceof \DateTimeImmutable || $hasWarnings) {
+            return '';
+        }
+
+        return $parsed->format('Y-m-d');
+    }
+
+    private function normalizeDateRange(): void
+    {
+        if ($this->dateFrom !== '' && $this->dateTo !== '' && $this->dateFrom > $this->dateTo) {
+            $this->dateTo = '';
+        }
+    }
+
+    private function normalizePerPage(int $value): int
+    {
+        return in_array($value, [10, 25, 50], true) ? $value : 10;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function requestStatusOptions(): array
+    {
+        return [
+            'all',
+            'draft',
+            'in_review',
+            'approved_for_execution',
+            'execution_queued',
+            'execution_processing',
+            'settled',
+            'failed',
+            'reversed',
+            'approved',
+            'rejected',
+            'returned',
+        ];
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function availableRequestTypeCodes(): array
+    {
+        $codes = array_values(array_filter(array_keys($this->requestTypeMap)));
+        if ($codes !== []) {
+            return array_values(array_unique(array_map('strval', $codes)));
+        }
+
+        return CompanyRequestType::query()
+            ->where('is_active', true)
+            ->pluck('code')
+            ->map(fn ($code): string => (string) $code)
+            ->filter(fn (string $code): bool => $code !== '')
+            ->values()
+            ->all();
     }
 }
 

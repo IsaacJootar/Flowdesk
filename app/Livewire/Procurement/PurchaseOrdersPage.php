@@ -11,6 +11,7 @@ use App\Services\Procurement\ProcurementControlSettingsService;
 use App\Services\Procurement\PurchaseOrderIssuanceService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -76,19 +77,19 @@ class PurchaseOrdersPage extends Component
 
     public function updatedSearch(): void
     {
+        $this->search = $this->normalizeSearch($this->search);
         $this->resetPage();
     }
 
     public function updatedStatusFilter(): void
     {
+        $this->statusFilter = $this->normalizeStatusFilter($this->statusFilter);
         $this->resetPage();
     }
 
     public function updatedPerPage(): void
     {
-        if (! in_array($this->perPage, [10, 25, 50], true)) {
-            $this->perPage = 10;
-        }
+        $this->perPage = $this->normalizePerPage($this->perPage);
 
         $this->resetPage();
     }
@@ -158,17 +159,9 @@ class PurchaseOrdersPage extends Component
             return;
         }
 
-        $validated = $this->validate([
-            'receiptForm.received_at' => ['required', 'date'],
-            'receiptForm.notes' => ['nullable', 'string', 'max:2000'],
-            'receiptForm.items' => ['required', 'array', 'min:1'],
-            'receiptForm.items.*.purchase_order_item_id' => ['required', 'integer', 'min:1'],
-            'receiptForm.items.*.receive_quantity' => ['required', 'numeric', 'min:0'],
-            'receiptForm.items.*.received_unit_cost' => ['nullable', 'integer', 'min:1'],
-        ]);
-
         $order = PurchaseOrder::query()->findOrFail($this->selectedOrderId);
         Gate::authorize('recordReceipt', $order);
+        $validated = $this->validate($this->goodsReceiptRules($order));
 
         $lines = collect((array) $validated['receiptForm']['items'])
             ->map(static function (array $line): array {
@@ -213,7 +206,19 @@ class PurchaseOrdersPage extends Component
 
         $order = PurchaseOrder::query()->findOrFail($this->selectedOrderId);
         Gate::authorize('linkInvoice', $order);
-        $invoice = VendorInvoice::query()->findOrFail($this->selectedVendorInvoiceId);
+        $invoice = VendorInvoice::query()
+            ->where('id', (int) $this->selectedVendorInvoiceId)
+            ->where('company_id', (int) $order->company_id)
+            ->where('vendor_id', (int) $order->vendor_id)
+            ->where('status', '!=', VendorInvoice::STATUS_VOID)
+            ->whereNull('purchase_order_id')
+            ->first();
+
+        if (! $invoice) {
+            $this->setFeedbackError('Selected invoice is invalid for this purchase order.');
+
+            return;
+        }
 
         try {
             $updated = $linkService->link(auth()->user(), $order, $invoice);
@@ -234,6 +239,8 @@ class PurchaseOrdersPage extends Component
 
     public function render(ProcurementControlSettingsService $settingsService): View
     {
+        $this->normalizeFilterState();
+
         $query = PurchaseOrder::query()
             ->with(['request:id,request_code,title,status', 'vendor:id,name'])
             ->withCount(['items', 'commitments', 'receipts', 'vendorInvoices'])
@@ -271,6 +278,30 @@ class PurchaseOrdersPage extends Component
             'invoiceLinkRoles' => (array) $controls['invoice_link_allowed_roles'],
             'allowOverReceipt' => (bool) $controls['allow_over_receipt'],
         ]);
+    }
+
+    /**
+     * @return array<string, array<int, mixed>>
+     */
+    private function goodsReceiptRules(PurchaseOrder $order): array
+    {
+        return [
+            'receiptForm.received_at' => ['required', 'date'],
+            'receiptForm.notes' => ['nullable', 'string', 'max:2000'],
+            'receiptForm.items' => ['required', 'array', 'min:1'],
+            'receiptForm.items.*.purchase_order_item_id' => [
+                'required',
+                'integer',
+                'min:1',
+                Rule::exists('purchase_order_items', 'id')->where(
+                    fn ($query) => $query
+                        ->where('company_id', (int) $order->company_id)
+                        ->where('purchase_order_id', (int) $order->id)
+                ),
+            ],
+            'receiptForm.items.*.receive_quantity' => ['required', 'numeric', 'min:0'],
+            'receiptForm.items.*.received_unit_cost' => ['nullable', 'integer', 'min:1'],
+        ];
     }
 
     private function fillSelectedOrder(PurchaseOrder $order): void
@@ -542,5 +573,31 @@ class PurchaseOrdersPage extends Component
     private function canAccessPage(User $user): bool
     {
         return Gate::forUser($user)->allows('viewAny', PurchaseOrder::class);
+    }
+
+    private function normalizeFilterState(): void
+    {
+        $this->search = $this->normalizeSearch($this->search);
+        $this->statusFilter = $this->normalizeStatusFilter($this->statusFilter);
+        $this->perPage = $this->normalizePerPage($this->perPage);
+    }
+
+    private function normalizeSearch(string $value): string
+    {
+        return mb_substr(trim($value), 0, 120);
+    }
+
+    private function normalizeStatusFilter(string $value): string
+    {
+        $normalized = strtolower(trim($value));
+
+        return $normalized === 'all' || in_array($normalized, PurchaseOrder::STATUSES, true)
+            ? $normalized
+            : 'all';
+    }
+
+    private function normalizePerPage(int $value): int
+    {
+        return in_array($value, [10, 25, 50], true) ? $value : 10;
     }
 }

@@ -583,6 +583,16 @@ Before proposing "new" module work, check this file plus route map (`routes/web.
     - communication/retry controls: `reminderDaysAhead`, `vendorCommunicationPerPage`, `vendorCommQueuedOlderThanMinutes`
   - Added regression coverage: `tests/Feature/Vendors/VendorsPageValidationHardeningTest.php`.
   - Scope guard regression included: retry action remains scoped to selected vendor logs.
+- Validation hardening (Assets + Procurement + Requests workspaces):
+  - `AssetsPage` now normalizes search/status/category/assignment/per-page filters to strict allow-lists.
+  - `PurchaseOrdersPage` now normalizes search/status/per-page filters and enforces tenant/order-scoped `exists` validation for goods-receipt line item IDs.
+  - `PurchaseOrdersPage` invoice-link action now rejects cross-tenant / wrong-vendor / invalid invoice IDs before service execution.
+  - `PurchaseReceiptsPage` now normalizes search/status/date-range/per-page filters with strict date parsing and bounded range behavior.
+  - `RequestsPage` now normalizes search/status/type/department/scope/date-range/per-page filters to strict allow-lists before query execution.
+  - Added regression coverage:
+    - `tests/Feature/Assets/AssetsPageValidationHardeningTest.php`
+    - `tests/Feature/Finance/ProcurementPagesValidationHardeningTest.php`
+    - `tests/Feature/Requests/RequestsPageValidationHardeningTest.php`
 - UI consistency rollout (Edit/View actions):
   - Added icons to Edit/View action buttons to match Expenses workspace style in:
     - `budgets-page`
@@ -618,3 +628,12 @@ AI implementation foundation status (2026-03-07):
 - Added tenant AI feature gate service: `app/Services/AI/AiFeatureGateService.php` (checks `ai_enabled` per company).
 - Added runtime profile service: `app/Services/AI/AiRuntimeProfileService.php` for consistent module consumption.
 - Added unit coverage: `tests/Unit/AI/AiFeatureGateServiceTest.php`.
+
+AI rollout increment (2026-03-09):
+- Implemented Requests **Flow Agents** advisory service: `app/Services/AI/RequestFlowAgentService.php`.
+- Integrated tenant-gated Flow Agents panel into Requests draft + view modals:
+  - `app/Livewire/Requests/RequestsPage.php`
+  - `resources/views/livewire/requests/requests-page.blade.php`
+- Added user-triggered workflow execution path from Flow Agents actions (user-first, no autonomous execution).
+- Added feature coverage for enabled/disabled entitlement behavior and advisory output:
+  - `tests/Feature/Requests/RequestFlowAgentsTest.php`
