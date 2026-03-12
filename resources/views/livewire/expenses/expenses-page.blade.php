@@ -1,21 +1,33 @@
 <div wire:init="loadData" class="space-y-5">
-    @if ($feedbackMessage)
-        <div
-            wire:key="expense-feedback-{{ $feedbackKey }}"
-            x-data="{ show: true }"
-            x-init="setTimeout(() => show = false, 3500)"
-            x-show="show"
-            class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700"
-        >
-            {{ $feedbackMessage }}
-        </div>
-    @endif
-
-    @if ($feedbackError)
-        <div class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {{ $feedbackError }}
-        </div>
-    @endif
+    <div
+        class="pointer-events-none fixed z-[95] space-y-2"
+        style="right: 16px; top: 72px; width: 320px; max-width: calc(100vw - 24px);"
+    >
+        @if ($feedbackMessage)
+            <div
+                wire:key="expense-feedback-success-{{ $feedbackKey }}"
+                x-data="{ show: true }"
+                x-init="setTimeout(() => show = false, 3200)"
+                x-show="show"
+                x-transition.opacity.duration.250ms
+                class="pointer-events-auto rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 shadow-lg"
+            >
+                {{ $feedbackMessage }}
+            </div>
+        @endif
+        @if ($feedbackError)
+            <div
+                wire:key="expense-feedback-error-{{ $feedbackKey }}"
+                x-data="{ show: true }"
+                x-init="setTimeout(() => show = false, 5000)"
+                x-show="show"
+                x-transition.opacity.duration.250ms
+                class="pointer-events-auto rounded-xl border border-red-700 bg-red-600 px-4 py-3 text-sm text-white shadow-lg"
+            >
+                {{ $feedbackError }}
+            </div>
+        @endif
+    </div>
 
     <div class="fd-card p-5">
         <div class="grid gap-3 lg:grid-cols-4">
@@ -102,7 +114,10 @@
                         <span wire:loading wire:target="openCreateModal">Opening...</span>
                     </button>
                 @else
-                    <p class="text-xs text-slate-500">Read-only access. Expense actions are restricted by company expense controls.</p>
+                    <p class="text-xs text-slate-500">
+                        Read-only access.
+                        {{ $this->createExpenseUnavailableReason ?: 'Expense actions are restricted by company expense controls.' }}
+                    </p>
                 @endif
             </div>
         </div>
@@ -333,6 +348,9 @@
                                 <input type="file" wire:model="newAttachments" multiple class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700">
                                 @error('newAttachments.*')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
                             </div>
+                            <div wire:loading.flex wire:target="newAttachments" class="mt-2 text-xs font-medium text-slate-600">
+                                Uploading attachment(s)...
+                            </div>
                             @if (! empty($newAttachments))
                                 <ul class="mt-2 space-y-1 text-xs text-slate-500">
                                     @foreach ($newAttachments as $attachmentFile)
@@ -340,14 +358,139 @@
                                     @endforeach
                                 </ul>
                             @endif
+
+                            <div class="mt-3 flex flex-wrap items-center gap-2">
+                                <button
+                                    type="button"
+                                    wire:click="analyzeReceiptAttachments"
+                                    wire:loading.attr="disabled"
+                                    wire:target="analyzeReceiptAttachments"
+                                    class="inline-flex items-center gap-1.5 rounded-lg border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-semibold text-sky-700 hover:bg-sky-100 disabled:opacity-70"
+                                >
+                                    <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                        <path d="M12 3v3"></path>
+                                        <path d="M12 18v3"></path>
+                                        <path d="M3 12h3"></path>
+                                        <path d="M18 12h3"></path>
+                                        <path d="M6.3 6.3l2.1 2.1"></path>
+                                        <path d="M15.6 15.6l2.1 2.1"></path>
+                                        <path d="M17.7 6.3l-2.1 2.1"></path>
+                                        <path d="M8.4 15.6l-2.1 2.1"></path>
+                                    </svg>
+                                    <span wire:loading.remove wire:target="analyzeReceiptAttachments">Use Flow Agent</span>
+                                    <span wire:loading wire:target="analyzeReceiptAttachments">Analyzing Receipts...</span>
+                                </button>
+                                @if ($receiptAgentGeneratedAt)
+                                    <span class="text-xs text-slate-500">Receipt Agent updated {{ $receiptAgentGeneratedAt }}</span>
+                                @endif
+                            </div>
+                            <p class="mt-1 text-[11px] text-slate-500">
+                                Use Flow Agent to analyze uploaded receipts and suggest vendor, date, amount, and reference fields.
+                            </p>
+
+                            @if ($showReceiptAgentPanel)
+                                <div class="mt-3 rounded-xl border border-slate-200 bg-white p-3">
+                                    <div class="flex items-start justify-between gap-2">
+                                        <div>
+                                            <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Receipt Agent</p>
+                                            <p class="mt-1 text-xs text-slate-700">{{ $receiptAgentSummary }}</p>
+                                        </div>
+                                        <span class="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
+                                            Confidence {{ $receiptAgentConfidence }}%
+                                        </span>
+                                    </div>
+
+                                    @if ($receiptOcrNotice)
+                                        <div class="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-2 text-xs text-amber-800">
+                                            {{ $receiptOcrNotice }}
+                                        </div>
+                                    @endif
+
+                                    <div class="mt-2 grid gap-2 sm:grid-cols-2">
+                                        <div class="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 text-xs text-slate-700">
+                                            <span class="font-semibold">Vendor:</span>
+                                            {{ $receiptSuggestionFields['vendor_id'] ? 'Matched' : 'Not detected' }}
+                                        </div>
+                                        <div class="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 text-xs text-slate-700">
+                                            <span class="font-semibold">Expense Date:</span>
+                                            {{ $receiptSuggestionFields['expense_date'] ?: 'Not detected' }}
+                                        </div>
+                                        <div class="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 text-xs text-slate-700">
+                                            <span class="font-semibold">Amount:</span>
+                                            {{ $receiptSuggestionFields['amount'] ? 'NGN '.number_format((int) $receiptSuggestionFields['amount']) : 'Not detected' }}
+                                        </div>
+                                        <div class="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 text-xs text-slate-700">
+                                            <span class="font-semibold">Reference:</span>
+                                            {{ $receiptSuggestedReference ?: 'Not detected' }}
+                                        </div>
+                                        <div class="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 text-xs text-slate-700 sm:col-span-2">
+                                            <span class="font-semibold">Category Hint:</span>
+                                            {{ $receiptSuggestedCategory ? ucwords(str_replace('_', ' ', $receiptSuggestedCategory)) : 'Not detected' }}
+                                        </div>
+                                    </div>
+
+                                    @if ($receiptAgentSignals !== [])
+                                        <ul class="mt-2 space-y-1 text-xs text-slate-500">
+                                            @foreach ($receiptAgentSignals as $signal)
+                                                <li>{{ $signal['source'] }} - {{ $signal['message'] }}</li>
+                                            @endforeach
+                                        </ul>
+                                    @endif
+
+                                    <div class="mt-3 flex flex-wrap items-center justify-end gap-2">
+                                        <button
+                                            type="button"
+                                            wire:click="dismissReceiptSuggestions"
+                                            class="rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+                                        >
+                                            Dismiss
+                                        </button>
+                                        <button
+                                            type="button"
+                                            wire:click="applyReceiptSuggestions"
+                                            class="rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100"
+                                        >
+                                            Apply Suggestions
+                                        </button>
+                                    </div>
+                                </div>
+                            @endif
                         </div>
 
-                        <div class="sticky bottom-0 -mx-6 mt-4 flex justify-end gap-3 border-t border-slate-200 bg-white px-6 py-4">
-                            <button type="button" wire:click="closeFormModal" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Cancel</button>
-                            <button type="button" wire:click="save" wire:loading.attr="disabled" wire:target="save,newAttachments" class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700 disabled:opacity-70">
-                                <span wire:loading.remove wire:target="save,newAttachments">{{ $isEditing ? 'Update Expense' : 'Post Expense' }}</span>
-                                <span wire:loading wire:target="save,newAttachments">Saving...</span>
-                            </button>
+                        @if ($duplicateWarning)
+                            <div class="rounded-xl border {{ $duplicateRisk === 'hard' ? 'border-red-200 bg-red-50' : 'border-amber-200 bg-amber-50' }} p-4">
+                                <p class="text-sm font-semibold {{ $duplicateRisk === 'hard' ? 'text-red-800' : 'text-amber-800' }}">Duplicate Guard</p>
+                                <p class="mt-1 text-xs {{ $duplicateRisk === 'hard' ? 'text-red-700' : 'text-amber-700' }}">{{ $duplicateWarning }}</p>
+                                @if ($duplicateMatches !== [])
+                                    <div class="mt-2 space-y-1">
+                                        @foreach ($duplicateMatches as $match)
+                                            <p class="text-xs {{ $duplicateRisk === 'hard' ? 'text-red-700' : 'text-amber-700' }}">
+                                                {{ $match['expense_code'] }} | {{ $match['expense_date'] ?: '-' }} | NGN {{ number_format((int) $match['amount']) }} | {{ $match['title'] }}
+                                            </p>
+                                        @endforeach
+                                    </div>
+                                @endif
+                                @if ($duplicateRisk === 'soft')
+                                    <label class="mt-3 inline-flex items-center gap-2 text-xs font-medium text-amber-800">
+                                        <input type="checkbox" wire:model.live="duplicateOverride" class="rounded border-amber-300 text-amber-700 focus:ring-amber-500">
+                                        <span>I reviewed possible duplicates and want to continue.</span>
+                                    </label>
+                                @endif
+                                @error('duplicateOverride')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+                            </div>
+                        @endif
+
+                        <div class="sticky bottom-0 -mx-6 mt-4 flex items-center justify-between gap-3 border-t border-slate-200 bg-white px-6 py-4">
+                            <p wire:loading.flex wire:target="newAttachments" class="text-xs font-medium text-amber-700">
+                                Receipt upload in progress. Wait for upload to finish before posting.
+                            </p>
+                            <div class="ml-auto flex items-center gap-3">
+                                <button type="button" wire:click="closeFormModal" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Cancel</button>
+                                <button type="button" wire:click="save" wire:loading.attr="disabled" wire:target="save,newAttachments" class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700 disabled:opacity-70">
+                                    <span wire:loading.remove wire:target="save">{{ $isEditing ? 'Update Expense' : 'Post Expense' }}</span>
+                                    <span wire:loading wire:target="save">Saving...</span>
+                                </button>
+                            </div>
                         </div>
                     </form>
                 </div>

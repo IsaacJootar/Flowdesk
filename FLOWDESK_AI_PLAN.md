@@ -16,7 +16,18 @@ Current rollout status (2026-03-09):
 - Flow Agents is tenant-gated via `ai_enabled` entitlement and remains human-in-control (`advisory_only` guard respected).
 - Flow Agents now supports user-triggered workflow execution in Requests (for example: convert/create expense) when the user explicitly clicks the action.
 - Redundant agent-submit and agent-approve actions were removed; Requests Flow Agents now focuses on higher-value actions (convert-to-PO, create-expense) plus risk analysis.
-- Initial implementation is `app/Services/AI/RequestFlowAgentService.php` with feature coverage in `tests/Feature/Requests/RequestFlowAgentsTest.php`.
+- Expenses workflow now includes **Receipt Agent**:
+  - receipt upload intelligence now supports **Ollama model extraction** (JSON output) with deterministic OCR/filename fallback,
+  - parser hardening for plain-number totals and tighter naira symbol handling,
+  - explicit OCR capability diagnostics in UI when `tesseract` / `pdftotext` are unavailable,
+  - confidence scoring now weights structured extraction signals (vendor/date/amount/reference/category) and stays low when only filename/title is detected,
+  - receipt-analysis errors now surface as floating toasts so they remain visible above modals,
+  - apply-suggestion UX (manual apply, no auto-post),
+  - duplicate preview guard before save,
+  - explicit create-button diagnostics when direct posting is unavailable.
+- Implemented services and coverage:
+  - `app/Services/AI/RequestFlowAgentService.php` + `tests/Feature/Requests/RequestFlowAgentsTest.php`
+  - `app/Services/AI/ExpenseReceiptIntelligenceService.php` + `tests/Feature/Expenses/ExpenseReceiptAgentTest.php`
 
 ## 2) Non-Negotiable Rules
 

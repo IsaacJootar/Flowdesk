@@ -416,7 +416,7 @@
                                         <path d="M17.7 6.3l-2.1 2.1"></path>
                                         <path d="M8.4 15.6l-2.1 2.1"></path>
                                     </svg>
-                                    <span wire:loading.remove wire:target="runFlowAgentsForDraft">Flow Agents</span>
+                                    <span wire:loading.remove wire:target="runFlowAgentsForDraft">Use Flow Agent</span>
                                     <span wire:loading wire:target="runFlowAgentsForDraft">Analyzing...</span>
                                 </button>
                             @endif
@@ -815,7 +815,7 @@
                                         <path d="M17.7 6.3l-2.1 2.1"></path>
                                         <path d="M8.4 15.6l-2.1 2.1"></path>
                                     </svg>
-                                    <span wire:loading.remove wire:target="runFlowAgentsForSelectedRequest">Flow Agents</span>
+                                    <span wire:loading.remove wire:target="runFlowAgentsForSelectedRequest">Use Flow Agent</span>
                                     <span wire:loading wire:target="runFlowAgentsForSelectedRequest">Analyzing...</span>
                                 </button>
                             @endif

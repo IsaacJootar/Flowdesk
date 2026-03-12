@@ -635,5 +635,19 @@ AI rollout increment (2026-03-09):
   - `app/Livewire/Requests/RequestsPage.php`
   - `resources/views/livewire/requests/requests-page.blade.php`
 - Added user-triggered workflow execution path from Flow Agents actions (user-first, no autonomous execution).
+- Updated modal action labels to "Use Flow Agent" (icon + clearer call-to-action).
 - Added feature coverage for enabled/disabled entitlement behavior and advisory output:
   - `tests/Feature/Requests/RequestFlowAgentsTest.php`
+- Expenses AI increment:
+  - Added `app/Services/AI/ExpenseReceiptIntelligenceService.php` for receipt upload extraction with Ollama JSON inference + deterministic OCR/filename fallback.
+  - Hardened extraction to handle plain-number amount formats and naira-symbol normalization edge cases.
+  - Tuned confidence scoring to rely on structured signals so no-detection cases do not show inflated confidence.
+  - Added explicit OCR diagnostics in Expenses UI when server binaries are unavailable (`tesseract`/`pdftotext`).
+  - Switched Expenses feedback to floating toasts so validation/detection errors stay visible above modals.
+  - Updated receipt action CTA to `Use Flow Agent` (with icon + helper label) and separated upload loading state from analyze loading state.
+  - Added test coverage for model path with mocked Ollama response:
+    - `tests/Feature/Expenses/ExpenseReceiptAgentTest.php::test_receipt_agent_uses_model_output_when_ollama_is_available`
+  - Integrated Receipt Agent UX + duplicate preview guard + create-button diagnostics in:
+    - `app/Livewire/Expenses/ExpensesPage.php`
+    - `resources/views/livewire/expenses/expenses-page.blade.php`
+  - Added coverage: `tests/Feature/Expenses/ExpenseReceiptAgentTest.php`.

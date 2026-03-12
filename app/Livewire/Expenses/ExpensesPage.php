@@ -9,7 +9,11 @@ use App\Actions\Expenses\VoidExpense;
 use App\Domains\Company\Models\Department;
 use App\Domains\Expenses\Models\Expense;
 use App\Domains\Vendors\Models\Vendor;
+use App\Services\ActivityLogger;
+use App\Services\AI\ExpenseReceiptIntelligenceService;
+use App\Services\ExpenseDuplicateDetector;
 use App\Services\ExpensePolicyResolver;
+use App\Services\TenantModuleAccessService;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Carbon;
@@ -87,6 +91,40 @@ class ExpensesPage extends Component
     /** @var array<int, mixed> */
     public array $newAttachments = [];
 
+    public bool $duplicateOverride = false;
+
+    public string $duplicateRisk = 'none';
+
+    /** @var array<int, array{id:int,expense_code:string,title:string,amount:int,expense_date:string|null}> */
+    public array $duplicateMatches = [];
+
+    public ?string $duplicateWarning = null;
+
+    public bool $showReceiptAgentPanel = false;
+
+    public string $receiptAgentSummary = '';
+
+    public ?string $receiptAgentGeneratedAt = null;
+
+    public int $receiptAgentConfidence = 0;
+
+    public ?string $receiptOcrNotice = null;
+
+    public ?string $receiptSuggestedCategory = null;
+
+    public ?string $receiptSuggestedReference = null;
+
+    /** @var array{vendor_id:?int,expense_date:?string,amount:?int,title:?string} */
+    public array $receiptSuggestionFields = [
+        'vendor_id' => null,
+        'expense_date' => null,
+        'amount' => null,
+        'title' => null,
+    ];
+
+    /** @var array<int, array{source:string,message:string}> */
+    public array $receiptAgentSignals = [];
+
     public function mount(): void
     {
         $this->feedbackMessage = session('status');
@@ -161,7 +199,7 @@ class ExpensesPage extends Component
     public function openCreateModal(): void
     {
         if (! $this->canManage) {
-            $this->feedbackError = 'You are not allowed to post direct expenses.';
+            $this->setFeedbackError($this->createExpenseUnavailableReason ?? 'You are not allowed to post direct expenses.');
 
             return;
         }
@@ -176,6 +214,8 @@ class ExpensesPage extends Component
         $this->resetForm();
         $this->isEditing = false;
         $this->editingExpenseId = null;
+        $this->resetReceiptAgentState();
+        $this->resetDuplicatePreview();
         $this->showFormModal = true;
     }
 
@@ -195,6 +235,8 @@ class ExpensesPage extends Component
         $this->isEditing = true;
         $this->editingExpenseId = $expense->id;
         $this->fillFormFromExpense($expense);
+        $this->resetReceiptAgentState();
+        $this->resetDuplicatePreview();
         $this->showFormModal = true;
     }
 
@@ -261,7 +303,192 @@ class ExpensesPage extends Component
         $this->resetForm();
         $this->isEditing = false;
         $this->editingExpenseId = null;
+        $this->resetReceiptAgentState();
+        $this->resetDuplicatePreview();
         $this->resetValidation();
+    }
+
+    public function analyzeReceiptAttachments(
+        ExpenseReceiptIntelligenceService $expenseReceiptIntelligenceService,
+        ActivityLogger $activityLogger
+    ): void {
+        $this->feedbackError = null;
+        $user = \Illuminate\Support\Facades\Auth::user();
+        $companyId = (int) ($user?->company_id ?? 0);
+
+        if ($companyId <= 0) {
+            $this->setFeedbackError('You must belong to an organization before running Receipt Agent.');
+
+            return;
+        }
+
+        if (empty($this->newAttachments)) {
+            $this->setFeedbackError('Upload at least one receipt file before running Receipt Agent.');
+
+            return;
+        }
+
+        $this->validate([
+            'newAttachments.*' => ['nullable', 'file', 'max:10240', 'mimes:jpg,jpeg,png,pdf,webp'],
+        ], [
+            'newAttachments.*.max' => 'Each attachment must be 10MB or less.',
+            'newAttachments.*.mimes' => 'Only PDF and image files are supported.',
+        ]);
+
+        $environment = $expenseReceiptIntelligenceService->environmentStatus();
+        $hasImage = false;
+        $hasPdf = false;
+        foreach ($this->newAttachments as $attachment) {
+            if (! $attachment || ! method_exists($attachment, 'getMimeType')) {
+                continue;
+            }
+
+            $mime = strtolower((string) ($attachment->getMimeType() ?: ''));
+            if (str_starts_with($mime, 'image/')) {
+                $hasImage = true;
+            }
+            if ($mime === 'application/pdf') {
+                $hasPdf = true;
+            }
+        }
+
+        $notices = [];
+        if ($hasImage && ! ((bool) ($environment['image_ocr_available'] ?? false))) {
+            $notices[] = 'Image OCR is unavailable on this server (missing tesseract).';
+        }
+        if ($hasPdf && ! ((bool) ($environment['pdf_text_available'] ?? false))) {
+            $notices[] = 'PDF text extraction is unavailable on this server (missing pdftotext).';
+        }
+        $this->receiptOcrNotice = $notices !== []
+            ? implode(' ', $notices).' Receipt Agent will rely on filename hints.'
+            : null;
+
+        $vendors = Vendor::query()
+            ->where('company_id', $companyId)
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name'])
+            ->map(fn (Vendor $vendor): array => [
+                'id' => (int) $vendor->id,
+                'name' => (string) $vendor->name,
+            ])
+            ->all();
+
+        $result = $expenseReceiptIntelligenceService->analyzeBatch($this->newAttachments, $vendors);
+        $this->showReceiptAgentPanel = true;
+        $this->receiptAgentSummary = (string) ($result['summary'] ?? '');
+        $this->receiptAgentGeneratedAt = now()->format('M d, Y H:i');
+        $this->receiptAgentConfidence = (int) ($result['confidence'] ?? 0);
+        $fields = (array) ($result['fields'] ?? []);
+        $this->receiptSuggestionFields = [
+            'vendor_id' => isset($fields['vendor_id']) ? (int) $fields['vendor_id'] : null,
+            'expense_date' => isset($fields['expense_date']) ? (string) $fields['expense_date'] : null,
+            'amount' => isset($fields['amount']) ? (int) $fields['amount'] : null,
+            'title' => isset($fields['title']) ? (string) $fields['title'] : null,
+        ];
+        $this->receiptSuggestedReference = isset($fields['reference']) ? (string) $fields['reference'] : null;
+        $this->receiptSuggestedCategory = isset($fields['category']) ? (string) $fields['category'] : null;
+        $this->receiptAgentSignals = array_values(array_filter(
+            (array) ($result['signals'] ?? []),
+            fn ($signal): bool => is_array($signal)
+        ));
+
+        $activityLogger->log(
+            action: 'expense.receipt.analysis.generated',
+            entityType: Expense::class,
+            entityId: $this->editingExpenseId,
+            metadata: [
+                'is_editing' => $this->isEditing,
+                'confidence' => $this->receiptAgentConfidence,
+                'suggested_fields' => $this->receiptSuggestionFields,
+                'suggested_reference' => $this->receiptSuggestedReference,
+                'suggested_category' => $this->receiptSuggestedCategory,
+                'files_count' => count($this->newAttachments),
+                'environment' => $environment,
+                'ocr_notice' => $this->receiptOcrNotice,
+                'engine' => (string) ($result['engine'] ?? 'deterministic'),
+                'ai_model' => (string) (($result['ai_model'] ?? '') ?: ''),
+                'fallback_used' => (bool) ($result['fallback_used'] ?? false),
+            ],
+            companyId: $companyId,
+            userId: (int) ($user?->id ?? 0),
+        );
+    }
+
+    public function applyReceiptSuggestions(ActivityLogger $activityLogger): void
+    {
+        if (! $this->showReceiptAgentPanel) {
+            return;
+        }
+
+        if (($this->receiptSuggestionFields['vendor_id'] ?? null) !== null) {
+            $this->form['vendor_id'] = (string) ((int) $this->receiptSuggestionFields['vendor_id']);
+        }
+        if (($this->receiptSuggestionFields['expense_date'] ?? null) !== null) {
+            $this->form['expense_date'] = (string) $this->receiptSuggestionFields['expense_date'];
+        }
+        if (($this->receiptSuggestionFields['amount'] ?? null) !== null) {
+            $this->form['amount'] = (string) ((int) $this->receiptSuggestionFields['amount']);
+        }
+        if (($this->receiptSuggestionFields['title'] ?? null) !== null) {
+            $this->form['title'] = (string) $this->receiptSuggestionFields['title'];
+        }
+
+        $notes = [];
+        if ($this->receiptSuggestedReference !== null && $this->receiptSuggestedReference !== '') {
+            $notes[] = 'Receipt Ref: '.$this->receiptSuggestedReference;
+        }
+        if ($this->receiptSuggestedCategory !== null && $this->receiptSuggestedCategory !== '') {
+            $notes[] = 'Category Hint: '.str_replace('_', ' ', $this->receiptSuggestedCategory);
+        }
+        if ($notes !== []) {
+            $description = trim((string) ($this->form['description'] ?? ''));
+            foreach ($notes as $note) {
+                if (! str_contains(strtolower($description), strtolower($note))) {
+                    $description .= ($description !== '' ? PHP_EOL : '').$note;
+                }
+            }
+            $this->form['description'] = $description;
+        }
+
+        $this->duplicateOverride = false;
+        $this->syncDuplicatePreview($this->analyzeDuplicateRisk($this->formPayload()));
+        $this->setFeedback('Receipt suggestions applied. Review and post when ready.');
+
+        $activityLogger->log(
+            action: 'expense.receipt.suggestion.applied',
+            entityType: Expense::class,
+            entityId: $this->editingExpenseId,
+            metadata: [
+                'is_editing' => $this->isEditing,
+                'applied_fields' => $this->receiptSuggestionFields,
+                'applied_reference' => $this->receiptSuggestedReference,
+                'applied_category' => $this->receiptSuggestedCategory,
+            ],
+            companyId: (int) (\Illuminate\Support\Facades\Auth::user()?->company_id ?? 0),
+            userId: (int) (\Illuminate\Support\Facades\Auth::id() ?? 0),
+        );
+    }
+
+    public function dismissReceiptSuggestions(ActivityLogger $activityLogger): void
+    {
+        if (! $this->showReceiptAgentPanel) {
+            return;
+        }
+
+        $activityLogger->log(
+            action: 'expense.receipt.suggestion.dismissed',
+            entityType: Expense::class,
+            entityId: $this->editingExpenseId,
+            metadata: [
+                'is_editing' => $this->isEditing,
+                'suggested_fields' => $this->receiptSuggestionFields,
+            ],
+            companyId: (int) (\Illuminate\Support\Facades\Auth::user()?->company_id ?? 0),
+            userId: (int) (\Illuminate\Support\Facades\Auth::id() ?? 0),
+        );
+
+        $this->resetReceiptAgentState();
     }
 
     public function save(
@@ -272,6 +499,20 @@ class ExpensesPage extends Component
         $this->feedbackError = null;
         $this->validate($this->formRules(), $this->formMessages());
         $payload = $this->formPayload();
+        $duplicateAnalysis = $this->analyzeDuplicateRisk($payload);
+        $this->syncDuplicatePreview($duplicateAnalysis);
+
+        if ($this->duplicateRisk === 'hard') {
+            $this->setFeedbackError('Exact duplicate detected (same date, vendor, amount, and title). Posting is blocked.');
+
+            return;
+        }
+
+        if ($this->duplicateRisk === 'soft' && ! $this->duplicateOverride) {
+            $this->setFeedbackError('Possible duplicate found. Review matches and tick override to continue.');
+
+            return;
+        }
 
         try {
             if ($this->isEditing && $this->editingExpenseId) {
@@ -288,14 +529,14 @@ class ExpensesPage extends Component
             }
         } catch (ValidationException $exception) {
             if (array_key_exists('authorization', $exception->errors())) {
-                $this->feedbackError = (string) ($exception->errors()['authorization'][0] ?? 'You are not allowed to save this expense.');
+                $this->setFeedbackError((string) ($exception->errors()['authorization'][0] ?? 'You are not allowed to save this expense.'));
 
                 return;
             }
 
             throw ValidationException::withMessages($this->normalizeValidationErrors($exception->errors()));
         } catch (Throwable) {
-            $this->feedbackError = 'Unable to save expense. Please try again.';
+            $this->setFeedbackError('Unable to save expense. Please try again.');
             return;
         }
 
@@ -317,14 +558,14 @@ class ExpensesPage extends Component
             $voidExpense->__invoke(\Illuminate\Support\Facades\Auth::user(), $expense, ['reason' => $this->voidReason]);
         } catch (ValidationException $exception) {
             if (array_key_exists('authorization', $exception->errors())) {
-                $this->feedbackError = (string) ($exception->errors()['authorization'][0] ?? 'You are not allowed to void this expense.');
+                $this->setFeedbackError((string) ($exception->errors()['authorization'][0] ?? 'You are not allowed to void this expense.'));
 
                 return;
             }
 
             throw ValidationException::withMessages($this->normalizeValidationErrors($exception->errors()));
         } catch (Throwable) {
-            $this->feedbackError = 'Unable to void this expense now.';
+            $this->setFeedbackError('Unable to void this expense now.');
             return;
         }
 
@@ -345,7 +586,30 @@ class ExpensesPage extends Component
             return false;
         }
 
-        return app(ExpensePolicyResolver::class)->canCreateDirect($user)['allowed'];
+        if (! app(TenantModuleAccessService::class)->moduleEnabled($user, 'expenses')) {
+            return false;
+        }
+
+        return (bool) app(ExpensePolicyResolver::class)->canCreateDirect($user)['allowed'];
+    }
+
+    public function getCreateExpenseUnavailableReasonProperty(): ?string
+    {
+        $user = \Illuminate\Support\Facades\Auth::user();
+        if (! $user) {
+            return 'You must be signed in to post expenses.';
+        }
+
+        if (! app(TenantModuleAccessService::class)->moduleEnabled($user, 'expenses')) {
+            return 'Expenses module is disabled for this organization plan.';
+        }
+
+        $decision = app(ExpensePolicyResolver::class)->canCreateDirect($user);
+        if (! ((bool) ($decision['allowed'] ?? false))) {
+            return (string) ($decision['reason'] ?? 'You are not allowed to post direct expenses.');
+        }
+
+        return null;
     }
 
     public function getCanEditSelectedExpenseProperty(): bool
@@ -442,6 +706,7 @@ class ExpensesPage extends Component
             'expense_date' => (string) $this->form['expense_date'],
             'payment_method' => $this->nullableString($this->form['payment_method']),
             'paid_by_user_id' => $this->form['paid_by_user_id'] !== '' ? (int) $this->form['paid_by_user_id'] : null,
+            'duplicate_override' => $this->duplicateOverride,
         ];
     }
 
@@ -459,6 +724,9 @@ class ExpensesPage extends Component
         ];
         $this->vendorPickerSearch = '';
         $this->newAttachments = [];
+        $this->duplicateOverride = false;
+        $this->resetDuplicatePreview();
+        $this->resetReceiptAgentState();
     }
 
     private function fillFormFromExpense(Expense $expense): void
@@ -475,6 +743,9 @@ class ExpensesPage extends Component
         ];
         $this->vendorPickerSearch = '';
         $this->newAttachments = [];
+        $this->duplicateOverride = false;
+        $this->resetDuplicatePreview();
+        $this->resetReceiptAgentState();
     }
 
     private function attachUploadedFiles(UploadExpenseAttachment $uploadExpenseAttachment, Expense $expense): void
@@ -651,6 +922,13 @@ class ExpensesPage extends Component
         $this->feedbackKey++;
     }
 
+    private function setFeedbackError(string $message): void
+    {
+        $this->feedbackMessage = null;
+        $this->feedbackError = $message;
+        $this->feedbackKey++;
+    }
+
     /**
      * @param  array<string, array<int, string>>  $errors
      * @return array<string, array<int, string>>
@@ -681,6 +959,11 @@ class ExpensesPage extends Component
                 continue;
             }
 
+            if ($key === 'duplicate_override') {
+                $mapped['duplicateOverride'] = $messages;
+                continue;
+            }
+
             if (in_array($key, $formFields, true)) {
                 $mapped['form.'.$key] = $messages;
                 continue;
@@ -695,6 +978,78 @@ class ExpensesPage extends Component
     public function attachmentDownloadUrlById(int $attachmentId): string
     {
         return route('expenses.attachments.download', ['attachment' => $attachmentId]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     * @return array{
+     *   risk:'none'|'soft'|'hard',
+     *   matches:array<int, array{id:int,expense_code:string,title:string,amount:int,expense_date:string|null}>
+     * }
+     */
+    private function analyzeDuplicateRisk(array $payload): array
+    {
+        $companyId = (int) (\Illuminate\Support\Facades\Auth::user()?->company_id ?? 0);
+        if ($companyId <= 0) {
+            return ['risk' => 'none', 'matches' => []];
+        }
+
+        return app(ExpenseDuplicateDetector::class)->analyze(
+            companyId: $companyId,
+            input: [
+                'amount' => (int) ($payload['amount'] ?? 0),
+                'expense_date' => (string) ($payload['expense_date'] ?? ''),
+                'title' => (string) ($payload['title'] ?? ''),
+                'vendor_id' => $payload['vendor_id'] ?? null,
+            ],
+            excludeExpenseId: $this->isEditing && $this->editingExpenseId ? (int) $this->editingExpenseId : null
+        );
+    }
+
+    /**
+     * @param  array{
+     *   risk:'none'|'soft'|'hard',
+     *   matches:array<int, array{id:int,expense_code:string,title:string,amount:int,expense_date:string|null}>
+     * }  $analysis
+     */
+    private function syncDuplicatePreview(array $analysis): void
+    {
+        $risk = (string) ($analysis['risk'] ?? 'none');
+        $matches = (array) ($analysis['matches'] ?? []);
+
+        $this->duplicateRisk = in_array($risk, ['none', 'soft', 'hard'], true) ? $risk : 'none';
+        $this->duplicateMatches = array_values(array_filter($matches, fn ($match): bool => is_array($match)));
+
+        $this->duplicateWarning = match ($this->duplicateRisk) {
+            'hard' => 'Exact duplicate detected. Save is blocked.',
+            'soft' => 'Possible duplicate detected. Review matches and confirm override to continue.',
+            default => null,
+        };
+    }
+
+    private function resetDuplicatePreview(): void
+    {
+        $this->duplicateRisk = 'none';
+        $this->duplicateMatches = [];
+        $this->duplicateWarning = null;
+    }
+
+    private function resetReceiptAgentState(): void
+    {
+        $this->showReceiptAgentPanel = false;
+        $this->receiptAgentSummary = '';
+        $this->receiptAgentGeneratedAt = null;
+        $this->receiptAgentConfidence = 0;
+        $this->receiptOcrNotice = null;
+        $this->receiptSuggestedCategory = null;
+        $this->receiptSuggestedReference = null;
+        $this->receiptSuggestionFields = [
+            'vendor_id' => null,
+            'expense_date' => null,
+            'amount' => null,
+            'title' => null,
+        ];
+        $this->receiptAgentSignals = [];
     }
 
     private function loadExpenseForView(int $expenseId): Expense
@@ -747,6 +1102,5 @@ class ExpensesPage extends Component
         ];
     }
 }
-
 
 

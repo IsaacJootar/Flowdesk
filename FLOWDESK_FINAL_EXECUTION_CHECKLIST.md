@@ -101,6 +101,8 @@ Progress note (2026-03-09):
 - Requests module now includes tenant-gated **Flow Agents** advisory panels in draft/view modals (`app/Livewire/Requests/RequestsPage.php`, `resources/views/livewire/requests/requests-page.blade.php`).
 - Flow Agents now includes user-triggered workflow actions in Requests while keeping user as first actor (no autonomous execution).
 - Advisory engine implemented in `app/Services/AI/RequestFlowAgentService.php` with feature tests in `tests/Feature/Requests/RequestFlowAgentsTest.php`.
+- Expenses module now includes **Receipt Agent** (`app/Services/AI/ExpenseReceiptIntelligenceService.php`) with apply-suggestion UX, duplicate preview guard, and explicit create-button diagnostics (`app/Livewire/Expenses/ExpensesPage.php`, `resources/views/livewire/expenses/expenses-page.blade.php`).
+- Added feature coverage: `tests/Feature/Expenses/ExpenseReceiptAgentTest.php`.
 
 ### Exit Criteria
 - [ ] AI suggestions are visible, explainable, and overridable

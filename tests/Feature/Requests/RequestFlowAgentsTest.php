@@ -27,6 +27,7 @@ class RequestFlowAgentsTest extends TestCase
 
         Livewire::test(RequestsPage::class)
             ->call('openCreateModal')
+            ->assertDontSee('Use Flow Agent')
             ->assertDontSee('Flow Agents');
     }
 
@@ -40,7 +41,7 @@ class RequestFlowAgentsTest extends TestCase
 
         Livewire::test(RequestsPage::class)
             ->call('openCreateModal')
-            ->assertSee('Flow Agents')
+            ->assertSee('Use Flow Agent')
             ->call('runFlowAgentsForDraft')
             ->assertSet('showFlowAgentsPanel', true)
             ->assertSet('flowAgentsContext', 'draft')
