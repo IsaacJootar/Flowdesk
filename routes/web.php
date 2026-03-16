@@ -50,6 +50,7 @@ use App\Livewire\Platform\TenantExecutionPolicyPage;
 use App\Livewire\Platform\TenantPlanEntitlementsPage;
 use App\Livewire\Platform\TenantProfilePage;
 use App\Livewire\Platform\ExecutionOperationsPage;
+use App\Livewire\Platform\AiRuntimeHealthPage;
 use App\Livewire\Platform\ExecutionTestChecklistPage;
 use App\Livewire\Platform\IncidentHistoryPage;
 use App\Livewire\Platform\PilotRolloutKpiPage;
@@ -92,6 +93,7 @@ Route::middleware(['auth', 'platform.access'])->prefix('platform')->name('platfo
     Route::get('/users', PlatformUsersPage::class)->name('users');
     Route::get('/operations', PlatformOperationsHubPage::class)->name('operations.hub');
     Route::get('/operations/execution', ExecutionOperationsPage::class)->name('operations.execution');
+    Route::get('/operations/ai-runtime-health', AiRuntimeHealthPage::class)->name('operations.ai-runtime-health');
     Route::get('/operations/execution-checklist', ExecutionTestChecklistPage::class)->name('operations.execution-checklist');
     Route::get('/operations/incident-history', IncidentHistoryPage::class)->name('operations.incident-history');
     Route::get('/operations/pilot-rollout', PilotRolloutKpiPage::class)->name('operations.pilot-rollout');

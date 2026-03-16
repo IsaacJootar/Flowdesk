@@ -1,6 +1,6 @@
 # Flowdesk Module Status (Ground Truth)
 
-Last updated: 2026-03-09
+Last updated: 2026-03-16
 
 This file is the canonical module inventory so planning discussions stay aligned to what is already implemented in code.
 
@@ -164,13 +164,15 @@ This file is the canonical module inventory so planning discussions stay aligned
 - Status: Implemented.
 
 ## Execution Operations
-- Routes: `/platform/operations`, `/platform/operations/execution`
+- Routes: `/platform/operations`, `/platform/operations/execution`, `/platform/operations/ai-runtime-health`
 - Entries:
   - `app/Livewire/Platform/PlatformOperationsHubPage.php`
   - `app/Livewire/Platform/ExecutionOperationsPage.php`
-- Status: Implemented with consolidated Operations Hub (`/platform/operations`) as primary platform workspace with tabs for execution ops, checklist, incident timeline, and pilot rollout. Existing dedicated pages remain as drill-down routes.
+  - `app/Livewire/Platform/AiRuntimeHealthPage.php`
+- Status: Implemented with consolidated Operations Hub (`/platform/operations`) as primary platform workspace with tabs for execution ops, checklist, incident timeline, and pilot rollout. Includes AI Runtime Health monitor for model/OCR capability checks plus cross-tenant receipt-analysis fallback trends.
 - Test coverage:
   - `tests/Feature/Execution/ExecutionOperationsCenterPhaseFiveTest.php`
+  - `tests/Feature/Execution/AiRuntimeHealthPageTest.php`
 
 ## Execution Test Checklist
 - Route: `/platform/operations/execution-checklist`
@@ -629,7 +631,7 @@ AI implementation foundation status (2026-03-07):
 - Added runtime profile service: `app/Services/AI/AiRuntimeProfileService.php` for consistent module consumption.
 - Added unit coverage: `tests/Unit/AI/AiFeatureGateServiceTest.php`.
 
-AI rollout increment (2026-03-09):
+AI rollout increment (2026-03-16):
 - Implemented Requests **Flow Agents** advisory service: `app/Services/AI/RequestFlowAgentService.php`.
 - Integrated tenant-gated Flow Agents panel into Requests draft + view modals:
   - `app/Livewire/Requests/RequestsPage.php`
@@ -651,3 +653,13 @@ AI rollout increment (2026-03-09):
     - `app/Livewire/Expenses/ExpensesPage.php`
     - `resources/views/livewire/expenses/expenses-page.blade.php`
   - Added coverage: `tests/Feature/Expenses/ExpenseReceiptAgentTest.php`.
+- Platform AI runtime observability increment:
+  - Added `app/Services/AI/AiRuntimeHealthService.php` for provider/model/OCR capability checks and 24h receipt-agent fallback metrics.
+  - Added `/platform/operations/ai-runtime-health` monitor page:
+    - `app/Livewire/Platform/AiRuntimeHealthPage.php`
+    - `resources/views/livewire/platform/ai-runtime-health-page.blade.php`
+  - Linked monitor from:
+    - `resources/views/livewire/platform/platform-operations-hub-page.blade.php`
+    - `resources/views/livewire/platform/execution-operations-page.blade.php`
+  - Added coverage:
+    - `tests/Feature/Execution/AiRuntimeHealthPageTest.php`

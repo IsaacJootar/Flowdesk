@@ -1,6 +1,6 @@
 # FLOWDESK_AI_PLAN.md
 
-Last updated: 2026-03-09
+Last updated: 2026-03-16
 
 ## 1) Goal
 Add practical AI features that make Flowdesk faster and safer for operations and finance teams, without expensive subscriptions.
@@ -11,7 +11,7 @@ Primary outcome:
 - Better operator clarity
 - No tenant data mixing
 
-Current rollout status (2026-03-09):
+Current rollout status (2026-03-16):
 - Requests workflow now exposes AI as **Flow Agents** (advisory side panel in draft and request view modals).
 - Flow Agents is tenant-gated via `ai_enabled` entitlement and remains human-in-control (`advisory_only` guard respected).
 - Flow Agents now supports user-triggered workflow execution in Requests (for example: convert/create expense) when the user explicitly clicks the action.
@@ -28,6 +28,12 @@ Current rollout status (2026-03-09):
 - Implemented services and coverage:
   - `app/Services/AI/RequestFlowAgentService.php` + `tests/Feature/Requests/RequestFlowAgentsTest.php`
   - `app/Services/AI/ExpenseReceiptIntelligenceService.php` + `tests/Feature/Expenses/ExpenseReceiptAgentTest.php`
+- Platform AI runtime observability is now live:
+  - `app/Services/AI/AiRuntimeHealthService.php`
+  - `app/Livewire/Platform/AiRuntimeHealthPage.php`
+  - `resources/views/livewire/platform/ai-runtime-health-page.blade.php`
+  - route: `/platform/operations/ai-runtime-health`
+  - coverage: `tests/Feature/Execution/AiRuntimeHealthPageTest.php`
 
 ## 2) Non-Negotiable Rules
 

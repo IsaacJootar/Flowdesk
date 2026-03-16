@@ -1,6 +1,6 @@
 # Flowdesk Execution Operations Usage Guide
 
-Last updated: 2026-03-04
+Last updated: 2026-03-16
 
 This guide defines the tenant payout execution workflow end-to-end so money movement operations are clear for all staff roles.
 
@@ -139,3 +139,25 @@ This indicates missing approver trail for that row, not necessarily an invalid p
 ## 11) Full Manual Later
 
 This guide is the execution chapter foundation for the final full Flowdesk usage manual (all modules + roles + runbooks).
+
+## 12) Platform AI Runtime Health Workflow
+
+Page:
+- Platform route: `/platform/operations/ai-runtime-health`
+
+Purpose:
+- Show if model runtime is reachable (for example Ollama).
+- Show whether OCR binaries are available (`tesseract`, `pdftotext`).
+- Show 24h receipt-analysis mix (`model_assisted` vs `deterministic`) and fallback rate.
+- Show the latest cross-tenant receipt-analysis events for quick triage.
+
+How platform ops should use it:
+1. Open `AI Runtime Health` from Operations Hub or Execution Operations.
+2. Check runtime status cards first (provider, primary model, model reachability, OCR capability).
+3. Review fallback rate and model-assisted volume over the last 24 hours.
+4. Open recent analysis rows to confirm whether fallback is isolated or widespread.
+5. If model runtime or OCR is unavailable, continue operations in deterministic mode and raise infra action item.
+
+Important behavior:
+- Receipt Agent remains operational even when model runtime is down; deterministic extraction is used as fallback.
+- Monitor metrics are platform-level and intentionally bypass tenant query scope for reliability oversight.

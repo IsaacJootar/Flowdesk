@@ -35,6 +35,7 @@ class ExecutionOperationsCenterPhaseFiveTest extends TestCase
             ->get(route('platform.operations.execution'))
             ->assertOk()
             ->assertSee('Execution Operations Center')
+            ->assertSee('Open AI Runtime Health')
             ->assertSee('Failure Rate')
             ->assertSee('Runbook Hints')
             ->assertSee('Auto Recovery Runs')

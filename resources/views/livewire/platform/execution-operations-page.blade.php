@@ -24,6 +24,7 @@
             <div class="flex flex-wrap items-center gap-2">
                 <a href="{{ route('platform.operations.incident-history') }}" class="inline-flex h-9 items-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50">Open Incident History</a>
                 <a href="{{ route('platform.operations.execution-checklist') }}" class="inline-flex h-9 items-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50">Open Test Checklist</a>
+                <a href="{{ route('platform.operations.ai-runtime-health') }}" class="inline-flex h-9 items-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50">Open AI Runtime Health</a>
                 <a href="{{ route('platform.operations.pilot-rollout') }}" class="inline-flex h-9 items-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50">Open Pilot Rollout KPIs</a>
             </div>
         </div>

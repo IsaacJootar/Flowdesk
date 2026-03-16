@@ -55,7 +55,10 @@
                     <p class="text-xs font-semibold uppercase tracking-[0.14em] text-emerald-700">Execution Control</p>
                     <p class="mt-1 text-sm text-slate-700">Latest recovery action: {{ $executionSummary['last_recovery'] ?? 'No recovery actions logged yet.' }}</p>
                 </div>
-                <a href="{{ route('platform.operations.execution') }}" class="inline-flex h-9 items-center rounded-lg border border-emerald-300 bg-emerald-100 px-3 text-xs font-semibold text-emerald-800 hover:bg-emerald-200">Open Full Execution Operations</a>
+                <div class="flex flex-wrap items-center gap-2">
+                    <a href="{{ route('platform.operations.ai-runtime-health') }}" class="inline-flex h-9 items-center rounded-lg border border-emerald-300 bg-white px-3 text-xs font-semibold text-emerald-800 hover:bg-emerald-100">Open AI Runtime Health</a>
+                    <a href="{{ route('platform.operations.execution') }}" class="inline-flex h-9 items-center rounded-lg border border-emerald-300 bg-emerald-100 px-3 text-xs font-semibold text-emerald-800 hover:bg-emerald-200">Open Full Execution Operations</a>
+                </div>
             </div>
         </section>
     @elseif ($tab === 'checklist')
