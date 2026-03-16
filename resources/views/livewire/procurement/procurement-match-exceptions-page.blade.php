@@ -20,6 +20,14 @@
             <h2 class="text-base font-semibold text-slate-900">Procurement Match Exceptions</h2>
             <p class="text-xs text-slate-500">Review 3-way match failures and apply controlled resolution actions.</p>
             <p class="mt-1 text-xs text-slate-500">Action roles: {{ implode(', ', (array) $matchActionAllowedRoles) }}.</p>
+            @if ($flowAgentsEnabled)
+                <p class="mt-1 text-xs text-sky-700">
+                    <span class="font-semibold">Flow Agent:</span> use <span class="font-semibold">Use Flow Agent</span> for `why blocked` and `next action` guidance.
+                    @if ($flowAgentsAdvisoryOnly)
+                        Advisory mode is active.
+                    @endif
+                </p>
+            @endif
             @if ($makerCheckerRequired)
                 <p class="text-xs text-amber-700">Maker-checker is enabled: the user who generated the mismatch cannot close it.</p>
             @endif
@@ -100,6 +108,7 @@
                             <th class="px-4 py-3 text-left font-semibold">Details</th>
                             <th class="px-4 py-3 text-left font-semibold">Match</th>
                             <th class="px-4 py-3 text-left font-semibold">Status</th>
+                            <th class="px-4 py-3 text-left font-semibold">Flow Agent</th>
                             <th class="px-4 py-3 text-right font-semibold">Action</th>
                         </tr>
                     </thead>
@@ -111,6 +120,14 @@
                                     'resolved' => 'bg-emerald-100 text-emerald-700',
                                     'waived' => 'bg-amber-100 text-amber-700',
                                     default => 'bg-slate-100 text-slate-700',
+                                };
+                                $insight = $flowAgentInsights[(int) $exception->id] ?? null;
+                                $riskLevel = strtolower((string) ($insight['risk_level'] ?? ''));
+                                $riskClass = match ($riskLevel) {
+                                    'high' => 'border-rose-200 bg-rose-50 text-rose-700',
+                                    'medium' => 'border-amber-200 bg-amber-50 text-amber-700',
+                                    'low' => 'border-emerald-200 bg-emerald-50 text-emerald-700',
+                                    default => 'border-slate-200 bg-slate-50 text-slate-600',
                                 };
                             @endphp
                             <tr class="hover:bg-slate-50">
@@ -135,11 +152,48 @@
                                         {{ ucfirst(str_replace('_', ' ', (string) $exception->exception_status)) }}
                                     </span>
                                 </td>
+                                <td class="px-4 py-3 text-slate-600">
+                                    @if (is_array($insight))
+                                        <span class="inline-flex rounded-full border px-2 py-0.5 text-xs font-semibold {{ $riskClass }}">
+                                            {{ ucfirst((string) ($insight['risk_level'] ?? 'low')) }} risk
+                                        </span>
+                                        <p class="mt-1 text-xs text-slate-600">{{ (string) ($insight['why_blocked'] ?? '-') }}</p>
+                                        <p class="mt-1 text-[11px] text-slate-500">Next: {{ (string) ($insight['next_action'] ?? '-') }}</p>
+                                    @elseif (! $flowAgentsEnabled)
+                                        <span class="text-xs text-slate-400">AI disabled for tenant</span>
+                                    @else
+                                        <span class="text-xs text-slate-400">Not analyzed</span>
+                                    @endif
+                                </td>
                                 <td class="px-4 py-3 text-right">
-                                    @if ((string) $exception->exception_status === 'open')
+                                    @if ((string) $exception->exception_status === 'open' || $flowAgentsEnabled)
                                         <div class="inline-flex items-center gap-2">
-                                            <button type="button" wire:click="openResolutionModal({{ $exception->id }}, 'resolved')" class="rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100">Resolve</button>
-                                            <button type="button" wire:click="openResolutionModal({{ $exception->id }}, 'waived')" class="rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700 hover:bg-amber-100">Waive</button>
+                                            @if ($flowAgentsEnabled)
+                                                <button
+                                                    type="button"
+                                                    wire:click="analyzeExceptionWithFlowAgent({{ (int) $exception->id }})"
+                                                    wire:loading.attr="disabled"
+                                                    wire:target="analyzeExceptionWithFlowAgent({{ (int) $exception->id }})"
+                                                    class="inline-flex items-center gap-1.5 rounded-lg border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-semibold text-sky-700 hover:bg-sky-100 disabled:opacity-70"
+                                                >
+                                                    <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                                        <path d="M12 3v3"></path>
+                                                        <path d="M12 18v3"></path>
+                                                        <path d="M3 12h3"></path>
+                                                        <path d="M18 12h3"></path>
+                                                        <path d="M6.3 6.3l2.1 2.1"></path>
+                                                        <path d="M15.6 15.6l2.1 2.1"></path>
+                                                        <path d="M17.7 6.3l-2.1 2.1"></path>
+                                                        <path d="M8.4 15.6l-2.1 2.1"></path>
+                                                    </svg>
+                                                    <span wire:loading.remove wire:target="analyzeExceptionWithFlowAgent({{ (int) $exception->id }})">Use Flow Agent</span>
+                                                    <span wire:loading wire:target="analyzeExceptionWithFlowAgent({{ (int) $exception->id }})">Analyzing...</span>
+                                                </button>
+                                            @endif
+                                            @if ((string) $exception->exception_status === 'open')
+                                                <button type="button" wire:click="openResolutionModal({{ $exception->id }}, 'resolved')" class="rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100">Resolve</button>
+                                                <button type="button" wire:click="openResolutionModal({{ $exception->id }}, 'waived')" class="rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700 hover:bg-amber-100">Waive</button>
+                                            @endif
                                         </div>
                                     @else
                                         <span class="text-xs text-slate-500">Closed</span>
@@ -148,7 +202,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="6" class="px-4 py-10 text-center text-sm text-slate-500">No procurement match exceptions found for the selected filters.</td>
+                                <td colspan="7" class="px-4 py-10 text-center text-sm text-slate-500">No procurement match exceptions found for the selected filters.</td>
                             </tr>
                         @endforelse
                     </tbody>

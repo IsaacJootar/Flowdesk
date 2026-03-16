@@ -32,4 +32,15 @@ return [
         'allow_auto_approval' => filter_var(env('FLOWDESK_AI_ALLOW_AUTO_APPROVAL', false), FILTER_VALIDATE_BOOL),
         'allow_auto_payout' => filter_var(env('FLOWDESK_AI_ALLOW_AUTO_PAYOUT', false), FILTER_VALIDATE_BOOL),
     ],
+
+    // Advisory thresholds used by tenant payout-risk flow agent.
+    'payout_risk' => [
+        'high_amount_threshold' => (int) env('FLOWDESK_AI_PAYOUT_RISK_HIGH_AMOUNT_THRESHOLD', 1000000),
+    ],
+
+    // Advisory thresholds used by treasury reconciliation flow agent.
+    'treasury_reconciliation' => [
+        'date_window_days' => (int) env('FLOWDESK_AI_TREASURY_RECON_DATE_WINDOW_DAYS', 3),
+        'amount_tolerance' => (int) env('FLOWDESK_AI_TREASURY_RECON_AMOUNT_TOLERANCE', 0),
+    ],
 ];

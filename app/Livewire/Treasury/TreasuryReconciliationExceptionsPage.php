@@ -5,6 +5,8 @@ namespace App\Livewire\Treasury;
 use App\Domains\Treasury\Models\BankStatementLine;
 use App\Domains\Treasury\Models\ReconciliationException;
 use App\Models\User;
+use App\Services\AI\AiFeatureGateService;
+use App\Services\AI\TreasuryReconciliationFlowAgentService;
 use App\Services\TenantAuditLogger;
 use App\Services\Treasury\TreasuryControlSettingsService;
 use Illuminate\Contracts\View\View;
@@ -55,10 +57,35 @@ class TreasuryReconciliationExceptionsPage extends Component
 
     public int $feedbackKey = 0;
 
+    public bool $flowAgentsEnabled = false;
+
+    public bool $flowAgentsAdvisoryOnly = true;
+
+    /**
+     * @var array<int, array{
+     *   risk_level:string,
+     *   risk_score:int,
+     *   confidence:int,
+     *   suggested_match:string,
+     *   suggested_match_type:string,
+     *   why_blocked:string,
+     *   next_action:string,
+     *   summary:string,
+     *   signals:array<int,string>,
+     *   engine:string,
+     *   generated_at:string
+     * }>
+     */
+    public array $flowAgentInsights = [];
+
     public function mount(): void
     {
         $user = auth()->user();
         abort_unless($user instanceof User && $this->canAccessPage($user), 403);
+
+        $this->flowAgentsEnabled = app(AiFeatureGateService::class)->enabledForCompany((int) $user->company_id);
+        $this->flowAgentsAdvisoryOnly = (bool) config('ai.guards.advisory_only', true);
+
         $this->normalizeFilterState();
     }
 
@@ -124,6 +151,57 @@ class TreasuryReconciliationExceptionsPage extends Component
         $this->resolutionNotes = '';
     }
 
+    public function analyzeExceptionWithFlowAgent(int $exceptionId): void
+    {
+        $user = auth()->user();
+        if (! $user instanceof User) {
+            return;
+        }
+
+        if (! $this->flowAgentsEnabled) {
+            $this->setFeedbackError('Flow Agent is not enabled for this tenant.');
+
+            return;
+        }
+
+        $exception = ReconciliationException::query()
+            ->with('line:id,company_id,line_reference,description,amount,currency_code,posted_at,value_date')
+            ->where('company_id', (int) $user->company_id)
+            ->whereKey($exceptionId)
+            ->first();
+
+        if (! $exception) {
+            $this->setFeedbackError('Selected exception is no longer available in your tenant scope.');
+
+            return;
+        }
+
+        $insight = app(TreasuryReconciliationFlowAgentService::class)->analyze($exception);
+        $this->flowAgentInsights[(int) $exception->id] = $insight;
+
+        app(TenantAuditLogger::class)->log(
+            companyId: (int) $user->company_id,
+            action: 'tenant.treasury.reconciliation.exception.flow_agent_analyzed',
+            actor: $user,
+            description: 'Flow Agent analyzed treasury reconciliation exception for operator guidance.',
+            entityType: ReconciliationException::class,
+            entityId: (int) $exception->id,
+            metadata: [
+                'exception_code' => (string) $exception->exception_code,
+                'risk_level' => (string) ($insight['risk_level'] ?? 'low'),
+                'risk_score' => (int) ($insight['risk_score'] ?? 0),
+                'suggested_match_type' => (string) ($insight['suggested_match_type'] ?? 'none'),
+                'engine' => (string) ($insight['engine'] ?? 'deterministic_treasury_reconciliation_rules'),
+            ],
+        );
+
+        $this->setFeedback(
+            'Flow Agent analyzed '.strtoupper((string) $exception->exception_code)
+            .': '.ucfirst((string) ($insight['risk_level'] ?? 'low'))
+            .' risk.'
+        );
+    }
+
     public function applyResolution(
         TenantAuditLogger $tenantAuditLogger,
         TreasuryControlSettingsService $treasuryControlSettingsService
@@ -167,12 +245,11 @@ class TreasuryReconciliationExceptionsPage extends Component
             'resolutionNotes' => ['required', 'string', 'max:2000'],
         ]);
 
-        $exception = ReconciliationException::query()->with('line')->findOrFail((int) $this->selectedExceptionId);
-        if ((int) $exception->company_id !== (int) $user->company_id) {
-            $this->setFeedbackError('Exception is outside your tenant scope.');
-
-            return;
-        }
+        $exception = ReconciliationException::query()
+            ->with('line')
+            ->where('company_id', (int) $user->company_id)
+            ->whereKey((int) $this->selectedExceptionId)
+            ->firstOrFail();
 
         if ((string) $exception->exception_status !== ReconciliationException::STATUS_OPEN) {
             $this->setFeedbackError('Exception is already closed.');
@@ -251,6 +328,7 @@ class TreasuryReconciliationExceptionsPage extends Component
                 'new_status' => $newStatus,
                 'allowed_roles' => $allowedRoles,
                 'requires_maker_checker' => $requiresMakerChecker,
+                'flow_agent_insight' => $this->flowAgentInsights[(int) $exception->id] ?? null,
             ],
         );
 
@@ -325,6 +403,8 @@ class TreasuryReconciliationExceptionsPage extends Component
                 'newest' => 'Newest First',
                 'oldest' => 'Oldest First',
             ],
+            'flowAgentsEnabled' => $this->flowAgentsEnabled,
+            'flowAgentsAdvisoryOnly' => $this->flowAgentsAdvisoryOnly,
             'slaHours' => $slaHours,
             'exceptionActionAllowedRoles' => $allowedRoles,
             'makerCheckerRequired' => $makerCheckerRequired,

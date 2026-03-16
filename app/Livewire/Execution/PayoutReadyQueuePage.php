@@ -6,6 +6,8 @@ use App\Domains\Approvals\Models\RequestApproval;
 use App\Domains\Requests\Models\RequestPayoutExecutionAttempt;
 use App\Domains\Requests\Models\SpendRequest;
 use App\Models\User;
+use App\Services\AI\AiFeatureGateService;
+use App\Services\AI\PayoutRiskFlowAgentService;
 use App\Services\Execution\RequestPayoutExecutionAttemptProcessor;
 use App\Services\Execution\RequestPayoutExecutionOrchestrator;
 use App\Services\TenantAuditLogger;
@@ -40,9 +42,32 @@ class PayoutReadyQueuePage extends Component
 
     public int $feedbackKey = 0;
 
+    public bool $flowAgentsEnabled = false;
+
+    public bool $flowAgentsAdvisoryOnly = true;
+
+    /**
+     * @var array<int, array{
+     *     risk_level:string,
+     *     risk_score:int,
+     *     confidence:int,
+     *     top_reason:string,
+     *     summary:string,
+     *     guidance:string,
+     *     signals:array<int,string>,
+     *     engine:string,
+     *     generated_at:string
+     * }>
+     */
+    public array $payoutRiskInsights = [];
+
     public function mount(): void
     {
         abort_unless($this->canAccessPage(), 403);
+
+        $companyId = (int) (Auth::user()?->company_id ?? 0);
+        $this->flowAgentsEnabled = app(AiFeatureGateService::class)->enabledForCompany($companyId);
+        $this->flowAgentsAdvisoryOnly = (bool) config('ai.guards.advisory_only', true);
 
         $deepLinkSearch = trim((string) request()->query('search', ''));
         if ($deepLinkSearch !== '') {
@@ -98,6 +123,48 @@ class PayoutReadyQueuePage extends Component
         }
 
         $this->setFeedbackError($message);
+    }
+
+    public function analyzePayoutRisk(int $requestId): void
+    {
+        if (! $this->flowAgentsEnabled) {
+            $this->setFeedbackError('Flow Agent is not enabled for this tenant.');
+
+            return;
+        }
+
+        $request = $this->queueBaseQuery()
+            ->whereKey($requestId)
+            ->first();
+
+        if (! $request) {
+            $this->setFeedbackError('Request is no longer available in your tenant scope.');
+
+            return;
+        }
+
+        $result = app(PayoutRiskFlowAgentService::class)->analyze($request);
+
+        $this->payoutRiskInsights[(int) $request->id] = $result;
+
+        app(TenantAuditLogger::class)->log(
+            companyId: (int) $request->company_id,
+            action: 'tenant.execution.payout.risk_analyzed',
+            actor: Auth::user(),
+            description: 'Flow Agent payout risk analysis generated from tenant payout queue.',
+            entityType: SpendRequest::class,
+            entityId: (int) $request->id,
+            metadata: [
+                'request_code' => (string) $request->request_code,
+                'risk_level' => (string) ($result['risk_level'] ?? 'low'),
+                'risk_score' => (int) ($result['risk_score'] ?? 0),
+                'engine' => (string) ($result['engine'] ?? 'deterministic_risk_rules'),
+            ],
+        );
+
+        $riskLevel = ucfirst((string) ($result['risk_level'] ?? 'low'));
+        $topReason = trim((string) ($result['top_reason'] ?? ''));
+        $this->setFeedback('Flow Agent analyzed '.(string) $request->request_code.': '.$riskLevel.' risk.'.($topReason !== '' ? ' '.$topReason : ''));
     }
 
     public function render(): View

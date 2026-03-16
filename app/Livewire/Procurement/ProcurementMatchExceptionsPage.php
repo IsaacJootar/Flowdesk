@@ -5,6 +5,8 @@ namespace App\Livewire\Procurement;
 use App\Domains\Procurement\Models\InvoiceMatchException;
 use App\Domains\Procurement\Models\InvoiceMatchResult;
 use App\Models\User;
+use App\Services\AI\AiFeatureGateService;
+use App\Services\AI\ProcurementMatchFlowAgentService;
 use App\Services\Procurement\ProcurementControlSettingsService;
 use App\Services\TenantAuditLogger;
 use Illuminate\Contracts\View\View;
@@ -41,10 +43,33 @@ class ProcurementMatchExceptionsPage extends Component
 
     public int $feedbackKey = 0;
 
+    public bool $flowAgentsEnabled = false;
+
+    public bool $flowAgentsAdvisoryOnly = true;
+
+    /**
+     * @var array<int, array{
+     *   risk_level:string,
+     *   risk_score:int,
+     *   confidence:int,
+     *   why_blocked:string,
+     *   top_risk:string,
+     *   next_action:string,
+     *   summary:string,
+     *   signals:array<int,string>,
+     *   engine:string,
+     *   generated_at:string
+     * }>
+     */
+    public array $flowAgentInsights = [];
+
     public function mount(): void
     {
         $user = auth()->user();
         abort_unless($user instanceof User && $this->canAccessPage($user), 403);
+
+        $this->flowAgentsEnabled = app(AiFeatureGateService::class)->enabledForCompany((int) $user->company_id);
+        $this->flowAgentsAdvisoryOnly = (bool) config('ai.guards.advisory_only', true);
 
         $deepLinkSearch = trim((string) request()->query('search', ''));
         if ($deepLinkSearch !== '') {
@@ -101,6 +126,56 @@ class ProcurementMatchExceptionsPage extends Component
         $this->resolutionAction = 'resolved';
     }
 
+    public function analyzeExceptionWithFlowAgent(int $exceptionId): void
+    {
+        $user = auth()->user();
+        if (! $user instanceof User) {
+            return;
+        }
+
+        if (! $this->flowAgentsEnabled) {
+            $this->setFeedbackError('Flow Agent is not enabled for this tenant.');
+
+            return;
+        }
+
+        $exception = InvoiceMatchException::query()
+            ->with([
+                'order:id,po_number',
+                'invoice:id,invoice_number,total_amount,currency',
+                'matchResult:id,match_status,match_score',
+            ])
+            ->where('company_id', (int) $user->company_id)
+            ->whereKey($exceptionId)
+            ->first();
+
+        if (! $exception) {
+            $this->setFeedbackError('Selected exception is no longer available in your tenant scope.');
+
+            return;
+        }
+
+        $insight = app(ProcurementMatchFlowAgentService::class)->analyze($exception);
+        $this->flowAgentInsights[(int) $exception->id] = $insight;
+
+        app(TenantAuditLogger::class)->log(
+            companyId: (int) $user->company_id,
+            action: 'tenant.procurement.match.exception.flow_agent_analyzed',
+            actor: $user,
+            description: 'Flow Agent analyzed procurement match exception for guided resolution.',
+            entityType: InvoiceMatchException::class,
+            entityId: (int) $exception->id,
+            metadata: [
+                'exception_code' => (string) $exception->exception_code,
+                'risk_level' => (string) ($insight['risk_level'] ?? 'low'),
+                'risk_score' => (int) ($insight['risk_score'] ?? 0),
+                'engine' => (string) ($insight['engine'] ?? 'deterministic_procurement_rules'),
+            ],
+        );
+
+        $this->setFeedback('Flow Agent analyzed '.strtoupper((string) $exception->exception_code).': '.ucfirst((string) ($insight['risk_level'] ?? 'low')).' risk.');
+    }
+
     /**
      * @throws ValidationException
      */
@@ -147,14 +222,9 @@ class ProcurementMatchExceptionsPage extends Component
 
         $exception = InvoiceMatchException::query()
             ->with('matchResult')
+            ->where('company_id', (int) $user->company_id)
             ->whereKey((int) $this->selectedExceptionId)
             ->firstOrFail();
-
-        if ((int) $exception->company_id !== (int) $user->company_id) {
-            $this->setFeedbackError('This exception does not belong to your tenant scope.');
-
-            return;
-        }
 
         if ((string) $exception->exception_status !== InvoiceMatchException::STATUS_OPEN) {
             $this->setFeedbackError('This exception is already closed.');
@@ -240,6 +310,7 @@ class ProcurementMatchExceptionsPage extends Component
                 'new_status' => $newStatus,
                 'allowed_roles' => $allowedRoles,
                 'maker_checker_required' => $requiresMakerChecker,
+                'flow_agent_insight' => $this->flowAgentInsights[(int) $exception->id] ?? null,
             ],
         );
 
@@ -249,7 +320,8 @@ class ProcurementMatchExceptionsPage extends Component
 
     public function render(ProcurementControlSettingsService $settingsService): View
     {
-        $controls = $settingsService->effectiveControls((int) auth()->user()->company_id);
+        $companyId = (int) (auth()->user()?->company_id ?? 0);
+        $controls = $settingsService->effectiveControls($companyId);
         $allowedRoles = array_values(array_filter(array_map(
             static fn (mixed $role): string => strtolower(trim((string) $role)),
             (array) ($controls['match_override_allowed_roles'] ?? ['owner', 'finance'])
@@ -262,6 +334,7 @@ class ProcurementMatchExceptionsPage extends Component
                 'invoice:id,invoice_number,total_amount,currency',
                 'matchResult:id,match_status,match_score',
             ])
+            ->where('company_id', $companyId)
             ->when($this->search !== '', function ($builder): void {
                 $builder->where(function ($inner): void {
                     $inner->where('exception_code', 'like', '%'.$this->search.'%')

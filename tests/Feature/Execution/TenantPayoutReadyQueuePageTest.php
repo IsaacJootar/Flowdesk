@@ -4,6 +4,7 @@ namespace Tests\Feature\Execution;
 
 use App\Domains\Company\Models\Company;
 use App\Domains\Company\Models\Department;
+use App\Domains\Company\Models\TenantFeatureEntitlement;
 use App\Domains\Company\Models\TenantSubscription;
 use App\Domains\Requests\Models\RequestPayoutExecutionAttempt;
 use App\Domains\Requests\Models\SpendRequest;
@@ -102,7 +103,7 @@ class TenantPayoutReadyQueuePageTest extends TestCase
         $finance = $this->createUser($company, $department, UserRole::Finance->value);
         $requester = $this->createUser($company, $department, UserRole::Staff->value);
 
-        TenantSubscription::query()->create([
+        $subscription = TenantSubscription::query()->create([
             'company_id' => $company->id,
             'plan_code' => 'growth',
             'subscription_status' => 'current',
@@ -158,7 +159,7 @@ class TenantPayoutReadyQueuePageTest extends TestCase
         $auditor = $this->createUser($company, $department, UserRole::Auditor->value);
         $requester = $this->createUser($company, $department, UserRole::Staff->value);
 
-        TenantSubscription::query()->create([
+        $subscription = TenantSubscription::query()->create([
             'company_id' => $company->id,
             'plan_code' => 'growth',
             'subscription_status' => 'current',
@@ -199,6 +200,75 @@ class TenantPayoutReadyQueuePageTest extends TestCase
         ]);
     }
 
+    public function test_flow_agent_can_analyze_payout_risk_when_ai_is_enabled_for_tenant(): void
+    {
+        [$company, $department] = $this->createCompanyContext('Queue Flow Agent Tenant');
+
+        $finance = $this->createUser($company, $department, UserRole::Finance->value);
+        $requester = $this->createUser($company, $department, UserRole::Staff->value);
+        $this->enableAiForCompany($company, $finance);
+
+        $subscription = TenantSubscription::query()->create([
+            'company_id' => $company->id,
+            'plan_code' => 'growth',
+            'subscription_status' => 'current',
+            'payment_execution_mode' => 'execution_enabled',
+            'execution_provider' => 'manual_ops',
+            'execution_allowed_channels' => ['bank_transfer'],
+            'created_by' => $finance->id,
+            'updated_by' => $finance->id,
+        ]);
+
+        $request = SpendRequest::query()->create([
+            'company_id' => $company->id,
+            'request_code' => 'FD-QUEUE-RISK-001',
+            'requested_by' => $requester->id,
+            'department_id' => $department->id,
+            'title' => 'High value payout request',
+            'amount' => 1600000,
+            'currency' => 'NGN',
+            'status' => 'approved_for_execution',
+            'approved_amount' => 1600000,
+            'created_by' => $finance->id,
+            'updated_by' => $finance->id,
+        ]);
+
+        RequestPayoutExecutionAttempt::query()->create([
+            'company_id' => $company->id,
+            'request_id' => (int) $request->id,
+            'tenant_subscription_id' => (int) $subscription->id,
+            'provider_key' => 'manual_ops',
+            'execution_channel' => 'bank_transfer',
+            'idempotency_key' => 'request:'.$request->id.':risk-test-001',
+            'execution_status' => 'failed',
+            'amount' => 1600000,
+            'currency_code' => 'NGN',
+            'queued_at' => now()->subHours(3),
+            'failed_at' => now()->subHours(2),
+            'attempt_count' => 2,
+            'error_code' => 'provider_timeout',
+            'error_message' => 'Simulated timeout',
+            'created_by' => $finance->id,
+            'updated_by' => $finance->id,
+        ]);
+
+        $this->actingAs($finance);
+
+        Livewire::test(PayoutReadyQueuePage::class)
+            ->call('loadData')
+            ->call('analyzePayoutRisk', (int) $request->id)
+            ->assertSet('feedbackError', null)
+            ->assertSee('Use Flow Agent')
+            ->assertSee('risk');
+
+        $this->assertDatabaseHas('tenant_audit_events', [
+            'company_id' => $company->id,
+            'action' => 'tenant.execution.payout.risk_analyzed',
+            'entity_type' => SpendRequest::class,
+            'entity_id' => (int) $request->id,
+        ]);
+    }
+
     /**
      * @return array{0:Company,1:Department}
      */
@@ -233,5 +303,17 @@ class TenantPayoutReadyQueuePageTest extends TestCase
             'platform_role' => $platformRole,
             'is_active' => true,
         ]);
+    }
+
+    private function enableAiForCompany(Company $company, User $actor): void
+    {
+        TenantFeatureEntitlement::query()->updateOrCreate(
+            ['company_id' => $company->id],
+            [
+                'ai_enabled' => true,
+                'created_by' => $actor->id,
+                'updated_by' => $actor->id,
+            ]
+        );
     }
 }

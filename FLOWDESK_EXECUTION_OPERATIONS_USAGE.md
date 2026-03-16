@@ -83,9 +83,16 @@ Example:
 
 ## 5) Action Buttons in Queue
 
+- `Use Flow Agent`: advisory payout-risk analysis before run/rerun
 - `Run Payout`: first-time run for non-failed rows
 - `Rerun Payout`: retry action for failed rows
 - `Re-check`: row already in processing/webhook-pending flow
+
+`Use Flow Agent` behavior:
+- Available only when tenant `ai_enabled` entitlement is on.
+- Produces advisory risk level (`low`/`medium`/`high`), top reason, and score.
+- Does not execute payout by itself.
+- Logs tenant audit event `tenant.execution.payout.risk_analyzed`.
 
 ## 6) Status Triggers (Source of Truth)
 
@@ -161,3 +168,19 @@ How platform ops should use it:
 Important behavior:
 - Receipt Agent remains operational even when model runtime is down; deterministic extraction is used as fallback.
 - Monitor metrics are platform-level and intentionally bypass tenant query scope for reliability oversight.
+
+## 13) Tenant Flow Agent Payout Risk Workflow
+
+Page:
+- Tenant route: `/execution/payout-ready`
+
+Purpose:
+- Help finance/operator users detect risky payout runs before clicking `Run Payout` or `Rerun Payout`.
+- Keep user as primary actor while AI remains advisory.
+
+How to use:
+1. Open `Payout Ready Queue`.
+2. On a row, click `Use Flow Agent`.
+3. Review `Flow Agent Risk` output (risk level, top reason, risk score).
+4. Decide whether to run payout now or resolve blocker first.
+5. Continue normal execution monitoring from `Execution Health`.

@@ -17,7 +17,7 @@ This file is the canonical module inventory so planning discussions stay aligned
   - `app/Livewire/Execution/ExecutionHealthPage.php`
   - `app/Livewire/Execution/PayoutReadyQueuePage.php`
   - `app/Livewire/Execution/ExecutionUsageGuidePage.php`
-- Status: Implemented with tenant-scoped execution health summary, payout working queue (`Run Payout` and `Rerun Payout`), and in-app Help / Usage Guide.
+- Status: Implemented with tenant-scoped execution health summary, payout working queue (`Run Payout` and `Rerun Payout`), in-app Help / Usage Guide, and AI-gated `Use Flow Agent` payout-risk advisory on queue rows.
 - Test coverage:
   - `tests/Feature/Execution/TenantExecutionHealthPageTest.php`
   - `tests/Feature/Execution/TenantPayoutReadyQueuePageTest.php`
@@ -33,7 +33,7 @@ This file is the canonical module inventory so planning discussions stay aligned
   - `app/Livewire/Procurement/PurchaseOrdersPage.php`
   - `app/Livewire/Procurement/PurchaseReceiptsPage.php`
   - `app/Livewire/Procurement/ProcurementMatchExceptionsPage.php`
-- Status: Implemented with a single sidebar entry (`Manage Procurement`) and Release Desk as the primary operator workspace.
+- Status: Implemented with a single sidebar entry (`Manage Procurement`) and Release Desk as the primary operator workspace. Match Exceptions page now includes AI-gated `Use Flow Agent` advisory guidance (`why blocked`, risk level, next action).
 - Usage guides:
   - `FLOWDESK_PROCUREMENT_RELEASE_DESK_USAGE.md`
 ## Treasury (Tenant)
@@ -44,7 +44,7 @@ This file is the canonical module inventory so planning discussions stay aligned
   - `app/Livewire/Treasury/TreasuryReconciliationExceptionsPage.php`
   - `app/Livewire/Treasury/TreasuryPaymentRunsPage.php`
   - `app/Livewire/Treasury/TreasuryCashPositionPage.php`
-- Status: Implemented with Daily Reconciliation Desk as the single execution workspace for import, unmatched lines, exception decisions, and close-day checklist.
+- Status: Implemented with Daily Reconciliation Desk as the single execution workspace for import, unmatched lines, exception decisions, and close-day checklist. Treasury exceptions now include AI-gated `Use Flow Agent` advisory guidance (`suggested match`, confidence, why blocked, and next action) on both desk preview and exceptions queue pages.
 - Usage guides:
   - `FLOWDESK_TREASURY_DAILY_RECONCILIATION_DESK_USAGE.md`
 ## Requests & Approvals
@@ -663,3 +663,32 @@ AI rollout increment (2026-03-16):
     - `resources/views/livewire/platform/execution-operations-page.blade.php`
   - Added coverage:
     - `tests/Feature/Execution/AiRuntimeHealthPageTest.php`
+- Tenant execution payout-risk Flow Agent increment:
+  - Added `app/Services/AI/PayoutRiskFlowAgentService.php` for advisory payout-risk scoring (retries, queue age, amount threshold, and tenant failure drift).
+  - Integrated `Use Flow Agent` advisory action in tenant payout queue:
+    - `app/Livewire/Execution/PayoutReadyQueuePage.php`
+    - `resources/views/livewire/execution/payout-ready-queue-page.blade.php`
+  - Added audit trail action:
+    - `tenant.execution.payout.risk_analyzed`
+  - Added coverage:
+    - `tests/Feature/Execution/TenantPayoutReadyQueuePageTest.php::test_flow_agent_can_analyze_payout_risk_when_ai_is_enabled_for_tenant`
+- Procurement match-exceptions Flow Agent increment:
+  - Added `app/Services/AI/ProcurementMatchFlowAgentService.php` for deterministic exception analysis and guided remediation output.
+  - Integrated `Use Flow Agent` into procurement exceptions workbench:
+    - `app/Livewire/Procurement/ProcurementMatchExceptionsPage.php`
+    - `resources/views/livewire/procurement/procurement-match-exceptions-page.blade.php`
+  - Added audit trail action:
+    - `tenant.procurement.match.exception.flow_agent_analyzed`
+  - Added coverage:
+    - `tests/Feature/Finance/ProcurementMatchFlowAgentTest.php`
+- Treasury reconciliation Flow Agent increment:
+  - Added `app/Services/AI/TreasuryReconciliationFlowAgentService.php` for deterministic reconciliation exception analysis and suggested-match guidance.
+  - Integrated `Use Flow Agent` into treasury reconciliation surfaces:
+    - `app/Livewire/Treasury/TreasuryReconciliationPage.php`
+    - `resources/views/livewire/treasury/treasury-reconciliation-page.blade.php`
+    - `app/Livewire/Treasury/TreasuryReconciliationExceptionsPage.php`
+    - `resources/views/livewire/treasury/treasury-reconciliation-exceptions-page.blade.php`
+  - Added audit trail action:
+    - `tenant.treasury.reconciliation.exception.flow_agent_analyzed`
+  - Added coverage:
+    - `tests/Feature/Finance/TreasuryReconciliationFlowAgentTest.php`

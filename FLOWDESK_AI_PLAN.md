@@ -34,6 +34,41 @@ Current rollout status (2026-03-16):
   - `resources/views/livewire/platform/ai-runtime-health-page.blade.php`
   - route: `/platform/operations/ai-runtime-health`
   - coverage: `tests/Feature/Execution/AiRuntimeHealthPageTest.php`
+- Execution payout queue now includes **Payout Risk Check Flow Agent**:
+  - tenant-gated by `ai_enabled` entitlement,
+  - advisory-only output (`Use Flow Agent`) before manual payout run,
+  - deterministic risk scoring for repeated failures, queue age, amount threshold, and tenant-level failure drift,
+  - configurable high-amount threshold: `FLOWDESK_AI_PAYOUT_RISK_HIGH_AMOUNT_THRESHOLD`,
+  - writes tenant audit event `tenant.execution.payout.risk_analyzed`.
+  - implemented in:
+    - `app/Services/AI/PayoutRiskFlowAgentService.php`
+    - `app/Livewire/Execution/PayoutReadyQueuePage.php`
+    - `resources/views/livewire/execution/payout-ready-queue-page.blade.php`
+    - coverage: `tests/Feature/Execution/TenantPayoutReadyQueuePageTest.php`
+- Procurement exceptions workflow now includes **Match Exceptions Flow Agent**:
+  - tenant-gated by `ai_enabled` entitlement,
+  - advisory-only output (`Use Flow Agent`) on `/procurement/match-exceptions`,
+  - explains `why blocked`, `top risk`, and `next action` for each exception row,
+  - writes tenant audit event `tenant.procurement.match.exception.flow_agent_analyzed`.
+  - implemented in:
+    - `app/Services/AI/ProcurementMatchFlowAgentService.php`
+    - `app/Livewire/Procurement/ProcurementMatchExceptionsPage.php`
+    - `resources/views/livewire/procurement/procurement-match-exceptions-page.blade.php`
+    - coverage: `tests/Feature/Finance/ProcurementMatchFlowAgentTest.php`
+- Treasury reconciliation workflow now includes **Reconciliation Exceptions Flow Agent**:
+  - tenant-gated by `ai_enabled` entitlement,
+  - advisory-only output (`Use Flow Agent`) on:
+    - `/treasury/reconciliation`
+    - `/treasury/reconciliation/exceptions`
+  - provides `suggested match`, `confidence`, `why blocked`, and `next action` guidance per exception row,
+  - writes tenant audit event `tenant.treasury.reconciliation.exception.flow_agent_analyzed`.
+  - implemented in:
+    - `app/Services/AI/TreasuryReconciliationFlowAgentService.php`
+    - `app/Livewire/Treasury/TreasuryReconciliationPage.php`
+    - `app/Livewire/Treasury/TreasuryReconciliationExceptionsPage.php`
+    - `resources/views/livewire/treasury/treasury-reconciliation-page.blade.php`
+    - `resources/views/livewire/treasury/treasury-reconciliation-exceptions-page.blade.php`
+    - coverage: `tests/Feature/Finance/TreasuryReconciliationFlowAgentTest.php`
 
 ## 2) Non-Negotiable Rules
 

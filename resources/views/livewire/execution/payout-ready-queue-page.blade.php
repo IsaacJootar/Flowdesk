@@ -166,6 +166,16 @@
                     >
                 </div>
             </div>
+
+            @if ($flowAgentsEnabled)
+                <p class="mt-3 text-xs text-indigo-700">
+                    <span class="font-semibold">Flow Agent:</span>
+                    Use <span class="font-semibold">Use Flow Agent</span> on any row to review payout risk signals before running payout.
+                    @if ($flowAgentsAdvisoryOnly)
+                        Advisory mode is active; final action remains with the operator.
+                    @endif
+                </p>
+            @endif
         </section>
 
         <section class="fd-card border border-slate-200 bg-slate-50 p-4">
@@ -187,6 +197,7 @@
                             <th class="px-3 py-2">Request Status</th>
                             <th class="px-3 py-2">Execution State</th>
                             <th class="px-3 py-2">Condition</th>
+                            <th class="px-3 py-2">Flow Agent Risk</th>
                             <th class="px-3 py-2 text-right">Action</th>
                         </tr>
                     </thead>
@@ -199,6 +210,14 @@
                                 $executionState = $attempt ? str_replace('_', ' ', (string) $attempt->execution_status) : 'not queued';
                                 $isProcessing = $attempt && in_array((string) $attempt->execution_status, ['processing', 'webhook_pending'], true);
                                 $isFailedRow = (string) $request->status === 'failed' || ($attempt && (string) $attempt->execution_status === 'failed');
+                                $risk = $payoutRiskInsights[(int) $request->id] ?? null;
+                                $riskLevel = strtolower((string) ($risk['risk_level'] ?? ''));
+                                $riskBadgeClass = match ($riskLevel) {
+                                    'high' => 'border-rose-200 bg-rose-50 text-rose-700',
+                                    'medium' => 'border-amber-200 bg-amber-50 text-amber-700',
+                                    'low' => 'border-emerald-200 bg-emerald-50 text-emerald-700',
+                                    default => 'border-slate-200 bg-slate-50 text-slate-600',
+                                };
                             @endphp
                             <tr wire:key="payout-ready-row-{{ (int) $request->id }}" class="border-b border-slate-100 align-top">
                                 <td class="px-3 py-3">
@@ -215,27 +234,66 @@
                                 </td>
                                 <td class="px-3 py-3 text-slate-700">{{ $executionState }}</td>
                                 <td class="px-3 py-3 text-slate-600">{{ $this->pipelineCondition($request) }}</td>
-                                <td class="px-3 py-3 text-right">
-                                    @if ($canRunPayoutActions)
-                                        <button
-                                            wire:key="payout-ready-run-{{ (int) $request->id }}"
-                                            type="button"
-                                            wire:click="runPayoutNow({{ (int) $request->id }})"
-                                            wire:loading.attr="disabled"
-                                            wire:target="runPayoutNow({{ (int) $request->id }})"
-                                            class="inline-flex items-center rounded-lg border border-slate-700 bg-slate-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60" style="background-color:#334155;border-color:#334155;color:#ffffff;"
-                                        >
-                                            <span wire:loading.remove wire:target="runPayoutNow({{ (int) $request->id }})">{{ $isProcessing ? 'Re-check' : ($isFailedRow ? 'Rerun Payout' : 'Run Payout') }}</span>
-                                            <span wire:loading wire:target="runPayoutNow({{ (int) $request->id }})">Running...</span>
-                                        </button>
+                                <td class="px-3 py-3 text-slate-600">
+                                    @if (is_array($risk))
+                                        <span class="inline-flex rounded-full border px-2 py-0.5 text-xs font-semibold {{ $riskBadgeClass }}">
+                                            {{ ucfirst((string) ($risk['risk_level'] ?? 'low')) }} risk
+                                        </span>
+                                        <p class="mt-1 text-xs text-slate-600">{{ (string) ($risk['top_reason'] ?? '') }}</p>
+                                        <p class="mt-1 text-[11px] text-slate-500">Score {{ (int) ($risk['risk_score'] ?? 0) }}/100 · {{ (string) ($risk['generated_at'] ?? '-') }}</p>
+                                    @elseif (! $flowAgentsEnabled)
+                                        <span class="text-xs text-slate-400">AI disabled for tenant</span>
                                     @else
-                                        <span class="text-xs text-slate-500">View only</span>
+                                        <span class="text-xs text-slate-400">Not analyzed</span>
                                     @endif
+                                </td>
+                                <td class="px-3 py-3 text-right">
+                                    <div class="flex items-center justify-end gap-2">
+                                        @if ($flowAgentsEnabled)
+                                            <button
+                                                wire:key="payout-ready-risk-{{ (int) $request->id }}"
+                                                type="button"
+                                                wire:click="analyzePayoutRisk({{ (int) $request->id }})"
+                                                wire:loading.attr="disabled"
+                                                wire:target="analyzePayoutRisk({{ (int) $request->id }})"
+                                                class="inline-flex items-center gap-1.5 rounded-lg border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-semibold text-sky-700 hover:bg-sky-100 disabled:opacity-70"
+                                            >
+                                                <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                                    <path d="M12 3v3"></path>
+                                                    <path d="M12 18v3"></path>
+                                                    <path d="M3 12h3"></path>
+                                                    <path d="M18 12h3"></path>
+                                                    <path d="M6.3 6.3l2.1 2.1"></path>
+                                                    <path d="M15.6 15.6l2.1 2.1"></path>
+                                                    <path d="M17.7 6.3l-2.1 2.1"></path>
+                                                    <path d="M8.4 15.6l-2.1 2.1"></path>
+                                                </svg>
+                                                <span wire:loading.remove wire:target="analyzePayoutRisk({{ (int) $request->id }})">Use Flow Agent</span>
+                                                <span wire:loading wire:target="analyzePayoutRisk({{ (int) $request->id }})">Analyzing...</span>
+                                            </button>
+                                        @endif
+
+                                        @if ($canRunPayoutActions)
+                                            <button
+                                                wire:key="payout-ready-run-{{ (int) $request->id }}"
+                                                type="button"
+                                                wire:click="runPayoutNow({{ (int) $request->id }})"
+                                                wire:loading.attr="disabled"
+                                                wire:target="runPayoutNow({{ (int) $request->id }})"
+                                                class="inline-flex items-center rounded-lg border border-slate-700 bg-slate-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60" style="background-color:#334155;border-color:#334155;color:#ffffff;"
+                                            >
+                                                <span wire:loading.remove wire:target="runPayoutNow({{ (int) $request->id }})">{{ $isProcessing ? 'Re-check' : ($isFailedRow ? 'Rerun Payout' : 'Run Payout') }}</span>
+                                                <span wire:loading wire:target="runPayoutNow({{ (int) $request->id }})">Running...</span>
+                                            </button>
+                                        @elseif (! $flowAgentsEnabled)
+                                            <span class="text-xs text-slate-500">View only</span>
+                                        @endif
+                                    </div>
                                 </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="8" class="px-3 py-8 text-center text-sm text-slate-500">No payout-ready requests in your tenant queue.</td>
+                                <td colspan="9" class="px-3 py-8 text-center text-sm text-slate-500">No payout-ready requests in your tenant queue.</td>
                             </tr>
                         @endforelse
                     </tbody>

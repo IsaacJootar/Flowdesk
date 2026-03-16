@@ -1,6 +1,6 @@
 # Flowdesk Procurement Workspace Usage
 
-Last updated: 2026-03-04
+Last updated: 2026-03-16
 
 This guide covers the unified procurement operations workspace.
 
@@ -62,3 +62,23 @@ Each row shows exactly one `Next Action` button.
 - `/procurement/release-help`
 
 Use these for detailed handling; the workspace remains the primary execution surface.
+
+## Match Exceptions Flow Agent Workflow
+
+Page:
+- Tenant route: `/procurement/match-exceptions`
+
+Purpose:
+- Provide advisory guidance for exception triage without replacing operator decisions.
+- Explain `why blocked`, highlight risk level, and recommend the most direct next fix action.
+
+How to use:
+1. Open `/procurement/match-exceptions`.
+2. Click `Use Flow Agent` on the target exception row.
+3. Review `Flow Agent` output (`risk`, `why blocked`, `next action`).
+4. Apply `Resolve` or `Waive` only after confirming evidence and maker-checker policy.
+
+Guardrails:
+- Flow Agent appears only when tenant `ai_enabled` entitlement is on.
+- Flow Agent is advisory-only; it does not auto-resolve exceptions.
+- Analysis action is audited as `tenant.procurement.match.exception.flow_agent_analyzed`.

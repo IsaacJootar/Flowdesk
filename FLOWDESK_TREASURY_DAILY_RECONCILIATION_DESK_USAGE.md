@@ -1,6 +1,6 @@
 # Flowdesk Treasury Daily Reconciliation Desk Usage
 
-Last updated: 2026-03-04
+Last updated: 2026-03-16
 
 This guide is the daily operations runbook for treasury reconciliation in one workspace.
 
@@ -36,10 +36,27 @@ This guide is the daily operations runbook for treasury reconciliation in one wo
 - No payment runs stuck in processing: avoid unresolved settlement states at close.
 
 ## Inline exception actions
+- `Use Flow Agent` (AI-enabled tenants only): generates suggested match, confidence, `why blocked`, and next-step guidance.
 - `Resolve`: issue fixed/validated, exception closed.
 - `Waive`: risk accepted with explicit rationale.
 - Every action requires a resolution note for audit trail.
 - If maker-checker is enabled, creator cannot close the same exception.
+- Flow Agent guidance is advisory only and does not auto-resolve exceptions.
+
+## Flow Agent workflow (treasury)
+- Where to run:
+  - `/treasury/reconciliation` (inline exception preview table)
+  - `/treasury/reconciliation/exceptions` (full queue)
+- Visibility:
+  - Tenant users with treasury page access (owner/finance/manager/auditor) can see guidance rows when `ai_enabled` entitlement is on.
+- Operator sequence:
+1. Click `Use Flow Agent` on an open exception row.
+2. Review `Suggested match`, `Confidence`, and `Next action`.
+3. Validate line evidence and linked target record.
+4. Manually choose `Resolve` or `Waive` and add resolution note.
+- Audit trail:
+  - Analysis event: `tenant.treasury.reconciliation.exception.flow_agent_analyzed`
+  - Decision event: `tenant.treasury.exception.resolved` or `tenant.treasury.exception.waived` (includes `flow_agent_insight` snapshot when present).
 
 ## Incident handling playbook
 ### Import incident

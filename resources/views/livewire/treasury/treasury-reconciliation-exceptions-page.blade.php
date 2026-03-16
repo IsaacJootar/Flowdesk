@@ -25,6 +25,14 @@
                 @if ($makerCheckerRequired)
                     <p class="text-xs text-amber-700">Maker-checker is enabled: exception maker cannot close the same exception.</p>
                 @endif
+                @if ($flowAgentsEnabled)
+                    <div class="mt-2 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-800">
+                        <span class="font-semibold">Flow Agent:</span> use <span class="font-semibold">Use Flow Agent</span> for suggested match, confidence, and next-step guidance.
+                        @if ($flowAgentsAdvisoryOnly)
+                            Guidance is advisory only and does not auto-resolve exceptions.
+                        @endif
+                    </div>
+                @endif
             </div>
             <a href="{{ route('treasury.reconciliation') }}" class="inline-flex h-10 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl border border-slate-300 bg-white px-3.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
                 <span aria-hidden="true">&larr;</span>
@@ -114,6 +122,7 @@
                             <th class="px-4 py-3 text-left font-semibold">Line</th>
                             <th class="px-4 py-3 text-left font-semibold">Details</th>
                             <th class="px-4 py-3 text-left font-semibold">Status</th>
+                            <th class="px-4 py-3 text-left font-semibold">Flow Agent</th>
                             <th class="px-4 py-3 text-right font-semibold">Action</th>
                         </tr>
                     </thead>
@@ -216,11 +225,59 @@
                                 <td class="px-4 py-3">
                                     <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold {{ $statusClass }}">{{ ucfirst((string) $exception->exception_status) }}</span>
                                 </td>
+                                <td class="px-4 py-3 text-slate-600">
+                                    @php
+                                        $insight = $flowAgentInsights[(int) $exception->id] ?? null;
+                                    @endphp
+                                    @if (is_array($insight))
+                                        @php
+                                            $riskClass = match ((string) ($insight['risk_level'] ?? 'low')) {
+                                                'high' => 'bg-red-100 text-red-700',
+                                                'medium' => 'bg-amber-100 text-amber-700',
+                                                default => 'bg-emerald-100 text-emerald-700',
+                                            };
+                                        @endphp
+                                        <span class="inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold {{ $riskClass }}">
+                                            {{ ucfirst((string) ($insight['risk_level'] ?? 'low')) }} risk
+                                        </span>
+                                        <p class="mt-1 text-xs text-slate-700">{{ (string) ($insight['suggested_match'] ?? '-') }}</p>
+                                        <p class="mt-1 text-[11px] text-slate-500">Confidence {{ (int) ($insight['confidence'] ?? 0) }}% | {{ (string) ($insight['generated_at'] ?? '-') }}</p>
+                                        <p class="mt-1 text-[11px] text-slate-500">Next: {{ (string) ($insight['next_action'] ?? '-') }}</p>
+                                    @elseif (! $flowAgentsEnabled)
+                                        <span class="text-xs text-slate-400">AI disabled for tenant</span>
+                                    @else
+                                        <span class="text-xs text-slate-400">Not analyzed</span>
+                                    @endif
+                                </td>
                                 <td class="px-4 py-3 text-right">
-                                    @if ($canOperate && (string) $exception->exception_status === 'open')
+                                    @if (($canOperate && (string) $exception->exception_status === 'open') || $flowAgentsEnabled)
                                         <div class="inline-flex items-center gap-2">
-                                            <button type="button" wire:click="openResolutionModal({{ $exception->id }}, 'resolved')" class="rounded-lg border border-emerald-300 px-3 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-50">Resolve</button>
-                                            <button type="button" wire:click="openResolutionModal({{ $exception->id }}, 'waived')" class="rounded-lg border border-amber-300 px-3 py-1.5 text-xs font-medium text-amber-700 hover:bg-amber-50">Waive</button>
+                                            @if ($flowAgentsEnabled)
+                                                <button
+                                                    type="button"
+                                                    wire:click="analyzeExceptionWithFlowAgent({{ (int) $exception->id }})"
+                                                    wire:loading.attr="disabled"
+                                                    wire:target="analyzeExceptionWithFlowAgent({{ (int) $exception->id }})"
+                                                    class="inline-flex items-center gap-1.5 rounded-lg border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-semibold text-sky-700 hover:bg-sky-100 disabled:opacity-70"
+                                                >
+                                                    <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                                        <path d="M12 3v3"></path>
+                                                        <path d="M12 18v3"></path>
+                                                        <path d="M3 12h3"></path>
+                                                        <path d="M18 12h3"></path>
+                                                        <path d="M6.3 6.3l2.1 2.1"></path>
+                                                        <path d="M15.6 15.6l2.1 2.1"></path>
+                                                        <path d="M17.7 6.3l-2.1 2.1"></path>
+                                                        <path d="M8.4 15.6l-2.1 2.1"></path>
+                                                    </svg>
+                                                    <span wire:loading.remove wire:target="analyzeExceptionWithFlowAgent({{ (int) $exception->id }})">Use Flow Agent</span>
+                                                    <span wire:loading wire:target="analyzeExceptionWithFlowAgent({{ (int) $exception->id }})">Analyzing...</span>
+                                                </button>
+                                            @endif
+                                            @if ($canOperate && (string) $exception->exception_status === 'open')
+                                                <button type="button" wire:click="openResolutionModal({{ $exception->id }}, 'resolved')" class="rounded-lg border border-emerald-300 px-3 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-50">Resolve</button>
+                                                <button type="button" wire:click="openResolutionModal({{ $exception->id }}, 'waived')" class="rounded-lg border border-amber-300 px-3 py-1.5 text-xs font-medium text-amber-700 hover:bg-amber-50">Waive</button>
+                                            @endif
                                         </div>
                                     @else
                                         <span class="text-xs text-slate-500">Closed</span>
@@ -229,7 +286,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="6" class="px-4 py-10 text-center text-sm text-slate-500">No reconciliation exceptions found for the selected filters.</td>
+                                <td colspan="7" class="px-4 py-10 text-center text-sm text-slate-500">No reconciliation exceptions found for the selected filters.</td>
                             </tr>
                         @endforelse
                     </tbody>
