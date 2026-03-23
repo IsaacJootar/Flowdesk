@@ -9,6 +9,8 @@ use App\Services\Execution\SubscriptionAutoBillingOrchestrator;
 use App\Services\Execution\SubscriptionBillingAttemptProcessor;
 use App\Services\Execution\ExecutionOpsAlertService;
 use App\Services\Execution\ExecutionOpsAutoRecoveryService;
+use App\Services\Operations\ProductionReadinessValidator;
+use App\Services\Operations\RuntimeOperationsHealthService;
 use App\Services\Procurement\LegacyVendorLinkBackfillService;
 use App\Services\RequestCommunicationRetryService;
 use App\Services\AssetCommunicationRetryService;
@@ -428,3 +430,31 @@ Artisan::command('assets:communications:process-queued {--company=} {--older-tha
 Schedule::command('assets:communications:process-queued --older-than=2 --batch=500')
     ->everyTenMinutes()
     ->withoutOverlapping();
+
+Artisan::command('flowdesk:ops:heartbeat', function (RuntimeOperationsHealthService $service): int {
+    // A small heartbeat gives platform ops a cheap signal that the scheduler is
+    // still alive even when no business-facing jobs fire in a given minute.
+    $service->recordSchedulerHeartbeat();
+
+    $this->info('Flowdesk scheduler heartbeat recorded.');
+
+    return self::SUCCESS;
+})->purpose('Record the scheduler heartbeat for runtime health monitoring');
+
+Schedule::command('flowdesk:ops:heartbeat')
+    ->everyMinute()
+    ->withoutOverlapping();
+
+Artisan::command('flowdesk:production:validate', function (ProductionReadinessValidator $validator): int {
+    $summary = $validator->summary();
+
+    $this->info('Flowdesk production validation completed.');
+    $this->line('Blocking issues: '.(int) $summary['blocking']);
+    $this->line('Warnings: '.(int) $summary['warning']);
+
+    foreach ((array) ($summary['issues'] ?? []) as $issue) {
+        $this->line(sprintf('[%s] %s - %s', strtoupper((string) ($issue['severity'] ?? 'warning')), (string) ($issue['code'] ?? 'issue'), (string) ($issue['message'] ?? 'Validation issue detected.')));
+    }
+
+    return (int) ($summary['blocking'] ?? 0) > 0 ? self::FAILURE : self::SUCCESS;
+})->purpose('Validate Flowdesk production readiness guardrails');

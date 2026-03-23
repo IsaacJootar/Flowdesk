@@ -4,15 +4,26 @@ namespace App\Providers;
 
 use App\Services\Execution\ExecutionAdapterRegistry;
 use App\Services\Execution\TenantExecutionAdapterFactory;
+use App\Services\Operations\ProductionReadinessValidator;
 use App\Services\RequestCommunication\Sms\NullSmsProvider;
 use App\Services\RequestCommunication\Sms\SmsProvider;
 use App\Services\RequestCommunication\Sms\TermiiSmsProvider;
+use App\Support\CorrelationContext;
+use App\Support\FlowdeskLogContext;
+use App\Support\TenantContext;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Queue\Events\JobFailed;
+use Illuminate\Queue\Events\JobProcessed;
+use Illuminate\Queue\Events\JobProcessing;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Str;
 use Livewire\Livewire;
+use RuntimeException;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -33,6 +44,9 @@ class AppServiceProvider extends ServiceProvider
         // Provider-agnostic execution adapters are resolved once and reused by orchestration layers.
         $this->app->singleton(ExecutionAdapterRegistry::class);
         $this->app->singleton(TenantExecutionAdapterFactory::class);
+        $this->app->singleton(TenantContext::class);
+        $this->app->singleton(CorrelationContext::class);
+        $this->app->singleton(FlowdeskLogContext::class);
     }
 
     /**
@@ -41,6 +55,8 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->configureRateLimiting();
+        $this->configureObservability();
+        $this->configureProductionGuardrails();
 
         // Support subdirectory installs like /flowdesk/public on XAMPP.
         $prefix = trim((string) parse_url((string) config('app.url'), PHP_URL_PATH), '/');
@@ -89,5 +105,72 @@ class AppServiceProvider extends ServiceProvider
 
             return Limit::perMinute($limit)->by($scope.'|'.$routeName);
         });
+    }
+
+    private function configureObservability(): void
+    {
+        $correlationContext = $this->app->make(CorrelationContext::class);
+        $flowdeskLogContext = $this->app->make(FlowdeskLogContext::class);
+
+        if ($this->app->runningInConsole() && ! $this->app->runningUnitTests() && ! $correlationContext->correlationId()) {
+            $correlationContext->setCorrelationId((string) Str::uuid());
+            $correlationContext->mergeContext([
+                'console_command' => implode(' ', array_slice($_SERVER['argv'] ?? [], 1)),
+            ]);
+            $flowdeskLogContext->share($correlationContext->all());
+        }
+
+        Queue::createPayloadUsing(function () use ($correlationContext): array {
+            return [
+                'flowdesk_context' => $correlationContext->all(),
+            ];
+        });
+
+        Queue::before(function (JobProcessing $event) use ($correlationContext, $flowdeskLogContext): void {
+            $payload = $event->job->payload();
+            $context = (array) ($payload['flowdesk_context'] ?? []);
+
+            $correlationContext->clear();
+
+            if (isset($context['correlation_id'])) {
+                $correlationContext->setCorrelationId((string) $context['correlation_id']);
+            }
+
+            $correlationContext->mergeContext(array_merge($context, [
+                'queue_connection' => $event->connectionName,
+                'queue_name' => method_exists($event->job, 'getQueue') ? $event->job->getQueue() : null,
+            ]));
+
+            $flowdeskLogContext->share($correlationContext->all());
+        });
+
+        Queue::after(function (JobProcessed $event) use ($correlationContext): void {
+            $correlationContext->clear();
+        });
+
+        Queue::failing(function (JobFailed $event) use ($correlationContext): void {
+            $correlationContext->clear();
+        });
+    }
+
+    private function configureProductionGuardrails(): void
+    {
+        if (! $this->app->environment('production')) {
+            return;
+        }
+
+        $issues = $this->app->make(ProductionReadinessValidator::class)->blockingConfigurationIssues();
+
+        if ($issues === []) {
+            return;
+        }
+
+        Log::critical('Flowdesk production guardrails detected blocking configuration issues.', [
+            'issues' => $issues,
+        ]);
+
+        if ((bool) config('observability.production_validation.fail_fast', false)) {
+            throw new RuntimeException('Flowdesk production validation failed. Review blocking configuration issues before boot.');
+        }
     }
 }

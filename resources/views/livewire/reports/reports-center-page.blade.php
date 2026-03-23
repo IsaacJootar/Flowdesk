@@ -84,22 +84,22 @@
         @else
             <div class="rounded-2xl border border-sky-200 bg-sky-50 p-4">
                 <p class="text-xs uppercase tracking-[0.1em] text-sky-700">Requests</p>
-                <p class="mt-1 text-2xl font-semibold text-sky-900">{{ number_format((int) $metrics['requests']['total']) }}</p>
-                <p class="mt-1 text-xs text-sky-700">In review: {{ number_format((int) $metrics['requests']['in_review']) }}</p>
-                <p class="text-xs text-sky-700">{{ $currencyCode }} {{ number_format((int) $metrics['requests']['amount']) }}</p>
+                <p class="mt-1 text-2xl font-semibold text-sky-900">{{ \App\Support\Money::formatCount((int) $metrics['requests']['total']) }}</p>
+                <p class="mt-1 text-xs text-sky-700">In review: {{ \App\Support\Money::formatCount((int) $metrics['requests']['in_review']) }}</p>
+                <p class="text-xs text-sky-700">{{ \App\Support\Money::formatCurrency((int) $metrics['requests']['amount'], $currencyCode) }}</p>
             </div>
             <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
                 <p class="text-xs uppercase tracking-[0.1em] text-emerald-700">Posted Expenses</p>
-                <p class="mt-1 text-2xl font-semibold text-emerald-900">{{ number_format((int) $metrics['expenses']['posted']) }}</p>
-                <p class="mt-1 text-xs text-emerald-700">Void: {{ number_format((int) $metrics['expenses']['void']) }}</p>
-                <p class="text-xs text-emerald-700">{{ $currencyCode }} {{ number_format((int) $metrics['expenses']['amount']) }}</p>
+                <p class="mt-1 text-2xl font-semibold text-emerald-900">{{ \App\Support\Money::formatCount((int) $metrics['expenses']['posted']) }}</p>
+                <p class="mt-1 text-xs text-emerald-700">Void: {{ \App\Support\Money::formatCount((int) $metrics['expenses']['void']) }}</p>
+                <p class="text-xs text-emerald-700">{{ \App\Support\Money::formatCurrency((int) $metrics['expenses']['amount'], $currencyCode) }}</p>
             </div>
             <div class="rounded-2xl border border-amber-200 bg-amber-50 p-4">
                 <p class="text-xs uppercase tracking-[0.1em] text-amber-700">Vendor Outstanding</p>
                 @if ($canViewVendors)
-                    <p class="mt-1 text-2xl font-semibold text-amber-900">{{ number_format((int) $metrics['vendors']['outstanding_count']) }}</p>
-                    <p class="mt-1 text-xs text-amber-700">Overdue: {{ number_format((int) $metrics['vendors']['overdue_count']) }}</p>
-                    <p class="text-xs text-amber-700">{{ $currencyCode }} {{ number_format((int) $metrics['vendors']['outstanding_amount']) }}</p>
+                    <p class="mt-1 text-2xl font-semibold text-amber-900">{{ \App\Support\Money::formatCount((int) $metrics['vendors']['outstanding_count']) }}</p>
+                    <p class="mt-1 text-xs text-amber-700">Overdue: {{ \App\Support\Money::formatCount((int) $metrics['vendors']['overdue_count']) }}</p>
+                    <p class="text-xs text-amber-700">{{ \App\Support\Money::formatCurrency((int) $metrics['vendors']['outstanding_amount'], $currencyCode) }}</p>
                 @else
                     <p class="mt-1 text-sm font-semibold text-amber-900">Access restricted</p>
                     <p class="mt-1 text-xs text-amber-700">Vendor invoice metrics are available to finance, auditor, and owner roles.</p>
@@ -120,15 +120,15 @@
             </div>
             <div class="rounded-2xl border border-slate-300 bg-slate-100 p-4">
                 <p class="text-xs uppercase tracking-[0.1em] text-slate-700">Active Budgets</p>
-                <p class="mt-1 text-2xl font-semibold text-slate-900">{{ number_format((int) $metrics['budgets']['active_count']) }}</p>
-                <p class="mt-1 text-xs text-slate-700">Remaining: {{ $currencyCode }} {{ number_format((int) $metrics['budgets']['remaining']) }}</p>
-                <p class="text-xs text-slate-700">Allocated: {{ $currencyCode }} {{ number_format((int) $metrics['budgets']['allocated']) }}</p>
+                <p class="mt-1 text-2xl font-semibold text-slate-900">{{ \App\Support\Money::formatCount((int) $metrics['budgets']['active_count']) }}</p>
+                <p class="mt-1 text-xs text-slate-700">Remaining: {{ \App\Support\Money::formatCurrency((int) $metrics['budgets']['remaining'], $currencyCode) }}</p>
+                <p class="text-xs text-slate-700">Allocated: {{ \App\Support\Money::formatCurrency((int) $metrics['budgets']['allocated'], $currencyCode) }}</p>
             </div>
             <div class="rounded-2xl border border-cyan-200 bg-cyan-50 p-4">
                 <p class="text-xs uppercase tracking-[0.1em] text-cyan-700">Treasury Reconciliation</p>
-                <p class="mt-1 text-2xl font-semibold text-cyan-900">{{ number_format((int) $metrics['treasury']['reconciled_lines']) }}</p>
-                <p class="mt-1 text-xs text-cyan-700">Open exceptions: {{ number_format((int) $metrics['treasury']['open_exceptions']) }}</p>
-                <p class="text-xs text-cyan-700">Unreconciled value: {{ $currencyCode }} {{ number_format((int) $metrics['treasury']['unreconciled_value']) }}</p>
+                <p class="mt-1 text-2xl font-semibold text-cyan-900">{{ \App\Support\Money::formatCount((int) $metrics['treasury']['reconciled_lines']) }}</p>
+                <p class="mt-1 text-xs text-cyan-700">Open exceptions: {{ \App\Support\Money::formatCount((int) $metrics['treasury']['open_exceptions']) }}</p>
+                <p class="text-xs text-cyan-700">Unreconciled value: {{ \App\Support\Money::formatCurrency((int) $metrics['treasury']['unreconciled_value'], $currencyCode) }}</p>
             </div>
             <div class="rounded-2xl border border-teal-200 bg-teal-50 p-4">
                 <p class="text-xs uppercase tracking-[0.1em] text-teal-700">Pilot Rollout Decisions</p>
@@ -199,7 +199,7 @@
                                 </td>
                                 <td class="px-4 py-3 text-slate-700">{{ $activity['department'] ?: '-' }}</td>
                                 <td class="px-4 py-3 text-slate-700">{{ $activity['owner'] ?: '-' }}</td>
-                                <td class="px-4 py-3 text-slate-700">{{ $currencyCode }} {{ number_format((int) ($activity['amount'] ?? 0)) }}</td>
+                                <td class="px-4 py-3 text-slate-700">{{ \App\Support\Money::formatCurrency((int) ($activity['amount'] ?? 0), $currencyCode) }}</td>
                                 <td class="px-4 py-3">
                                     <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold {{ $statusClass }}">
                                         {{ ucfirst(str_replace('_', ' ', (string) $activity['status'])) }}

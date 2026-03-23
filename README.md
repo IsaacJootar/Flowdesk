@@ -1,77 +1,76 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Flowdesk
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Flowdesk is a multi-tenant finance operations platform built on Laravel and Livewire. The app combines request approvals, procurement controls, vendors, treasury reconciliation, execution operations, assets, reports, and platform rollout tooling in one codebase.
 
-## Flowdesk Project Docs
+## What Is In The Project
 
-- Module inventory and implementation status: `FLOWDESK_MODULE_STATUS.md`
-- Execution provider usage and operations flow: `FLOWDESK_REAL_PROVIDER_INTEGRATION_GUIDE.md`
-- Incident history module (filters/trend/export): `app/Livewire/Platform/IncidentHistoryPage.php`
-- Two-mode execution architecture plan: `FLOWDESK_TWO_MODE_TENANT_EXECUTION_PLAN.md`
-- Procurement backfill SOP/runbook (`ROL-803`): `FLOWDESK_ROL803_BACKFILL_SOP_RUNBOOK.md`
-- Pilot checklist + KPI baseline template (`ROL-805`): `FLOWDESK_ROL805_PILOT_CHECKLIST_AND_KPI_TEMPLATE.md`
+- Tenant-facing workspaces for requests, vendors, procurement, treasury, execution, assets, budgets, and reporting
+- Platform-facing operations pages for rollout, execution health, incident history, and tenant management
+- Queue and scheduler driven automation for billing, payout recovery, reminders, retries, and KPI capture
+- Internal operations documentation for rollout, provider integration, and production hardening
 
-## About Laravel
+## Local Setup
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+1. Copy `.env.example` to `.env`.
+2. Configure database, mail, queue, cache, and provider credentials.
+3. Install backend dependencies with `composer install`.
+4. Install frontend dependencies with `npm install`.
+5. Generate an app key with `php artisan key:generate`.
+6. Run migrations with `php artisan migrate`.
+7. Build frontend assets with `npm run build` for production or `npm run dev` locally.
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## Production Baseline
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+- Set `APP_ENV=production`
+- Set `APP_DEBUG=false`
+- Use HTTPS and a production `APP_URL`
+- Use a real mail transport instead of `log`
+- Prefer Redis for cache and queue in production
+- Run the scheduler continuously with `php artisan schedule:work` or cron for `php artisan schedule:run`
+- Run queue workers under a supervisor instead of ad-hoc shells
+- Monitor failed jobs, storage growth, and webhook delivery health
 
-## Learning Laravel
+## Important Runtime Commands
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+- `php artisan test`
+- `php artisan flowdesk:production:validate`
+- `php artisan flowdesk:ops:heartbeat`
+- `php artisan requests:process-sla`
+- `php artisan tenants:billing:auto-charge`
+- `php artisan tenants:billing:process-queued --batch=500`
+- `php artisan execution:ops:alert-summary`
+- `php artisan execution:ops:auto-recover --batch=100`
+- `php artisan vendors:communications:process-queued --older-than=2 --batch=500`
+- `php artisan assets:communications:process-queued --older-than=2 --batch=500`
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+## Key Docs
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+- `FLOWDESK_NEEDED_IMPROVEMENTS.md`
+- `FLOWDESK_FINAL_PRODUCTION_APPROVAL_ITEMS.md`
+- `FLOWDESK_FINAL_EXECUTION_CHECKLIST.md`
+- `FLOWDESK_PRODUCTION_RUNBOOK.md`
+- `FLOWDESK_SCALE_VALIDATION_RUNBOOK.md`
+- `FLOWDESK_UAT_SIGNOFF_PACK.md`
+- `FLOWDESK_MODULE_STATUS.md`
+- `FLOWDESK_REAL_PROVIDER_INTEGRATION_GUIDE.md`
+- `FLOWDESK_TWO_MODE_TENANT_EXECUTION_PLAN.md`
+- `FLOWDESK_ROL803_BACKFILL_SOP_RUNBOOK.md`
+- `FLOWDESK_ROL805_PILOT_CHECKLIST_AND_KPI_TEMPLATE.md`
+- `FLOWDESK_DATABASE.md`
 
-## Laravel Sponsors
+## Current Architecture Notes
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+- Tenant routes are separated from platform routes.
+- Tenant-scoped models use company-aware scoping and can now also run inside an explicit tenant context for non-HTTP flows.
+- Request lifecycle and vendor command center data are now built through dedicated services instead of large Livewire page classes.
+- Treasury auto-reconciliation prefetches chunk-sized candidate pools to avoid repeatedly scanning full tenant history.
 
-### Premium Partners
+## Deployment Checklist Before Go-Live
 
-- **[Vehikl](https://vehikl.com/)**
-- **[Tighten Co.](https://tighten.co)**
-- **[WebReinvent](https://webreinvent.com/)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel/)**
-- **[Cyber-Duck](https://cyber-duck.co.uk)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Jump24](https://jump24.co.uk)**
-- **[Redberry](https://redberry.international/laravel/)**
-- **[Active Logic](https://activelogic.com)**
-- **[byte5](https://byte5.de)**
-- **[OP.GG](https://op.gg)**
-
-## Contributing
-
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
-
-## Code of Conduct
-
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
-
-## Security Vulnerabilities
-
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
-
-## License
-
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
-
-
+- Confirm production env values and provider secrets
+- Run `php artisan flowdesk:production:validate`
+- Run migrations on production
+- Warm config and route caches
+- Confirm queue workers and scheduler are healthy
+- Verify backup, restore, and error-monitoring paths
+- Run smoke tests for tenant login, request approval, payout queue, vendor invoice flow, and treasury reconciliation

@@ -1,8 +1,10 @@
 <?php
 
+use App\Http\Middleware\AssignCorrelationId;
 use App\Http\Middleware\EnsureCompanyContext;
 use App\Http\Middleware\EnsureModuleEnabled;
 use App\Http\Middleware\EnsurePlatformAccess;
+use App\Services\Observability\ErrorTrackingReporter;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -16,6 +18,8 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->append(AssignCorrelationId::class);
+
         $middleware->alias([
             'company.context' => EnsureCompanyContext::class,
             'platform.access' => EnsurePlatformAccess::class,
@@ -30,5 +34,9 @@ return Application::configure(basePath: dirname(__DIR__))
             }
 
             return null;
+        });
+
+        $exceptions->report(function (\Throwable $exception): void {
+            app(ErrorTrackingReporter::class)->report($exception);
         });
     })->create();

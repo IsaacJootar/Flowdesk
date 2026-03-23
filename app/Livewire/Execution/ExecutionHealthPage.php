@@ -6,6 +6,7 @@ use App\Domains\Company\Models\ExecutionWebhookEvent;
 use App\Domains\Company\Models\TenantAuditEvent;
 use App\Domains\Company\Models\TenantSubscriptionBillingAttempt;
 use App\Domains\Requests\Models\RequestPayoutExecutionAttempt;
+use App\Support\Money;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
@@ -347,7 +348,7 @@ class ExecutionHealthPage extends Component
             'status' => $status,
             'provider' => (string) ($attempt->provider_key ?? '-'),
             'reference' => (string) ($attempt->provider_reference ?: $attempt->external_invoice_id ?: '-'),
-            'amount' => number_format((float) $attempt->amount, 2).' '.strtoupper((string) ($attempt->currency_code ?? 'NGN')),
+            'amount' => Money::formatCurrency((float) $attempt->amount, (string) ($attempt->currency_code ?? 'NGN')),
             'event_time' => $attempt->updated_at?->format('M d, Y H:i') ?? '-',
             'incident_id' => $this->focusIncidentId,
             'next_action' => $status === 'failed'
@@ -394,7 +395,7 @@ class ExecutionHealthPage extends Component
             'status' => $status,
             'provider' => (string) ($attempt->provider_key ?? '-'),
             'reference' => (string) ($attempt->provider_reference ?: $attempt->external_transfer_id ?: '-'),
-            'amount' => number_format((float) $attempt->amount, 2).' '.strtoupper((string) ($attempt->currency_code ?? 'NGN')),
+            'amount' => Money::formatCurrency((float) $attempt->amount, (string) ($attempt->currency_code ?? 'NGN')),
             'event_time' => $attempt->updated_at?->format('M d, Y H:i') ?? '-',
             'incident_id' => $this->focusIncidentId,
             'next_action' => $status === 'failed'

@@ -61,6 +61,29 @@
                 </div>
             </div>
         </section>
+
+        <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <div class="rounded-2xl border border-sky-200 bg-sky-50 p-5 text-sky-900">
+                <p class="text-xs font-semibold uppercase tracking-[0.14em]">Scheduler Heartbeat</p>
+                <p class="mt-2 text-sm font-semibold">{{ $runtimeHealth['scheduler_heartbeat_at'] ?? 'No heartbeat yet' }}</p>
+                <p class="mt-1 text-xs text-sky-700">Delay: {{ $runtimeHealth['scheduler_delay_minutes'] !== null ? number_format((int) $runtimeHealth['scheduler_delay_minutes']).' mins' : 'Unknown' }}</p>
+            </div>
+            <div class="rounded-2xl border border-rose-200 bg-rose-50 p-5 text-rose-900">
+                <p class="text-xs font-semibold uppercase tracking-[0.14em]">Failed Jobs (24h)</p>
+                <p class="mt-2 text-2xl font-semibold">{{ number_format((int) ($runtimeHealth['failed_jobs_last_24h'] ?? 0)) }}</p>
+                <p class="mt-1 text-xs text-rose-700">Total failed jobs: {{ number_format((int) ($runtimeHealth['failed_jobs_total'] ?? 0)) }}</p>
+            </div>
+            <div class="rounded-2xl border border-indigo-200 bg-indigo-50 p-5 text-indigo-900">
+                <p class="text-xs font-semibold uppercase tracking-[0.14em]">Queued Jobs</p>
+                <p class="mt-2 text-2xl font-semibold">{{ number_format((int) ($runtimeHealth['queued_jobs_total'] ?? 0)) }}</p>
+                <p class="mt-1 text-xs text-indigo-700">Stale queued jobs: {{ number_format((int) ($runtimeHealth['stale_jobs_total'] ?? 0)) }}</p>
+            </div>
+            <div class="rounded-2xl border border-slate-200 bg-slate-50 p-5 text-slate-900">
+                <p class="text-xs font-semibold uppercase tracking-[0.14em]">Runtime Notes</p>
+                <p class="mt-2 text-sm font-semibold">{{ $runtimeHealth['available'] ? 'Runtime health tables available' : 'Runtime health limited' }}</p>
+                <p class="mt-1 text-xs text-slate-600">{{ $runtimeHealth['note'] ?? 'Heartbeat, failed jobs, and queued backlog are being tracked.' }}</p>
+            </div>
+        </section>
     @elseif ($tab === 'checklist')
         <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             <div class="rounded-2xl border border-sky-200 bg-sky-50 p-5 text-sky-900">
@@ -87,6 +110,32 @@
             </ol>
             <div class="mt-4">
                 <a href="{{ route('platform.operations.execution-checklist') }}" class="inline-flex h-9 items-center rounded-lg border border-amber-300 bg-amber-100 px-3 text-xs font-semibold text-amber-800 hover:bg-amber-200">Open Full Checklist Page</a>
+            </div>
+        </section>
+
+        <section class="fd-card border border-slate-200 p-5">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                    <h3 class="text-sm font-semibold text-slate-900">Production Validation</h3>
+                    <p class="mt-1 text-xs text-slate-500">These checks turn the README checklist into an executable launch gate for production.</p>
+                </div>
+                <div class="flex flex-wrap gap-2 text-xs">
+                    <span class="rounded-full border border-rose-200 bg-rose-50 px-3 py-1 font-semibold text-rose-700">Blocking: {{ number_format((int) ($validationSummary['blocking'] ?? 0)) }}</span>
+                    <span class="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 font-semibold text-amber-700">Warnings: {{ number_format((int) ($validationSummary['warning'] ?? 0)) }}</span>
+                </div>
+            </div>
+
+            <div class="mt-4 space-y-2">
+                @forelse (($validationSummary['issues'] ?? []) as $issue)
+                    <div class="rounded-xl border px-3 py-2 text-sm {{ ($issue['severity'] ?? '') === 'critical' ? 'border-rose-200 bg-rose-50 text-rose-800' : 'border-amber-200 bg-amber-50 text-amber-800' }}">
+                        <p class="font-semibold">{{ strtoupper((string) ($issue['severity'] ?? 'warning')) }} · {{ $issue['code'] ?? 'issue' }}</p>
+                        <p class="mt-1">{{ $issue['message'] ?? 'Validation issue detected.' }}</p>
+                    </div>
+                @empty
+                    <div class="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+                        Production validation is currently clean for the checks Flowdesk can verify automatically.
+                    </div>
+                @endforelse
             </div>
         </section>
     @elseif ($tab === 'incidents')

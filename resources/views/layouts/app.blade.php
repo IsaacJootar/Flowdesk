@@ -6,8 +6,8 @@
         <meta name="csrf-token" content="{{ csrf_token() }}">
 
         <title>{{ $title ?? config('app.name', 'Flowdesk') }}</title>
-        <link rel="icon" type="image/svg+xml" href="{{ asset('brand-mark.svg') }}">
-        <link rel="shortcut icon" href="{{ asset('brand-mark.svg') }}">
+        <link rel="icon" type="image/x-icon" href="{{ asset('favicon.ico') }}">
+        <link rel="shortcut icon" href="{{ asset('favicon.ico') }}">
 
         <link rel="preconnect" href="https://fonts.bunny.net">
         <link href="https://fonts.bunny.net/css?family=inter:400,500,600,700&display=swap" rel="stylesheet" />
@@ -69,12 +69,31 @@
         @endphp
 
         <div class="min-h-screen md:flex">
+            <div
+                x-cloak
+                x-show="sidebarOpen"
+                x-transition.opacity.duration.200ms
+                class="fixed inset-0 z-30 bg-slate-900/40 md:hidden"
+                @click="sidebarOpen = false"
+                aria-hidden="true"
+            ></div>
+
             <aside class="fixed inset-y-0 left-0 z-40 w-64 transform overflow-y-auto border-r border-slate-200 bg-white transition md:translate-x-0" :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'">
-                <div class="flex h-20 items-start border-b border-slate-200 px-5 py-3">
+                <div class="flex h-24 items-center justify-between border-b border-slate-200 px-5 py-4">
                     <div>
-                        <img src="{{ asset('brand-logo.svg') }}" alt="Flowdesk" class="mt-1 h-6 w-auto">
-                        <p class="mt-1 max-w-[13rem] truncate text-xs font-medium text-slate-600" x-text="companyName">{{ $companyName }}</p>
+                        <img src="{{ asset('brand-logo.svg') }}" alt="Flowdesk" class="h-10 w-auto">
+                        <p class="mt-2 max-w-[13rem] truncate text-xs font-medium text-slate-600" x-text="companyName">{{ $companyName }}</p>
                     </div>
+                    <button
+                        type="button"
+                        class="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 text-slate-600 md:hidden"
+                        @click="sidebarOpen = false"
+                        aria-label="Close menu"
+                    >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="h-5 w-5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 6l12 12M18 6 6 18"/>
+                        </svg>
+                    </button>
                 </div>
 
                 <nav class="space-y-1 px-3 py-4 pb-8 text-sm">

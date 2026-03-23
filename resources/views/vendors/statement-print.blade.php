@@ -49,9 +49,9 @@
                     <td>{{ $row['reference'] ?? '-' }}</td>
                     <td>{{ $row['description'] ?? '-' }}</td>
                     <td>{{ $row['status'] ?? '-' }}</td>
-                    <td class="num">{{ number_format((int) ($row['debit'] ?? 0), 2) }}</td>
-                    <td class="num">{{ number_format((int) ($row['credit'] ?? 0), 2) }}</td>
-                    <td class="num">{{ number_format((int) ($row['balance'] ?? 0), 2) }}</td>
+                    <td class="num">{{ \App\Support\Money::formatPlain((int) ($row['debit'] ?? 0), 2) }}</td>
+                    <td class="num">{{ \App\Support\Money::formatPlain((int) ($row['credit'] ?? 0), 2) }}</td>
+                    <td class="num">{{ \App\Support\Money::formatPlain((int) ($row['balance'] ?? 0), 2) }}</td>
                 </tr>
             @empty
                 <tr>
@@ -65,15 +65,15 @@
         <tbody>
             <tr>
                 <td>Invoice Total</td>
-                <td class="num">{{ number_format((int) $summary['invoice_total'], 2) }}</td>
+                <td class="num">{{ \App\Support\Money::formatPlain((int) $summary['invoice_total'], 2) }}</td>
             </tr>
             <tr>
                 <td>Payment Total</td>
-                <td class="num">{{ number_format((int) $summary['payment_total'], 2) }}</td>
+                <td class="num">{{ \App\Support\Money::formatPlain((int) $summary['payment_total'], 2) }}</td>
             </tr>
             <tr>
                 <td>Closing Balance</td>
-                <td class="num">{{ number_format((int) $summary['balance'], 2) }}</td>
+                <td class="num">{{ \App\Support\Money::formatPlain((int) $summary['balance'], 2) }}</td>
             </tr>
         </tbody>
     </table>

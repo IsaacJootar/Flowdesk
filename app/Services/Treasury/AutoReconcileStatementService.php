@@ -11,6 +11,7 @@ use App\Domains\Treasury\Models\ReconciliationMatch;
 use App\Models\User;
 use App\Services\TenantAuditLogger;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -58,6 +59,10 @@ class AutoReconcileStatementService
                 &$exceptions,
                 &$conflicts
             ): void {
+                // Prefetch only the date and amount slice needed for this chunk so the reconciliation run
+                // scales with the imported statement window instead of rescanning tenant history per row.
+                $candidatePools = $this->buildCandidatePools($lines, $dateWindow, $amountTolerance);
+
                 foreach ($lines as $line) {
                     if ((bool) $line->is_reconciled) {
                         continue;
@@ -70,6 +75,7 @@ class AutoReconcileStatementService
                         $amountTolerance,
                         $minConfidence,
                         $expenseTextSimilarityThreshold,
+                        $candidatePools,
                         &$matched,
                         &$exceptions,
                         &$conflicts
@@ -80,8 +86,8 @@ class AutoReconcileStatementService
                             ->delete();
 
                         $candidates = array_merge(
-                            $this->findPayoutCandidates($line, $dateWindow, $amountTolerance),
-                            $this->findExpenseCandidates($line, $dateWindow, $amountTolerance, $expenseTextSimilarityThreshold)
+                            $this->findPayoutCandidates($line, $dateWindow, $amountTolerance, $candidatePools['payouts_by_amount']),
+                            $this->findExpenseCandidates($line, $dateWindow, $amountTolerance, $expenseTextSimilarityThreshold, $candidatePools['expenses_by_amount'])
                         );
 
                         $selectedCandidate = $this->selectAutoMatchCandidate($candidates, $minConfidence);
@@ -233,17 +239,15 @@ class AutoReconcileStatementService
     }
 
     /**
+     * @param  array<int, array<int, RequestPayoutExecutionAttempt>>  $payoutsByAmount
      * @return array<int, array{target_type:class-string,target_id:int,stream:string,confidence:float,reason:string}>
      */
-    private function findPayoutCandidates(BankStatementLine $line, int $dateWindow, int $amountTolerance): array
+    private function findPayoutCandidates(BankStatementLine $line, int $dateWindow, int $amountTolerance, array $payoutsByAmount): array
     {
-        $lineDate = $line->value_date ? Carbon::parse($line->value_date) : Carbon::parse($line->posted_at);
+        $lineDate = $this->statementLineDate($line);
         $referenceText = strtolower(trim((string) (($line->line_reference ?? '').' '.($line->description ?? ''))));
 
-        return RequestPayoutExecutionAttempt::query()
-            ->where('company_id', (int) $line->company_id)
-            ->whereIn('execution_status', ['settled', 'webhook_pending'])
-            ->get()
+        return collect($this->recordsForAmountWindow($payoutsByAmount, (int) $line->amount, $amountTolerance))
             ->filter(function (RequestPayoutExecutionAttempt $attempt) use ($line, $lineDate, $dateWindow, $amountTolerance): bool {
                 $attemptAmount = (int) round((float) $attempt->amount);
                 $amountDiff = abs($attemptAmount - (int) $line->amount);
@@ -288,25 +292,21 @@ class AutoReconcileStatementService
     }
 
     /**
+     * @param  array<int, array<int, Expense>>  $expensesByAmount
      * @return array<int, array{target_type:class-string,target_id:int,stream:string,confidence:float,reason:string}>
      */
-    private function findExpenseCandidates(BankStatementLine $line, int $dateWindow, int $amountTolerance, int $textSimilarityThreshold): array
+    private function findExpenseCandidates(BankStatementLine $line, int $dateWindow, int $amountTolerance, int $textSimilarityThreshold, array $expensesByAmount): array
     {
-        $lineDate = $line->value_date ? Carbon::parse($line->value_date) : Carbon::parse($line->posted_at);
+        $lineDate = $this->statementLineDate($line);
         $referenceText = strtolower(trim((string) (($line->line_reference ?? '').' '.($line->description ?? ''))));
 
-        $minDate = $lineDate->copy()->subDays($dateWindow)->toDateString();
-        $maxDate = $lineDate->copy()->addDays($dateWindow)->toDateString();
-        $minAmount = max(0, (int) $line->amount - $amountTolerance);
-        $maxAmount = (int) $line->amount + $amountTolerance;
+        return collect($this->recordsForAmountWindow($expensesByAmount, (int) $line->amount, $amountTolerance))
+            ->filter(function (Expense $expense) use ($lineDate, $dateWindow): bool {
+                $expenseDate = $expense->expense_date ? Carbon::parse($expense->expense_date) : null;
 
-        return Expense::query()
-            ->with('vendor:id,name')
-            ->where('company_id', (int) $line->company_id)
-            ->where('status', '!=', 'void')
-            ->whereBetween('expense_date', [$minDate, $maxDate])
-            ->whereBetween('amount', [$minAmount, $maxAmount])
-            ->get()
+                return $expenseDate !== null
+                    && abs($lineDate->diffInDays($expenseDate, false)) <= $dateWindow;
+            })
             ->map(function (Expense $expense) use ($line, $lineDate, $referenceText, $textSimilarityThreshold): array {
                 $amountDiff = abs((int) $expense->amount - (int) $line->amount);
                 $expenseDate = $expense->expense_date ? Carbon::parse($expense->expense_date) : null;
@@ -345,6 +345,134 @@ class AutoReconcileStatementService
             })
             ->values()
             ->all();
+    }
+
+    /**
+     * @param  Collection<int, BankStatementLine>  $lines
+     * @return array{
+     *   payouts_by_amount: array<int, array<int, RequestPayoutExecutionAttempt>>,
+     *   expenses_by_amount: array<int, array<int, Expense>>
+     * }
+     */
+    private function buildCandidatePools(Collection $lines, int $dateWindow, int $amountTolerance): array
+    {
+        /** @var BankStatementLine|null $firstLine */
+        $firstLine = $lines->first();
+        if (! $firstLine instanceof BankStatementLine) {
+            return [
+                'payouts_by_amount' => [],
+                'expenses_by_amount' => [],
+            ];
+        }
+
+        /** @var Collection<int, Carbon> $lineDates */
+        $lineDates = $lines
+            ->map(fn (BankStatementLine $line): Carbon => $this->statementLineDate($line))
+            ->values();
+
+        /** @var Carbon $earliestLineDate */
+        $earliestLineDate = $lineDates->sort()->first();
+        /** @var Carbon $latestLineDate */
+        $latestLineDate = $lineDates->sortDesc()->first();
+
+        $minDateTime = $earliestLineDate->copy()->subDays($dateWindow)->startOfDay();
+        $maxDateTime = $latestLineDate->copy()->addDays($dateWindow)->endOfDay();
+        $minDate = $minDateTime->toDateString();
+        $maxDate = $maxDateTime->toDateString();
+        $minAmount = max(0, ((int) $lines->min('amount')) - $amountTolerance);
+        $maxAmount = ((int) $lines->max('amount')) + $amountTolerance;
+
+        $payouts = RequestPayoutExecutionAttempt::query()
+            ->where('company_id', (int) $firstLine->company_id)
+            ->whereIn('execution_status', ['settled', 'webhook_pending'])
+            ->whereBetween('amount', [$minAmount, $maxAmount])
+            ->where(function ($query) use ($minDateTime, $maxDateTime): void {
+                $query->whereBetween('settled_at', [$minDateTime, $maxDateTime])
+                    ->orWhereBetween('processed_at', [$minDateTime, $maxDateTime])
+                    ->orWhereBetween('queued_at', [$minDateTime, $maxDateTime])
+                    ->orWhereBetween('created_at', [$minDateTime, $maxDateTime]);
+            })
+            ->get([
+                'id',
+                'company_id',
+                'provider_reference',
+                'idempotency_key',
+                'execution_status',
+                'amount',
+                'metadata',
+                'queued_at',
+                'processed_at',
+                'settled_at',
+                'created_at',
+            ]);
+
+        $expenses = Expense::query()
+            ->with('vendor:id,name')
+            ->where('company_id', (int) $firstLine->company_id)
+            ->where('status', '!=', 'void')
+            ->whereBetween('expense_date', [$minDate, $maxDate])
+            ->whereBetween('amount', [$minAmount, $maxAmount])
+            ->get([
+                'id',
+                'company_id',
+                'vendor_id',
+                'expense_code',
+                'title',
+                'description',
+                'amount',
+                'expense_date',
+                'status',
+            ]);
+
+        return [
+            'payouts_by_amount' => $this->groupModelsByRoundedAmount($payouts),
+            'expenses_by_amount' => $this->groupModelsByRoundedAmount($expenses),
+        ];
+    }
+
+    private function statementLineDate(BankStatementLine $line): Carbon
+    {
+        return $line->value_date ? Carbon::parse($line->value_date) : Carbon::parse($line->posted_at);
+    }
+
+    /**
+     * @param  Collection<int, mixed>  $models
+     * @return array<int, array<int, mixed>>
+     */
+    private function groupModelsByRoundedAmount(Collection $models): array
+    {
+        return $models
+            ->groupBy(static fn ($model): int => (int) round((float) data_get($model, 'amount', 0)))
+            ->map(static fn (Collection $group): array => $group->all())
+            ->all();
+    }
+
+    /**
+     * @param  array<int, array<int, mixed>>  $recordsByAmount
+     * @return array<int, mixed>
+     */
+    private function recordsForAmountWindow(array $recordsByAmount, int $amount, int $amountTolerance): array
+    {
+        $minAmount = max(0, $amount - $amountTolerance);
+        $maxAmount = $amount + $amountTolerance;
+
+        if ($amountTolerance > 250) {
+            return collect($recordsByAmount)
+                ->filter(static fn (array $records, int|string $candidateAmount): bool => (int) $candidateAmount >= $minAmount && (int) $candidateAmount <= $maxAmount)
+                ->flatten(1)
+                ->values()
+                ->all();
+        }
+
+        $records = [];
+
+        for ($candidateAmount = $minAmount; $candidateAmount <= $maxAmount; $candidateAmount++) {
+            foreach ($recordsByAmount[$candidateAmount] ?? [] as $candidate) {
+                $records[] = $candidate;
+            }
+        }
+
+        return $records;
     }
 
     private function expenseConfidence(int $textSimilarity, bool $expenseCodeHit, int $dateDiffDays, int $amountDiff, bool $strongSignal): float
@@ -498,4 +626,3 @@ class AutoReconcileStatementService
         ]);
     }
 }
-

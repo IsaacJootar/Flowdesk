@@ -23,10 +23,21 @@ Tenancy model: single database, shared tables, **company_id** on all company-own
 - Use `status` as string (enum-like values in code).
 
 ### Money fields
+- Note: the current production codebase is not yet fully uniform on money storage.
+- Most request, expense, vendor invoice, and treasury statement paths currently behave like integer whole-currency values in app code and UI.
+- Some provider-facing execution tables use decimal major-unit amounts for gateway compatibility.
+- Treat money normalization as an explicit production hardening task and document conversions at every external boundary.
 - Use `amount` as BIGINT in **kobo** (or cents) to avoid float issues.
   - Example: ₦12,500.00 → 1250000
 
 ---
+
+## 0.1) Money Normalization Decision
+- Canonical production rule: Flowdesk uses **major currency units** everywhere.
+- Integer business columns therefore represent whole major units already entered by users or imports.
+- Provider-facing execution tables may keep decimal major-unit amounts for gateway compatibility.
+- No application service should apply implicit `x100` or `÷100` conversions.
+- When integrating with external providers, document decimal expectations at the boundary instead of inferring them.
 
 ## 1) Tenancy / Identity
 

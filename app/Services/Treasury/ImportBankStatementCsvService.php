@@ -214,7 +214,7 @@ class ImportBankStatementCsvService
             ]);
         }
 
-        // Statement CSV amounts are stored in tenant currency base units (no implicit x100 scaling).
+        // Treasury statement imports currently expect whole-currency values exactly as supplied by the bank export.
         $amount = (int) round((float) str_replace(',', '', $amountRaw));
         $lineReference = trim((string) ($row[$columnIndex['line_reference'] ?? -1] ?? ''));
         $description = trim((string) ($row[$columnIndex['description'] ?? -1] ?? ''));

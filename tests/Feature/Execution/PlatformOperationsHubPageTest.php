@@ -5,9 +5,11 @@ namespace Tests\Feature\Execution;
 use App\Domains\Company\Models\Company;
 use App\Enums\PlatformUserRole;
 use App\Enums\UserRole;
+use App\Livewire\Platform\PlatformOperationsHubPage;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
+use Livewire\Livewire;
 use Tests\TestCase;
 
 class PlatformOperationsHubPageTest extends TestCase
@@ -41,6 +43,19 @@ class PlatformOperationsHubPageTest extends TestCase
         $this->actingAs($user)
             ->get(route('platform.operations.hub'))
             ->assertForbidden();
+    }
+
+    public function test_operations_hub_uses_execution_ops_recovery_threshold_config(): void
+    {
+        config()->set('execution.ops_recovery.older_than_minutes', 45);
+
+        $platformUser = $this->createPlatformUser(PlatformUserRole::PlatformOpsAdmin->value);
+
+        $this->actingAs($platformUser);
+
+        Livewire::test(PlatformOperationsHubPage::class)
+            ->call('loadData')
+            ->assertSee('Threshold: 45 mins');
     }
 
     private function createPlatformUser(string $platformRole): User

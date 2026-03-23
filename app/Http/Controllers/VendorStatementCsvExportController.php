@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Domains\Vendors\Models\VendorInvoice;
 use App\Domains\Vendors\Models\Vendor;
 use App\Services\VendorStatementService;
+use App\Support\Money;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Validator;
@@ -59,16 +60,16 @@ class VendorStatementCsvExportController extends Controller
                     (string) ($row['reference'] ?? ''),
                     (string) ($row['description'] ?? ''),
                     (string) ($row['status'] ?? ''),
-                    (string) number_format((int) ($row['debit'] ?? 0), 2, '.', ''),
-                    (string) number_format((int) ($row['credit'] ?? 0), 2, '.', ''),
-                    (string) number_format((int) ($row['balance'] ?? 0), 2, '.', ''),
+                    str_replace(',', '', Money::formatPlain((int) ($row['debit'] ?? 0), 2)),
+                    str_replace(',', '', Money::formatPlain((int) ($row['credit'] ?? 0), 2)),
+                    str_replace(',', '', Money::formatPlain((int) ($row['balance'] ?? 0), 2)),
                 ]);
             }
 
             fputcsv($handle, []);
-            fputcsv($handle, ['Invoice Total', (string) number_format((int) $summary['invoice_total'], 2, '.', '')]);
-            fputcsv($handle, ['Payment Total', (string) number_format((int) $summary['payment_total'], 2, '.', '')]);
-            fputcsv($handle, ['Closing Balance', (string) number_format((int) $summary['balance'], 2, '.', '')]);
+            fputcsv($handle, ['Invoice Total', str_replace(',', '', Money::formatPlain((int) $summary['invoice_total'], 2))]);
+            fputcsv($handle, ['Payment Total', str_replace(',', '', Money::formatPlain((int) $summary['payment_total'], 2))]);
+            fputcsv($handle, ['Closing Balance', str_replace(',', '', Money::formatPlain((int) $summary['balance'], 2))]);
 
             fclose($handle);
         }, $fileName, [

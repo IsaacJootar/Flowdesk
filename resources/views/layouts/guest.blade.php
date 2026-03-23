@@ -6,8 +6,8 @@
         <meta name="csrf-token" content="{{ csrf_token() }}">
 
         <title>{{ config('app.name', 'Flowdesk') }}</title>
-        <link rel="icon" type="image/svg+xml" href="{{ asset('brand-mark.svg') }}">
-        <link rel="shortcut icon" href="{{ asset('brand-mark.svg') }}">
+        <link rel="icon" type="image/x-icon" href="{{ asset('favicon.ico') }}">
+        <link rel="shortcut icon" href="{{ asset('favicon.ico') }}">
 
         <!-- Fonts -->
         <link rel="preconnect" href="https://fonts.bunny.net">

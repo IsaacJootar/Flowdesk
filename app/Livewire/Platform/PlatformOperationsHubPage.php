@@ -9,6 +9,8 @@ use App\Domains\Company\Models\TenantPilotWaveOutcome;
 use App\Domains\Company\Models\TenantSubscriptionBillingAttempt;
 use App\Domains\Requests\Models\RequestPayoutExecutionAttempt;
 use App\Livewire\Platform\Concerns\InteractsWithTenantCompanies;
+use App\Services\Operations\ProductionReadinessValidator;
+use App\Services\Operations\RuntimeOperationsHealthService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Carbon;
@@ -85,6 +87,28 @@ class PlatformOperationsHubPage extends Component
                 'execution_enabled_tenants' => 0,
             ];
 
+        $runtimeHealth = $this->readyToLoad
+            ? app(RuntimeOperationsHealthService::class)->summary()
+            : [
+                'available' => true,
+                'scheduler_heartbeat_at' => null,
+                'scheduler_delay_minutes' => null,
+                'failed_jobs_total' => 0,
+                'failed_jobs_last_24h' => 0,
+                'queued_jobs_total' => 0,
+                'stale_jobs_total' => 0,
+                'note' => null,
+            ];
+
+        $validationSummary = $this->readyToLoad
+            ? app(ProductionReadinessValidator::class)->summary()
+            : [
+                'ok' => true,
+                'blocking' => 0,
+                'warning' => 0,
+                'issues' => [],
+            ];
+
         $incidentSummary = $this->readyToLoad
             ? $this->incidentSummary($tenantIds)
             : [
@@ -111,6 +135,8 @@ class PlatformOperationsHubPage extends Component
             'tenantCount' => $tenantCount,
             'executionSummary' => $executionSummary,
             'checklistSummary' => $checklistSummary,
+            'runtimeHealth' => $runtimeHealth,
+            'validationSummary' => $validationSummary,
             'incidentSummary' => $incidentSummary,
             'rolloutSummary' => $rolloutSummary,
             'tabs' => self::TABS,
@@ -123,18 +149,19 @@ class PlatformOperationsHubPage extends Component
      */
     private function executionSummary(array $tenantIds): array
     {
+        $thresholdMinutes = max(1, (int) config('execution.ops_recovery.older_than_minutes', 30));
+
         if ($tenantIds === []) {
             return [
                 'billing_failed' => 0,
                 'payout_failed' => 0,
                 'webhook_failed' => 0,
                 'stuck_queued' => 0,
-                'threshold_minutes' => 30,
+                'threshold_minutes' => $thresholdMinutes,
                 'last_recovery' => null,
             ];
         }
 
-        $thresholdMinutes = max(1, (int) config('execution.ops_recovery.default_older_than_minutes', 30));
         $cutoff = Carbon::now()->subMinutes($thresholdMinutes);
 
         $billingFailed = (int) TenantSubscriptionBillingAttempt::query()

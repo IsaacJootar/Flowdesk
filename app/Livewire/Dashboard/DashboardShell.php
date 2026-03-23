@@ -17,6 +17,7 @@ use App\Enums\UserRole;
 use App\Models\User;
 use App\Services\Procurement\ProcurementControlSettingsService;
 use App\Services\TenantModuleAccessService;
+use App\Support\Money;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
@@ -204,25 +205,25 @@ class DashboardShell extends Component
             $this->roleSummaryCards = [
                 [
                     'label' => 'Open Procurement Exceptions',
-                    'value' => number_format($procurementOpen),
-                    'hint' => number_format($procurementCritical).' high/critical',
+                    'value' => $this->formatCount($procurementOpen),
+                    'hint' => $this->formatCount($procurementCritical).' high/critical',
                     'tone' => 'amber',
                 ],
                 [
                     'label' => 'Open Treasury Exceptions',
-                    'value' => number_format($treasuryOpen),
-                    'hint' => number_format($treasuryCritical).' high/critical',
+                    'value' => $this->formatCount($treasuryOpen),
+                    'hint' => $this->formatCount($treasuryCritical).' high/critical',
                     'tone' => 'rose',
                 ],
                 [
                     'label' => 'Stale Execution Queue',
-                    'value' => number_format($queueRisk),
+                    'value' => $this->formatCount($queueRisk),
                     'hint' => 'Queued records above recovery age',
                     'tone' => 'sky',
                 ],
                 [
                     'label' => 'Blocked Payout Handoffs (30d)',
-                    'value' => number_format($blockedPayout30d),
+                    'value' => $this->formatCount($blockedPayout30d),
                     'hint' => 'Procurement gate prevented payout queueing',
                     'tone' => 'slate',
                 ],
@@ -258,26 +259,26 @@ class DashboardShell extends Component
             $this->roleSummaryCards = [
                 [
                     'label' => 'Control Breach Signals (7d)',
-                    'value' => number_format($controlDenials7d + $blockedPayout30d),
-                    'hint' => number_format($controlDenials7d).' denied actions + '.number_format($blockedPayout30d).' blocked payout handoffs',
+                    'value' => $this->formatCount($controlDenials7d + $blockedPayout30d),
+                    'hint' => $this->formatCount($controlDenials7d).' denied actions + '.$this->formatCount($blockedPayout30d).' blocked payout handoffs',
                     'tone' => 'rose',
                 ],
                 [
                     'label' => 'Stale Commitments',
-                    'value' => number_format($staleCommitments),
+                    'value' => $this->formatCount($staleCommitments),
                     'hint' => 'Active procurement commitments above tenant age threshold',
                     'tone' => 'amber',
                 ],
                 [
                     'label' => 'Execution Alerts (24h)',
-                    'value' => number_format($executionAlerts24h),
+                    'value' => $this->formatCount($executionAlerts24h),
                     'hint' => 'Alerts emitted by execution ops summary runs',
                     'tone' => 'sky',
                 ],
                 [
                     'label' => 'Open Finance Exceptions',
-                    'value' => number_format($procurementOpen + $treasuryOpen),
-                    'hint' => number_format($procurementOpen).' procurement + '.number_format($treasuryOpen).' treasury',
+                    'value' => $this->formatCount($procurementOpen + $treasuryOpen),
+                    'hint' => $this->formatCount($procurementOpen).' procurement + '.$this->formatCount($treasuryOpen).' treasury',
                     'tone' => 'slate',
                 ],
             ];
@@ -332,26 +333,26 @@ class DashboardShell extends Component
             $this->roleSummaryCards = [
                 [
                     'label' => 'Manual Override Actions (7d)',
-                    'value' => number_format($manualOverrides7d),
+                    'value' => $this->formatCount($manualOverrides7d),
                     'hint' => 'Resolved/waived exceptions and manual queue recoveries',
                     'tone' => 'violet',
                 ],
                 [
                     'label' => 'Denied Sensitive Actions (7d)',
-                    'value' => number_format($deniedSensitive7d),
+                    'value' => $this->formatCount($deniedSensitive7d),
                     'hint' => 'Role or maker-checker denials',
                     'tone' => 'rose',
                 ],
                 [
                     'label' => 'Execution Alerts (7d)',
-                    'value' => number_format($alerts7d),
+                    'value' => $this->formatCount($alerts7d),
                     'hint' => 'Tenant alert summaries emitted',
                     'tone' => 'sky',
                 ],
                 [
                     'label' => 'Open Exceptions Snapshot',
-                    'value' => number_format($procurementOpen + $treasuryOpen),
-                    'hint' => number_format($procurementOpen).' procurement + '.number_format($treasuryOpen).' treasury',
+                    'value' => $this->formatCount($procurementOpen + $treasuryOpen),
+                    'hint' => $this->formatCount($procurementOpen).' procurement + '.$this->formatCount($treasuryOpen).' treasury',
                     'tone' => 'slate',
                 ],
             ];
@@ -384,13 +385,16 @@ class DashboardShell extends Component
         $this->roleSummaryCards = [
             [
                 'label' => 'This Month Posted Expenses',
-                'value' => number_format($postedExpenseCount),
+                'value' => $this->formatCount($postedExpenseCount),
                 'hint' => 'Posted direct and request-linked expenses',
                 'tone' => 'emerald',
             ],
             [
                     'label' => 'In-Review Request Value',
-                    'value' => sprintf('%s %s', $currencyCode, number_format((int) SpendRequest::query()->where('company_id', $companyId)->where('status', 'in_review')->sum('amount'), 2)),
+                    'value' => $this->formatMoney(
+                        (int) SpendRequest::query()->where('company_id', $companyId)->where('status', 'in_review')->sum('amount'),
+                        $currencyCode
+                    ),
                     'hint' => 'Requests waiting for approval decisions',
                     'tone' => 'sky',
                 ],
@@ -735,37 +739,42 @@ class DashboardShell extends Component
         $metrics = [
             'total_spend' => [
                 'label' => 'Total Spend (This Month)',
-                'value' => sprintf('%s %s', $currencyCode, number_format($monthSpend, 2)),
+                'value' => $this->formatMoney($monthSpend, $currencyCode),
                 'hint' => sprintf('Posted expenses for %s', now()->format('F Y')),
                 'words' => $this->formatAmountInWords($monthSpend, $currencyCode),
             ],
             'pending_approvals' => [
                 'label' => 'Requests In Review',
-                'value' => sprintf('%s requests', number_format($requestsInReviewCount)),
-                'hint' => sprintf('Pipeline value: %s %s', $currencyCode, number_format($requestsInReviewValue, 2)),
+                'value' => sprintf('%s requests', $this->formatCount($requestsInReviewCount)),
+                'hint' => sprintf('Pipeline value: %s', $this->formatMoney($requestsInReviewValue, $currencyCode)),
                 'words' => $this->formatAmountInWords($requestsInReviewValue, $currencyCode),
             ],
             'approved_value_month' => [
                 'label' => 'Approved Value (This Month)',
-                'value' => sprintf('%s %s', $currencyCode, number_format($approvedThisMonthValue, 2)),
-                'hint' => sprintf('%s approved requests this month', number_format($approvedThisMonthCount)),
+                'value' => $this->formatMoney($approvedThisMonthValue, $currencyCode),
+                'hint' => sprintf('%s approved requests this month', $this->formatCount($approvedThisMonthCount)),
                 'words' => $this->formatAmountInWords($approvedThisMonthValue, $currencyCode),
             ],
             'approved_budget' => [
                 'label' => 'Approved Budget (Active)',
-                'value' => sprintf('%s %s', $currencyCode, number_format($approvedBudgetTotal, 2)),
-                'hint' => sprintf('%s active department budgets', number_format($activeBudgetCount)),
+                'value' => $this->formatMoney($approvedBudgetTotal, $currencyCode),
+                'hint' => sprintf('%s active department budgets', $this->formatCount($activeBudgetCount)),
                 'words' => $this->formatAmountInWords($approvedBudgetTotal, $currencyCode),
             ],
             'budget_remaining' => [
                 'label' => 'Budget Remaining (Active)',
-                'value' => sprintf('%s %s', $currencyCode, number_format($budgetRemainingTotal, 2)),
+                'value' => $this->formatMoney($budgetRemainingTotal, $currencyCode),
                 'hint' => 'Remaining balance across active budgets',
                 'words' => $this->formatAmountInWords($budgetRemainingTotal, $currencyCode),
             ],
             'assets_overview' => [
                 'label' => 'Assets Overview',
-                'value' => sprintf('%s total / %s assigned / %s disposed', number_format($assetTotal), number_format($assetAssigned), number_format($assetDisposed)),
+                'value' => sprintf(
+                    '%s total / %s assigned / %s disposed',
+                    $this->formatCount($assetTotal),
+                    $this->formatCount($assetAssigned),
+                    $this->formatCount($assetDisposed)
+                ),
                 'hint' => 'Custody and lifecycle tracking live',
             ],
             'departments' => [
@@ -813,5 +822,14 @@ class DashboardShell extends Component
 
         return (bool) config('performance.cache.enabled', true);
     }
-}
 
+    private function formatMoney(int|float|string|null $amount, string $currencyCode): string
+    {
+        return Money::formatCurrency($amount, $currencyCode);
+    }
+
+    private function formatCount(int|float|string|null $value): string
+    {
+        return Money::formatCount($value);
+    }
+}

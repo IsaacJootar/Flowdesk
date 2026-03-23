@@ -4,6 +4,9 @@ namespace App\Http\Middleware;
 
 use App\Models\User;
 use App\Services\PlatformAccessService;
+use App\Support\CorrelationContext;
+use App\Support\FlowdeskLogContext;
+use App\Support\TenantContext;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -11,7 +14,10 @@ use Symfony\Component\HttpFoundation\Response;
 class EnsureCompanyContext
 {
     public function __construct(
-        private readonly PlatformAccessService $platformAccessService
+        private readonly PlatformAccessService $platformAccessService,
+        private readonly TenantContext $tenantContext,
+        private readonly CorrelationContext $correlationContext,
+        private readonly FlowdeskLogContext $flowdeskLogContext,
     ) {
     }
 
@@ -47,6 +53,18 @@ class EnsureCompanyContext
             return redirect()->route('settings.company.setup');
         }
 
-        return $next($request);
+        $this->tenantContext->setCompanyId((int) $user->company_id);
+        $this->correlationContext->mergeContext([
+            'company_id' => (int) $user->company_id,
+            'actor_id' => (int) $user->id,
+            'actor_role' => (string) $user->role,
+        ]);
+        $this->flowdeskLogContext->share($this->correlationContext->all());
+
+        try {
+            return $next($request);
+        } finally {
+            $this->tenantContext->clear();
+        }
     }
 }
