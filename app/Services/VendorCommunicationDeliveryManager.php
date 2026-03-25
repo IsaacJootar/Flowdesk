@@ -6,13 +6,13 @@ use App\Domains\Company\Models\CompanyCommunicationSetting;
 use App\Domains\Vendors\Models\VendorCommunicationLog;
 use App\Services\RequestCommunication\DeliveryResult;
 use App\Services\RequestCommunication\Sms\SmsProvider;
-use Illuminate\Support\Facades\Mail;
 use Throwable;
 
 class VendorCommunicationDeliveryManager
 {
     public function __construct(
-        private readonly SmsProvider $smsProvider
+        private readonly SmsProvider $smsProvider,
+        private readonly TransactionalEmailSender $transactionalEmailSender,
     ) {
     }
 
@@ -74,9 +74,9 @@ class VendorCommunicationDeliveryManager
         $body = $this->emailBody($log);
 
         try {
-            Mail::raw($body, function ($message) use ($email, $subject): void {
-                $message->to($email)->subject($subject);
-            });
+            $deliveryMetadata = $this->transactionalEmailSender->sendPlainText($email, $subject, $body, [
+                'idempotency_key' => 'vendor-communication-'.$log->id,
+            ]);
         } catch (Throwable $exception) {
             report($exception);
 
@@ -85,10 +85,7 @@ class VendorCommunicationDeliveryManager
             ]);
         }
 
-        return DeliveryResult::sent('Email reminder delivered.', [
-            'to' => $email,
-            'subject' => $subject,
-        ]);
+        return DeliveryResult::sent('Email reminder delivered.', $deliveryMetadata);
     }
 
     private function sendSms(VendorCommunicationLog $log): DeliveryResult

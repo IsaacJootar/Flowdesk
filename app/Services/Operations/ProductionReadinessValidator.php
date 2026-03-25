@@ -66,8 +66,23 @@ class ProductionReadinessValidator
             $issues[] = $this->issue('critical', 'cache_array_driver', 'CACHE_STORE=array disables shared cache state needed for production scheduling and runtime health.');
         }
 
-        if ($this->isProduction() && in_array((string) config('mail.default', 'log'), ['log', 'array'], true)) {
+        $defaultMailer = (string) config('mail.default', 'log');
+        $transactionalMailer = (string) config('mail.transactional_mailer', $defaultMailer);
+
+        if ($this->isProduction() && in_array($defaultMailer, ['log', 'array'], true)) {
             $issues[] = $this->issue('critical', 'mail_log_driver', 'MAIL_MAILER must point to a real delivery transport in production.');
+        }
+
+        if ($this->isProduction() && in_array($transactionalMailer, ['log', 'array'], true)) {
+            $issues[] = $this->issue('critical', 'transactional_mailer_not_real', 'MAIL_TRANSACTIONAL_MAILER must point to a real transactional provider in production.');
+        }
+
+        if ($this->isProduction() && in_array($transactionalMailer, ['resend_smtp', 'resend_failover'], true) && trim((string) config('services.resend.key', '')) === '') {
+            $issues[] = $this->issue('critical', 'resend_api_key_missing', 'Resend API key is missing for the configured transactional mailer.');
+        }
+
+        if ($this->isProduction() && trim((string) config('mail.from.address', 'hello@example.com')) === 'hello@example.com') {
+            $issues[] = $this->issue('critical', 'mail_from_placeholder', 'MAIL_FROM_ADDRESS is still using the example placeholder address.');
         }
 
         if ($this->isProduction() && ! (bool) config('session.secure', false)) {

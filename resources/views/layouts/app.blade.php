@@ -6,7 +6,10 @@
         <meta name="csrf-token" content="{{ csrf_token() }}">
 
         <title>{{ $title ?? config('app.name', 'Flowdesk') }}</title>
-        <link rel="icon" type="image/x-icon" href="{{ asset('favicon.ico') }}">
+        <!-- Use the Flowdesk brand mark as the primary browser-tab icon, with
+             the .ico file kept as a fallback for older browsers. -->
+        <link rel="icon" type="image/svg+xml" href="{{ asset('brand-mark.svg') }}">
+        <link rel="alternate icon" type="image/x-icon" href="{{ asset('favicon.ico') }}">
         <link rel="shortcut icon" href="{{ asset('favicon.ico') }}">
 
         <link rel="preconnect" href="https://fonts.bunny.net">

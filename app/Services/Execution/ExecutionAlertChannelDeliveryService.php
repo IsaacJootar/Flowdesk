@@ -6,14 +6,15 @@ use App\Domains\Audit\Models\ActivityLog;
 use App\Domains\Company\Models\CompanyCommunicationSetting;
 use App\Enums\UserRole;
 use App\Models\User;
+use App\Services\TransactionalEmailSender;
 use App\Services\TenantAuditLogger;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 
 class ExecutionAlertChannelDeliveryService
 {
     public function __construct(
         private readonly TenantAuditLogger $tenantAuditLogger,
+        private readonly TransactionalEmailSender $transactionalEmailSender,
     ) {
     }
 
@@ -158,9 +159,7 @@ class ExecutionAlertChannelDeliveryService
             }
 
             try {
-                Mail::raw($body, function ($message) use ($email, $subject): void {
-                    $message->to($email)->subject($subject);
-                });
+                $this->transactionalEmailSender->sendPlainText($email, $subject, $body);
 
                 if ($recipientId > 0) {
                     $sentRecipientIds[] = $recipientId;

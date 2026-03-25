@@ -5,12 +5,17 @@ namespace App\Services\RequestCommunication\Adapters;
 use App\Domains\Requests\Models\RequestCommunicationLog;
 use App\Services\RequestCommunication\ChannelDeliveryAdapter;
 use App\Services\RequestCommunication\DeliveryResult;
-use Illuminate\Support\Facades\Mail;
+use App\Services\TransactionalEmailSender;
 use Illuminate\Support\Str;
 use Throwable;
 
 class EmailChannelDeliveryAdapter implements ChannelDeliveryAdapter
 {
+    public function __construct(
+        private readonly TransactionalEmailSender $transactionalEmailSender,
+    ) {
+    }
+
     public function deliver(RequestCommunicationLog $log): DeliveryResult
     {
         $recipient = $log->recipient;
@@ -24,19 +29,16 @@ class EmailChannelDeliveryAdapter implements ChannelDeliveryAdapter
         $body = $this->bodyFor($log);
 
         try {
-            Mail::raw($body, function ($message) use ($email, $subject): void {
-                $message->to($email)->subject($subject);
-            });
+            $deliveryMetadata = $this->transactionalEmailSender->sendPlainText($email, $subject, $body, [
+                'idempotency_key' => 'request-communication-'.$log->id,
+            ]);
         } catch (Throwable $exception) {
             report($exception);
 
             return DeliveryResult::failed('Email delivery failed while sending.');
         }
 
-        return DeliveryResult::sent('Email delivered.', [
-            'to' => $email,
-            'subject' => $subject,
-        ]);
+        return DeliveryResult::sent('Email delivered.', $deliveryMetadata);
     }
 
     private function subjectFor(RequestCommunicationLog $log): string
@@ -63,4 +65,3 @@ class EmailChannelDeliveryAdapter implements ChannelDeliveryAdapter
         ]));
     }
 }
-

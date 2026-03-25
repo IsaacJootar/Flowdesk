@@ -28,6 +28,43 @@ Provide one operator-facing guide for deployment, recovery, and day-one support.
 - `failed_jobs` should be monitored continuously.
 - The platform operations hub should show a recent scheduler heartbeat.
 
+## Supervisor Example
+Use one worker program and one scheduler program on a single VPS.
+
+```ini
+[program:flowdesk-queue]
+process_name=%(program_name)s_%(process_num)02d
+command=/usr/bin/php /var/www/flowdesk/artisan queue:work database --sleep=3 --tries=3 --timeout=120 --queue=default
+autostart=true
+autorestart=true
+stopasgroup=true
+killasgroup=true
+user=www-data
+numprocs=1
+redirect_stderr=true
+stdout_logfile=/var/www/flowdesk/storage/logs/supervisor-queue.log
+stopwaitsecs=3600
+```
+
+```ini
+[program:flowdesk-scheduler]
+command=/usr/bin/php /var/www/flowdesk/artisan schedule:work
+autostart=true
+autorestart=true
+stopasgroup=true
+killasgroup=true
+user=www-data
+numprocs=1
+redirect_stderr=true
+stdout_logfile=/var/www/flowdesk/storage/logs/supervisor-scheduler.log
+stopwaitsecs=3600
+```
+
+Notes:
+- Replace `/var/www/flowdesk` with your real deployment path.
+- Keep only one `schedule:work` process running for the app.
+- Restart both programs after each deploy so new code and config are loaded.
+
 ## Backup And Restore
 - Take scheduled database backups at least daily.
 - Keep storage backups for uploaded evidence and exported files.

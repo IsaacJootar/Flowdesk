@@ -25,6 +25,7 @@ Flowdesk is a multi-tenant finance operations platform built on Laravel and Live
 - Set `APP_DEBUG=false`
 - Use HTTPS and a production `APP_URL`
 - Use a real mail transport instead of `log`
+- For Flowdesk transactional email, prefer `MAIL_MAILER=resend_failover` and `MAIL_TRANSACTIONAL_MAILER=resend_failover`
 - Prefer Redis for cache and queue in production
 - Run the scheduler continuously with `php artisan schedule:work` or cron for `php artisan schedule:run`
 - Run queue workers under a supervisor instead of ad-hoc shells
@@ -69,6 +70,7 @@ Flowdesk is a multi-tenant finance operations platform built on Laravel and Live
 
 - Confirm production env values and provider secrets
 - Run `php artisan flowdesk:production:validate`
+- Verify Resend domain authentication and `MAIL_FROM_ADDRESS`
 - Run migrations on production
 - Warm config and route caches
 - Confirm queue workers and scheduler are healthy

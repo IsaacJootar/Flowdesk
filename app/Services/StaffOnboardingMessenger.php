@@ -7,14 +7,14 @@ use App\Models\User;
 use App\Services\RequestCommunication\DeliveryResult;
 use App\Services\RequestCommunication\Sms\SmsProvider;
 use Illuminate\Support\Arr;
-use Illuminate\Support\Facades\Mail;
 use Throwable;
 
 class StaffOnboardingMessenger
 {
     public function __construct(
         private readonly SmsProvider $smsProvider,
-        private readonly ActivityLogger $activityLogger
+        private readonly ActivityLogger $activityLogger,
+        private readonly TransactionalEmailSender $transactionalEmailSender,
     ) {
     }
 
@@ -114,9 +114,9 @@ class StaffOnboardingMessenger
         $body = $this->buildEmailBody($staff, $companyName, $temporaryPassword);
 
         try {
-            Mail::raw($body, function ($message) use ($email, $subject): void {
-                $message->to($email)->subject($subject);
-            });
+            $deliveryMetadata = $this->transactionalEmailSender->sendPlainText($email, $subject, $body, [
+                'idempotency_key' => 'staff-onboarding-'.$staff->id,
+            ]);
         } catch (Throwable $exception) {
             report($exception);
 
@@ -125,10 +125,7 @@ class StaffOnboardingMessenger
             ]);
         }
 
-        return DeliveryResult::sent('Email onboarding message delivered.', [
-            'to' => $email,
-            'subject' => $subject,
-        ]);
+        return DeliveryResult::sent('Email onboarding message delivered.', $deliveryMetadata);
     }
 
     private function sendSms(User $staff, string $companyName, string $temporaryPassword): DeliveryResult

@@ -18,6 +18,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Transactional Mailer
+    |--------------------------------------------------------------------------
+    |
+    | Flowdesk's operational emails already decide when to queue at the
+    | workflow level. This mailer lets those workflows target a production
+    | transport explicitly without changing every delivery call site.
+    |
+    */
+
+    'transactional_mailer' => env('MAIL_TRANSACTIONAL_MAILER', env('MAIL_MAILER', 'log')),
+
+    /*
+    |--------------------------------------------------------------------------
     | Mailer Configurations
     |--------------------------------------------------------------------------
     |
@@ -44,6 +57,19 @@ return [
             'encryption' => env('MAIL_ENCRYPTION', 'tls'),
             'username' => env('MAIL_USERNAME'),
             'password' => env('MAIL_PASSWORD'),
+            'timeout' => null,
+            'local_domain' => env('MAIL_EHLO_DOMAIN'),
+        ],
+
+        'resend_smtp' => [
+            // Resend SMTP lets us ship production email without adding a new
+            // transport package to the app runtime.
+            'transport' => 'smtp',
+            'host' => env('RESEND_SMTP_HOST', 'smtp.resend.com'),
+            'port' => env('RESEND_SMTP_PORT', 587),
+            'encryption' => env('RESEND_SMTP_ENCRYPTION', 'tls'),
+            'username' => env('RESEND_SMTP_USERNAME', 'resend'),
+            'password' => env('RESEND_API_KEY'),
             'timeout' => null,
             'local_domain' => env('MAIL_EHLO_DOMAIN'),
         ],
@@ -80,6 +106,15 @@ return [
                 'smtp',
                 'log',
             ],
+        ],
+
+        'resend_failover' => [
+            'transport' => 'failover',
+            'mailers' => [
+                'resend_smtp',
+                'log',
+            ],
+            'retry_after' => 60,
         ],
 
     ],
