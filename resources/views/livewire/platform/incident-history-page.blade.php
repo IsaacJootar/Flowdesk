@@ -16,9 +16,9 @@
     <div class="fd-card p-4">
         <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             <label class="block">
-                <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Tenant</span>
+                <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Organization</span>
                 <select wire:model.live="tenantFilter" class="w-full rounded-xl border-slate-300 text-sm">
-                    <option value="all">All tenants</option>
+                    <option value="all">All organizations</option>
                     @foreach ($tenantOptions as $tenant)
                         <option value="{{ (int) $tenant->id }}">{{ $tenant->name }}</option>
                     @endforeach
@@ -162,7 +162,7 @@
                 <thead>
                     <tr class="border-b border-slate-200 text-left text-xs uppercase tracking-[0.14em] text-slate-500">
                         <th class="px-3 py-2">Timestamp</th>
-                        <th class="px-3 py-2">Tenant</th>
+                        <th class="px-3 py-2">Organization</th>
                         <th class="px-3 py-2">Pipeline</th>
                         <th class="px-3 py-2">Incident Type</th>
                         <th class="px-3 py-2">Action</th>

@@ -8,9 +8,14 @@ use App\Domains\Vendors\Models\VendorInvoice;
 use App\Enums\UserRole;
 use App\Jobs\ProcessVendorCommunicationLog;
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
 
 class VendorCommunicationLogger
 {
+    public function __construct(
+        private readonly VendorCommunicationDeliveryManager $deliveryManager
+    ) {
+    }
     /**
      * Queue vendor-facing payment-related communication events (email/SMS).
      *
@@ -23,7 +28,8 @@ class VendorCommunicationLogger
         ?array $channels = null,
         ?string $message = null,
         ?string $dedupeKey = null,
-        array $metadata = []
+        array $metadata = [],
+        bool $forceQueue = false
     ): int {
         if (! $this->isVendorPaymentEvent($event)) {
             // Guardrail: external vendor notifications are reserved for payment lifecycle events only.
@@ -56,7 +62,7 @@ class VendorCommunicationLogger
             ]);
 
             $queued++;
-            ProcessVendorCommunicationLog::dispatch((int) $log->id);
+            $this->dispatchLog($log, $forceQueue);
         }
 
         return $queued;
@@ -74,7 +80,8 @@ class VendorCommunicationLogger
         ?array $channels = null,
         ?string $message = null,
         ?string $dedupeKey = null,
-        array $metadata = []
+        array $metadata = [],
+        bool $forceQueue = false
     ): int {
         if (! str_starts_with($event, 'vendor.internal.')) {
             // Guardrail: finance inbox/email notifications should use explicit internal event names.
@@ -122,11 +129,38 @@ class VendorCommunicationLogger
                 ]);
 
                 $queued++;
-                ProcessVendorCommunicationLog::dispatch((int) $log->id);
+                $this->dispatchLog($log, $forceQueue);
             }
         }
 
         return $queued;
+    }
+
+    private function dispatchLog(VendorCommunicationLog $log, bool $forceQueue): void
+    {
+        $dispatch = function () use ($log, $forceQueue): void {
+            if ($this->shouldQueue($forceQueue)) {
+                ProcessVendorCommunicationLog::dispatch((int) $log->id);
+                return;
+            }
+
+            $this->deliveryManager->deliver($log);
+        };
+
+        if (DB::transactionLevel() > 0) {
+            DB::afterCommit($dispatch);
+        } else {
+            $dispatch();
+        }
+    }
+
+    private function shouldQueue(bool $forceQueue): bool
+    {
+        if ($forceQueue) {
+            return true;
+        }
+
+        return strtolower((string) config('communications.delivery.mode', 'inline')) === 'queue';
     }
 
     /**

@@ -6,11 +6,11 @@
         <meta name="csrf-token" content="{{ csrf_token() }}">
 
         <title>{{ config('app.name', 'Flowdesk') }}</title>
-        <!-- Keep the login and guest surfaces on the same Flowdesk favicon so
-             the brand stays consistent before and after sign-in. -->
-        <link rel="icon" type="image/svg+xml" href="{{ asset('brand-mark.svg') }}">
-        <link rel="alternate icon" type="image/x-icon" href="{{ asset('favicon.ico') }}">
-        <link rel="shortcut icon" href="{{ asset('favicon.ico') }}">
+        <!-- Mirror the authenticated layout so the Flowdesk icon is consistent
+             before login, after login, and across browser tab refreshes. -->
+        <link rel="icon" type="image/svg+xml" sizes="any" href="{{ asset('favicon.svg?v=20260328') }}">
+        <link rel="shortcut icon" href="{{ asset('favicon.svg?v=20260328') }}">
+        <link rel="alternate icon" type="image/x-icon" href="{{ asset('favicon.ico?v=20260328') }}">
 
         <!-- Fonts -->
         <link rel="preconnect" href="https://fonts.bunny.net">

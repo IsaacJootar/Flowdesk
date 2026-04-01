@@ -50,13 +50,13 @@
                 </label>
 
                 <label class="block">
-                    <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Exception Alert Age (Hours)</span>
+                    <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Issue Alert Age (Hours)</span>
                     <input type="number" min="1" max="720" wire:model.defer="controlsForm.exception_alert_age_hours" class="w-full rounded-xl border-slate-300 text-sm focus:border-slate-500 focus:ring-slate-500">
                     @error('controlsForm.exception_alert_age_hours')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
                 </label>
 
                 <label class="block">
-                    <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Backlog Alert Count Threshold</span>
+                    <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Backlog Alert Count Limit</span>
                     <input type="number" min="1" max="2000" wire:model.defer="controlsForm.reconciliation_backlog_alert_count_threshold" class="w-full rounded-xl border-slate-300 text-sm focus:border-slate-500 focus:ring-slate-500">
                     <p class="mt-1 text-xs text-slate-500">Alert triggers when open exceptions older than alert age reach this count.</p>
                     @error('controlsForm.reconciliation_backlog_alert_count_threshold')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
@@ -83,7 +83,7 @@
                 </label>
 
                 <label class="block">
-                    <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Direct Expense Text Similarity Threshold (%)</span>
+                    <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Direct Expense Text Similarity Limit (%)</span>
                     <input type="number" min="0" max="100" wire:model.defer="controlsForm.direct_expense_text_similarity_threshold" class="w-full rounded-xl border-slate-300 text-sm focus:border-slate-500 focus:ring-slate-500">
                     <p class="mt-1 text-xs text-slate-500">Minimum merchant/text similarity used to treat expense evidence as strong match context.</p>
                     @error('controlsForm.direct_expense_text_similarity_threshold')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
@@ -91,7 +91,7 @@
             </div>
 
             <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Exception Action Allowed Roles</p>
+                <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Issue Action Allowed Roles</p>
                 <p class="mt-1 text-xs text-slate-500">These roles can resolve or waive treasury exceptions.</p>
                 <div class="mt-2 grid gap-2 sm:grid-cols-3 lg:grid-cols-5">
                     @foreach ($roles as $role)

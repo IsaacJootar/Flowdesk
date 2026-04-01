@@ -38,7 +38,7 @@ class DashboardShell extends Component
 
     public string $roleTitle = 'Operations Snapshot';
 
-    public string $roleDescription = 'Quick summary of spend, requests, and controls for your tenant.';
+    public string $roleDescription = 'Quick summary of spend, requests, and controls for your organization.';
 
     /** @var array<int, array{label:string,value:string,hint:string,tone:string}> */
     public array $roleSummaryCards = [];
@@ -159,7 +159,7 @@ class DashboardShell extends Component
 
         $this->roleView = 'general';
         $this->roleTitle = 'Operations Snapshot';
-        $this->roleDescription = 'Quick summary of spend, requests, and controls for your tenant.';
+        $this->roleDescription = 'Quick summary of spend, requests, and controls for your organization.';
     }
 
     private function buildRoleLens(User $user, int $companyId, string $currencyCode): void
@@ -204,13 +204,13 @@ class DashboardShell extends Component
         if ($this->roleView === 'finance') {
             $this->roleSummaryCards = [
                 [
-                    'label' => 'Open Procurement Exceptions',
+                    'label' => 'Open Procurement Issues',
                     'value' => $this->formatCount($procurementOpen),
                     'hint' => $this->formatCount($procurementCritical).' high/critical',
                     'tone' => 'amber',
                 ],
                 [
-                    'label' => 'Open Treasury Exceptions',
+                    'label' => 'Open Treasury Issues',
                     'value' => $this->formatCount($treasuryOpen),
                     'hint' => $this->formatCount($treasuryCritical).' high/critical',
                     'tone' => 'rose',
@@ -231,8 +231,8 @@ class DashboardShell extends Component
 
             $this->pushPriorityAction($user, 'execution.payout-ready', 'Run payout-ready queue', 'Process approved requests waiting for payout execution.');
             $this->pushPriorityAction($user, 'execution.health', 'Review execution health', 'Track current incidents and recent recovery outcomes.');
-            $this->pushPriorityAction($user, 'procurement.release-desk', 'Clear procurement exceptions', 'Resolve 3-way match blockers before payout handoff.');
-            $this->pushPriorityAction($user, 'treasury.reconciliation-exceptions', 'Work treasury exceptions', 'Close open reconciliation backlog items.');
+            $this->pushPriorityAction($user, 'procurement.release-desk', 'Clear procurement issues', 'Resolve 3-way match blockers before payout handoff.');
+            $this->pushPriorityAction($user, 'treasury.reconciliation-exceptions', 'Work treasury issues', 'Close open reconciliation backlog items.');
             $this->pushPriorityAction($user, 'reports.index', 'Open reports center', 'Review reconciled vs unreconciled trends.');
 
             $this->recentSignals = $this->recentSignalsForActions($companyId, [
@@ -266,7 +266,7 @@ class DashboardShell extends Component
                 [
                     'label' => 'Stale Commitments',
                     'value' => $this->formatCount($staleCommitments),
-                    'hint' => 'Active procurement commitments above tenant age threshold',
+                    'hint' => 'Active procurement commitments older than your age limit',
                     'tone' => 'amber',
                 ],
                 [
@@ -276,7 +276,7 @@ class DashboardShell extends Component
                     'tone' => 'sky',
                 ],
                 [
-                    'label' => 'Open Finance Exceptions',
+                    'label' => 'Open Finance Issues',
                     'value' => $this->formatCount($procurementOpen + $treasuryOpen),
                     'hint' => $this->formatCount($procurementOpen).' procurement + '.$this->formatCount($treasuryOpen).' treasury',
                     'tone' => 'slate',
@@ -287,7 +287,7 @@ class DashboardShell extends Component
             $this->pushPriorityAction($user, 'settings.treasury-controls', 'Tune treasury controls', 'Adjust backlog alert and reconciliation guardrails.');
             $this->pushPriorityAction($user, 'execution.payout-ready', 'Run payout-ready queue', 'Process approved requests waiting for payout execution.');
             $this->pushPriorityAction($user, 'execution.health', 'Review execution health', 'Validate tenant-facing execution status and incidents.');
-            $this->pushPriorityAction($user, 'reports.index', 'Review governance reports', 'Track trend lines for controls and exceptions.');
+            $this->pushPriorityAction($user, 'reports.index', 'Review governance reports', 'Track trend lines for controls and issues.');
 
             $this->recentSignals = $this->recentSignalsForActions($companyId, [
                 'tenant.procurement.controls.updated',
@@ -334,7 +334,7 @@ class DashboardShell extends Component
                 [
                     'label' => 'Manual Override Actions (7d)',
                     'value' => $this->formatCount($manualOverrides7d),
-                    'hint' => 'Resolved/waived exceptions and manual queue recoveries',
+                    'hint' => 'Resolved/waived issues and manual queue recoveries',
                     'tone' => 'violet',
                 ],
                 [
@@ -346,11 +346,11 @@ class DashboardShell extends Component
                 [
                     'label' => 'Execution Alerts (7d)',
                     'value' => $this->formatCount($alerts7d),
-                    'hint' => 'Tenant alert summaries emitted',
+                    'hint' => 'Alert summaries emitted',
                     'tone' => 'sky',
                 ],
                 [
-                    'label' => 'Open Exceptions Snapshot',
+                    'label' => 'Open Issues Snapshot',
                     'value' => $this->formatCount($procurementOpen + $treasuryOpen),
                     'hint' => $this->formatCount($procurementOpen).' procurement + '.$this->formatCount($treasuryOpen).' treasury',
                     'tone' => 'slate',
@@ -358,8 +358,8 @@ class DashboardShell extends Component
             ];
 
             $this->pushPriorityAction($user, 'requests.communications', 'Inspect communication logs', 'Trace request and reminder delivery events.');
-            $this->pushPriorityAction($user, 'procurement.release-desk', 'Inspect procurement exception queue', 'Review resolution notes and actor trail.');
-            $this->pushPriorityAction($user, 'treasury.reconciliation-exceptions', 'Inspect treasury exception queue', 'Review waive/resolve decisions and maker-checker evidence.');
+            $this->pushPriorityAction($user, 'procurement.release-desk', 'Inspect procurement review queue', 'Review resolution notes and actor trail.');
+            $this->pushPriorityAction($user, 'treasury.reconciliation-exceptions', 'Inspect treasury review queue', 'Review waive/resolve decisions and maker-checker evidence.');
             $this->pushPriorityAction($user, 'reports.index', 'Export audit reports', 'Use reports center for reconciled/unreconciled and control signals.');
 
             $this->recentSignals = $this->recentSignalsForActions($companyId, [
@@ -508,12 +508,12 @@ class DashboardShell extends Component
             'tenant.execution.auto_recovery.run_summary' => 'Auto recovery summary',
             'tenant.execution.payout.blocked_by_procurement_match' => 'Payout blocked by procurement gate',
             'tenant.procurement.match.failed' => 'Procurement match failed',
-            'tenant.procurement.match.exception.resolved' => 'Procurement exception resolved',
-            'tenant.procurement.match.exception.waived' => 'Procurement exception waived',
-            'tenant.procurement.match.exception.action.denied' => 'Procurement exception action denied',
-            'tenant.treasury.exception.resolved' => 'Treasury exception resolved',
-            'tenant.treasury.exception.waived' => 'Treasury exception waived',
-            'tenant.treasury.exception.action.denied' => 'Treasury exception action denied',
+            'tenant.procurement.match.exception.resolved' => 'Procurement issue resolved',
+            'tenant.procurement.match.exception.waived' => 'Procurement issue waived',
+            'tenant.procurement.match.exception.action.denied' => 'Procurement issue action denied',
+            'tenant.treasury.exception.resolved' => 'Treasury issue resolved',
+            'tenant.treasury.exception.waived' => 'Treasury issue waived',
+            'tenant.treasury.exception.action.denied' => 'Treasury issue action denied',
             'tenant.procurement.controls.updated' => 'Procurement controls updated',
             'tenant.treasury.controls.updated' => 'Treasury controls updated',
             'tenant.treasury.reconciliation.auto_run' => 'Treasury auto reconciliation run',

@@ -10,7 +10,7 @@
             <div class="flex flex-wrap gap-2">
                 <a href="{{ route('procurement.orders') }}" class="inline-flex items-center rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100">Orders</a>
                 <a href="{{ route('procurement.receipts') }}" class="inline-flex items-center rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100">Receipts</a>
-                <a href="{{ route('procurement.match-exceptions') }}" class="inline-flex items-center rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100">Match Exceptions</a>
+                <a href="{{ route('procurement.match-exceptions') }}" class="inline-flex items-center rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100">Match Issues</a>
                 <a href="{{ route('requests.lifecycle-desk') }}" class="inline-flex items-center rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100">Request Lifecycle Desk</a>
                 <a href="{{ route('procurement.release-help') }}" class="inline-flex items-center rounded-lg border border-slate-700 bg-slate-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800" style="background-color:#334155;border-color:#334155;color:#ffffff;">Help / Usage Guide</a>
             </div>
@@ -41,7 +41,7 @@
             <p class="mt-2 text-2xl font-semibold">{{ number_format((int) ($summary['issued_need_receipt'] ?? 0)) }}</p>
         </div>
         <div class="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-rose-900">
-            <p class="text-xs font-semibold uppercase tracking-[0.14em]">Exception to Resolve</p>
+            <p class="text-xs font-semibold uppercase tracking-[0.14em]">Issue to Resolve</p>
             <p class="mt-2 text-2xl font-semibold">{{ number_format((int) ($summary['invoice_match_resolve'] ?? 0)) }}</p>
         </div>
         <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-900">
@@ -211,9 +211,9 @@
         <div class="mb-3 flex items-center justify-between gap-2">
             <div>
                 <h3 class="text-sm font-semibold text-slate-900">Invoices / Match (Need Resolve)</h3>
-                <p class="text-xs text-slate-500">Orders waiting for invoice linking or match exception closure.</p>
+                <p class="text-xs text-slate-500">Orders waiting for invoice linking or match issue closure.</p>
             </div>
-            <a href="{{ route('procurement.match-exceptions') }}" class="rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-100">Open Match Exceptions</a>
+            <a href="{{ route('procurement.match-exceptions') }}" class="rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-100">Open Match Issues</a>
         </div>
         <div class="overflow-x-auto">
             <table class="min-w-full text-sm">

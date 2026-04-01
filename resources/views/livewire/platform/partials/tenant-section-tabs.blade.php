@@ -41,7 +41,7 @@
         </div>
 
         <label class="block min-w-[230px]">
-            <span class="mb-1 block text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-500">Tenant Context</span>
+            <span class="mb-1 block text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-500">Organization Context</span>
             <select
                 class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700"
                 onchange="if (this.value) window.location.href = this.value;"

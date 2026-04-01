@@ -81,6 +81,16 @@ class ProductionReadinessValidator
             $issues[] = $this->issue('critical', 'resend_api_key_missing', 'Resend API key is missing for the configured transactional mailer.');
         }
 
+        if ($this->isProduction() && in_array($transactionalMailer, ['mailersend_smtp', 'mailersend_failover'], true)) {
+            if (trim((string) config('services.mailersend.api_key', '')) === '') {
+                $issues[] = $this->issue('critical', 'mailersend_api_key_missing', 'MailerSend API key is missing for the configured transactional mailer.');
+            }
+
+            if (trim((string) config('mail.mailers.mailersend_smtp.username', '')) === '' || trim((string) config('mail.mailers.mailersend_smtp.password', '')) === '') {
+                $issues[] = $this->issue('critical', 'mailersend_smtp_credentials_missing', 'MailerSend SMTP username or password is missing.');
+            }
+        }
+
         if ($this->isProduction() && trim((string) config('mail.from.address', 'hello@example.com')) === 'hello@example.com') {
             $issues[] = $this->issue('critical', 'mail_from_placeholder', 'MAIL_FROM_ADDRESS is still using the example placeholder address.');
         }

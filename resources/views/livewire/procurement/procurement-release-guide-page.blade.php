@@ -20,7 +20,7 @@
             <li>PO is issued and goods/services are received.</li>
             <li>Vendor invoice is linked to PO.</li>
             <li>3-way match result is evaluated (matched/overridden passes gate).</li>
-            <li>Open match exceptions are resolved or waived by authorized roles.</li>
+            <li>Open match issues are resolved or waived by authorized roles.</li>
             <li>Procurement gate passes and request can proceed to payout run.</li>
         </ol>
     </section>
@@ -31,7 +31,7 @@
             <li>No linked vendor invoice on PO.</li>
             <li>No 3-way match result for linked invoice.</li>
             <li>Match status not passed (`pending` or `mismatch`).</li>
-            <li>Open procurement match exceptions still unresolved.</li>
+            <li>Open procurement match issues still unresolved.</li>
         </ul>
     </section>
 

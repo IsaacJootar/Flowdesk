@@ -4,7 +4,7 @@
             <div>
                 <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Tenant Settings</p>
                 <h2 class="mt-1 text-xl font-semibold text-slate-900">Settings Control Center</h2>
-                <p class="mt-1 text-sm text-slate-600">Section-based cards for tenant configuration. Open any card to manage that settings area.</p>
+                <p class="mt-1 text-sm text-slate-600">Section-based cards for organization configuration. Open any card to manage that settings area.</p>
             </div>
 
             <div class="flex flex-wrap gap-2">
@@ -30,7 +30,7 @@
         </div>
         <div class="rounded-2xl border border-slate-200 bg-slate-50 p-5 text-slate-900">
             <p class="text-xs font-semibold uppercase tracking-[0.14em]">Scope</p>
-            <p class="mt-2 text-sm font-semibold">Tenant owner controls</p>
+            <p class="mt-2 text-sm font-semibold">Organization owner controls</p>
             <p class="mt-1 text-xs text-slate-600">These settings update your workspace.</p>
         </div>
     </section>

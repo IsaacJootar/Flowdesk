@@ -19,17 +19,17 @@
     <div class="fd-card p-5">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Treasury Reconciliation Exceptions</p>
-                <p class="mt-1 text-sm text-slate-600">Resolve or waive exceptions, then return to the main treasury workspace.</p>
+                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Treasury Reconciliation Issues</p>
+                <p class="mt-1 text-sm text-slate-600">Resolve or waive issues, then return to the main treasury workspace.</p>
                 <p class="mt-1 text-xs text-slate-500">Action roles: {{ implode(', ', (array) $exceptionActionAllowedRoles) }}.</p>
                 @if ($makerCheckerRequired)
-                    <p class="text-xs text-amber-700">Maker-checker is enabled: exception maker cannot close the same exception.</p>
+                    <p class="text-xs text-amber-700">Maker-checker is enabled: the person who raised the issue cannot close the same issue.</p>
                 @endif
                 @if ($flowAgentsEnabled)
                     <div class="mt-2 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-800">
                         <span class="font-semibold">Flow Agent:</span> use <span class="font-semibold">Use Flow Agent</span> for suggested match, confidence, and next-step guidance.
                         @if ($flowAgentsAdvisoryOnly)
-                            Guidance is advisory only and does not auto-resolve exceptions.
+                            Guidance is advisory only and does not auto-resolve issues.
                         @endif
                     </div>
                 @endif
@@ -86,7 +86,7 @@
         </div>
 
         <p class="mt-3 text-xs text-slate-500">
-            Priority queue uses severity, queue age, and transaction value. SLA breach threshold is {{ (int) $slaHours }} hour(s) from treasury controls.
+            Priority queue uses severity, queue age, and transaction value. SLA breach limit is {{ (int) $slaHours }} hour(s) from treasury controls.
         </p>
     </div>
 
@@ -117,7 +117,7 @@
                 <table class="min-w-full divide-y divide-slate-200 text-sm">
                     <thead class="bg-slate-50 text-xs uppercase tracking-[0.12em] text-slate-500">
                         <tr>
-                            <th class="px-4 py-3 text-left font-semibold">Exception</th>
+                            <th class="px-4 py-3 text-left font-semibold">Issue</th>
                             <th class="px-4 py-3 text-left font-semibold">Priority / SLA</th>
                             <th class="px-4 py-3 text-left font-semibold">Line</th>
                             <th class="px-4 py-3 text-left font-semibold">Details</th>
@@ -286,7 +286,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="7" class="px-4 py-10 text-center text-sm text-slate-500">No reconciliation exceptions found for the selected filters.</td>
+                                <td colspan="7" class="px-4 py-10 text-center text-sm text-slate-500">No reconciliation issues found for the selected filters.</td>
                             </tr>
                         @endforelse
                     </tbody>
@@ -306,7 +306,7 @@
         <div wire:click="closeResolutionModal" class="fixed inset-0 z-40 overflow-y-auto bg-slate-900/40 p-3">
             <div class="flex items-start justify-center pt-8">
                 <div wire:click.stop class="fd-card w-full max-w-xl p-6">
-                    <h3 class="text-base font-semibold text-slate-900">{{ $resolutionAction === 'waived' ? 'Waive Treasury Exception' : 'Resolve Treasury Exception' }}</h3>
+                    <h3 class="text-base font-semibold text-slate-900">{{ $resolutionAction === 'waived' ? 'Waive Treasury Issue' : 'Resolve Treasury Issue' }}</h3>
                     <p class="mt-1 text-sm text-slate-600">Capture a note for audit and handoff clarity.</p>
 
                     <label class="mt-4 block">

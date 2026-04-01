@@ -50,7 +50,7 @@
             <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
                 <p class="text-xs font-semibold uppercase tracking-[0.12em] text-emerald-700">Modules Enabled</p>
                 <p class="mt-1 text-lg font-semibold text-emerald-900">{{ number_format((int) $tenantInsights['enabled_modules']) }} / {{ number_format((int) $tenantInsights['total_modules']) }}</p>
-                <p class="text-xs text-emerald-700">From your current tenant controls</p>
+                <p class="text-xs text-emerald-700">From your current organization controls</p>
             </div>
         </div>
     @endif

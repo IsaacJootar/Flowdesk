@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Domains\Assets\Models\AssetCommunicationLog;
 use App\Domains\Company\Models\CompanyCommunicationSetting;
 use App\Domains\Audit\Models\ActivityLog;
+use App\Mail\AssetReminderMail;
 use App\Services\RequestCommunication\DeliveryResult;
 use App\Services\RequestCommunication\Sms\SmsProvider;
 use Throwable;
@@ -85,12 +86,11 @@ class AssetCommunicationDeliveryManager
             return DeliveryResult::failed('Email delivery failed: recipient email is missing.');
         }
 
-        $subject = $this->subjectForEvent((string) $log->event, (string) ($log->asset?->asset_code ?? 'N/A'));
-        $body = $this->emailBody($log);
-
         try {
-            $deliveryMetadata = $this->transactionalEmailSender->sendPlainText($email, $subject, $body, [
+            $deliveryMetadata = $this->transactionalEmailSender->sendMailable($email, new AssetReminderMail($log), [
                 'idempotency_key' => 'asset-communication-'.$log->id,
+                'log_id' => (string) $log->id,
+                'tags' => ['assets', 'log-'.$log->id, (string) $log->event],
             ]);
         } catch (Throwable $exception) {
             report($exception);
@@ -129,41 +129,6 @@ class AssetCommunicationDeliveryManager
             );
 
         return in_array((string) $log->channel, $settings->selectableChannels(), true);
-    }
-
-    private function subjectForEvent(string $event, string $assetCode): string
-    {
-        return match ($event) {
-            'asset.internal.assignment.assigned' => "Flowdesk Asset Assigned - {$assetCode}",
-            'asset.internal.assignment.transferred' => "Flowdesk Asset Transferred - {$assetCode}",
-            'asset.internal.maintenance.overdue' => "Flowdesk Asset Maintenance Overdue - {$assetCode}",
-            'asset.internal.maintenance.due_today' => "Flowdesk Asset Maintenance Due Today - {$assetCode}",
-            'asset.internal.maintenance.due_soon' => "Flowdesk Asset Maintenance Due Soon - {$assetCode}",
-            'asset.internal.warranty.expired' => "Flowdesk Asset Warranty Expired - {$assetCode}",
-            'asset.internal.warranty.expires_today' => "Flowdesk Asset Warranty Expires Today - {$assetCode}",
-            'asset.internal.warranty.expires_soon' => "Flowdesk Asset Warranty Expires Soon - {$assetCode}",
-            default => "Flowdesk Asset Reminder - {$assetCode}",
-        };
-    }
-
-    private function emailBody(AssetCommunicationLog $log): string
-    {
-        $recipientName = (string) ($log->recipient?->name ?? 'Team Member');
-        $assetCode = (string) ($log->asset?->asset_code ?? 'N/A');
-        $assetName = (string) ($log->asset?->name ?? 'Asset');
-        $eventLabel = $this->eventLabel((string) $log->event);
-        $metadata = is_array($log->metadata) ? $log->metadata : [];
-        $referenceDate = (string) (($metadata['due_date'] ?? $metadata['event_date'] ?? null) ?: 'N/A');
-
-        return trim(implode(PHP_EOL, [
-            "Hello {$recipientName},",
-            '',
-            "Flowdesk asset reminder: {$eventLabel}.",
-            "Asset: {$assetName} ({$assetCode})",
-            "Reference Date: {$referenceDate}",
-            '',
-            'Please review and take action in Flowdesk.',
-        ]));
     }
 
     private function smsBody(AssetCommunicationLog $log): string

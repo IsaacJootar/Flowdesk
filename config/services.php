@@ -35,6 +35,12 @@ return [
         'key' => env('RESEND_API_KEY'),
     ],
 
+    'mailersend' => [
+        'api_key' => env('MAILERSEND_API_KEY'),
+        'domain' => env('MAILERSEND_DOMAIN'),
+        'webhook_secret' => env('MAILERSEND_WEBHOOK_SECRET'),
+    ],
+
     'sms' => [
         'provider' => env('SMS_PROVIDER', 'placeholder'),
     ],

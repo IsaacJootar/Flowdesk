@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Domains\Company\Models\CompanyCommunicationSetting;
 use App\Domains\Vendors\Models\VendorCommunicationLog;
+use App\Mail\VendorReminderMail;
 use App\Services\RequestCommunication\DeliveryResult;
 use App\Services\RequestCommunication\Sms\SmsProvider;
 use Throwable;
@@ -69,13 +70,11 @@ class VendorCommunicationDeliveryManager
             return DeliveryResult::failed('Email delivery failed: recipient email is missing.');
         }
 
-        $invoiceNumber = (string) ($log->invoice?->invoice_number ?? 'N/A');
-        $subject = $this->subjectForEvent((string) $log->event, $invoiceNumber);
-        $body = $this->emailBody($log);
-
         try {
-            $deliveryMetadata = $this->transactionalEmailSender->sendPlainText($email, $subject, $body, [
+            $deliveryMetadata = $this->transactionalEmailSender->sendMailable($email, new VendorReminderMail($log), [
                 'idempotency_key' => 'vendor-communication-'.$log->id,
+                'log_id' => (string) $log->id,
+                'tags' => ['vendors', 'log-'.$log->id, (string) $log->event],
             ]);
         } catch (Throwable $exception) {
             report($exception);
@@ -105,32 +104,6 @@ class VendorCommunicationDeliveryManager
         ]);
     }
 
-    private function emailBody(VendorCommunicationLog $log): string
-    {
-        $isInternal = (int) ($log->recipient_user_id ?? 0) > 0;
-        $greetingName = $isInternal
-            ? (string) ($log->recipient?->name ?? 'Finance Team')
-            : (string) ($log->vendor?->name ?? 'Vendor');
-        $vendorName = (string) ($log->vendor?->name ?? 'Vendor');
-        $invoiceNumber = (string) ($log->invoice?->invoice_number ?? 'N/A');
-        $dueDate = optional($log->invoice?->due_date)->format('Y-m-d') ?? 'N/A';
-        $currency = strtoupper((string) ($log->invoice?->currency ?: 'NGN'));
-        $outstanding = (int) ($log->invoice?->outstanding_amount ?? 0);
-        $eventLabel = $this->eventLabel((string) $log->event);
-
-        return trim(implode(PHP_EOL, [
-            "Hello {$greetingName},",
-            '',
-            "This is a {$eventLabel} reminder from Flowdesk.",
-            "Vendor: {$vendorName}",
-            "Invoice: {$invoiceNumber}",
-            "Due Date: {$dueDate}",
-            "Outstanding: {$currency} ".number_format($outstanding, 2),
-            '',
-            'Please follow up on this invoice.',
-        ]));
-    }
-
     private function smsBody(VendorCommunicationLog $log): string
     {
         $invoiceNumber = (string) ($log->invoice?->invoice_number ?? 'N/A');
@@ -158,18 +131,6 @@ class VendorCommunicationDeliveryManager
             'vendor.invoice.voided' => 'invoice status update',
             'vendor.invoice.created' => 'invoice created',
             default => 'upcoming due',
-        };
-    }
-
-    private function subjectForEvent(string $event, string $invoiceNumber): string
-    {
-        return match ($event) {
-            'vendor.invoice.payment_recorded' => "Flowdesk Payment Confirmation - {$invoiceNumber}",
-            'vendor.internal.payment_recorded' => "Flowdesk Internal Payment Update - {$invoiceNumber}",
-            'vendor.internal.overdue.reminder' => "Flowdesk Internal Overdue Alert - {$invoiceNumber}",
-            'vendor.internal.due_today.reminder' => "Flowdesk Internal Due Today Alert - {$invoiceNumber}",
-            'vendor.internal.due_soon.reminder' => "Flowdesk Internal Due Soon Alert - {$invoiceNumber}",
-            default => "Flowdesk Invoice Notification - {$invoiceNumber}",
         };
     }
 

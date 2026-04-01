@@ -21,11 +21,11 @@
             <div>
                 <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Manage Treasury</p>
                 <h2 class="mt-1 text-xl font-semibold text-slate-900">Treasury Daily Reconciliation Desk</h2>
-                <p class="mt-1 text-sm text-slate-600">One daily execution workspace for statement import, unmatched lines, exception decisions, auto-reconcile, and close-day checks.</p>
+                <p class="mt-1 text-sm text-slate-600">One daily execution workspace for statement import, unmatched lines, issue decisions, auto-reconcile, and close-day checks.</p>
             </div>
             <div class="flex flex-wrap items-center gap-2">
                 <a href="{{ route('treasury.reconciliation-help') }}" class="inline-flex h-9 items-center rounded-lg border border-slate-700 bg-slate-700 px-3 text-xs font-semibold text-white transition hover:bg-slate-800" style="background-color:#334155;border-color:#334155;color:#ffffff;">Help / Usage Guide</a>
-                <a href="{{ route('treasury.reconciliation-exceptions') }}" class="inline-flex h-9 items-center rounded-lg border border-rose-300 bg-rose-50 px-3 text-xs font-semibold text-rose-700 transition hover:bg-rose-100">Exception Queue</a>
+                <a href="{{ route('treasury.reconciliation-exceptions') }}" class="inline-flex h-9 items-center rounded-lg border border-rose-300 bg-rose-50 px-3 text-xs font-semibold text-rose-700 transition hover:bg-rose-100">Issue Queue</a>
                 <a href="{{ route('treasury.payment-runs') }}" class="inline-flex h-9 items-center rounded-lg border border-indigo-300 bg-indigo-50 px-3 text-xs font-semibold text-indigo-700 transition hover:bg-indigo-100">Payment Runs</a>
                 <a href="{{ route('treasury.cash-position') }}" class="inline-flex h-9 items-center rounded-lg border border-emerald-300 bg-emerald-50 px-3 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100">Cash Position</a>
             </div>
@@ -50,7 +50,7 @@
             <p class="text-xs text-amber-700">Value {{ number_format((int) ($summary['unreconciled_value'] ?? 0)) }}</p>
         </div>
         <div class="rounded-2xl border border-rose-200 bg-rose-50 p-4">
-            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-rose-700">Open Exceptions</p>
+            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-rose-700">Open Issues</p>
             <p class="mt-2 text-2xl font-semibold text-rose-900">{{ number_format((int) ($summary['open_exceptions'] ?? 0)) }}</p>
             <p class="text-xs text-rose-700">Resolve or waive before close-day.</p>
         </div>
@@ -64,7 +64,7 @@
     @php
         $workloadSegments = [
             ['label' => 'Unmatched', 'count' => (int) ($summary['unreconciled'] ?? 0), 'tone' => 'amber'],
-            ['label' => 'Open Exceptions', 'count' => (int) ($summary['open_exceptions'] ?? 0), 'tone' => 'rose'],
+            ['label' => 'Open Issues', 'count' => (int) ($summary['open_exceptions'] ?? 0), 'tone' => 'rose'],
             ['label' => 'Processing Runs', 'count' => (int) ($summary['processing_runs'] ?? 0), 'tone' => 'indigo'],
         ];
         $workloadTotal = (int) collect($workloadSegments)->sum('count');
@@ -297,29 +297,29 @@
     <div class="fd-card p-5">
         <div class="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
-                <h3 class="text-sm font-semibold text-slate-900">Exception Queue (Inline)</h3>
+                <h3 class="text-sm font-semibold text-slate-900">Issue Queue (Inline)</h3>
                 <p class="text-xs text-slate-500">Resolve/waive from this desk or open full queue for deeper triage.</p>
                 <p class="mt-1 text-xs text-slate-500">Action roles: {{ implode(', ', (array) $exceptionActionAllowedRoles) }}.</p>
                 @if ($makerCheckerRequired)
-                    <p class="text-xs text-amber-700">Maker-checker is enabled for exception decisions.</p>
+                    <p class="text-xs text-amber-700">Maker-checker is enabled for issue decisions.</p>
                 @endif
                 @if ($flowAgentsEnabled)
                     <div class="mt-2 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-800">
                         <span class="font-semibold">Flow Agent:</span> use <span class="font-semibold">Use Flow Agent</span> for suggested match and manual recovery guidance.
                         @if ($flowAgentsAdvisoryOnly)
-                            Guidance is advisory only and does not auto-resolve exceptions.
+                            Guidance is advisory only and does not auto-resolve issues.
                         @endif
                     </div>
                 @endif
             </div>
-            <a href="{{ route('treasury.reconciliation-exceptions') }}" class="inline-flex h-9 items-center rounded-lg border border-rose-300 bg-rose-50 px-3 text-xs font-semibold text-rose-700 transition hover:bg-rose-100">Open Full Exception Queue</a>
+            <a href="{{ route('treasury.reconciliation-exceptions') }}" class="inline-flex h-9 items-center rounded-lg border border-rose-300 bg-rose-50 px-3 text-xs font-semibold text-rose-700 transition hover:bg-rose-100">Open Full Issue Queue</a>
         </div>
 
         <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-slate-200 text-sm">
                 <thead class="bg-slate-50 text-xs uppercase tracking-[0.12em] text-slate-500">
                     <tr>
-                        <th class="px-3 py-2 text-left font-semibold">Exception</th>
+                        <th class="px-3 py-2 text-left font-semibold">Issue</th>
                         <th class="px-3 py-2 text-left font-semibold">Line</th>
                         <th class="px-3 py-2 text-left font-semibold">Next Action</th>
                         <th class="px-3 py-2 text-left font-semibold">Created</th>
@@ -367,7 +367,7 @@
                                     <p class="mt-1 text-xs text-slate-700">{{ (string) ($insight['suggested_match'] ?? '-') }}</p>
                                     <p class="mt-1 text-[11px] text-slate-500">Confidence {{ (int) ($insight['confidence'] ?? 0) }}%</p>
                                 @elseif (! $flowAgentsEnabled)
-                                    <span class="text-xs text-slate-400">AI disabled for tenant</span>
+                                        <span class="text-xs text-slate-400">AI disabled for organization</span>
                                 @else
                                     <span class="text-xs text-slate-400">Not analyzed</span>
                                 @endif
@@ -409,7 +409,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="6" class="px-3 py-8 text-center text-sm text-slate-500">No open exceptions for the selected statement scope.</td>
+                            <td colspan="6" class="px-3 py-8 text-center text-sm text-slate-500">No open issues for the selected statement scope.</td>
                         </tr>
                     @endforelse
                 </tbody>
@@ -448,7 +448,7 @@
         <div wire:click="closeResolutionModal" class="fixed inset-0 z-40 overflow-y-auto bg-slate-900/40 p-3">
             <div class="flex items-start justify-center pt-8">
                 <div wire:click.stop class="fd-card w-full max-w-xl p-6">
-                    <h3 class="text-base font-semibold text-slate-900">{{ $resolutionAction === 'waived' ? 'Waive Treasury Exception' : 'Resolve Treasury Exception' }}</h3>
+                    <h3 class="text-base font-semibold text-slate-900">{{ $resolutionAction === 'waived' ? 'Waive Treasury Issue' : 'Resolve Treasury Issue' }}</h3>
                     <p class="mt-1 text-sm text-slate-600">Capture a note for audit and incident handoff clarity.</p>
 
                     <label class="mt-4 block">

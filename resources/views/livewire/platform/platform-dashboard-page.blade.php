@@ -1,7 +1,7 @@
 <div wire:init="loadData" class="space-y-5">
     <div class="fd-card p-5">
         <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Platform Control Center</p>
-        <p class="mt-1 text-sm text-slate-600">Global operations overview for all Flowdesk tenant organizations.</p>
+        <p class="mt-1 text-sm text-slate-600">Global operations overview for all Flowdesk organizations.</p>
     </div>
 
     <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
@@ -14,7 +14,7 @@
             @endfor
         @else
             <div class="rounded-2xl border border-sky-200 bg-sky-50 p-5">
-                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-sky-700">Tenants</p>
+                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-sky-700">Organizations</p>
                 <p class="mt-2 text-2xl font-semibold text-sky-900">{{ number_format((int) $stats['tenants']) }}</p>
             </div>
             <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
@@ -38,7 +38,7 @@
 
     <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         <a href="{{ route('platform.tenants') }}" class="block rounded-2xl border border-sky-200 bg-sky-50 p-5 transition hover:border-sky-300 hover:bg-sky-100">
-            <p class="text-sm font-semibold text-sky-900">Tenant / Org Management</p>
+            <p class="text-sm font-semibold text-sky-900">Organization Management</p>
             <p class="mt-1 text-sm text-sky-700">Manage lifecycle, plans, entitlements, and manual billing records.</p>
         </a>
         <a href="{{ route('platform.users') }}" class="block rounded-2xl border border-indigo-200 bg-indigo-50 p-5 transition hover:border-indigo-300 hover:bg-indigo-100">

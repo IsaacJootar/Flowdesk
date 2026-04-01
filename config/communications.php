@@ -1,6 +1,21 @@
 <?php
 
+/**
+ * Communications Configuration
+ *
+ * This configuration file manages settings for the FlowDesk communication system,
+ * including delivery modes and recovery mechanisms for failed or queued communications.
+ *
+ * The system supports both inline processing (immediate) and queued processing
+ * for better performance and reliability.
+ */
+
 return [
+    'delivery' => [
+        // Default mode for communication delivery: "inline" or "queue".
+        // Inline keeps user actions responsive and avoids unnecessary queues.
+        'mode' => env('FLOWDESK_COMM_DELIVERY_MODE', 'inline'),
+    ],
     'recovery' => [
         // Hard ceiling to prevent runaway retry workloads from UI/CLI overrides.
         'max_batch_size' => (int) env('FLOWDESK_COMM_RECOVERY_MAX_BATCH_SIZE', 500),
@@ -20,4 +35,3 @@ return [
         'ui_process_queued_batch' => (int) env('FLOWDESK_COMM_RECOVERY_UI_PROCESS_QUEUED_BATCH', 500),
     ],
 ];
-

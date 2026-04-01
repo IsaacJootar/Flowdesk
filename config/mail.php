@@ -74,6 +74,18 @@ return [
             'local_domain' => env('MAIL_EHLO_DOMAIN'),
         ],
 
+        'mailersend_smtp' => [
+            // MailerSend SMTP transport (works without extra packages).
+            'transport' => 'smtp',
+            'host' => env('MAILERSEND_SMTP_HOST', 'smtp.mailersend.net'),
+            'port' => env('MAILERSEND_SMTP_PORT', 587),
+            'encryption' => env('MAILERSEND_SMTP_ENCRYPTION', 'tls'),
+            'username' => env('MAILERSEND_SMTP_USERNAME'),
+            'password' => env('MAILERSEND_SMTP_PASSWORD'),
+            'timeout' => null,
+            'local_domain' => env('MAIL_EHLO_DOMAIN'),
+        ],
+
         'ses' => [
             'transport' => 'ses',
         ],
@@ -112,6 +124,15 @@ return [
             'transport' => 'failover',
             'mailers' => [
                 'resend_smtp',
+                'log',
+            ],
+            'retry_after' => 60,
+        ],
+
+        'mailersend_failover' => [
+            'transport' => 'failover',
+            'mailers' => [
+                'mailersend_smtp',
                 'log',
             ],
             'retry_after' => 60,

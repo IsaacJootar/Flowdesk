@@ -5,10 +5,10 @@ namespace App\Services\Execution;
 use App\Domains\Audit\Models\ActivityLog;
 use App\Domains\Company\Models\CompanyCommunicationSetting;
 use App\Enums\UserRole;
+use App\Mail\ExecutionAlertMail;
 use App\Models\User;
 use App\Services\TransactionalEmailSender;
 use App\Services\TenantAuditLogger;
-use Illuminate\Support\Str;
 
 class ExecutionAlertChannelDeliveryService
 {
@@ -140,9 +140,6 @@ class ExecutionAlertChannelDeliveryService
      */
     private function deliverEmail(int $companyId, array $alert, int $windowMinutes, array $recipients): void
     {
-        $subject = $this->emailSubject($alert);
-        $body = $this->emailBody($alert, $windowMinutes);
-
         $sentRecipientIds = [];
         $missingEmailRecipientIds = [];
         $failedDeliveries = 0;
@@ -159,7 +156,9 @@ class ExecutionAlertChannelDeliveryService
             }
 
             try {
-                $this->transactionalEmailSender->sendPlainText($email, $subject, $body);
+                $this->transactionalEmailSender->sendMailable($email, new ExecutionAlertMail($alert, $windowMinutes), [
+                    'tags' => ['execution', (string) ($alert['type'] ?? 'alert')],
+                ]);
 
                 if ($recipientId > 0) {
                     $sentRecipientIds[] = $recipientId;
@@ -251,40 +250,4 @@ class ExecutionAlertChannelDeliveryService
     /**
      * @param  array{type:string,pipeline:string,provider:string,company_id:int,count:int,threshold:int,context?:array<string,mixed>}  $alert
      */
-    private function emailSubject(array $alert): string
-    {
-        $pipeline = Str::of((string) ($alert['pipeline'] ?? 'execution'))->replace('_', ' ')->headline()->value();
-        $type = Str::of((string) ($alert['type'] ?? 'alert'))->replace('_', ' ')->headline()->value();
-
-        return 'Flowdesk Execution Alert - '.$pipeline.' ('.$type.')';
-    }
-
-    /**
-     * @param  array{type:string,pipeline:string,provider:string,company_id:int,count:int,threshold:int,context?:array<string,mixed>}  $alert
-     */
-    private function emailBody(array $alert, int $windowMinutes): string
-    {
-        $pipeline = Str::of((string) ($alert['pipeline'] ?? 'execution'))->replace('_', ' ')->headline()->value();
-        $type = Str::of((string) ($alert['type'] ?? 'alert'))->replace('_', ' ')->headline()->value();
-        $provider = (string) ($alert['provider'] ?? 'unknown');
-        $count = (int) ($alert['count'] ?? 0);
-        $threshold = (int) ($alert['threshold'] ?? 0);
-        $context = (array) ($alert['context'] ?? []);
-
-        $windowLabel = in_array((string) ($alert['type'] ?? ''), ['failure_spike', 'stuck_queued', 'invalid_webhook_spike'], true)
-            ? 'Window (minutes): '.$windowMinutes
-            : 'Age threshold (hours): '.(int) ($context['age_hours'] ?? 0);
-
-        return implode(PHP_EOL, [
-            'Execution alert summary from Flowdesk:',
-            'Pipeline: '.$pipeline,
-            'Alert type: '.$type,
-            'Provider: '.$provider,
-            'Count: '.$count,
-            'Threshold: '.$threshold,
-            $windowLabel,
-            '',
-            'Review tenant execution health for current status and next action.',
-        ]);
-    }
 }

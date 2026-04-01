@@ -16,7 +16,7 @@
             <div>
                 <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Platform Operations</p>
                 <h2 class="mt-1 text-xl font-semibold text-slate-900">AI Runtime Health &amp; Capability Monitor</h2>
-                <p class="mt-1 text-sm text-slate-600">Track model availability, OCR capabilities, and receipt-agent fallback trends across tenant activity.</p>
+                <p class="mt-1 text-sm text-slate-600">Track model availability, OCR capabilities, and receipt-agent fallback trends across organization activity.</p>
             </div>
             <div class="flex flex-wrap items-center gap-2">
                 <button type="button" wire:click="refreshSnapshot" wire:loading.attr="disabled" wire:target="refreshSnapshot" class="inline-flex h-9 items-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50">
@@ -134,7 +134,7 @@
     <section class="fd-card p-4">
         <div class="mb-3">
             <h3 class="text-sm font-semibold text-slate-900">Recent Receipt Analyses</h3>
-            <p class="text-xs text-slate-500">Latest cross-tenant activity for receipt extraction engine decisions.</p>
+            <p class="text-xs text-slate-500">Latest cross-organization activity for receipt extraction engine decisions.</p>
         </div>
 
         <div class="overflow-x-auto">
@@ -142,7 +142,7 @@
                 <thead>
                     <tr class="border-b border-slate-200 text-left text-xs uppercase tracking-[0.14em] text-slate-500">
                         <th class="px-3 py-2">Time</th>
-                        <th class="px-3 py-2">Tenant</th>
+                        <th class="px-3 py-2">Organization</th>
                         <th class="px-3 py-2">Engine</th>
                         <th class="px-3 py-2">Model</th>
                         <th class="px-3 py-2">Confidence</th>
@@ -169,4 +169,3 @@
         </div>
     </section>
 </div>
-

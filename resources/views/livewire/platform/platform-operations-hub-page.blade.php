@@ -7,7 +7,7 @@
                 <p class="mt-1 text-sm text-slate-600">Single workspace for execution operations, checklist readiness, incident timeline, and pilot rollout controls.</p>
             </div>
             <div class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
-                Tenant organizations in scope: <span class="font-semibold text-slate-900">{{ number_format((int) $tenantCount) }}</span>
+                Organizations in scope: <span class="font-semibold text-slate-900">{{ number_format((int) $tenantCount) }}</span>
             </div>
         </div>
 
@@ -45,7 +45,7 @@
             <div class="rounded-2xl border border-indigo-200 bg-indigo-50 p-5 text-indigo-900">
                 <p class="text-xs font-semibold uppercase tracking-[0.14em]">Stuck Queued</p>
                 <p class="mt-2 text-2xl font-semibold">{{ number_format((int) ($executionSummary['stuck_queued'] ?? 0)) }}</p>
-                <p class="mt-1 text-xs text-indigo-700">Threshold: {{ number_format((int) ($executionSummary['threshold_minutes'] ?? 0)) }} mins</p>
+                <p class="mt-1 text-xs text-indigo-700">Limit: {{ number_format((int) ($executionSummary['threshold_minutes'] ?? 0)) }} mins</p>
             </div>
         </section>
 
@@ -87,15 +87,15 @@
     @elseif ($tab === 'checklist')
         <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             <div class="rounded-2xl border border-sky-200 bg-sky-50 p-5 text-sky-900">
-                <p class="text-xs font-semibold uppercase tracking-[0.14em]">Active Tenants</p>
+                <p class="text-xs font-semibold uppercase tracking-[0.14em]">Active Organizations</p>
                 <p class="mt-2 text-2xl font-semibold">{{ number_format((int) ($checklistSummary['active_tenants'] ?? 0)) }}</p>
             </div>
             <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-emerald-900">
-                <p class="text-xs font-semibold uppercase tracking-[0.14em]">Execution Enabled Tenants</p>
+                <p class="text-xs font-semibold uppercase tracking-[0.14em]">Execution Enabled Orgs</p>
                 <p class="mt-2 text-2xl font-semibold">{{ number_format((int) ($checklistSummary['execution_enabled_tenants'] ?? 0)) }}</p>
             </div>
             <div class="rounded-2xl border border-slate-200 bg-slate-50 p-5 text-slate-900">
-                <p class="text-xs font-semibold uppercase tracking-[0.14em]">Latest Tenant</p>
+                <p class="text-xs font-semibold uppercase tracking-[0.14em]">Latest Org</p>
                 <p class="mt-2 text-sm font-semibold">{{ $checklistSummary['latest_tenant'] ?? 'N/A' }}</p>
             </div>
         </section>
@@ -103,8 +103,8 @@
         <section class="fd-card border border-amber-200 bg-amber-50 p-5">
             <h3 class="text-sm font-semibold text-slate-900">Execution Test Run Flow</h3>
             <ol class="mt-3 list-decimal space-y-2 pl-5 text-sm text-slate-700">
-                <li>Open tenant profile and confirm lifecycle is active.</li>
-                <li>Set execution mode + provider policy for the selected tenant.</li>
+                <li>Open organization profile and confirm lifecycle is active.</li>
+                <li>Set execution mode + provider policy for the selected organization.</li>
                 <li>Trigger sample billing/payout rows and verify queue transitions.</li>
                 <li>Use execution operations to retry/recover/reconcile and confirm audit writes.</li>
             </ol>
@@ -158,7 +158,7 @@
             <div class="mb-3 flex items-center justify-between gap-3">
                 <div>
                     <h3 class="text-sm font-semibold text-slate-900">Recent Incident Events</h3>
-                    <p class="text-xs text-slate-500">Latest recovery and rollout signals across tenant organizations.</p>
+                    <p class="text-xs text-slate-500">Latest recovery and rollout signals across organizations.</p>
                 </div>
                 <a href="{{ route('platform.operations.incident-history') }}" class="inline-flex h-9 items-center rounded-lg border border-indigo-300 bg-indigo-100 px-3 text-xs font-semibold text-indigo-800 hover:bg-indigo-200">Open Full Incident History</a>
             </div>
@@ -168,7 +168,7 @@
                     <thead>
                         <tr class="border-b border-slate-200 text-left text-xs uppercase tracking-[0.14em] text-slate-500">
                             <th class="px-3 py-2">Time</th>
-                            <th class="px-3 py-2">Tenant</th>
+                            <th class="px-3 py-2">Organization</th>
                             <th class="px-3 py-2">Pipeline</th>
                             <th class="px-3 py-2">Action</th>
                             <th class="px-3 py-2">Actor</th>
@@ -200,7 +200,7 @@
         @else
             <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
                 <div class="rounded-2xl border border-sky-200 bg-sky-50 p-5 text-sky-900"><p class="text-xs font-semibold uppercase tracking-[0.14em]">KPI Captures</p><p class="mt-2 text-2xl font-semibold">{{ number_format((int) ($rolloutSummary['captures'] ?? 0)) }}</p></div>
-                <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-emerald-900"><p class="text-xs font-semibold uppercase tracking-[0.14em]">Tenants Covered</p><p class="mt-2 text-2xl font-semibold">{{ number_format((int) ($rolloutSummary['tenants_covered'] ?? 0)) }}</p></div>
+                <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-emerald-900"><p class="text-xs font-semibold uppercase tracking-[0.14em]">Organizations Covered</p><p class="mt-2 text-2xl font-semibold">{{ number_format((int) ($rolloutSummary['tenants_covered'] ?? 0)) }}</p></div>
                 <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-emerald-900"><p class="text-xs font-semibold uppercase tracking-[0.14em]">Go</p><p class="mt-2 text-2xl font-semibold">{{ number_format((int) ($rolloutSummary['go'] ?? 0)) }}</p></div>
                 <div class="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-amber-900"><p class="text-xs font-semibold uppercase tracking-[0.14em]">Hold</p><p class="mt-2 text-2xl font-semibold">{{ number_format((int) ($rolloutSummary['hold'] ?? 0)) }}</p></div>
                 <div class="rounded-2xl border border-rose-200 bg-rose-50 p-5 text-rose-900"><p class="text-xs font-semibold uppercase tracking-[0.14em]">No-go</p><p class="mt-2 text-2xl font-semibold">{{ number_format((int) ($rolloutSummary['no_go'] ?? 0)) }}</p></div>
@@ -220,7 +220,7 @@
                         <thead>
                             <tr class="border-b border-slate-200 text-left text-xs uppercase tracking-[0.14em] text-slate-500">
                                 <th class="px-3 py-2">Time</th>
-                                <th class="px-3 py-2">Tenant</th>
+                                <th class="px-3 py-2">Organization</th>
                                 <th class="px-3 py-2">Wave</th>
                                 <th class="px-3 py-2">Outcome</th>
                                 <th class="px-3 py-2">Decided By</th>

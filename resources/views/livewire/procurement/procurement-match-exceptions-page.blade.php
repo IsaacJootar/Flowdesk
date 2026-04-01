@@ -17,7 +17,7 @@
 
     <div class="flex items-center justify-between">
         <div>
-            <h2 class="text-base font-semibold text-slate-900">Procurement Match Exceptions</h2>
+            <h2 class="text-base font-semibold text-slate-900">Procurement Match Issues</h2>
             <p class="text-xs text-slate-500">Review 3-way match failures and apply controlled resolution actions.</p>
             <p class="mt-1 text-xs text-slate-500">Action roles: {{ implode(', ', (array) $matchActionAllowedRoles) }}.</p>
             @if ($flowAgentsEnabled)
@@ -42,7 +42,7 @@
         <div class="grid gap-3 lg:grid-cols-5">
             <label class="block lg:col-span-2">
                 <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Search</span>
-                <input type="text" wire:model.live.debounce.300ms="search" class="w-full rounded-xl border-slate-300 text-sm focus:border-slate-500 focus:ring-slate-500" placeholder="PO number, invoice number, exception code">
+                <input type="text" wire:model.live.debounce.300ms="search" class="w-full rounded-xl border-slate-300 text-sm focus:border-slate-500 focus:ring-slate-500" placeholder="PO number, invoice number, issue code">
             </label>
 
             <label class="block">
@@ -78,11 +78,11 @@
 
     <div class="grid gap-3 sm:grid-cols-3">
         <div class="rounded-2xl border border-rose-200 bg-rose-50 p-4">
-            <p class="text-xs uppercase tracking-[0.1em] text-rose-700">Open Exceptions</p>
+            <p class="text-xs uppercase tracking-[0.1em] text-rose-700">Open Issues</p>
             <p class="mt-1 text-2xl font-semibold text-rose-900">{{ number_format((int) $summary['open']) }}</p>
         </div>
         <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
-            <p class="text-xs uppercase tracking-[0.1em] text-emerald-700">Closed Exceptions</p>
+            <p class="text-xs uppercase tracking-[0.1em] text-emerald-700">Closed Issues</p>
             <p class="mt-1 text-2xl font-semibold text-emerald-900">{{ number_format((int) $summary['resolved']) }}</p>
         </div>
         <div class="rounded-2xl border border-amber-200 bg-amber-50 p-4">
@@ -103,7 +103,7 @@
                 <table class="min-w-full divide-y divide-slate-200 text-sm">
                     <thead class="bg-slate-50 text-xs uppercase tracking-[0.12em] text-slate-500">
                         <tr>
-                            <th class="px-4 py-3 text-left font-semibold">Exception</th>
+                            <th class="px-4 py-3 text-left font-semibold">Issue</th>
                             <th class="px-4 py-3 text-left font-semibold">PO / Invoice</th>
                             <th class="px-4 py-3 text-left font-semibold">Details</th>
                             <th class="px-4 py-3 text-left font-semibold">Match</th>
@@ -160,7 +160,7 @@
                                         <p class="mt-1 text-xs text-slate-600">{{ (string) ($insight['why_blocked'] ?? '-') }}</p>
                                         <p class="mt-1 text-[11px] text-slate-500">Next: {{ (string) ($insight['next_action'] ?? '-') }}</p>
                                     @elseif (! $flowAgentsEnabled)
-                                        <span class="text-xs text-slate-400">AI disabled for tenant</span>
+                                        <span class="text-xs text-slate-400">AI disabled for organization</span>
                                     @else
                                         <span class="text-xs text-slate-400">Not analyzed</span>
                                     @endif
@@ -202,7 +202,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="7" class="px-4 py-10 text-center text-sm text-slate-500">No procurement match exceptions found for the selected filters.</td>
+                                <td colspan="7" class="px-4 py-10 text-center text-sm text-slate-500">No procurement match issues found for the selected filters.</td>
                             </tr>
                         @endforelse
                     </tbody>
@@ -222,12 +222,12 @@
         <div wire:click="closeResolutionModal" class="fixed inset-0 z-40 overflow-y-auto bg-slate-900/40 p-3">
             <div class="flex items-start justify-center pt-8">
                 <div wire:click.stop class="fd-card w-full max-w-xl p-6">
-                    <h3 class="text-base font-semibold text-slate-900">{{ $resolutionAction === 'waived' ? 'Waive Match Exception' : 'Resolve Match Exception' }}</h3>
+                    <h3 class="text-base font-semibold text-slate-900">{{ $resolutionAction === 'waived' ? 'Waive Match Issue' : 'Resolve Match Issue' }}</h3>
                     <p class="mt-1 text-sm text-slate-600">Capture a clear reason for audit trail and future troubleshooting.</p>
 
                     <label class="mt-4 block">
                         <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Resolution Note</span>
-                        <textarea wire:model.defer="resolutionNotes" rows="4" class="w-full rounded-xl border-slate-300 text-sm focus:border-slate-500 focus:ring-slate-500" placeholder="What changed and why is this exception being closed?"></textarea>
+                        <textarea wire:model.defer="resolutionNotes" rows="4" class="w-full rounded-xl border-slate-300 text-sm focus:border-slate-500 focus:ring-slate-500" placeholder="What changed and why is this issue being closed?"></textarea>
                         @error('resolutionNotes')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
                     </label>
 

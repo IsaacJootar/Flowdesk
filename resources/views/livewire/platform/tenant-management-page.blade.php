@@ -26,7 +26,7 @@
             @endfor
         @else
             <div class="rounded-2xl border border-sky-200 bg-sky-50 p-5">
-                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-sky-700">Total Tenants</p>
+                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-sky-700">Total Organizations</p>
                 <p class="mt-2 text-2xl font-semibold text-sky-900">{{ number_format((int) $stats['total']) }}</p>
             </div>
             <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
@@ -44,7 +44,7 @@
         <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
             <label class="block lg:col-span-2">
                 <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Search</span>
-                <input type="text" wire:model.live.debounce.300ms="search" class="w-full rounded-xl border-slate-300 text-sm" placeholder="Tenant name, slug, email">
+                <input type="text" wire:model.live.debounce.300ms="search" class="w-full rounded-xl border-slate-300 text-sm" placeholder="Organization name, slug, email">
             </label>
             <label class="block">
                 <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Lifecycle</span>
@@ -86,7 +86,7 @@
             </label>
         </div>
         <div class="mt-4 flex justify-end">
-            <button type="button" wire:click="openCreateModal" class="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white">+ New Tenant</button>
+            <button type="button" wire:click="openCreateModal" class="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white">+ New Organization</button>
         </div>
     </div>
 
@@ -102,7 +102,7 @@
                 <table class="min-w-full divide-y divide-slate-200 text-sm">
                     <thead class="bg-slate-50 text-xs uppercase tracking-[0.12em] text-slate-500">
                         <tr>
-                            <th class="px-4 py-3 text-left font-semibold">Tenant</th>
+                            <th class="px-4 py-3 text-left font-semibold">Organization</th>
                             <th class="px-4 py-3 text-left font-semibold">Lifecycle</th>
                             <th class="px-4 py-3 text-left font-semibold">Plan / Billing</th>
                             <th class="px-4 py-3 text-left font-semibold">Created At</th>
@@ -171,7 +171,7 @@
                                 </td>
                             </tr>
                         @empty
-                            <tr><td colspan="7" class="px-4 py-10 text-center text-sm text-slate-500">No tenants found for selected filters.</td></tr>
+                            <tr><td colspan="7" class="px-4 py-10 text-center text-sm text-slate-500">No organizations found for selected filters.</td></tr>
                         @endforelse
                     </tbody>
                 </table>
@@ -184,13 +184,13 @@
         <div class="fixed inset-0 z-[70] overflow-y-auto bg-slate-900/35 p-4" wire:click.self="closeTenantModal">
             <div class="mx-auto w-full max-w-4xl rounded-2xl border border-slate-200 bg-white shadow-2xl">
                 <div class="flex items-center justify-between border-b border-slate-200 px-6 py-4">
-                    <h3 class="text-lg font-semibold text-slate-900">{{ $isEditingTenant ? 'Update Tenant' : 'Create Tenant' }}</h3>
+                    <h3 class="text-lg font-semibold text-slate-900">{{ $isEditingTenant ? 'Update Organization' : 'Create Organization' }}</h3>
                     <button type="button" wire:click="closeTenantModal" class="rounded-lg border border-slate-300 px-3 py-1 text-sm font-medium text-slate-600">Close</button>
                 </div>
                 <form wire:submit.prevent="saveTenant" class="space-y-4 px-6 py-5">
                     <div class="grid gap-4 sm:grid-cols-2">
                         <label class="block">
-                            <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Tenant Name</span>
+                            <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Organization Name</span>
                             <input type="text" wire:model.defer="tenantForm.name" class="w-full rounded-xl border-slate-300 text-sm">
                             @error('tenantForm.name') <span class="mt-1 block text-xs text-rose-600">{{ $message }}</span> @enderror
                         </label>
@@ -239,7 +239,7 @@
                     <div class="flex justify-end gap-2 border-t border-slate-200 pt-3">
                         <button type="button" wire:click="closeTenantModal" class="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700">Cancel</button>
                         <button type="submit" wire:loading.attr="disabled" wire:target="saveTenant" class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white">
-                            <span wire:loading.remove wire:target="saveTenant">Save Tenant</span>
+                            <span wire:loading.remove wire:target="saveTenant">Save Organization</span>
                             <span wire:loading wire:target="saveTenant">Saving...</span>
                         </button>
                     </div>

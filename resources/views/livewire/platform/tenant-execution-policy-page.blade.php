@@ -17,9 +17,9 @@
 
     <div class="flex items-center justify-between">
         <div>
-            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Tenant Execution Policy</p>
+            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Organization Execution Policy</p>
             <h2 class="mt-1 text-xl font-semibold text-slate-900">{{ $company->name }}</h2>
-            <p class="text-sm text-slate-500">Configure caps, checker threshold, channels, and policy notes.</p>
+            <p class="text-sm text-slate-500">Configure caps, checker limit, channels, and policy notes.</p>
         </div>
 </div>
 
@@ -40,7 +40,7 @@
                 <input type="number" min="0.01" step="0.01" wire:model.defer="policyForm.execution_monthly_cap_amount" class="w-full rounded-xl border-slate-300 text-sm" placeholder="Optional">
             </label>
             <label class="block">
-                <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Checker Threshold</span>
+                <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Checker Limit</span>
                 <input type="number" min="0.01" step="0.01" wire:model.defer="policyForm.execution_maker_checker_threshold_amount" class="w-full rounded-xl border-slate-300 text-sm" placeholder="Optional">
             </label>
         </div>

@@ -17,9 +17,9 @@
 
     <div class="flex items-center justify-between">
         <div>
-            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Tenant Execution Mode</p>
+            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Organization Execution Mode</p>
             <h2 class="mt-1 text-xl font-semibold text-slate-900">{{ $company->name }}</h2>
-            <p class="text-sm text-slate-500">Choose Decision-only or Execution-enabled mode for this tenant.</p>
+            <p class="text-sm text-slate-500">Choose Decision-only or Execution-enabled mode for this organization.</p>
         </div>
 </div>
 

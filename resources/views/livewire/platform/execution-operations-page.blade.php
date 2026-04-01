@@ -19,7 +19,7 @@
         <div class="flex flex-wrap items-start justify-between gap-3">
             <div>
                 <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Execution Operations Center</p>
-                <p class="mt-1 text-sm text-slate-600">Retry failures, process stuck queues, and manually reconcile webhook events across tenant execution pipelines.</p>
+                <p class="mt-1 text-sm text-slate-600">Retry failures, process stuck queues, and manually reconcile webhook events across organization execution pipelines.</p>
             </div>
             <div class="flex flex-wrap items-center gap-2">
                 <a href="{{ route('platform.operations.incident-history') }}" class="inline-flex h-9 items-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50">Open Incident History</a>
@@ -33,9 +33,9 @@
     <div class="fd-card p-4">
         <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             <label class="block">
-                <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Tenant</span>
+                <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Organization</span>
                 <select wire:model.live="tenantFilter" class="w-full rounded-xl border-slate-300 text-sm">
-                    <option value="all">All tenants</option>
+                    <option value="all">All organizations</option>
                     @foreach ($tenantOptions as $tenant)
                         <option value="{{ (int) $tenant->id }}">{{ $tenant->name }}</option>
                     @endforeach
@@ -102,7 +102,7 @@
             </label>
 
             <label class="block">
-                <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Recovery Age Threshold (mins)</span>
+                <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Recovery Age Limit (mins)</span>
                 <input type="number" min="1" max="43200" wire:model.blur="batchOlderThanMinutes" class="w-full rounded-xl border-slate-300 text-sm" />
                 @error('batchOlderThanMinutes') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
             </label>
@@ -122,7 +122,7 @@
                 </button>
             </div>
         </div>
-        <p class="mt-3 text-xs text-slate-500">Recovery runs process up to 200 queued records per click. Age threshold uses queued time, not record creation time.</p>
+        <p class="mt-3 text-xs text-slate-500">Recovery runs process up to 200 queued records per click. Age limit uses queued time, not record creation time.</p>
         <div class="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
             <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-600">Runbook Hints</p>
             <div class="mt-2 flex flex-wrap gap-2 text-xs">
@@ -193,7 +193,7 @@
                 <thead>
                     <tr class="border-b border-slate-200 text-left text-xs uppercase tracking-[0.14em] text-slate-500">
                         <th class="px-3 py-2">Timestamp</th>
-                        <th class="px-3 py-2">Tenant</th>
+                        <th class="px-3 py-2">Organization</th>
                         <th class="px-3 py-2">Pipeline</th>
                         <th class="px-3 py-2">Provider</th>
                         <th class="px-3 py-2">Matched</th>
@@ -234,7 +234,7 @@
         <div class="mb-3 flex items-center justify-between gap-3">
             <div>
                 <h3 class="text-sm font-semibold text-slate-900">Alert Summaries</h3>
-                <p class="text-xs text-slate-500">Tenant-specific rows emitted by scheduled `execution:ops:alert-summary` runs.</p>
+                <p class="text-xs text-slate-500">Organization-specific rows emitted by scheduled `execution:ops:alert-summary` runs.</p>
             </div>
         </div>
 
@@ -243,12 +243,12 @@
                 <thead>
                     <tr class="border-b border-slate-200 text-left text-xs uppercase tracking-[0.14em] text-slate-500">
                         <th class="px-3 py-2">Timestamp</th>
-                        <th class="px-3 py-2">Tenant</th>
+                        <th class="px-3 py-2">Organization</th>
                         <th class="px-3 py-2">Type</th>
                         <th class="px-3 py-2">Pipeline</th>
                         <th class="px-3 py-2">Provider</th>
                         <th class="px-3 py-2">Count</th>
-                        <th class="px-3 py-2">Threshold</th>
+                        <th class="px-3 py-2">Limit</th>
                         <th class="px-3 py-2">Window / Age</th>
                     </tr>
                 </thead>
@@ -305,7 +305,7 @@
                     <thead>
                         <tr class="border-b border-slate-200 text-left text-xs uppercase tracking-[0.14em] text-slate-500">
                             <th class="px-3 py-2">Attempt</th>
-                            <th class="px-3 py-2">Tenant</th>
+                            <th class="px-3 py-2">Organization</th>
                             <th class="px-3 py-2">Provider</th>
                             <th class="px-3 py-2">Status</th>
                             <th class="px-3 py-2">Amount</th>
@@ -367,7 +367,7 @@
                     <thead>
                         <tr class="border-b border-slate-200 text-left text-xs uppercase tracking-[0.14em] text-slate-500">
                             <th class="px-3 py-2">Attempt</th>
-                            <th class="px-3 py-2">Tenant</th>
+                            <th class="px-3 py-2">Organization</th>
                             <th class="px-3 py-2">Request</th>
                             <th class="px-3 py-2">Provider</th>
                             <th class="px-3 py-2">Status</th>
@@ -429,7 +429,7 @@
                     <thead>
                         <tr class="border-b border-slate-200 text-left text-xs uppercase tracking-[0.14em] text-slate-500">
                             <th class="px-3 py-2">Event</th>
-                            <th class="px-3 py-2">Tenant</th>
+                        <th class="px-3 py-2">Organization</th>
                             <th class="px-3 py-2">Provider</th>
                             <th class="px-3 py-2">Event Type</th>
                             <th class="px-3 py-2">Verification</th>

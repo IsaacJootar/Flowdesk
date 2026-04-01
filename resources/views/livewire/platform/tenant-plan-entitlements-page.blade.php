@@ -17,7 +17,7 @@
 
     <div class="flex items-center justify-between">
         <div>
-            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Tenant Plan & Modules</p>
+            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Organization Plan & Modules</p>
             <h2 class="mt-1 text-xl font-semibold text-slate-900">{{ $company->name }}</h2>
             <p class="text-sm text-slate-500">Configure plan, billing state, and module entitlements.</p>
         </div>

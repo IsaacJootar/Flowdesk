@@ -218,6 +218,27 @@ class FlowdeskComprehensiveDemoSeeder extends Seeder
 
         return $users;
     }
+
+    /** @return array<string,mixed> */
+    private function tenantSeedProfile(Company $company): array
+    {
+        $tag = Str::before((string) $company->slug, '-');
+        $hash = abs(crc32((string) $company->slug));
+        $offset = ($hash % 5) + 1;
+        $multiplier = 0.85 + (($hash % 25) / 100);
+        $countShift = $hash % 3;
+        $cities = ['Lagos', 'Abuja', 'Port Harcourt', 'Ibadan', 'Kano', 'Enugu'];
+        $city = $cities[$hash % count($cities)];
+
+        return [
+            'tag' => $tag,
+            'hash' => $hash,
+            'offset' => $offset,
+            'multiplier' => $multiplier,
+            'count_shift' => $countShift,
+            'city' => $city,
+        ];
+    }
     /** @param array<string,mixed> $tenant */
     private function seedPolicyAndSubscription(Company $company, User $owner, array $tenant): void
     {
@@ -395,21 +416,28 @@ class FlowdeskComprehensiveDemoSeeder extends Seeder
     /** @return array<int,Vendor> */
     private function seedVendors(Company $company): array
     {
+        $profile = $this->tenantSeedProfile($company);
+        $tag = Str::title($profile['tag']);
+        $shift = (int) $profile['count_shift'];
+        $city = (string) $profile['city'];
         $names = ['Prime Office Supplies', 'CloudCore Software', 'Metro Utilities', 'Transit Fleet Services', 'TechHub Devices', 'Bright Training Partners'];
+        $rotated = array_merge(array_slice($names, $shift), array_slice($names, 0, $shift));
+        $limit = 4 + $shift;
         $vendors = [];
 
-        foreach ($names as $i => $name) {
+        foreach (array_slice($rotated, 0, $limit) as $i => $name) {
+            $vendorName = $tag.' '.$name;
             $vendors[] = Vendor::query()->create([
                 'company_id' => $company->id,
-                'name' => $name.' '.$company->id,
+                'name' => $vendorName,
                 'vendor_type' => ['supplier', 'software', 'utility', 'service'][$i % 4],
-                'contact_person' => 'Contact '.($i + 1),
+                'contact_person' => $tag.' Contact '.($i + 1),
                 'phone' => sprintf('+234820%06d', ($company->id * 100) + $i),
                 'email' => sprintf('vendor%d.%s@local.test', $i + 1, Str::before((string) $company->slug, '-')),
-                'address' => 'Seeded vendor address',
+                'address' => $city.' distribution hub',
                 'bank_name' => 'Demo Bank',
                 'bank_code' => '058',
-                'account_name' => $name,
+                'account_name' => $vendorName,
                 'account_number' => sprintf('00999%05d', ($company->id * 10) + $i),
                 'is_active' => true,
             ]);
@@ -421,10 +449,16 @@ class FlowdeskComprehensiveDemoSeeder extends Seeder
     /** @param array<string,Department> $departments @return array<int,DepartmentBudget> */
     private function seedBudgets(Company $company, array $departments, User $owner): array
     {
+        $profile = $this->tenantSeedProfile($company);
+        $multiplier = (float) $profile['multiplier'];
+        $offset = (int) $profile['offset'];
+        $base = (int) round(4200000 * $multiplier);
+        $step = 900000 + ($offset * 80000);
+        $usedRatio = 0.32 + (($offset % 4) * 0.04);
         $list = [];
         foreach (['finance', 'operations', 'procurement', 'it', 'hr'] as $i => $key) {
-            $allocated = 5000000 + ($i * 1000000);
-            $used = (int) floor($allocated * 0.4);
+            $allocated = $base + ($i * $step);
+            $used = (int) floor($allocated * $usedRatio);
             $list[] = DepartmentBudget::query()->create([
                 'company_id' => $company->id,
                 'department_id' => $departments[$key]->id,
@@ -445,6 +479,10 @@ class FlowdeskComprehensiveDemoSeeder extends Seeder
     /** @param array<string,array<int,User>> $users @param array<string,Department> $departments @param array<int,Vendor> $vendors @param array<string,mixed> $workflows @return array<int,SpendRequest> */
     private function seedRequests(Company $company, array $users, array $departments, array $vendors, array $workflows): array
     {
+        $profile = $this->tenantSeedProfile($company);
+        $tag = Str::title($profile['tag']);
+        $multiplier = (float) $profile['multiplier'];
+        $offset = (int) $profile['offset'];
         $scenarios = [
             ['draft', null, 90000, 'Draft workstation upgrade', 'draft'],
             ['in_review', 1, 150000, 'Consumables restock', 'pending'],
@@ -459,6 +497,7 @@ class FlowdeskComprehensiveDemoSeeder extends Seeder
         $requests = [];
 
         foreach ($scenarios as $i => $scenario) {
+            $amount = (int) round(($scenario[2] + ($offset * 3000)) * $multiplier);
             $request = SpendRequest::query()->create([
                 'company_id' => $company->id,
                 'request_code' => sprintf('REQ-%d-%03d', $company->id, $i + 1),
@@ -466,13 +505,13 @@ class FlowdeskComprehensiveDemoSeeder extends Seeder
                 'department_id' => $departments[['operations', 'finance', 'procurement', 'it', 'hr'][$i % 5]]->id,
                 'vendor_id' => $vendors[$i % count($vendors)]->id,
                 'workflow_id' => $workflows['request']->id,
-                'title' => $scenario[3],
-                'description' => 'Seeded request scenario',
-                'amount' => $scenario[2],
+                'title' => $tag.' '.$scenario[3],
+                'description' => 'Seeded request scenario for '.$tag,
+                'amount' => $amount,
                 'currency' => 'NGN',
                 'status' => $scenario[0],
-                'approved_amount' => in_array($scenario[0], ['approved', 'approved_for_execution', 'execution_queued', 'settled', 'failed'], true) ? $scenario[2] : null,
-                'paid_amount' => $scenario[0] === 'settled' ? $scenario[2] : 0,
+                'approved_amount' => in_array($scenario[0], ['approved', 'approved_for_execution', 'execution_queued', 'settled', 'failed'], true) ? $amount : null,
+                'paid_amount' => $scenario[0] === 'settled' ? $amount : 0,
                 'current_approval_step' => $scenario[1],
                 'submitted_at' => $scenario[0] === 'draft' ? null : now()->subDays(10 - $i),
                 'decided_at' => in_array($scenario[0], ['approved', 'rejected', 'approved_for_execution', 'execution_queued', 'settled', 'failed'], true) ? now()->subDays(6 - min($i, 5)) : null,
@@ -481,8 +520,8 @@ class FlowdeskComprehensiveDemoSeeder extends Seeder
                 'updated_by' => $users[UserRole::Staff->value][$i % 3]->id,
             ]);
 
-            RequestItem::query()->create(['company_id' => $company->id, 'request_id' => $request->id, 'item_name' => 'Seeded Item A', 'quantity' => 2, 'unit_cost' => (int) floor($scenario[2] / 3), 'line_total' => (int) floor($scenario[2] * 0.67), 'vendor_id' => $request->vendor_id, 'category' => 'operations']);
-            RequestItem::query()->create(['company_id' => $company->id, 'request_id' => $request->id, 'item_name' => 'Seeded Item B', 'quantity' => 1, 'unit_cost' => (int) floor($scenario[2] / 3), 'line_total' => (int) floor($scenario[2] / 3), 'vendor_id' => $request->vendor_id, 'category' => 'operations']);
+            RequestItem::query()->create(['company_id' => $company->id, 'request_id' => $request->id, 'item_name' => $tag.' Item A', 'quantity' => 2, 'unit_cost' => (int) floor($amount / 3), 'line_total' => (int) floor($amount * 0.67), 'vendor_id' => $request->vendor_id, 'category' => 'operations']);
+            RequestItem::query()->create(['company_id' => $company->id, 'request_id' => $request->id, 'item_name' => $tag.' Item B', 'quantity' => 1, 'unit_cost' => (int) floor($amount / 3), 'line_total' => (int) floor($amount / 3), 'vendor_id' => $request->vendor_id, 'category' => 'operations']);
 
             $this->seedRequestApprovalRows($request, $scenario[4], $users, $workflows);
 
@@ -570,18 +609,23 @@ class FlowdeskComprehensiveDemoSeeder extends Seeder
     /** @param array<string,array<int,User>> $users @param array<string,Department> $departments @param array<int,Vendor> $vendors @param array<int,SpendRequest> $requests @return array<int,Expense> */
     private function seedExpenses(Company $company, array $users, array $departments, array $vendors, array $requests): array
     {
+        $profile = $this->tenantSeedProfile($company);
+        $tag = Str::title($profile['tag']);
+        $multiplier = (float) $profile['multiplier'];
+        $offset = (int) $profile['offset'];
         $list = [];
         $finance = $users[UserRole::Finance->value][0];
 
         for ($i = 1; $i <= 8; $i++) {
+            $amount = (int) round((50000 + ($i * 5000) + ($offset * 2000)) * $multiplier);
             $list[] = Expense::query()->create([
                 'company_id' => $company->id,
                 'expense_code' => sprintf('EXP-%d-%03d', $company->id, $i),
                 'department_id' => $departments[['operations', 'finance', 'procurement', 'it', 'hr'][$i % 5]]->id,
                 'vendor_id' => $vendors[$i % count($vendors)]->id,
-                'title' => 'Seeded direct expense '.$i,
-                'description' => 'Seeded direct expense',
-                'amount' => 50000 + ($i * 5000),
+                'title' => $tag.' direct expense '.$i,
+                'description' => 'Seeded direct expense for '.$tag,
+                'amount' => $amount,
                 'expense_date' => now()->subDays(10 - $i)->toDateString(),
                 'payment_method' => ['bank_transfer', 'card', 'cash'][$i % 3],
                 'paid_by_user_id' => $users[UserRole::Staff->value][$i % 3]->id,
@@ -601,8 +645,8 @@ class FlowdeskComprehensiveDemoSeeder extends Seeder
                 'request_id' => $request->id,
                 'department_id' => $request->department_id,
                 'vendor_id' => $request->vendor_id,
-                'title' => 'Seeded request expense '.$request->request_code,
-                'description' => 'Seeded request-linked expense',
+                'title' => $tag.' request expense '.$request->request_code,
+                'description' => 'Seeded request-linked expense for '.$tag,
                 'amount' => (int) floor(((int) $request->amount) * 0.9),
                 'expense_date' => now()->subDays(2 + $index)->toDateString(),
                 'payment_method' => 'bank_transfer',
@@ -619,11 +663,13 @@ class FlowdeskComprehensiveDemoSeeder extends Seeder
     /** @return array<string,array<int,mixed>> */
     private function seedVendorFinance(Company $company, User $finance, array $vendors): array
     {
+        $profile = $this->tenantSeedProfile($company);
+        $multiplier = (float) $profile['multiplier'];
         $invoices = [];
         $payments = [];
 
         foreach ($vendors as $i => $vendor) {
-            $total = 120000 + ($i * 30000);
+            $total = (int) round((120000 + ($i * 30000)) * $multiplier);
             $status = ['unpaid', 'part_paid', 'paid', 'unpaid', 'part_paid', 'unpaid'][$i % 6];
             $paid = $status === 'paid' ? $total : ($status === 'part_paid' ? (int) floor($total * 0.45) : 0);
             $invoice = VendorInvoice::query()->create([
@@ -680,10 +726,16 @@ class FlowdeskComprehensiveDemoSeeder extends Seeder
     /** @param array<string,array<int,User>> $users @param array<int,SpendRequest> $requests @param array<int,DepartmentBudget> $budgets @param array<string,array<int,mixed>> $vendorFinance @param array<int,Expense> $expenses */
     private function seedProcurementAndTreasury(Company $company, array $users, array $requests, array $budgets, array $vendorFinance, array $expenses): void
     {
+        $profile = $this->tenantSeedProfile($company);
+        $multiplier = (float) $profile['multiplier'];
+        $offset = (int) $profile['offset'];
         $finance = $users[UserRole::Finance->value][0];
         $manager = $users[UserRole::Manager->value][1];
         $request = collect($requests)->firstWhere('status', 'approved') ?? $requests[0];
         $invoice = $vendorFinance['invoices'][0];
+        $poSubtotal = (int) round(420000 * $multiplier);
+        $poTax = (int) round($poSubtotal * 0.075);
+        $poTotal = $poSubtotal + $poTax;
 
         $po = PurchaseOrder::query()->create([
             'company_id' => $company->id,
@@ -693,26 +745,27 @@ class FlowdeskComprehensiveDemoSeeder extends Seeder
             'po_number' => sprintf('PO-%d-001', $company->id),
             'po_status' => PurchaseOrder::STATUS_RECEIVED,
             'currency_code' => 'NGN',
-            'subtotal_amount' => 420000,
-            'tax_amount' => 31500,
-            'total_amount' => 451500,
+            'subtotal_amount' => $poSubtotal,
+            'tax_amount' => $poTax,
+            'total_amount' => $poTotal,
             'issued_at' => now()->subDays(8),
             'expected_delivery_at' => now()->addDays(5)->toDateString(),
             'created_by' => $finance->id,
             'updated_by' => $finance->id,
         ]);
 
+        $unitPrice = (int) round(120000 * $multiplier);
         $poi = PurchaseOrderItem::query()->create([
             'company_id' => $company->id,
             'purchase_order_id' => $po->id,
             'line_number' => 1,
             'item_description' => 'Seeded PO item',
             'quantity' => 3,
-            'unit_price' => 120000,
-            'line_total' => 360000,
+            'unit_price' => $unitPrice,
+            'line_total' => $unitPrice * 3,
             'currency_code' => 'NGN',
             'received_quantity' => 3,
-            'received_total' => 360000,
+            'received_total' => $unitPrice * 3,
         ]);
 
         $gr = GoodsReceipt::query()->create([
@@ -740,7 +793,7 @@ class FlowdeskComprehensiveDemoSeeder extends Seeder
             'purchase_order_id' => $po->id,
             'department_budget_id' => $budgets[0]->id,
             'commitment_status' => ProcurementCommitment::STATUS_ACTIVE,
-            'amount' => 451500,
+            'amount' => $poTotal,
             'currency_code' => 'NGN',
             'effective_at' => now()->subDays(7),
             'created_by' => $finance->id,
@@ -794,8 +847,8 @@ class FlowdeskComprehensiveDemoSeeder extends Seeder
             'statement_date' => now()->toDateString(),
             'period_start' => now()->startOfMonth()->toDateString(),
             'period_end' => now()->endOfMonth()->toDateString(),
-            'opening_balance' => 12000000,
-            'closing_balance' => 11300000,
+            'opening_balance' => (int) round(12000000 * $multiplier),
+            'closing_balance' => (int) round(11300000 * $multiplier),
             'import_status' => BankStatement::STATUS_IMPORTED,
             'imported_at' => now()->subHours(2),
             'imported_by_user_id' => $finance->id,
@@ -812,9 +865,9 @@ class FlowdeskComprehensiveDemoSeeder extends Seeder
             'value_date' => now()->toDateString(),
             'description' => 'Seeded statement line',
             'direction' => 'debit',
-            'amount' => 320000,
+            'amount' => (int) round((320000 + ($offset * 5000)) * $multiplier),
             'currency_code' => 'NGN',
-            'balance_after' => 11680000,
+            'balance_after' => (int) round(11680000 * $multiplier),
             'source_hash' => hash('sha256', 'line-'.$company->id),
             'is_reconciled' => true,
             'reconciled_at' => now()->subHours(1),
@@ -830,7 +883,7 @@ class FlowdeskComprehensiveDemoSeeder extends Seeder
             'scheduled_at' => now()->subHours(4),
             'processed_at' => now()->subHours(3),
             'total_items' => 2,
-            'total_amount' => 440000,
+            'total_amount' => (int) round(440000 * $multiplier),
             'currency_code' => 'NGN',
             'created_by' => $finance->id,
             'updated_by' => $finance->id,
@@ -842,7 +895,7 @@ class FlowdeskComprehensiveDemoSeeder extends Seeder
             'expense_id' => $expenses[0]->id,
             'item_reference' => 'RUNITEM-'.$company->id,
             'item_status' => PaymentRunItem::STATUS_SKIPPED,
-            'amount' => 120000,
+            'amount' => (int) round(120000 * $multiplier),
             'currency_code' => 'NGN',
             'processed_at' => now()->subHours(3),
             'failure_reason' => 'Seeded skipped flow',
@@ -881,6 +934,9 @@ class FlowdeskComprehensiveDemoSeeder extends Seeder
     /** @param array<string,array<int,User>> $users @param array<string,Department> $departments */
     private function seedAssets(Company $company, array $users, array $departments): void
     {
+        $profile = $this->tenantSeedProfile($company);
+        $tag = Str::title($profile['tag']);
+        $multiplier = (float) $profile['multiplier'];
         $finance = $users[UserRole::Finance->value][0];
         $categories = [];
 
@@ -901,10 +957,10 @@ class FlowdeskComprehensiveDemoSeeder extends Seeder
                 'company_id' => $company->id,
                 'asset_category_id' => $categories[$i % count($categories)]->id,
                 'asset_code' => sprintf('AST-%d-%03d', $company->id, $i),
-                'name' => 'Seeded Asset '.$i,
+                'name' => $tag.' Asset '.$i,
                 'serial_number' => sprintf('SER-%d-%03d', $company->id, $i),
                 'acquisition_date' => now()->subMonths(8 + $i)->toDateString(),
-                'purchase_amount' => 150000 + ($i * 25000),
+                'purchase_amount' => (int) round((150000 + ($i * 25000)) * $multiplier),
                 'currency' => 'NGN',
                 'status' => $status,
                 'condition' => $status === Asset::STATUS_DISPOSED ? 'retired' : 'good',
@@ -954,6 +1010,8 @@ class FlowdeskComprehensiveDemoSeeder extends Seeder
     /** @param array<string,array<int,User>> $users @param array<int,SpendRequest> $requests */
     private function seedExecution(Company $company, array $users, array $requests): void
     {
+        $profile = $this->tenantSeedProfile($company);
+        $multiplier = (float) $profile['multiplier'];
         $finance = $users[UserRole::Finance->value][0];
         $subscription = TenantSubscription::query()->where('company_id', $company->id)->first();
         if (! $subscription) {
@@ -968,7 +1026,7 @@ class FlowdeskComprehensiveDemoSeeder extends Seeder
                 'billing_cycle_key' => now()->subMonths($i)->format('Y-m'),
                 'idempotency_key' => sprintf('billing-%d-%d', $company->id, $i),
                 'attempt_status' => $status,
-                'amount' => 120000 + ($i * 10000),
+                'amount' => (int) round((120000 + ($i * 10000)) * $multiplier),
                 'currency_code' => 'NGN',
                 'period_start' => now()->subMonths($i)->startOfMonth()->toDateString(),
                 'period_end' => now()->subMonths($i)->endOfMonth()->toDateString(),

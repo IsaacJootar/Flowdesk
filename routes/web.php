@@ -5,6 +5,7 @@ use App\Http\Controllers\ExpenseAttachmentDownloadController;
 use App\Http\Controllers\RequestAttachmentDownloadController;
 use App\Http\Controllers\UserAvatarController;
 use App\Http\Controllers\ExecutionWebhookController;
+use App\Http\Controllers\MailerSendWebhookController;
 use App\Http\Controllers\VendorInvoiceAttachmentDownloadController;
 use App\Http\Controllers\VendorInvoicePaymentAttachmentDownloadController;
 use App\Http\Controllers\VendorStatementCsvExportController;
@@ -73,6 +74,11 @@ Route::post('/webhooks/execution/{provider}', ExecutionWebhookController::class)
     ->withoutMiddleware([VerifyCsrfToken::class])
     ->middleware('throttle:execution-webhooks')
     ->name('webhooks.execution');
+
+Route::post('/webhooks/mailersend', MailerSendWebhookController::class)
+    ->withoutMiddleware([VerifyCsrfToken::class])
+    ->middleware('throttle:60,1')
+    ->name('webhooks.mailersend');
 
 Route::middleware('auth')->group(function (): void {
     Route::get('/settings/company/setup', CompanySetup::class)->name('settings.company.setup');

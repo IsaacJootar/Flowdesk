@@ -18,19 +18,19 @@
         <a href="{{ route('operations.approval-desk') }}" class="fd-card block border border-indigo-200 bg-indigo-50 p-5 transition hover:bg-indigo-100">
             <p class="text-xs font-semibold uppercase tracking-[0.14em] text-indigo-700">Desk 1</p>
             <h3 class="mt-2 text-lg font-semibold text-indigo-900">Approval Operations Desk</h3>
-            <p class="mt-2 text-sm text-indigo-800">Pending approvals, overdue SLA items, and returned requests with one next action per row.</p>
+            <p class="mt-2 text-sm text-indigo-800">Pending approvals, overdue items, and returned requests with one next action per row.</p>
         </a>
 
         <a href="{{ route('operations.vendor-payables-desk') }}" class="fd-card block border border-amber-200 bg-amber-50 p-5 transition hover:bg-amber-100">
             <p class="text-xs font-semibold uppercase tracking-[0.14em] text-amber-700">Desk 2</p>
             <h3 class="mt-2 text-lg font-semibold text-amber-900">Vendor Payables Desk</h3>
-            <p class="mt-2 text-sm text-amber-800">Open invoices, part-paid balances, blocked payout handoffs, and failed payout retries.</p>
+            <p class="mt-2 text-sm text-amber-800">Open invoices, part-paid balances, blocked payout steps, and failed payout retries.</p>
         </a>
 
         <a href="{{ route('operations.period-close-desk') }}" class="fd-card block border border-rose-200 bg-rose-50 p-5 transition hover:bg-rose-100">
             <p class="text-xs font-semibold uppercase tracking-[0.14em] text-rose-700">Desk 3</p>
             <h3 class="mt-2 text-lg font-semibold text-rose-900">Period Close Desk</h3>
-            <p class="mt-2 text-sm text-rose-800">Close-readiness checklist for treasury reconciliation, procurement exceptions, payout retries, and audit flags.</p>
+            <p class="mt-2 text-sm text-rose-800">Close-readiness checklist for treasury reconciliation, procurement issues, payout retries, and audit flags.</p>
         </a>
     </section>
 </div>

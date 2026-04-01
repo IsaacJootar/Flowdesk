@@ -11,6 +11,8 @@ use App\Services\RequestCommunication\Sms\TermiiSmsProvider;
 use App\Support\CorrelationContext;
 use App\Support\FlowdeskLogContext;
 use App\Support\TenantContext;
+use Illuminate\Auth\Notifications\ResetPassword;
+use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Queue\Events\JobFailed;
@@ -57,6 +59,7 @@ class AppServiceProvider extends ServiceProvider
         $this->configureRateLimiting();
         $this->configureObservability();
         $this->configureProductionGuardrails();
+        $this->configureAuthMailTemplates();
 
         // Support subdirectory installs like /flowdesk/public on XAMPP.
         $prefix = trim((string) parse_url((string) config('app.url'), PHP_URL_PATH), '/');
@@ -172,5 +175,34 @@ class AppServiceProvider extends ServiceProvider
         if ((bool) config('observability.production_validation.fail_fast', false)) {
             throw new RuntimeException('Flowdesk production validation failed. Review blocking configuration issues before boot.');
         }
+    }
+
+    private function configureAuthMailTemplates(): void
+    {
+        VerifyEmail::toMailUsing(function ($notifiable, string $url) {
+            return (new \Illuminate\Notifications\Messages\MailMessage)
+                ->subject('Verify your Flowdesk email')
+                ->view('emails.auth.verify-email', [
+                    'userName' => (string) ($notifiable?->name ?? 'Team Member'),
+                    'actionUrl' => $url,
+                ]);
+        });
+
+        ResetPassword::toMailUsing(function ($notifiable, string $token) {
+            $broker = config('auth.defaults.passwords', 'users');
+            $expires = (int) config("auth.passwords.{$broker}.expire", 60);
+            $actionUrl = url(route('password.reset', [
+                'token' => $token,
+                'email' => $notifiable->getEmailForPasswordReset(),
+            ], false));
+
+            return (new \Illuminate\Notifications\Messages\MailMessage)
+                ->subject('Reset your Flowdesk password')
+                ->view('emails.auth.reset-password', [
+                    'userName' => (string) ($notifiable?->name ?? 'Team Member'),
+                    'actionUrl' => $actionUrl,
+                    'expiresInMinutes' => max(1, $expires),
+                ]);
+        });
     }
 }

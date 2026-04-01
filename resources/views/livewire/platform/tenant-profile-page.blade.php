@@ -1,7 +1,7 @@
 <div class="space-y-5">
     <div class="flex items-center justify-between">
         <div>
-            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Tenant Profile</p>
+            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Organization Profile</p>
             <h2 class="mt-1 text-xl font-semibold text-slate-900">{{ $company->name }}</h2>
             <p class="text-sm text-slate-500">{{ $company->slug }} - {{ $company->email ?: 'no email' }}</p>
         </div>
@@ -29,7 +29,7 @@
     </section>
 
     <div class="fd-card p-5">
-        <h3 class="text-base font-semibold text-slate-900">Tenant Identity</h3>
+        <h3 class="text-base font-semibold text-slate-900">Organization Identity</h3>
         <div class="mt-4 grid gap-3 sm:grid-cols-2">
             <div>
                 <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Name</p>

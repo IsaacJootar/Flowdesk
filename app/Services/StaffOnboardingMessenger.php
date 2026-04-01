@@ -4,9 +4,11 @@ namespace App\Services;
 
 use App\Domains\Company\Models\CompanyCommunicationSetting;
 use App\Models\User;
+use App\Mail\StaffWelcomeMail;
 use App\Services\RequestCommunication\DeliveryResult;
 use App\Services\RequestCommunication\Sms\SmsProvider;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\DB;
 use Throwable;
 
 class StaffOnboardingMessenger
@@ -110,22 +112,38 @@ class StaffOnboardingMessenger
             return DeliveryResult::failed('Email delivery failed: staff email is missing.');
         }
 
-        $subject = "Welcome to {$companyName} on Flowdesk";
-        $body = $this->buildEmailBody($staff, $companyName, $temporaryPassword);
+        $deliver = function () use ($staff, $companyName, $temporaryPassword, $email): DeliveryResult {
+            try {
+                $deliveryMetadata = $this->transactionalEmailSender->sendMailable(
+                    $email,
+                    new StaffWelcomeMail($staff, $temporaryPassword, $companyName),
+                    [
+                        'idempotency_key' => 'staff-onboarding-'.$staff->id,
+                        'tags' => ['onboarding', 'staff'],
+                    ]
+                );
+            } catch (Throwable $exception) {
+                report($exception);
 
-        try {
-            $deliveryMetadata = $this->transactionalEmailSender->sendPlainText($email, $subject, $body, [
-                'idempotency_key' => 'staff-onboarding-'.$staff->id,
-            ]);
-        } catch (Throwable $exception) {
-            report($exception);
+                return DeliveryResult::failed('Email delivery failed while sending.', [
+                    'error' => $exception->getMessage(),
+                ]);
+            }
 
-            return DeliveryResult::failed('Email delivery failed while sending.', [
-                'error' => $exception->getMessage(),
+            return DeliveryResult::sent('Email onboarding message delivered.', $deliveryMetadata);
+        };
+
+        if (DB::transactionLevel() > 0) {
+            DB::afterCommit(function () use ($deliver): void {
+                $deliver();
+            });
+
+            return DeliveryResult::sent('Email onboarding queued after commit.', [
+                'deferred' => true,
             ]);
         }
 
-        return DeliveryResult::sent('Email onboarding message delivered.', $deliveryMetadata);
+        return $deliver();
     }
 
     private function sendSms(User $staff, string $companyName, string $temporaryPassword): DeliveryResult
@@ -137,29 +155,25 @@ class StaffOnboardingMessenger
 
         $message = $this->buildSmsBody($staff, $companyName, $temporaryPassword);
 
-        return $this->smsProvider->send($phone, $message, [
-            'purpose' => 'staff_onboarding',
-            'staff_user_id' => (int) $staff->id,
-            'company_id' => (int) $staff->company_id,
-        ]);
-    }
+        $send = function () use ($phone, $message, $staff): DeliveryResult {
+            return $this->smsProvider->send($phone, $message, [
+                'purpose' => 'staff_onboarding',
+                'staff_user_id' => (int) $staff->id,
+                'company_id' => (int) $staff->company_id,
+            ]);
+        };
 
-    private function buildEmailBody(User $staff, string $companyName, string $temporaryPassword): string
-    {
-        $name = trim((string) ($staff->name ?? 'Team Member'));
-        $username = trim((string) ($staff->email ?? ''));
+        if (DB::transactionLevel() > 0) {
+            DB::afterCommit(function () use ($send): void {
+                $send();
+            });
 
-        return trim(implode(PHP_EOL, [
-            "Hello {$name},",
-            '',
-            "Welcome to {$companyName} on Flowdesk.",
-            '',
-            'Your login details:',
-            "Username: {$username}",
-            "Temporary Password: {$temporaryPassword}",
-            '',
-            'Please sign in and change your password immediately.',
-        ]));
+            return DeliveryResult::sent('SMS onboarding queued after commit.', [
+                'deferred' => true,
+            ]);
+        }
+
+        return $send();
     }
 
     private function buildSmsBody(User $staff, string $companyName, string $temporaryPassword): string

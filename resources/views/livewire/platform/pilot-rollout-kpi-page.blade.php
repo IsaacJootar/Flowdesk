@@ -25,7 +25,7 @@
             <div>
                 <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Rollout Operations</p>
                 <h2 class="mt-1 text-xl font-semibold text-slate-900">Pilot KPI Capture</h2>
-                <p class="mt-1 text-sm text-slate-600">Capture baseline and pilot windows for procurement + treasury control KPIs, then review tenant-level deltas.</p>
+                <p class="mt-1 text-sm text-slate-600">Capture baseline and pilot windows for procurement + treasury control KPIs, then review organization-level deltas.</p>
             </div>
             <div class="flex flex-wrap items-center gap-2">
                 <a href="{{ route('platform.operations.execution') }}" class="inline-flex h-9 items-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50">Execution Operations</a>
@@ -37,14 +37,14 @@
     <section class="fd-card p-4">
         <div class="mb-3">
             <h3 class="text-sm font-semibold text-slate-900">Capture Window</h3>
-            <p class="text-xs text-slate-500">Run KPI capture for all eligible tenants or one selected tenant.</p>
+            <p class="text-xs text-slate-500">Run KPI capture for all eligible organizations or one selected organization.</p>
         </div>
 
         <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
             <label class="block">
-                <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Tenant Scope</span>
+                <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Organization Scope</span>
                 <select wire:model.defer="captureTenant" class="w-full rounded-xl border-slate-300 text-sm">
-                    <option value="all">All eligible tenants</option>
+                    <option value="all">All eligible organizations</option>
                     @foreach ($tenantOptions as $tenant)
                         <option value="{{ (int) $tenant->id }}">{{ $tenant->name }}</option>
                     @endforeach
@@ -102,14 +102,14 @@
     <section class="fd-card p-4">
         <div class="mb-3">
             <h3 class="text-sm font-semibold text-slate-900">Pilot Wave Outcome</h3>
-            <p class="text-xs text-slate-500">Record go, hold, or no-go decisions per tenant rollout wave with accountable notes.</p>
+            <p class="text-xs text-slate-500">Record go, hold, or no-go decisions per organization rollout wave with accountable notes.</p>
         </div>
 
         <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
             <label class="block">
-                <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Tenant</span>
+                <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Organization</span>
                 <select wire:model.defer="outcomeTenant" class="w-full rounded-xl border-slate-300 text-sm">
-                    <option value="">Select tenant</option>
+                    <option value="">Select organization</option>
                     @foreach ($tenantOptions as $tenant)
                         <option value="{{ (int) $tenant->id }}">{{ $tenant->name }}</option>
                     @endforeach
@@ -170,7 +170,7 @@
             <p class="mt-2 text-2xl font-semibold text-sky-900">{{ number_format((int) $stats['captures']) }}</p>
         </div>
         <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
-            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-emerald-700">Tenants Covered</p>
+            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-emerald-700">Organizations Covered</p>
             <p class="mt-2 text-2xl font-semibold text-emerald-900">{{ number_format((int) $stats['tenants']) }}</p>
         </div>
         <div class="rounded-2xl border border-indigo-200 bg-indigo-50 p-4">
@@ -206,7 +206,7 @@
         <div class="mb-3 flex items-center justify-between gap-3">
             <div>
                 <h3 class="text-sm font-semibold text-slate-900">Recent Wave Outcomes</h3>
-                <p class="text-xs text-slate-500">Latest rollout decisions captured across pilot tenants.</p>
+                <p class="text-xs text-slate-500">Latest rollout decisions captured across pilot organizations.</p>
             </div>
         </div>
 
@@ -215,7 +215,7 @@
                 <thead>
                     <tr class="border-b border-slate-200 text-left text-xs uppercase tracking-[0.14em] text-slate-500">
                         <th class="px-3 py-2">Decision Time</th>
-                        <th class="px-3 py-2">Tenant</th>
+                        <th class="px-3 py-2">Organization</th>
                         <th class="px-3 py-2">Wave</th>
                         <th class="px-3 py-2">Outcome</th>
                         <th class="px-3 py-2">Decided By</th>
@@ -254,14 +254,14 @@
     <section class="fd-card p-4">
         <div class="mb-3">
             <h3 class="text-sm font-semibold text-slate-900">Cohort Progress Tracker</h3>
-            <p class="text-xs text-slate-500">Track each tenant through baseline capture, pilot capture, and rollout outcome recording.</p>
+            <p class="text-xs text-slate-500">Track each organization through baseline capture, pilot capture, and rollout outcome recording.</p>
         </div>
 
         <div class="overflow-x-auto">
             <table class="min-w-full text-sm">
                 <thead>
                     <tr class="border-b border-slate-200 text-left text-xs uppercase tracking-[0.14em] text-slate-500">
-                        <th class="px-3 py-2">Tenant</th>
+                        <th class="px-3 py-2">Organization</th>
                         <th class="px-3 py-2">Baseline Captured</th>
                         <th class="px-3 py-2">Pilot Captured</th>
                         <th class="px-3 py-2">Outcome Recorded</th>
@@ -322,7 +322,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="6" class="px-3 py-8 text-center text-sm text-slate-500">No eligible tenants found for cohort progress tracking.</td>
+                            <td colspan="6" class="px-3 py-8 text-center text-sm text-slate-500">No eligible organizations found for cohort progress tracking.</td>
                         </tr>
                     @endforelse
                 </tbody>
@@ -333,7 +333,7 @@
     @if ($delta)
         <section class="fd-card p-4">
             <h3 class="text-sm font-semibold text-slate-900">Latest Baseline vs Pilot Delta</h3>
-            <p class="mt-1 text-xs text-slate-500">Deltas are calculated from the most recent baseline and pilot captures for the selected tenant.</p>
+            <p class="mt-1 text-xs text-slate-500">Deltas are calculated from the most recent baseline and pilot captures for the selected organization.</p>
             <div class="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-5 text-sm">
                 <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
                     <p class="text-xs uppercase tracking-[0.14em] text-slate-500">Match Pass Rate</p>
@@ -344,11 +344,11 @@
                     <p class="mt-1 font-semibold text-slate-900">{{ number_format((float) $delta['auto_reconciliation_rate_delta'], 2) }} pts</p>
                 </div>
                 <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                    <p class="text-xs uppercase tracking-[0.14em] text-slate-500">Open Procurement Exceptions</p>
+                    <p class="text-xs uppercase tracking-[0.14em] text-slate-500">Open Procurement Issues</p>
                     <p class="mt-1 font-semibold text-slate-900">{{ number_format((int) $delta['open_procurement_exceptions_delta']) }}</p>
                 </div>
                 <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                    <p class="text-xs uppercase tracking-[0.14em] text-slate-500">Open Treasury Exceptions</p>
+                    <p class="text-xs uppercase tracking-[0.14em] text-slate-500">Open Treasury Issues</p>
                     <p class="mt-1 font-semibold text-slate-900">{{ number_format((int) $delta['open_treasury_exceptions_delta']) }}</p>
                 </div>
                 <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
@@ -362,9 +362,9 @@
     <section class="fd-card p-4">
         <div class="mb-3 grid gap-4 md:grid-cols-3">
             <label class="block">
-                <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Tenant</span>
+                <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Organization</span>
                 <select wire:model.live="tenantFilter" class="w-full rounded-xl border-slate-300 text-sm">
-                    <option value="all">All tenants</option>
+                    <option value="all">All organizations</option>
                     @foreach ($tenantOptions as $tenant)
                         <option value="{{ (int) $tenant->id }}">{{ $tenant->name }}</option>
                     @endforeach
@@ -396,7 +396,7 @@
                 <thead>
                     <tr class="border-b border-slate-200 text-left text-xs uppercase tracking-[0.14em] text-slate-500">
                         <th class="px-3 py-2">Captured</th>
-                        <th class="px-3 py-2">Tenant</th>
+                        <th class="px-3 py-2">Organization</th>
                         <th class="px-3 py-2">Window</th>
                         <th class="px-3 py-2">Match Pass</th>
                         <th class="px-3 py-2">Open Proc Ex</th>
