@@ -72,7 +72,7 @@
         </div>
     </div>
 
-    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-8">
+    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         @if (! $readyToLoad)
             @for ($i = 0; $i < 8; $i++)
                 <div class="rounded-2xl border border-slate-200 bg-white p-4">
@@ -83,19 +83,19 @@
             @endfor
         @else
             <div class="rounded-2xl border border-sky-200 bg-sky-50 p-4">
-                <p class="text-xs uppercase tracking-[0.1em] text-sky-700">Requests</p>
+                <p class="text-xs uppercase tracking-[0.1em] text-sky-700 break-words leading-tight">Requests</p>
                 <p class="mt-1 text-2xl font-semibold text-sky-900">{{ \App\Support\Money::formatCount((int) $metrics['requests']['total']) }}</p>
                 <p class="mt-1 text-xs text-sky-700">In review: {{ \App\Support\Money::formatCount((int) $metrics['requests']['in_review']) }}</p>
                 <p class="text-xs text-sky-700">{{ \App\Support\Money::formatCurrency((int) $metrics['requests']['amount'], $currencyCode) }}</p>
             </div>
             <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
-                <p class="text-xs uppercase tracking-[0.1em] text-emerald-700">Posted Expenses</p>
+                <p class="text-xs uppercase tracking-[0.1em] text-emerald-700 break-words leading-tight">Posted Expenses</p>
                 <p class="mt-1 text-2xl font-semibold text-emerald-900">{{ \App\Support\Money::formatCount((int) $metrics['expenses']['posted']) }}</p>
                 <p class="mt-1 text-xs text-emerald-700">Void: {{ \App\Support\Money::formatCount((int) $metrics['expenses']['void']) }}</p>
                 <p class="text-xs text-emerald-700">{{ \App\Support\Money::formatCurrency((int) $metrics['expenses']['amount'], $currencyCode) }}</p>
             </div>
             <div class="rounded-2xl border border-amber-200 bg-amber-50 p-4">
-                <p class="text-xs uppercase tracking-[0.1em] text-amber-700">Vendor Outstanding</p>
+                <p class="text-xs uppercase tracking-[0.1em] text-amber-700 break-words leading-tight">Vendor Outstanding</p>
                 @if ($canViewVendors)
                     <p class="mt-1 text-2xl font-semibold text-amber-900">{{ \App\Support\Money::formatCount((int) $metrics['vendors']['outstanding_count']) }}</p>
                     <p class="mt-1 text-xs text-amber-700">Overdue: {{ \App\Support\Money::formatCount((int) $metrics['vendors']['overdue_count']) }}</p>
@@ -106,32 +106,32 @@
                 @endif
             </div>
             <div class="rounded-2xl border border-orange-200 bg-orange-50 p-4">
-                <p class="text-xs uppercase tracking-[0.1em] text-orange-700">Procurement Controls</p>
+                <p class="text-xs uppercase tracking-[0.1em] text-orange-700 break-words leading-tight">Procurement Health</p>
                 <p class="mt-1 text-2xl font-semibold text-orange-900">{{ number_format((int) $metrics['procurement']['linked_invoices']) }}</p>
-                <p class="mt-1 text-xs text-orange-700">Open exceptions: {{ number_format((int) $metrics['procurement']['open_exceptions']) }}</p>
+                <p class="mt-1 text-xs text-orange-700">Open issues: {{ number_format((int) $metrics['procurement']['open_exceptions']) }}</p>
                 <p class="text-xs text-orange-700">Match pass rate: {{ number_format((float) $metrics['procurement']['match_pass_rate_percent'], 1) }}%</p>
                 <p class="text-xs text-orange-700">Stale commitments: {{ number_format((int) $metrics['procurement']['stale_commitments']) }}</p>
             </div>
             <div class="rounded-2xl border border-indigo-200 bg-indigo-50 p-4">
-                <p class="text-xs uppercase tracking-[0.1em] text-indigo-700">Assets</p>
+                <p class="text-xs uppercase tracking-[0.1em] text-indigo-700 break-words leading-tight">Assets</p>
                 <p class="mt-1 text-2xl font-semibold text-indigo-900">{{ number_format((int) $metrics['assets']['total']) }}</p>
                 <p class="mt-1 text-xs text-indigo-700">Assigned: {{ number_format((int) $metrics['assets']['assigned']) }}</p>
                 <p class="text-xs text-indigo-700">Maintenance: {{ number_format((int) $metrics['assets']['in_maintenance']) }}</p>
             </div>
             <div class="rounded-2xl border border-slate-300 bg-slate-100 p-4">
-                <p class="text-xs uppercase tracking-[0.1em] text-slate-700">Active Budgets</p>
+                <p class="text-xs uppercase tracking-[0.1em] text-slate-700 break-words leading-tight">Active Budgets</p>
                 <p class="mt-1 text-2xl font-semibold text-slate-900">{{ \App\Support\Money::formatCount((int) $metrics['budgets']['active_count']) }}</p>
                 <p class="mt-1 text-xs text-slate-700">Remaining: {{ \App\Support\Money::formatCurrency((int) $metrics['budgets']['remaining'], $currencyCode) }}</p>
                 <p class="text-xs text-slate-700">Allocated: {{ \App\Support\Money::formatCurrency((int) $metrics['budgets']['allocated'], $currencyCode) }}</p>
             </div>
             <div class="rounded-2xl border border-cyan-200 bg-cyan-50 p-4">
-                <p class="text-xs uppercase tracking-[0.1em] text-cyan-700">Treasury Reconciliation</p>
+                <p class="text-xs uppercase tracking-[0.1em] text-cyan-700 break-words leading-tight">Treasury Health</p>
                 <p class="mt-1 text-2xl font-semibold text-cyan-900">{{ \App\Support\Money::formatCount((int) $metrics['treasury']['reconciled_lines']) }}</p>
-                <p class="mt-1 text-xs text-cyan-700">Open exceptions: {{ \App\Support\Money::formatCount((int) $metrics['treasury']['open_exceptions']) }}</p>
+                <p class="mt-1 text-xs text-cyan-700">Open issues: {{ \App\Support\Money::formatCount((int) $metrics['treasury']['open_exceptions']) }}</p>
                 <p class="text-xs text-cyan-700">Unreconciled value: {{ \App\Support\Money::formatCurrency((int) $metrics['treasury']['unreconciled_value'], $currencyCode) }}</p>
             </div>
             <div class="rounded-2xl border border-teal-200 bg-teal-50 p-4">
-                <p class="text-xs uppercase tracking-[0.1em] text-teal-700">Pilot Rollout Decisions</p>
+                <p class="text-xs uppercase tracking-[0.1em] text-teal-700 break-words leading-tight">Pilot Rollout Decisions</p>
                 <p class="mt-1 text-2xl font-semibold text-teal-900">{{ number_format((int) $metrics['rollout']['total']) }}</p>
                 <p class="mt-1 text-xs text-teal-700">Go: {{ number_format((int) $metrics['rollout']['go']) }}</p>
                 <p class="text-xs text-teal-700">Hold: {{ number_format((int) $metrics['rollout']['hold']) }} | No-go: {{ number_format((int) $metrics['rollout']['no_go']) }}</p>

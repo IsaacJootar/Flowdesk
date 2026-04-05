@@ -6,6 +6,10 @@ use App\Domains\Approvals\Models\CompanyApprovalTimingSetting;
 use App\Domains\Approvals\Models\DepartmentApprovalTimingOverride;
 use Illuminate\Support\Facades\Auth;
 
+/**
+ * Service for resolving approval timing policies, including due hours, reminders, and escalations.
+ * Handles precedence from step-level to organization defaults.
+ */
 class ApprovalTimingPolicyResolver
 {
     public const MIN_STEP_DUE_HOURS = 1;
@@ -13,6 +17,9 @@ class ApprovalTimingPolicyResolver
     public const MIN_REMINDER_HOURS_BEFORE_DUE = 0;
     public const MAX_ESCALATION_GRACE_HOURS = 720;
 
+    /**
+     * Get or create timing settings for a company.
+     */
     public function settingsForCompany(int $companyId): CompanyApprovalTimingSetting
     {
         return CompanyApprovalTimingSetting::query()
@@ -26,6 +33,8 @@ class ApprovalTimingPolicyResolver
     }
 
     /**
+     * Get all department overrides for a company.
+     *
      * @return array<int, DepartmentApprovalTimingOverride>
      */
     public function overridesForCompany(int $companyId): array
@@ -51,11 +60,13 @@ class ApprovalTimingPolicyResolver
      */
     public function resolve(int $companyId, ?int $departmentId = null, array $stepLevelSla = []): array
     {
+        // Check for explicit step-level SLA
         $explicit = $this->normalizeSla($stepLevelSla);
         if ($explicit !== null) {
             return $explicit + ['source' => 'step'];
         }
 
+        // Check for department override
         if ($departmentId) {
             $override = DepartmentApprovalTimingOverride::query()
                 ->where('company_id', $companyId)
@@ -71,6 +82,7 @@ class ApprovalTimingPolicyResolver
             }
         }
 
+        // Fall back to organization settings
         $settings = $this->settingsForCompany($companyId);
 
         return $this->guardrail([

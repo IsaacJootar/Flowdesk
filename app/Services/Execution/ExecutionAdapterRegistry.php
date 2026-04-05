@@ -15,6 +15,9 @@ use InvalidArgumentException;
  */
 class ExecutionAdapterRegistry
 {
+    /**
+     * Resolve the subscription billing adapter for a provider.
+     */
     public function resolveSubscriptionBillingAdapter(?string $providerKey): SubscriptionBillingAdapterInterface
     {
         $provider = $this->normalizedProvider($providerKey);
@@ -32,6 +35,9 @@ class ExecutionAdapterRegistry
         return $instance;
     }
 
+    /**
+     * Resolve the payout execution adapter for a provider.
+     */
     public function resolvePayoutExecutionAdapter(?string $providerKey): PayoutExecutionAdapterInterface
     {
         $provider = $this->normalizedProvider($providerKey);
@@ -49,6 +55,9 @@ class ExecutionAdapterRegistry
         return $instance;
     }
 
+    /**
+     * Resolve the webhook verifier for a provider.
+     */
     public function resolveWebhookVerifier(?string $providerKey): ProviderWebhookVerifierInterface
     {
         $provider = $this->normalizedProvider($providerKey);
@@ -67,6 +76,8 @@ class ExecutionAdapterRegistry
     }
 
     /**
+     * Get all configured provider keys.
+     *
      * @return array<int, string>
      */
     public function providerKeys(): array
@@ -80,6 +91,8 @@ class ExecutionAdapterRegistry
     }
 
     /**
+     * Get the config for a provider.
+     *
      * @return array<string,mixed>
      */
     private function providerConfig(string $provider): array
@@ -93,6 +106,9 @@ class ExecutionAdapterRegistry
         return (array) ($providers[(string) config('execution.fallback_provider', 'null')] ?? []);
     }
 
+    /**
+     * Normalize the provider key.
+     */
     private function normalizedProvider(?string $providerKey): string
     {
         $trimmed = trim((string) $providerKey);

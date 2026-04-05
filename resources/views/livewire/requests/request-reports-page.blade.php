@@ -68,7 +68,7 @@
         <div class="rounded-2xl border border-sky-200 bg-sky-50 p-4">
             <p class="text-xs uppercase tracking-[0.1em] text-sky-700">Total Requests</p>
             <p class="mt-1 text-2xl font-semibold text-sky-900">{{ number_format((int) $metrics['total_requests']) }}</p>
-            <p class="mt-1 text-xs text-sky-700">Total amount: {{ number_format((int) $metrics['total_amount']) }}</p>
+            <p class="mt-1 text-xs text-sky-700">Total amount: {{ \App\Support\Money::formatCurrency((int) $metrics['total_amount'], (string) (auth()->user()?->company?->currency_code ?: 'NGN')) }}</p>
         </div>
         <div class="rounded-2xl border border-amber-200 bg-amber-50 p-4">
             <p class="text-xs uppercase tracking-[0.1em] text-amber-700">In Review</p>
@@ -129,7 +129,7 @@
                 @forelse ($topDepartments as $row)
                     <div class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
                         <p class="text-sm font-medium text-slate-800">{{ $row->department?->name ?? 'Unassigned' }}</p>
-                        <p class="text-xs text-slate-500">{{ number_format((int) $row->total_requests) }} requests Ã‚Â· {{ number_format((int) $row->total_amount) }}</p>
+                        <p class="text-xs text-slate-500">{{ number_format((int) $row->total_requests) }} requests · {{ \App\Support\Money::formatCurrency((int) $row->total_amount, (string) (auth()->user()?->company?->currency_code ?: 'NGN')) }}</p>
                     </div>
                 @empty
                     <p class="text-sm text-slate-500">No department activity in current filter.</p>
@@ -181,11 +181,11 @@
                             <tr class="hover:bg-slate-50" wire:key="request-report-{{ $request->id }}">
                                 <td class="px-4 py-3">
                                     <p class="font-medium text-slate-800">{{ $request->title }}</p>
-                                    <p class="text-xs text-slate-500">{{ $request->request_code }} Ã‚Â· {{ (string) (($request->metadata['request_type_name'] ?? null) ?: ucfirst((string) (($request->metadata['type'] ?? 'spend')))) }}</p>
+                                    <p class="text-xs text-slate-500">{{ $request->request_code }} · {{ (string) (($request->metadata['request_type_name'] ?? null) ?: ucfirst((string) (($request->metadata['type'] ?? 'spend')))) }}</p>
                                 </td>
                                 <td class="px-4 py-3 text-slate-700">{{ $request->requester?->name ?? '-' }}</td>
                                 <td class="px-4 py-3 text-slate-700">{{ $request->department?->name ?? '-' }}</td>
-                                <td class="px-4 py-3 text-slate-700">{{ strtoupper((string) $request->currency) }} {{ number_format((int) $request->amount) }}</td>
+                                <td class="px-4 py-3 text-slate-700">{{ \App\Support\Money::formatCurrency((int) $request->amount, (string) $request->currency) }}</td>
                                 <td class="px-4 py-3">
                                     <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold {{ $statusClass }}">
                                         {{ ucfirst(str_replace('_', ' ', (string) $request->status)) }}

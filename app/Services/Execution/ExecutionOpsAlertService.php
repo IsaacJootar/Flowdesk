@@ -14,6 +14,9 @@ use App\Services\Execution\ExecutionAlertChannelDeliveryService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 
+/**
+ * Service for monitoring execution operations and emitting alerts for failures, stuck queues, and other issues.
+ */
 class ExecutionOpsAlertService
 {
     public function __construct(
@@ -25,6 +28,8 @@ class ExecutionOpsAlertService
     }
 
     /**
+     * Emit warnings for execution failures and stuck processes.
+     *
      * @return array{window_minutes:int,threshold:int,alerts:array<int,array{type:string,pipeline:string,provider:string,company_id:int,count:int,threshold:int,context?:array<string,mixed>}>}
      */
     public function emitWarnings(?int $windowMinutes = null): array
@@ -34,6 +39,7 @@ class ExecutionOpsAlertService
 
         $summary = $this->summarizeFailures($windowMinutes, $threshold);
 
+        // Process each alert
         foreach ($summary['alerts'] as $alert) {
             Log::warning('Execution operations center alert triggered.', [
                 'type' => $alert['type'],

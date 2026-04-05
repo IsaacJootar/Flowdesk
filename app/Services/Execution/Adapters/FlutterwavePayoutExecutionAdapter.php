@@ -11,6 +11,9 @@ use App\Services\Execution\DTO\PayoutExecutionResponseData;
 use Illuminate\Support\Facades\Http;
 use Throwable;
 
+/**
+ * Adapter for executing payouts via Flutterwave payment provider.
+ */
 class FlutterwavePayoutExecutionAdapter implements PayoutExecutionAdapterInterface
 {
     public function providerKey(): string
@@ -20,6 +23,7 @@ class FlutterwavePayoutExecutionAdapter implements PayoutExecutionAdapterInterfa
 
     public function executePayout(PayoutExecutionRequestData $request): PayoutExecutionResponseData
     {
+        // Get configuration
         $secret = trim((string) config('execution.providers.flutterwave.secret_key', ''));
         $baseUrl = rtrim((string) config('execution.providers.flutterwave.base_url', 'https://api.flutterwave.com/v3'), '/');
 
@@ -31,6 +35,7 @@ class FlutterwavePayoutExecutionAdapter implements PayoutExecutionAdapterInterfa
             );
         }
 
+        // Extract beneficiary data
         $beneficiary = $request->beneficiary;
         $accountNumber = trim((string) ($beneficiary['account_number'] ?? $request->metadata['account_number'] ?? ''));
         $bankCode = trim((string) ($beneficiary['bank_code'] ?? $request->metadata['bank_code'] ?? ''));
@@ -44,6 +49,7 @@ class FlutterwavePayoutExecutionAdapter implements PayoutExecutionAdapterInterfa
             );
         }
 
+        // Build payload
         $payload = [
             'account_bank' => $bankCode,
             'account_number' => $accountNumber,
@@ -59,6 +65,7 @@ class FlutterwavePayoutExecutionAdapter implements PayoutExecutionAdapterInterfa
         ];
 
         try {
+            // Make API request
             $response = Http::timeout(25)
                 ->withToken($secret)
                 ->acceptJson()
@@ -86,6 +93,7 @@ class FlutterwavePayoutExecutionAdapter implements PayoutExecutionAdapterInterfa
                 );
             }
 
+            // Determine status from response
             $dataStatus = strtolower((string) ($json['data']['status'] ?? ''));
             $status = match (true) {
                 in_array($dataStatus, ['successful', 'success', 'completed'], true) => AdapterOperationStatus::Settled,

@@ -8,6 +8,9 @@ use App\Domains\Requests\Models\RequestPayoutExecutionAttempt;
 use App\Services\TenantAuditLogger;
 use Illuminate\Support\Carbon;
 
+/**
+ * Service for automatically recovering stuck execution attempts in billing, payout, and webhook pipelines.
+ */
 class ExecutionOpsAutoRecoveryService
 {
     /**

@@ -58,7 +58,7 @@
                 <label class="block">
                     <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Backlog Alert Count Limit</span>
                     <input type="number" min="1" max="2000" wire:model.defer="controlsForm.reconciliation_backlog_alert_count_threshold" class="w-full rounded-xl border-slate-300 text-sm focus:border-slate-500 focus:ring-slate-500">
-                    <p class="mt-1 text-xs text-slate-500">Alert triggers when open exceptions older than alert age reach this count.</p>
+                    <p class="mt-1 text-xs text-slate-500">Alert triggers when open issues older than alert age reach this count.</p>
                     @error('controlsForm.reconciliation_backlog_alert_count_threshold')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
                 </label>
 
@@ -92,7 +92,7 @@
 
             <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
                 <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Issue Action Allowed Roles</p>
-                <p class="mt-1 text-xs text-slate-500">These roles can resolve or waive treasury exceptions.</p>
+                <p class="mt-1 text-xs text-slate-500">These roles can resolve or waive treasury issues.</p>
                 <div class="mt-2 grid gap-2 sm:grid-cols-3 lg:grid-cols-5">
                     @foreach ($roles as $role)
                         <label class="inline-flex items-center gap-2 text-sm text-slate-700">
@@ -110,7 +110,7 @@
 
                 <label class="mt-3 inline-flex items-center gap-2 text-sm text-slate-700">
                     <input type="checkbox" wire:model.defer="controlsForm.exception_action_requires_maker_checker" class="rounded border-slate-300 text-slate-700 focus:ring-slate-500">
-                    Require maker-checker for treasury exception closure actions
+                    Require maker-checker for treasury issue closure actions
                 </label>
             </div>
 

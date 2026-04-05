@@ -42,7 +42,7 @@
         <ul class="mt-3 list-disc space-y-2 pl-5 text-sm text-slate-700">
             <li>Use the lifecycle desk first so all payout-prep decisions happen in one place.</li>
             <li>Use one Next Action per row to avoid scattered operations.</li>
-            <li>If blocked by procurement gate, resolve match/invoice exceptions before retrying payout queue.</li>
+            <li>If blocked by procurement gate, resolve match/invoice issues before retrying payout queue.</li>
             <li>For failed payout attempts, rerun from Payout Ready Queue after provider/config/state checks.</li>
         </ul>
     </section>

@@ -10,6 +10,10 @@ use App\Services\RequestCommunication\DeliveryResult;
 use App\Services\RequestCommunication\Sms\SmsProvider;
 use Throwable;
 
+/**
+ * Service for delivering asset communication notifications through various channels
+ * such as in-app, email, and SMS based on company settings.
+ */
 class AssetCommunicationDeliveryManager
 {
     public function __construct(
@@ -18,23 +22,29 @@ class AssetCommunicationDeliveryManager
     ) {
     }
 
+    /**
+     * Deliver a queued asset communication log.
+     */
     public function deliver(AssetCommunicationLog $log): void
     {
         if ((string) $log->status !== 'queued') {
             return;
         }
 
+        // Load related models
         $log->loadMissing([
             'asset:id,company_id,asset_code,name,status,maintenance_due_date,warranty_expires_at',
             'recipient:id,name,email,phone',
         ]);
 
+        // Check if channel is allowed
         if (! $this->isChannelAllowedForCompany($log)) {
             $this->mark($log, DeliveryResult::failed('Channel is disabled or not configured for this organization.'));
 
             return;
         }
 
+        // Attempt delivery based on channel
         try {
             $result = match ((string) $log->channel) {
                 CompanyCommunicationSetting::CHANNEL_IN_APP => $this->deliverInApp($log),

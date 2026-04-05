@@ -10,6 +10,10 @@ use App\Models\User;
 use App\Services\TransactionalEmailSender;
 use App\Services\TenantAuditLogger;
 
+/**
+ * Service responsible for delivering execution alerts through various channels
+ * such as in-app notifications and email based on company communication settings.
+ */
 class ExecutionAlertChannelDeliveryService
 {
     public function __construct(
@@ -23,19 +27,23 @@ class ExecutionAlertChannelDeliveryService
      */
     public function deliver(array $alert, int $windowMinutes): void
     {
+        // Validate the company ID from the alert
         $companyId = (int) ($alert['company_id'] ?? 0);
         if ($companyId <= 0) {
             return;
         }
 
+        // Retrieve or create default communication settings for the company
         $settings = CompanyCommunicationSetting::query()
             ->firstOrCreate(
                 ['company_id' => $companyId],
                 CompanyCommunicationSetting::defaultAttributes()
             );
 
+        // Determine eligible delivery channels based on settings
         $channels = $this->eligibleChannels($settings);
         if ($channels === []) {
+            // Log that delivery was skipped due to no enabled channels
             $this->tenantAuditLogger->log(
                 companyId: $companyId,
                 action: 'tenant.execution.alert.notification.skipped',
@@ -49,6 +57,7 @@ class ExecutionAlertChannelDeliveryService
             return;
         }
 
+        // Fetch active users with owner or finance roles as recipients
         $recipients = User::query()
             ->where('company_id', $companyId)
             ->where('is_active', true)
@@ -56,6 +65,7 @@ class ExecutionAlertChannelDeliveryService
             ->get(['id', 'name', 'email']);
 
         if ($recipients->isEmpty()) {
+            // Log failure due to no eligible recipients
             $this->tenantAuditLogger->log(
                 companyId: $companyId,
                 action: 'tenant.execution.alert.notification.failed',
@@ -69,6 +79,7 @@ class ExecutionAlertChannelDeliveryService
             return;
         }
 
+        // Deliver the alert through each eligible channel
         foreach ($channels as $channel) {
             if ($channel === CompanyCommunicationSetting::CHANNEL_IN_APP) {
                 $this->deliverInApp($companyId, $alert, $windowMinutes, $recipients->pluck('id')->all());
@@ -90,6 +101,7 @@ class ExecutionAlertChannelDeliveryService
     {
         $baseMetadata = $this->baseMetadata($alert, $windowMinutes);
 
+        // Create in-app notifications for each recipient
         $created = 0;
         foreach ($recipientIds as $recipientId) {
             $recipientId = (int) $recipientId;
@@ -113,6 +125,7 @@ class ExecutionAlertChannelDeliveryService
             $created++;
         }
 
+        // Determine success or failure based on notifications created
         $action = $created > 0
             ? 'tenant.execution.alert.notification.sent'
             : 'tenant.execution.alert.notification.failed';
@@ -121,6 +134,7 @@ class ExecutionAlertChannelDeliveryService
             ? 'Execution alert summary delivered via in-app notifications.'
             : 'Execution alert in-app delivery failed because no valid recipients were resolved.';
 
+        // Log the delivery outcome
         $this->tenantAuditLogger->log(
             companyId: $companyId,
             action: $action,
@@ -144,10 +158,12 @@ class ExecutionAlertChannelDeliveryService
         $missingEmailRecipientIds = [];
         $failedDeliveries = 0;
 
+        // Attempt to send email to each recipient
         foreach ($recipients as $recipient) {
             $recipientId = (int) ($recipient->id ?? 0);
             $email = trim((string) ($recipient->email ?? ''));
             if ($email === '') {
+                // Track recipients without email addresses
                 if ($recipientId > 0) {
                     $missingEmailRecipientIds[] = $recipientId;
                 }
@@ -156,18 +172,22 @@ class ExecutionAlertChannelDeliveryService
             }
 
             try {
+                // Send the email using the transactional email sender
                 $this->transactionalEmailSender->sendMailable($email, new ExecutionAlertMail($alert, $windowMinutes), [
                     'tags' => ['execution', (string) ($alert['type'] ?? 'alert')],
                 ]);
 
+                // Track successful sends
                 if ($recipientId > 0) {
                     $sentRecipientIds[] = $recipientId;
                 }
             } catch (\Throwable) {
+                // Track failed deliveries
                 $failedDeliveries++;
             }
         }
 
+        // Log successful deliveries if any
         if ($sentRecipientIds !== []) {
             $this->tenantAuditLogger->log(
                 companyId: $companyId,
@@ -183,6 +203,7 @@ class ExecutionAlertChannelDeliveryService
             );
         }
 
+        // Log failures if any occurred or no emails were sent
         if ($failedDeliveries > 0 || ($sentRecipientIds === [] && $missingEmailRecipientIds !== [])) {
             $this->tenantAuditLogger->log(
                 companyId: $companyId,
@@ -204,14 +225,18 @@ class ExecutionAlertChannelDeliveryService
      */
     private function eligibleChannels(CompanyCommunicationSetting $settings): array
     {
+        // Define supported delivery channels
         $supported = [
             CompanyCommunicationSetting::CHANNEL_IN_APP,
             CompanyCommunicationSetting::CHANNEL_EMAIL,
         ];
 
+        // Get channels allowed by the settings
         $allowed = array_values(array_intersect($settings->selectableChannels(), $supported));
+        // Get channels in the preferred order
         $ordered = array_values(array_intersect($settings->normalizedFallbackOrder(), $supported));
 
+        // Build the list of eligible channels in order, without duplicates
         $channels = [];
         foreach ($ordered as $channel) {
             if (in_array($channel, $allowed, true) && ! in_array($channel, $channels, true)) {
@@ -230,6 +255,7 @@ class ExecutionAlertChannelDeliveryService
     {
         $alertType = (string) ($alert['type'] ?? '');
 
+        // Build base metadata for logging and notifications
         $metadata = [
             'type' => $alertType,
             'pipeline' => (string) ($alert['pipeline'] ?? ''),
@@ -242,12 +268,9 @@ class ExecutionAlertChannelDeliveryService
             'trigger' => 'execution:ops:alert-summary',
         ];
 
+        // Merge additional context if provided
         $context = (array) ($alert['context'] ?? []);
 
         return $context === [] ? $metadata : array_merge($metadata, $context);
     }
-
-    /**
-     * @param  array{type:string,pipeline:string,provider:string,company_id:int,count:int,threshold:int,context?:array<string,mixed>}  $alert
-     */
 }

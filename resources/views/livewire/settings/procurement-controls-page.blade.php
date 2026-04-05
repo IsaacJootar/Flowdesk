@@ -196,7 +196,7 @@
             </div>
             <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
                 <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Match Override Allowed Roles</p>
-                <p class="mt-1 text-xs text-slate-500">These roles can resolve/waive procurement match exceptions.</p>
+                <p class="mt-1 text-xs text-slate-500">These roles can resolve/waive procurement match issues.</p>
                 <div class="mt-2 grid gap-2 sm:grid-cols-3 lg:grid-cols-5">
                     @foreach ($roles as $role)
                         <label class="inline-flex items-center gap-2 text-sm text-slate-700">
@@ -236,7 +236,7 @@
 
                 <label class="inline-flex items-center gap-2 text-sm text-slate-700 sm:col-span-2">
                     <input type="checkbox" wire:model.defer="controlsForm.match_override_requires_maker_checker" class="rounded border-slate-300 text-slate-700 focus:ring-slate-500">
-                    Require maker-checker for procurement exception overrides
+                    Require maker-checker for procurement issue overrides
                 </label>
             </div>
 

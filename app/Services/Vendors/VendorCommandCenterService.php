@@ -9,15 +9,23 @@ use App\Domains\Vendors\Models\VendorInvoice;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 
+/**
+ * Service for building vendor command center data, including lanes for profile hygiene,
+ * invoice follow-up, blocked handoffs, and failed retries.
+ */
 class VendorCommandCenterService
 {
     private const LANE_LIMIT = 8;
 
     /**
+     * Build the complete desk data for the vendor command center.
+     * Includes summary statistics and lanes with actionable items.
+     *
      * @return array{enabled:bool,disabled_reason:?string,summary:array<string,mixed>,lanes:array<string,array<int,array<string,mixed>>>}
      */
     public function buildDeskData(User $user, bool $procurementEnabled, bool $requestsEnabled, string $search = ''): array
     {
+        // Build data for each lane
         $profileLane = $this->profileHygieneLane($user, $search);
         $invoiceLane = $this->invoiceAndStatementLane($user, $search);
         $blockedLane = $procurementEnabled && $requestsEnabled
@@ -29,6 +37,7 @@ class VendorCommandCenterService
 
         $companyId = (int) $user->company_id;
 
+        // Gather summary statistics
         $totalVendors = (int) Vendor::query()
             ->where('company_id', $companyId)
             ->count();
@@ -51,6 +60,7 @@ class VendorCommandCenterService
             ->whereDate('due_date', '<', now()->toDateString())
             ->count();
 
+        // Build workload summary for lanes
         $workload = $this->buildWorkloadSummary([
             ['key' => 'profile_hygiene', 'label' => 'Profile Hygiene', 'count' => $profileLane['count'], 'tone' => 'sky'],
             ['key' => 'invoice_follow_up', 'label' => 'Invoice Follow-up', 'count' => $invoiceLane['count'], 'tone' => 'amber'],
