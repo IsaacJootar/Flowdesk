@@ -20,4 +20,5 @@ yarn-error.log
 
 # Ignore markdown docs
 *.md
+!README.md
 
