@@ -14,7 +14,7 @@ return [
     |
     */
 
-    'default' => env('MAIL_MAILER', 'log'),
+    'default' => env('MAIL_MAILER', 'mailersend_failover'),
 
     /*
     |--------------------------------------------------------------------------
@@ -27,7 +27,7 @@ return [
     |
     */
 
-    'transactional_mailer' => env('MAIL_TRANSACTIONAL_MAILER', env('MAIL_MAILER', 'log')),
+    'transactional_mailer' => env('MAIL_TRANSACTIONAL_MAILER', env('MAIL_MAILER', 'mailersend_failover')),
 
     /*
     |--------------------------------------------------------------------------

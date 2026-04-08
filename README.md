@@ -28,12 +28,16 @@ Flowdesk is a multi-tenant finance operations platform built on Laravel and Live
 
 ## MailerSend Setup (Production)
 
-MailerSend is the supported transactional mail service.
+MailerSend is the default and supported transactional mail service.
 
 Required `.env` values:
 
-- `MAIL_MAILER=mailersend_smtp`
-- `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`
+- `MAIL_MAILER=mailersend_failover`
+- `MAIL_TRANSACTIONAL_MAILER=mailersend_failover`
+- `MAIL_HOST=smtp.mailersend.net`
+- `MAIL_PORT=587`
+- `MAIL_USERNAME`, `MAIL_PASSWORD`
+- `MAIL_ENCRYPTION=tls`
 - `MAIL_FROM_ADDRESS`, `MAIL_FROM_NAME`
 - `MAILERSEND_API_KEY`
 - `MAILERSEND_DOMAIN`
