@@ -1,4 +1,14 @@
 <div wire:init="loadData" class="space-y-5">
+    <x-module-explainer
+        key="assets"
+        title="Company Assets"
+        description="A register of all physical and digital assets owned by your organisation — laptops, phones, vehicles, software licences, and more."
+        :bullets="[
+            'Assign assets to employees and track who holds what at any time.',
+            'Assets can be linked to purchase orders when they are bought.',
+            'Set maintenance schedules and receive alerts before assets go overdue.',
+        ]"
+    />
     <div
         class="pointer-events-none fixed z-[95] space-y-2"
         style="right: 16px; top: 72px; width: 320px; max-width: calc(100vw - 24px);"
@@ -294,7 +304,7 @@
                         @empty
                             <tr>
                                 <td colspan="7" class="px-4 py-10 text-center text-sm text-slate-500">
-                                    No assets found. @if ($this->canCreateAsset)Register your first asset to start custody tracking.@endif
+                                    No assets registered yet. Add your first asset — laptop, phone, vehicle, or software licence — to start tracking who holds what and when maintenance is due.
                                 </td>
                             </tr>
                         @endforelse

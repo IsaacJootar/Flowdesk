@@ -1,8 +1,18 @@
 <div wire:init="loadData" class="space-y-6">
+    <x-module-explainer
+        key="vendor-payables"
+        title="What We Owe Vendors"
+        description="A real-time view of all outstanding amounts owed to suppliers — approved but unpaid invoices, credit notes, and overdue balances."
+        :bullets="[
+            'Items are grouped by vendor so you can see total exposure per supplier at a glance.',
+            'Overdue payables are highlighted in red — these should be the first to be queued for payment.',
+            'Releasing a payable here queues it for the next payment run automatically.',
+        ]"
+    />
     <section class="fd-card border border-amber-200 bg-amber-50 p-5">
         <div class="flex flex-wrap items-start justify-between gap-3">
             <div>
-                <a href="{{ route('operations.control-desk') }}" class="inline-flex items-center gap-1 rounded-lg border border-amber-200 bg-white px-2.5 py-1 text-xs font-semibold text-amber-700 hover:bg-amber-100">&larr; Back to Operations Desks</a>
+                <a href="{{ route('operations.control-desk') }}" class="inline-flex items-center gap-1 rounded-lg border border-amber-200 bg-white px-2.5 py-1 text-xs font-semibold text-amber-700 hover:bg-amber-100">&larr; Back to Operations Overview</a>
                 <p class="mt-3 text-xs font-semibold uppercase tracking-[0.14em] text-amber-700">Desk 2</p>
                 <h2 class="mt-1 text-xl font-semibold text-slate-900">Vendor Payables Desk</h2>
                 <p class="mt-1 text-sm text-slate-700">One execution page for invoices, part-pay balances, blocked handoffs, and payout retries.</p>

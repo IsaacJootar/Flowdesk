@@ -1,8 +1,18 @@
 <div wire:init="loadData" class="space-y-5">
+    <x-module-explainer
+        key="treasury-cash-position"
+        title="Cash Position"
+        description="A live view of how much money your organisation has, where it sits, and what is scheduled to go out in the coming days."
+        :bullets="[
+            'Bank balances update automatically each time you sync via Mono Connect.',
+            'Upcoming payment runs are shown so you can see what will leave your account.',
+            'Use this page for daily liquidity checks and weekly cash planning conversations.',
+        ]"
+    />
     <div class="fd-card p-5">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Treasury Cash Position</p>
+                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Cash Position</p>
                 <p class="mt-1 text-sm text-slate-600">Track cash exposure and unreconciled value, then return to the main treasury workspace.</p>
             </div>
             <a href="{{ route('treasury.reconciliation') }}" class="inline-flex h-10 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl border border-slate-300 bg-white px-3.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">

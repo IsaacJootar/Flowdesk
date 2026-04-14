@@ -1,8 +1,18 @@
 <div class="space-y-6">
+    <x-module-explainer
+        key="operations"
+        title="Operations Overview"
+        description="Your command centre for the day-to-day running of Flowdesk — approvals needing action, pending payables, month-end close, and system health at a glance."
+        :bullets="[
+            'See everything that needs your attention across all modules without switching tabs.',
+            'Jump directly into Approvals, Vendor Payables, or Month-End Close from here.',
+            'Bottlenecks and overdue items are highlighted so you know where to focus first.',
+        ]"
+    />
     <section class="fd-card border border-slate-200 bg-slate-50 p-5">
         <div class="flex flex-wrap items-start justify-between gap-3">
             <div>
-                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Unified Operations</p>
+                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Operations Overview</p>
                 <h2 class="mt-1 text-xl font-semibold text-slate-900">Operations Desks</h2>
                 <p class="mt-1 text-sm text-slate-600">Choose a dedicated desk for approvals, vendor payables, or period-close readiness.</p>
             </div>

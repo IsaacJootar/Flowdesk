@@ -11,7 +11,7 @@ use Livewire\Attributes\Title;
 use Livewire\Component;
 
 #[Layout('layouts.app')]
-#[Title('Settings Control Center')]
+#[Title('Settings')]
 class SettingsControlCenterPage extends Component
 {
     /**

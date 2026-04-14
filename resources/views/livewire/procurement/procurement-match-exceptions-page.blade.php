@@ -1,4 +1,14 @@
 <div wire:init="loadData" class="space-y-5">
+    <x-module-explainer
+        key="procurement-exceptions"
+        title="Purchase Order Mismatches"
+        description="These are cases where a supplier invoice does not match the purchase order or goods receipt. Each mismatch must be resolved before the payment can be released."
+        :bullets="[
+            'Common causes: wrong price, short delivery, or invoice from the wrong supplier.',
+            'You can accept the difference (approve), reject the invoice, or request a credit note.',
+            'Resolved mismatches are logged for audit and supplier performance tracking.',
+        ]"
+    />
     <div
         class="pointer-events-none fixed z-[95] space-y-2"
         style="right: 16px; top: 72px; width: 320px; max-width: calc(100vw - 24px);"

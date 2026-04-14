@@ -19,7 +19,7 @@ use Livewire\Component;
 use Throwable;
 
 #[Layout('layouts.app')]
-#[Title('Tenant Plan & Modules')]
+#[Title('Client Plan & Features')]
 class TenantPlanEntitlementsPage extends Component
 {
     use InteractsWithTenantCompanies;

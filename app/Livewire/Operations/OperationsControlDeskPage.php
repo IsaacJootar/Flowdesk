@@ -10,7 +10,7 @@ use Livewire\Attributes\Title;
 use Livewire\Component;
 
 #[Layout('layouts.app')]
-#[Title('Operations Desks')]
+#[Title('Operations Overview')]
 class OperationsControlDeskPage extends Component
 {
     use BuildsOperationsDeskData;

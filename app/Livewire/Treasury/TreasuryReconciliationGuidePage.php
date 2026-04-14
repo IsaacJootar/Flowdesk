@@ -11,7 +11,7 @@ use Livewire\Attributes\Title;
 use Livewire\Component;
 
 #[Layout('layouts.app')]
-#[Title('Treasury Reconciliation Help')]
+#[Title('Reconciliation Guide')]
 class TreasuryReconciliationGuidePage extends Component
 {
     public function mount(): void

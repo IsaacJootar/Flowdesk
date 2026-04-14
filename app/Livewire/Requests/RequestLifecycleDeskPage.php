@@ -14,7 +14,7 @@ use Livewire\Attributes\Title;
 use Livewire\Component;
 
 #[Layout('layouts.app')]
-#[Title('Request Lifecycle Desk')]
+#[Title('Request Tracker')]
 class RequestLifecycleDeskPage extends Component
 {
     public bool $readyToLoad = false;

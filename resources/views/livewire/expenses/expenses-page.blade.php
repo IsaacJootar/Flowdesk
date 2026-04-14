@@ -1,4 +1,14 @@
 <div wire:init="loadData" class="space-y-5">
+    <x-module-explainer
+        key="expenses"
+        title="Expenses"
+        description="A record of all approved and processed spend across your organisation — submitted receipts, out-of-pocket claims, and reimbursements."
+        :bullets="[
+            'Expenses are created automatically when a spend request is approved and paid.',
+            'Filter by department, period, or category to analyse your spending patterns.',
+            'Export to CSV for use in your accounting software.',
+        ]"
+    />
     <div
         class="pointer-events-none fixed z-[95] space-y-2"
         style="right: 16px; top: 72px; width: 320px; max-width: calc(100vw - 24px);"
@@ -223,7 +233,7 @@
                         @empty
                             <tr>
                                 <td colspan="7" class="px-4 py-10 text-center text-sm text-slate-500">
-                                    No expenses found. @if ($this->canManage)Record your first expense to start vendor payment tracking.@endif
+                                    No expenses recorded yet. Expenses appear here automatically when approved spend requests are paid out. You can also log out-of-pocket claims manually.
                                 </td>
                             </tr>
                         @endforelse

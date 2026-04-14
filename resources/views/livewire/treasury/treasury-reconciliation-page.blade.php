@@ -1,4 +1,15 @@
 <div wire:init="loadData" class="space-y-5">
+    <x-module-explainer
+        key="treasury-reconciliation"
+        title="Daily Bank Reconciliation"
+        description="Match your bank statement lines against approved payments and flag anything that does not add up — all in one place, every day."
+        :bullets="[
+            'Sync today\'s bank statement automatically via Mono Connect, or upload a CSV if needed.',
+            'Auto-Reconcile matches statement lines to payment runs in seconds.',
+            'Unmatched lines become open issues — resolve or waive them before end-of-day sign-off.',
+        ]"
+        guide-route="treasury.reconciliation-help"
+    />
     <div
         class="pointer-events-none fixed z-[95] space-y-2"
         style="right: 16px; top: 72px; width: 320px; max-width: calc(100vw - 24px);"
@@ -20,8 +31,8 @@
         <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div>
                 <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Manage Treasury</p>
-                <h2 class="mt-1 text-xl font-semibold text-slate-900">Treasury Daily Reconciliation Desk</h2>
-                <p class="mt-1 text-sm text-slate-600">One daily execution workspace for statement import, unmatched lines, issue decisions, auto-reconcile, and close-day checks.</p>
+                <h2 class="mt-1 text-xl font-semibold text-slate-900">Daily Bank Reconciliation</h2>
+                <p class="mt-1 text-sm text-slate-600">Match your bank statement lines against approved payments, unmatched lines, issue decisions, auto-reconcile, and close-day checks.</p>
             </div>
             <div class="flex flex-wrap items-center gap-2">
                 <a href="{{ route('treasury.reconciliation-help') }}" class="inline-flex h-9 items-center rounded-lg border border-slate-700 bg-slate-700 px-3 text-xs font-semibold text-white transition hover:bg-slate-800" style="background-color:#334155;border-color:#334155;color:#ffffff;">Help / Usage Guide</a>

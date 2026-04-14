@@ -10,7 +10,7 @@ use Livewire\Attributes\Title;
 use Livewire\Component;
 
 #[Layout('layouts.app')]
-#[Title('AI Runtime Health')]
+#[Title('AI System Status')]
 class AiRuntimeHealthPage extends Component
 {
     use InteractsWithTenantCompanies;

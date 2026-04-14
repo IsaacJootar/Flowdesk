@@ -12,7 +12,7 @@ use Livewire\Attributes\Title;
 use Livewire\Component;
 
 #[Layout('layouts.app')]
-#[Title('Communications Recovery Help')]
+#[Title('Notification Recovery Guide')]
 class RequestCommunicationsGuidePage extends Component
 {
     public function mount(): void

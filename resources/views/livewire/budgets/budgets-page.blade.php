@@ -1,4 +1,14 @@
 <div wire:init="loadData" class="space-y-5">
+    <x-module-explainer
+        key="budgets"
+        title="Budgets"
+        description="Set spending limits for departments, projects, or cost centres. Flowdesk checks every request against the relevant budget before routing it for approval."
+        :bullets="[
+            'Budgets are enforced automatically — requests that would exceed a budget are flagged at submission.',
+            'Set annual, quarterly, or monthly limits per department or team.',
+            'Track consumed vs. remaining budget in real time.',
+        ]"
+    />
     <div
         class="pointer-events-none fixed z-[95] space-y-2"
         style="right: 16px; top: 72px; width: 320px; max-width: calc(100vw - 24px);"
@@ -205,7 +215,7 @@
                         @empty
                             <tr>
                                 <td colspan="7" class="px-4 py-10 text-center text-sm text-slate-500">
-                                    No budgets found. @if ($this->canManage)Create your first department budget to activate budget guardrails.@endif
+                                    No budgets set up yet. Budgets let you cap spending per department or project. Once set, Flowdesk checks every request against the relevant budget before it is approved.
                                 </td>
                             </tr>
                         @endforelse

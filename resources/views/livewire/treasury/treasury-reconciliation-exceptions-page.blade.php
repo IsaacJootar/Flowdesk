@@ -1,4 +1,14 @@
 <div wire:init="loadData" class="space-y-5">
+    <x-module-explainer
+        key="treasury-exceptions"
+        title="Unresolved Bank Items"
+        description="These are bank statement lines that could not be automatically matched to a payment. Each one needs a human decision before your books can close."
+        :bullets="[
+            'Critical and high-severity items appear at the top — deal with those first.',
+            'Resolve means the item is explained and matched. Waive means you acknowledge it but skip matching.',
+            'All decisions are recorded for audit. Maker-checker policy requires a second approver on high-value waivers.',
+        ]"
+    />
     <div
         class="pointer-events-none fixed z-[95] space-y-2"
         style="right: 16px; top: 72px; width: 320px; max-width: calc(100vw - 24px);"

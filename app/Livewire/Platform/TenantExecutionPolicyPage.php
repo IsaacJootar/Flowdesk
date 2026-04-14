@@ -18,7 +18,7 @@ use Livewire\Component;
 use Throwable;
 
 #[Layout('layouts.app')]
-#[Title('Tenant Execution Policy')]
+#[Title('Client Payment Rules')]
 class TenantExecutionPolicyPage extends Component
 {
     use InteractsWithTenantCompanies;

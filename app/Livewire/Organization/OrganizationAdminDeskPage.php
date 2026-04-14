@@ -12,7 +12,7 @@ use Livewire\Attributes\Title;
 use Livewire\Component;
 
 #[Layout('layouts.app')]
-#[Title('Organization Admin Desk')]
+#[Title('Company Administration')]
 class OrganizationAdminDeskPage extends Component
 {
     private const LANE_LIMIT = 8;

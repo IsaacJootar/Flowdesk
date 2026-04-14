@@ -18,7 +18,7 @@ use Livewire\Component;
 use Livewire\WithPagination;
 
 #[Layout('layouts.app')]
-#[Title('Treasury Reconciliation Exceptions')]
+#[Title('Unresolved Bank Items')]
 class TreasuryReconciliationExceptionsPage extends Component
 {
     use WithPagination;

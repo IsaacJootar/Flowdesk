@@ -27,7 +27,7 @@ use Livewire\WithPagination;
 use Throwable;
 
 #[Layout('layouts.app')]
-#[Title('Tenant Billing')]
+#[Title('Subscription & Billing')]
 class TenantDetailsPage extends Component
 {
     use WithPagination;

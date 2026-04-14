@@ -9,7 +9,7 @@ use Livewire\Attributes\Title;
 use Livewire\Component;
 
 #[Layout('layouts.app')]
-#[Title('Execution Test Checklist')]
+#[Title('Provider Setup Checklist')]
 class ExecutionTestChecklistPage extends Component
 {
     use InteractsWithTenantCompanies;

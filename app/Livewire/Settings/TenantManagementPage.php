@@ -36,7 +36,7 @@ use Livewire\WithPagination;
 use Throwable;
 
 #[Layout('layouts.app')]
-#[Title('Tenant / Organization Management')]
+#[Title('Company Settings')]
 class TenantManagementPage extends Component
 {
     use WithPagination;

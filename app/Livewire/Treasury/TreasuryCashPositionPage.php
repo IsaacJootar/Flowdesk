@@ -13,7 +13,7 @@ use Livewire\Attributes\Title;
 use Livewire\Component;
 
 #[Layout('layouts.app')]
-#[Title('Treasury Cash Position')]
+#[Title('Cash Position')]
 class TreasuryCashPositionPage extends Component
 {
     public bool $readyToLoad = false;

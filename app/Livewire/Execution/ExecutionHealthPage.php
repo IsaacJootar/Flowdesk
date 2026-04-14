@@ -16,7 +16,7 @@ use Livewire\Attributes\Title;
 use Livewire\Component;
 
 #[Layout('layouts.app')]
-#[Title('Execution Health')]
+#[Title('Payment Provider Health')]
 class ExecutionHealthPage extends Component
 {
     public bool $readyToLoad = false;

@@ -1,8 +1,18 @@
 <div class="space-y-6">
+    <x-module-explainer
+        key="settings"
+        title="Settings"
+        description="Configure how Flowdesk works for your organisation — approval rules, spending limits, notification preferences, payment providers, and more."
+        :bullets="[
+            'Changes here affect the entire organisation, so only admins and finance owners can edit settings.',
+            'Each section is independent — you can configure only what you need.',
+            'All setting changes are logged in your audit trail.',
+        ]"
+    />
     <section class="fd-card border border-slate-200 bg-slate-50 p-5">
         <div class="flex flex-wrap items-start justify-between gap-3">
             <div>
-                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Tenant Settings</p>
+                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Settings</p>
                 <h2 class="mt-1 text-xl font-semibold text-slate-900">Settings Control Center</h2>
                 <p class="mt-1 text-sm text-slate-600">Section-based cards for organization configuration. Open any card to manage that settings area.</p>
             </div>

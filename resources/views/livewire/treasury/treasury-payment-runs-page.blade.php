@@ -1,8 +1,18 @@
 <div wire:init="loadData" class="space-y-5">
+    <x-module-explainer
+        key="treasury-payment-runs"
+        title="Payment Runs"
+        description="Payment runs are batches of approved vendor and reimbursement payments sent to your bank or payment provider together."
+        :bullets="[
+            'Runs are created automatically when enough approved payables accumulate, or you can trigger one manually.',
+            'Each run goes through processing → settled → failed, tracked here in real time.',
+            'Failed payments surface immediately so your team can investigate and retry without delay.',
+        ]"
+    />
     <div class="fd-card p-5">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Treasury Payment Runs</p>
+                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Payment Runs</p>
                 <p class="mt-1 text-sm text-slate-600">Review payout run health, then return to the main treasury workspace.</p>
             </div>
             <a href="{{ route('treasury.reconciliation') }}" class="inline-flex h-10 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl border border-slate-300 bg-white px-3.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
@@ -92,7 +102,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="6" class="px-4 py-10 text-center text-sm text-slate-500">No payment runs available yet. Reconciliation still works directly on statement lines.</td>
+                                <td colspan="6" class="px-4 py-10 text-center text-sm text-slate-500">No payment runs yet. Payment runs are batches of approved payments sent to your bank provider together. They appear here once your first approved payment is queued and dispatched.</td>
                             </tr>
                         @endforelse
                     </tbody>

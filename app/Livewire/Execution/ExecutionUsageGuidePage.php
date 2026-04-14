@@ -10,7 +10,7 @@ use Livewire\Attributes\Title;
 use Livewire\Component;
 
 #[Layout('layouts.app')]
-#[Title('Execution Help')]
+#[Title('Payment Provider Guide')]
 class ExecutionUsageGuidePage extends Component
 {
     public function mount(): void

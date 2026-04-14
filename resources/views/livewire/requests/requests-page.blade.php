@@ -1,4 +1,10 @@
 <div wire:init="loadData" class="space-y-5">
+    <x-module-explainer
+        key="requests"
+        title="Spend Requests"
+        description="This is where your team submits requests for company funds — travel, vendor payments, reimbursements, and one-off purchases."
+        :bullets="[
+            Submitted
     <div
         class="pointer-events-none fixed z-[95] space-y-2"
         style="right: 16px; top: 72px; width: 320px; max-width: calc(100vw - 24px);"
@@ -365,13 +371,13 @@
                             <tr>
                                 <td colspan="7" class="px-4 py-10 text-center text-sm text-slate-500">
                                     @if ($scopeFilter === 'pending_my_approval')
-                                        No requests are currently awaiting your decision.
+                                        No requests waiting for your action right now. You're all caught up.
                                     @elseif ($scopeFilter === 'decided_by_me')
                                         You have not decided any requests yet.
                                     @elseif ($scopeFilter === 'mine')
                                         You do not have requests matching this filter.
                                     @else
-                                        No requests found for the selected filters.
+                                        No requests match the selected filters. Try adjusting the status, type, or date range, or clear all filters to see everything.
                                     @endif
                                 </td>
                             </tr>

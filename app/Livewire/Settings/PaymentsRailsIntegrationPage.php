@@ -19,7 +19,7 @@ use Livewire\Component;
 use Livewire\WithPagination;
 
 #[Layout('layouts.app')]
-#[Title('Payments Rails Integration')]
+#[Title('Payment Provider Settings')]
 class PaymentsRailsIntegrationPage extends Component
 {
     use WithPagination;

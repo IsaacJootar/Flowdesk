@@ -16,7 +16,7 @@ use Livewire\Attributes\Title;
 use Livewire\Component;
 
 #[Layout('layouts.app')]
-#[Title('Request Configuration')]
+#[Title('Request Settings')]
 class RequestConfigurationPage extends Component
 {
     public bool $showRequestTypeModal = false;

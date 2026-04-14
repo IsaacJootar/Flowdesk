@@ -11,7 +11,7 @@ use Livewire\Attributes\Title;
 use Livewire\Component;
 
 #[Layout('layouts.app')]
-#[Title('Period Close Desk')]
+#[Title('Month-End Close')]
 class PeriodCloseDeskPage extends Component
 {
     use BuildsOperationsDeskData;

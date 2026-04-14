@@ -19,7 +19,7 @@ use Livewire\Component;
 use Livewire\WithPagination;
 
 #[Layout('layouts.app')]
-#[Title('Pilot Rollout KPIs')]
+#[Title('Provider Rollout Tracker')]
 class PilotRolloutKpiPage extends Component
 {
     use InteractsWithTenantCompanies;

@@ -19,7 +19,7 @@ use Livewire\Attributes\Title;
 use Livewire\Component;
 
 #[Layout('layouts.app')]
-#[Title('Platform Operations Hub')]
+#[Title('Operations Hub')]
 class PlatformOperationsHubPage extends Component
 {
     use InteractsWithTenantCompanies;

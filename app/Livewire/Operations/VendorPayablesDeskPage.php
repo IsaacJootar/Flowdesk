@@ -11,7 +11,7 @@ use Livewire\Attributes\Title;
 use Livewire\Component;
 
 #[Layout('layouts.app')]
-#[Title('Vendor Payables Desk')]
+#[Title('What We Owe Vendors')]
 class VendorPayablesDeskPage extends Component
 {
     use BuildsOperationsDeskData;

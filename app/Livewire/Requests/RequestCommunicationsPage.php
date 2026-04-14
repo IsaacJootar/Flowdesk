@@ -22,7 +22,7 @@ use Livewire\Component;
 use Livewire\WithPagination;
 
 #[Layout('layouts.app')]
-#[Title('Communications Recovery Desk')]
+#[Title('Notification Recovery')]
 class RequestCommunicationsPage extends Component
 {
     use WithPagination;

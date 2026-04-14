@@ -23,7 +23,7 @@ use Livewire\Component;
 use Livewire\WithPagination;
 
 #[Layout('layouts.app')]
-#[Title('Execution Operations')]
+#[Title('Payment Provider Operations')]
 class ExecutionOperationsPage extends Component
 {
     use InteractsWithTenantCompanies;

@@ -1,8 +1,19 @@
 <div class="space-y-6">
+    <x-module-explainer
+        key="procurement-workspace"
+        title="Purchase Order Workspace"
+        description="The daily workspace for your procurement team — manage open orders, confirm goods received, match supplier invoices, and release payments."
+        :bullets="[
+            'Match a supplier invoice to a PO and goods receipt before releasing for payment.',
+            'Any mismatch in price, quantity, or supplier triggers an exception that must be cleared first.',
+            'Once matched and approved, the payment is queued automatically.',
+        ]"
+        guide-route="procurement.release-guide"
+    />
     <section class="fd-card p-5">
         <div class="flex flex-wrap items-start justify-between gap-3">
             <div>
-                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Procurement Operations</p>
+                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Purchase Order Workspace</p>
                 <h2 class="mt-1 text-xl font-semibold text-slate-900">Manage Procurement Workspace</h2>
                 <p class="mt-1 text-sm text-slate-600">Single page to move procurement work from approved request to payout handoff.</p>
             </div>

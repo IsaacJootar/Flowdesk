@@ -15,7 +15,7 @@ use Livewire\WithPagination;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 #[Layout('layouts.app')]
-#[Title('Incident History')]
+#[Title('Issue History')]
 class IncidentHistoryPage extends Component
 {
     use InteractsWithTenantCompanies;

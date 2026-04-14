@@ -13,7 +13,7 @@ use Livewire\Attributes\Title;
 use Livewire\Component;
 
 #[Layout('layouts.app')]
-#[Title('Vendor Management Workspace')]
+#[Title('Vendor Directory')]
 class VendorCommandCenterPage extends Component
 {
     public bool $readyToLoad = false;

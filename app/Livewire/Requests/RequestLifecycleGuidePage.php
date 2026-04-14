@@ -11,7 +11,7 @@ use Livewire\Attributes\Title;
 use Livewire\Component;
 
 #[Layout('layouts.app')]
-#[Title('Request Lifecycle Help')]
+#[Title('Request Tracker Guide')]
 class RequestLifecycleGuidePage extends Component
 {
     public bool $canOpenPayoutQueue = false;

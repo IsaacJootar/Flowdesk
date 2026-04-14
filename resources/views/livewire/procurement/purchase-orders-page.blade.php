@@ -1,4 +1,14 @@
 <div wire:init="loadData" class="space-y-5">
+    <x-module-explainer
+        key="purchase-orders"
+        title="Purchase Orders"
+        description="Formal orders raised to suppliers after spend requests are approved. A purchase order locks the price, quantity, and delivery terms before goods or services are received."
+        :bullets="[
+            'POs are generated from approved spend requests — no manual duplication needed.',
+            'Suppliers receive a copy; your team tracks delivery and receipt against the PO.',
+            'Three-way matching (PO → receipt → invoice) happens automatically in the procurement workspace.',
+        ]"
+    />
     <div class="flex items-center justify-between">
         <div>
             <h2 class="text-base font-semibold text-slate-900">Procurement Orders</h2>
@@ -151,7 +161,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="7" class="px-4 py-10 text-center text-sm text-slate-500">No procurement orders found for the selected filters.</td>
+                                <td colspan="7" class="px-4 py-10 text-center text-sm text-slate-500">No purchase orders match the selected filters. Purchase orders are created from approved spend requests. Try clearing your filters or check that requests have been approved and converted.</td>
                             </tr>
                         @endforelse
                     </tbody>

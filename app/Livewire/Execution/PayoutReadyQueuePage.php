@@ -23,7 +23,7 @@ use Livewire\Component;
 use Livewire\WithPagination;
 
 #[Layout('layouts.app')]
-#[Title('Payout Ready Queue')]
+#[Title('Payments Ready to Send')]
 class PayoutReadyQueuePage extends Component
 {
     use WithPagination;

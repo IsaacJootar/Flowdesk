@@ -17,7 +17,7 @@ use Livewire\Attributes\Title;
 use Livewire\Component;
 
 #[Layout('layouts.app')]
-#[Title('Manage Procurement Workspace')]
+#[Title('Purchase Order Workspace')]
 class ProcurementReleaseDeskPage extends Component
 {
     private const LANE_LIMIT = 8;

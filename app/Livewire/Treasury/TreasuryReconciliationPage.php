@@ -29,7 +29,7 @@ use Livewire\WithFileUploads;
 use Livewire\WithPagination;
 
 #[Layout('layouts.app')]
-#[Title('Treasury Daily Reconciliation Desk')]
+#[Title('Daily Bank Reconciliation')]
 class TreasuryReconciliationPage extends Component
 {
     use WithFileUploads;

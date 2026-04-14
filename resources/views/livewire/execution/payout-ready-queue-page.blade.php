@@ -1,8 +1,18 @@
 <div wire:init="loadData" class="space-y-6">
+    <x-module-explainer
+        key="payout-queue"
+        title="Payments Ready to Send"
+        description="Approved payments that have passed all checks and are waiting to be sent to your bank or payment provider."
+        :bullets="[
+            'Each payment here has been fully approved and matched — it is safe to release.',
+            'Payments are sent via your configured provider (Paystack, Flutterwave, or Mono).',
+            'Once sent, the payment moves to Payment Runs where you can track its settlement status.',
+        ]"
+    />
     <section class="fd-card border border-slate-200 bg-slate-50 p-5">
         <div class="flex flex-wrap items-start justify-between gap-3">
             <div>
-                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Tenant Execution</p>
+                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Payments Ready to Send</p>
                 <h2 class="mt-1 text-xl font-semibold text-slate-900">Payout Ready Queue</h2>
                 <p class="mt-1 text-sm text-slate-600">Single workspace for requests that are approved and waiting for payout execution.</p>
             </div>

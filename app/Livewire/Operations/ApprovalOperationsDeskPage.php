@@ -11,7 +11,7 @@ use Livewire\Attributes\Title;
 use Livewire\Component;
 
 #[Layout('layouts.app')]
-#[Title('Approval Operations Desk')]
+#[Title('Approvals Overview')]
 class ApprovalOperationsDeskPage extends Component
 {
     use BuildsOperationsDeskData;

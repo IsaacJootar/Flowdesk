@@ -1,8 +1,18 @@
 <div wire:init="loadData" class="space-y-6">
+    <x-module-explainer
+        key="vendors"
+        title="Vendor Directory"
+        description="Your central record of all approved suppliers — bank details, contact info, payment history, and compliance status in one place."
+        :bullets="[
+            'Only vendors in this directory can receive payments from Flowdesk.',
+            'Bank details are verified before a vendor is approved.',
+            'All payments made to each vendor are logged and searchable here.',
+        ]"
+    />
     <section class="fd-card border border-amber-200 bg-amber-50 p-5">
         <div class="flex flex-wrap items-start justify-between gap-3">
             <div>
-                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-amber-700">Vendor Workspace</p>
+                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-amber-700">Vendor Directory</p>
                 <h2 class="mt-1 text-xl font-semibold text-slate-900">Vendor Management Workspace</h2>
                 <p class="mt-1 text-sm text-slate-700">Single page for vendor profile quality, invoice follow-up, and payables handoff actions.</p>
             </div>
@@ -115,7 +125,7 @@
                                 </div>
                             </div>
                         @empty
-                            <p class="rounded-xl border border-slate-200 bg-white px-3 py-6 text-center text-sm text-slate-500">No rows in this lane for current scope/filter.</p>
+                            <p class="rounded-xl border border-slate-200 bg-white px-3 py-6 text-center text-sm text-slate-500">No vendors in this category yet. Vendors must be added and approved before payments can be sent to them.</p>
                         @endforelse
                     </div>
                 </div>

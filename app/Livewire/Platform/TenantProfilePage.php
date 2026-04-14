@@ -10,7 +10,7 @@ use Livewire\Attributes\Title;
 use Livewire\Component;
 
 #[Layout('layouts.app')]
-#[Title('Tenant Profile')]
+#[Title('Client Profile')]
 class TenantProfilePage extends Component
 {
     use InteractsWithTenantCompanies;

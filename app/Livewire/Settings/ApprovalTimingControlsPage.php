@@ -14,7 +14,7 @@ use Livewire\Attributes\Title;
 use Livewire\Component;
 
 #[Layout('layouts.app')]
-#[Title('Approval Timing Controls')]
+#[Title('Approval Deadlines')]
 class ApprovalTimingControlsPage extends Component
 {
     // Feedback messaging

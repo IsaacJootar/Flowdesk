@@ -19,7 +19,7 @@ use Livewire\Component;
 use Throwable;
 
 #[Layout('layouts.app')]
-#[Title('Tenant Execution Mode')]
+#[Title('Client Payment Settings')]
 class TenantExecutionModePage extends Component
 {
     use InteractsWithTenantCompanies;

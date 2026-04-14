@@ -12,7 +12,7 @@ use Livewire\Component;
 use Livewire\WithPagination;
 
 #[Layout('layouts.app')]
-#[Title('Treasury Payment Runs')]
+#[Title('Payment Runs')]
 class TreasuryPaymentRunsPage extends Component
 {
     use WithPagination;
