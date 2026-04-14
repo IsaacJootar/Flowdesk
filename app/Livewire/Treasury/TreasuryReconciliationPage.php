@@ -6,6 +6,7 @@ use App\Domains\Company\Models\TenantAuditEvent;
 use App\Domains\Treasury\Models\BankAccount;
 use App\Domains\Treasury\Models\BankStatement;
 use App\Domains\Treasury\Models\BankStatementLine;
+use App\Domains\Treasury\Models\MonoConnectAccount;
 use App\Domains\Treasury\Models\PaymentRun;
 use App\Domains\Treasury\Models\ReconciliationException;
 use App\Models\User;
@@ -14,7 +15,9 @@ use App\Services\AI\TreasuryReconciliationFlowAgentService;
 use App\Services\TenantAuditLogger;
 use App\Services\Treasury\AutoReconcileStatementService;
 use App\Services\Treasury\ImportBankStatementCsvService;
+use App\Services\Treasury\ImportMonoStatementService;
 use App\Services\Treasury\TreasuryControlSettingsService;
+use Illuminate\Support\Carbon;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Gate;
@@ -62,6 +65,8 @@ class TreasuryReconciliationPage extends Component
     public string $resolutionAction = 'resolved';
 
     public string $resolutionNotes = '';
+
+    public int $monoSyncDays = 7;
 
     public bool $flowAgentsEnabled = false;
 
@@ -298,6 +303,39 @@ class TreasuryReconciliationPage extends Component
             'Statement imported. Added %d line(s), skipped %d duplicate line(s).',
             (int) $result['imported'],
             (int) $result['skipped']
+        ));
+    }
+
+    public function syncMonoStatement(ImportMonoStatementService $importMonoStatementService): void
+    {
+        $user = auth()->user();
+        if (! $user instanceof User || ! $this->canOperateDesk($user)) {
+            $this->setFeedbackError('Only owner/finance can sync Mono statements.');
+
+            return;
+        }
+
+        if (! $this->selectedBankAccountId) {
+            $this->setFeedbackError('Select a bank account before syncing via Mono.');
+
+            return;
+        }
+
+        $days = max(1, min(90, (int) $this->monoSyncDays));
+
+        $result = $importMonoStatementService->sync(
+            actor: $user,
+            bankAccountId: (int) $this->selectedBankAccountId,
+            from: Carbon::now()->subDays($days)->startOfDay(),
+            to: Carbon::now()->endOfDay(),
+        );
+
+        $this->selectedStatementId = (int) $result['statement']->id;
+
+        $this->setFeedback(sprintf(
+            'Mono sync complete. Imported %d line(s), skipped %d duplicate(s).',
+            (int) $result['imported'],
+            (int) $result['skipped'],
         ));
     }
 
@@ -621,6 +659,15 @@ class TreasuryReconciliationPage extends Component
             'closing_balance' => (int) ($activeStatement?->closing_balance ?? 0),
         ];
 
+        $activeMonoAccount = ($this->readyToLoad && $this->selectedBankAccountId)
+            ? MonoConnectAccount::query()
+                ->where('company_id', $companyId)
+                ->where('bank_account_id', (int) $this->selectedBankAccountId)
+                ->where('is_active', true)
+                ->whereNull('deleted_at')
+                ->first()
+            : null;
+
         $closeDayChecklist = $this->buildCloseDayChecklist(
             activeStatement: $activeStatement,
             latestAutoRun: $latestAutoRun,
@@ -645,6 +692,7 @@ class TreasuryReconciliationPage extends Component
             'makerCheckerRequired' => $makerCheckerRequired,
             'flowAgentsEnabled' => $this->flowAgentsEnabled,
             'flowAgentsAdvisoryOnly' => $this->flowAgentsAdvisoryOnly,
+            'activeMonoAccount' => $activeMonoAccount,
             'canOperate' => auth()->check() && $this->canOperateDesk(auth()->user()),
             'canResolveExceptions' => auth()->check() && $this->canOperateExceptions(auth()->user()),
         ]);

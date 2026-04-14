@@ -211,26 +211,97 @@
 
     <div class="fd-card p-5">
         <h3 class="text-sm font-semibold text-slate-900">Statement Import and Auto-Reconcile</h3>
-        <p class="mt-1 text-xs text-slate-500">CSV columns: posted_at, direction, amount, optional value_date/description/line_reference/currency_code/balance_after.</p>
 
-        <div class="mt-3 grid gap-3 sm:grid-cols-[1fr,auto,auto]">
-            <input type="file" wire:model="statementFile" accept=".csv,.txt" class="rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-700">
+        @if ($activeMonoAccount)
+            {{-- Mono Connect is linked: primary sync panel --}}
+            <div class="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+                <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <p class="text-xs font-semibold uppercase tracking-[0.12em] text-emerald-700">Mono Connect — Live Bank Feed</p>
+                        <p class="mt-1 text-sm font-medium text-slate-900">{{ $activeMonoAccount->institution_name ?? 'Linked Bank' }} · {{ $activeMonoAccount->account_name ?? 'Account' }}</p>
+                        <p class="text-xs text-slate-500">
+                            Last synced: {{ $activeMonoAccount->last_synced_at ? $activeMonoAccount->last_synced_at->format('M d, Y H:i') : 'Never' }}
+                            @if ($activeMonoAccount->balance_amount)
+                                &nbsp;·&nbsp; Balance: NGN {{ number_format($activeMonoAccount->balance_major, 2) }}
+                            @endif
+                        </p>
+                    </div>
+                    @if ($canOperate)
+                        <div class="flex items-center gap-2">
+                            <label class="inline-flex items-center gap-1.5 text-xs text-slate-600">
+                                <span>Days back</span>
+                                <select wire:model.live="monoSyncDays" class="rounded-lg border-slate-300 text-xs focus:border-slate-500 focus:ring-slate-500">
+                                    <option value="1">1</option>
+                                    <option value="3">3</option>
+                                    <option value="7">7</option>
+                                    <option value="14">14</option>
+                                    <option value="30">30</option>
+                                </select>
+                            </label>
+                            <button type="button" wire:click="syncMonoStatement" wire:loading.attr="disabled" wire:target="syncMonoStatement" class="rounded-lg border border-emerald-600 bg-emerald-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-70">
+                                <span wire:loading.remove wire:target="syncMonoStatement">Sync via Mono</span>
+                                <span wire:loading wire:target="syncMonoStatement">Syncing...</span>
+                            </button>
+                        </div>
+                    @endif
+                </div>
+                @if ($activeMonoAccount->sync_error)
+                    <p class="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs text-amber-700">Last sync error: {{ $activeMonoAccount->sync_error }}</p>
+                @endif
+            </div>
 
+            {{-- CSV as fallback when Mono is linked --}}
+            <div class="mt-4 border-t border-slate-100 pt-4">
+                <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Manual CSV Upload (fallback)</p>
+                <p class="mt-1 text-xs text-slate-400">Use only if Mono sync is unavailable. Columns: posted_at, direction, amount, optional value_date/description/line_reference/currency_code/balance_after.</p>
+                <div class="mt-2 grid gap-3 sm:grid-cols-[1fr,auto]">
+                    <input type="file" wire:model="statementFile" accept=".csv,.txt" class="rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-500">
+                    @if ($canOperate)
+                        <button type="button" wire:click="importStatement" wire:loading.attr="disabled" wire:target="importStatement,statementFile" class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-500 hover:bg-slate-50 disabled:opacity-70">
+                            <span wire:loading.remove wire:target="importStatement,statementFile">Upload CSV</span>
+                            <span wire:loading wire:target="importStatement,statementFile">Uploading...</span>
+                        </button>
+                    @endif
+                </div>
+                @error('statementFile')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+            </div>
+
+            {{-- Auto-reconcile always available --}}
             @if ($canOperate)
-                <button type="button" wire:click="importStatement" wire:loading.attr="disabled" wire:target="importStatement,statementFile" class="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-70">
-                    <span wire:loading.remove wire:target="importStatement,statementFile">Import Statement</span>
-                    <span wire:loading wire:target="importStatement,statementFile">Importing...</span>
-                </button>
-
-                <button type="button" wire:click="runAutoReconcile" wire:loading.attr="disabled" wire:target="runAutoReconcile" class="rounded-lg border border-indigo-300 bg-indigo-50 px-3 py-1.5 text-xs font-medium text-indigo-700 hover:bg-indigo-100 disabled:opacity-70">
-                    <span wire:loading.remove wire:target="runAutoReconcile">Run Auto-Reconcile</span>
-                    <span wire:loading wire:target="runAutoReconcile">Running...</span>
-                </button>
+                <div class="mt-3 flex justify-end">
+                    <button type="button" wire:click="runAutoReconcile" wire:loading.attr="disabled" wire:target="runAutoReconcile" class="rounded-lg border border-indigo-300 bg-indigo-50 px-3 py-1.5 text-xs font-medium text-indigo-700 hover:bg-indigo-100 disabled:opacity-70">
+                        <span wire:loading.remove wire:target="runAutoReconcile">Run Auto-Reconcile</span>
+                        <span wire:loading wire:target="runAutoReconcile">Running...</span>
+                    </button>
+                </div>
             @endif
-        </div>
+        @else
+            {{-- No Mono account linked: CSV is primary, amber nudge to link --}}
+            @if ($selectedBankAccountId)
+                <div class="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+                    <p class="text-xs font-semibold uppercase tracking-[0.12em] text-amber-700">Mono Connect not linked</p>
+                    <p class="mt-1 text-xs text-slate-600">Link this bank account via Mono Connect to enable live transaction sync and eliminate manual CSV uploads. Contact your treasury admin to complete the widget linking flow.</p>
+                </div>
+            @endif
+
+            <p class="mt-3 text-xs text-slate-500">CSV columns: posted_at, direction, amount, optional value_date/description/line_reference/currency_code/balance_after.</p>
+            <div class="mt-2 grid gap-3 sm:grid-cols-[1fr,auto,auto]">
+                <input type="file" wire:model="statementFile" accept=".csv,.txt" class="rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-700">
+                @if ($canOperate)
+                    <button type="button" wire:click="importStatement" wire:loading.attr="disabled" wire:target="importStatement,statementFile" class="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-70">
+                        <span wire:loading.remove wire:target="importStatement,statementFile">Import Statement</span>
+                        <span wire:loading wire:target="importStatement,statementFile">Importing...</span>
+                    </button>
+                    <button type="button" wire:click="runAutoReconcile" wire:loading.attr="disabled" wire:target="runAutoReconcile" class="rounded-lg border border-indigo-300 bg-indigo-50 px-3 py-1.5 text-xs font-medium text-indigo-700 hover:bg-indigo-100 disabled:opacity-70">
+                        <span wire:loading.remove wire:target="runAutoReconcile">Run Auto-Reconcile</span>
+                        <span wire:loading wire:target="runAutoReconcile">Running...</span>
+                    </button>
+                @endif
+            </div>
+            @error('statementFile')<p class="mt-2 text-xs text-red-600">{{ $message }}</p>@enderror
+        @endif
 
         @error('selectedBankAccountId')<p class="mt-2 text-xs text-red-600">{{ $message }}</p>@enderror
-        @error('statementFile')<p class="mt-2 text-xs text-red-600">{{ $message }}</p>@enderror
     </div>
 
     <div class="fd-card overflow-hidden">

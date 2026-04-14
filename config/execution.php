@@ -4,6 +4,9 @@ use App\Services\Execution\Adapters\FlutterwavePayoutExecutionAdapter;
 use App\Services\Execution\Adapters\FlutterwaveSubscriptionBillingAdapter;
 use App\Services\Execution\Adapters\FlutterwaveWebhookVerifier;
 use App\Services\Execution\Adapters\ManualOpsWebhookVerifier;
+use App\Services\Execution\Adapters\MonoPayoutExecutionAdapter;
+use App\Services\Execution\Adapters\MonoSubscriptionBillingAdapter;
+use App\Services\Execution\Adapters\MonoWebhookVerifier;
 use App\Services\Execution\Adapters\NullPayoutExecutionAdapter;
 use App\Services\Execution\Adapters\NullProviderWebhookVerifier;
 use App\Services\Execution\Adapters\NullSubscriptionBillingAdapter;
@@ -63,6 +66,25 @@ return [
             'sandbox_secret_key' => env('FLOWDESK_FLUTTERWAVE_SANDBOX_SECRET_KEY', ''),
             'sandbox_webhook_secret_hash' => env('FLOWDESK_FLUTTERWAVE_SANDBOX_WEBHOOK_SECRET_HASH', ''),
             'redirect_url' => env('FLOWDESK_FLUTTERWAVE_REDIRECT_URL', ''),
+        ],
+
+        // Mono — Open Banking + Disbursements + DirectPay
+        // Payouts:        POST /v2/disbursements  (major-unit NGN amounts, built-in account verification)
+        // Billing:        POST /v1/payments/initiate  (DirectPay — mandate-based bank debit, no card needed)
+        // Connect:        GET  /v2/accounts/{id}/transactions  (live bank feed, replaces CSV import)
+        // Account lookup: POST /v1/lookup/account-number  (pre-payout verification)
+        // Webhook header: mono-webhook-secret (HMAC-SHA512)
+        'mono' => [
+            'subscription_billing_adapter' => MonoSubscriptionBillingAdapter::class,
+            'payout_execution_adapter'     => MonoPayoutExecutionAdapter::class,
+            'webhook_verifier'             => MonoWebhookVerifier::class,
+            'base_url'                     => env('FLOWDESK_MONO_BASE_URL', 'https://api.withmono.com'),
+            'secret_key'                   => env('FLOWDESK_MONO_SECRET_KEY', ''),
+            'webhook_secret'               => env('FLOWDESK_MONO_WEBHOOK_SECRET', ''),
+            'sandbox_base_url'             => env('FLOWDESK_MONO_SANDBOX_BASE_URL', 'https://api.withmono.com'),
+            'sandbox_secret_key'           => env('FLOWDESK_MONO_SANDBOX_SECRET_KEY', ''),
+            'sandbox_webhook_secret'       => env('FLOWDESK_MONO_SANDBOX_WEBHOOK_SECRET', ''),
+            'redirect_url'                 => env('FLOWDESK_MONO_REDIRECT_URL', ''),
         ],
     ],
 
