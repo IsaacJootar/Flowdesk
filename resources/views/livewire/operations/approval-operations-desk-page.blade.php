@@ -4,7 +4,7 @@
             <div>
                 <a href="{{ route('operations.control-desk') }}" class="inline-flex items-center gap-1 rounded-lg border border-indigo-200 bg-white px-2.5 py-1 text-xs font-semibold text-indigo-700 hover:bg-indigo-100">&larr; Back to Operations Desks</a>
                 <p class="mt-3 text-xs font-semibold uppercase tracking-[0.14em] text-indigo-700">Desk 1</p>
-                <h2 class="mt-1 text-xl font-semibold text-slate-900">Approval Operations Desk</h2>
+                <h2 class="mt-1 text-xl font-semibold text-slate-900">Approvals Overview</h2>
                 <p class="mt-1 text-sm text-slate-700">One execution page for pending approvals, overdue SLA items, and returned requests.</p>
             </div>
             <div class="flex flex-wrap gap-2">

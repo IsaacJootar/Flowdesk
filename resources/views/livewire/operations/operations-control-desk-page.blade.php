@@ -13,7 +13,7 @@
         <div class="flex flex-wrap items-start justify-between gap-3">
             <div>
                 <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Operations Overview</p>
-                <h2 class="mt-1 text-xl font-semibold text-slate-900">Operations Desks</h2>
+                <h2 class="mt-1 text-xl font-semibold text-slate-900">Operations Overview</h2>
                 <p class="mt-1 text-sm text-slate-600">Choose a dedicated desk for approvals, vendor payables, or period-close readiness.</p>
             </div>
             <div class="flex flex-wrap gap-2">

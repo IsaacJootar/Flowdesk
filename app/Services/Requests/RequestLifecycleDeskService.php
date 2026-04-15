@@ -29,10 +29,10 @@ class RequestLifecycleDeskService
         $closedOutcomes = $this->closedOutcomeLane($user, $search);
 
         $workload = $this->buildWorkloadSummary([
-            ['key' => 'approved_need_po', 'label' => 'Approved (Need PO)', 'count' => $approvedNeedPo['count'], 'tone' => 'amber'],
-            ['key' => 'po_match_followup', 'label' => 'PO / Match Follow-up', 'count' => $procurementFollowUp['count'], 'tone' => 'indigo'],
-            ['key' => 'waiting_dispatch', 'label' => 'Waiting Payout Dispatch', 'count' => $readyForDispatch['count'], 'tone' => 'emerald'],
-            ['key' => 'execution_active_retry', 'label' => 'Execution Active / Retry', 'count' => $executionActive['count'], 'tone' => 'rose'],
+            ['key' => 'approved_need_po', 'label' => 'No PO Yet', 'count' => $approvedNeedPo['count'], 'tone' => 'amber'],
+            ['key' => 'po_match_followup', 'label' => 'PO in Progress', 'count' => $procurementFollowUp['count'], 'tone' => 'indigo'],
+            ['key' => 'waiting_dispatch', 'label' => 'Ready to Pay', 'count' => $readyForDispatch['count'], 'tone' => 'emerald'],
+            ['key' => 'execution_active_retry', 'label' => 'Payment In Progress', 'count' => $executionActive['count'], 'tone' => 'rose'],
         ]);
 
         return [
@@ -98,9 +98,9 @@ class RequestLifecycleDeskService
                         strtoupper((string) ($request->currency ?: 'NGN')),
                         number_format((int) ($request->approved_amount ?: $request->amount ?: 0))
                     ),
-                    'status' => 'Approved - Need PO',
-                    'context' => 'Convert approved request to PO before procurement/match control can continue.',
-                    'next_action_label' => 'Convert to PO',
+                    'status' => 'Approved — No PO Yet',
+                    'context' => 'Create a Purchase Order to move this request forward.',
+                    'next_action_label' => 'Create Purchase Order',
                     'next_action_url' => route('requests.index', ['open_request_id' => (int) $request->id]),
                     'next_action_tone' => 'amber',
                 ];
@@ -164,11 +164,11 @@ class RequestLifecycleDeskService
                         (string) ($latestPo?->po_number ?? 'N/A'),
                         (string) ($request->requester?->name ?? 'Requester')
                     ),
-                    'status' => $isBlocked ? 'Exception to Resolve' : 'Waiting for Procurement Progress',
+                    'status' => $isBlocked ? 'Invoice Mismatch' : 'Purchase Order in Progress',
                     'context' => $isBlocked
-                        ? ($blockReason !== '' ? $blockReason : 'Procurement gate blocked payout. Resolve exceptions and retry.')
-                        : 'PO exists but request is not yet payout-dispatch ready.',
-                    'next_action_label' => $isBlocked ? 'Resolve Exception' : 'Open Procurement',
+                        ? ($blockReason !== '' ? $blockReason : 'An invoice mismatch is blocking payment. Fix it to continue.')
+                        : 'Purchase Order exists. Waiting for delivery confirmation and invoice match.',
+                    'next_action_label' => $isBlocked ? 'Fix Mismatch' : 'View Purchase Order',
                     'next_action_url' => $isBlocked
                         ? route('procurement.match-exceptions', ['search' => (string) $request->request_code])
                         : route('procurement.release-desk', ['search' => (string) $request->request_code]),
@@ -242,11 +242,11 @@ class RequestLifecycleDeskService
                         (string) ($request->requester?->name ?? 'Requester'),
                         $this->finalApproverName($request)
                     ),
-                    'status' => 'Ready for Payout Dispatch',
+                    'status' => 'Ready to Pay',
                     'context' => $canOpenPayoutQueue
-                        ? 'All approvals done. Dispatch payout from the execution queue.'
-                        : 'All approvals done. Payout queue is restricted for your role. Open request to monitor status.',
-                    'next_action_label' => $canOpenPayoutQueue ? 'Run Payout' : 'Open Request',
+                        ? 'All approvals done. Send the payment from the payments queue.'
+                        : 'All approvals done. Your role cannot send payments — open the request to monitor progress.',
+                    'next_action_label' => $canOpenPayoutQueue ? 'Send Payment' : 'Open Request',
                     'next_action_url' => $canOpenPayoutQueue
                         ? route('execution.payout-ready', ['search' => (string) $request->request_code])
                         : route('requests.index', ['open_request_id' => (int) $request->id]),
@@ -311,14 +311,14 @@ class RequestLifecycleDeskService
                     ),
                     'status' => ucwords(str_replace('_', ' ', (string) $request->status)),
                     'context' => $isFailed
-                        ? ($attemptError !== '' ? 'Failed: '.$attemptError : ($canOpenPayoutQueue
-                            ? 'Failed execution. Check provider/config/state and rerun.'
-                            : 'Failed execution. Payout rerun is restricted for your role; notify finance/owner.'))
+                        ? ($attemptError !== '' ? 'Payment failed: '.$attemptError : ($canOpenPayoutQueue
+                            ? 'Payment failed. Review the error and retry.'
+                            : 'Payment failed. Your role cannot retry — notify your finance team.'))
                         : ($canOpenPayoutQueue
-                            ? 'Execution is in progress; re-check queue for latest state.'
-                            : 'Execution is in progress. Payout queue is restricted for your role; open request to monitor status.'),
+                            ? 'Payment is being processed. Check the queue for the latest status.'
+                            : 'Payment is being processed. Your role cannot send payments — open the request to monitor progress.'),
                     'next_action_label' => $canOpenPayoutQueue
-                        ? ($isFailed ? 'Rerun Payout' : 'Re-check Queue')
+                        ? ($isFailed ? 'Retry Payment' : 'Check Queue')
                         : 'Open Request',
                     'next_action_url' => $canOpenPayoutQueue
                         ? route('execution.payout-ready', ['search' => (string) $request->request_code])
@@ -379,8 +379,8 @@ class RequestLifecycleDeskService
                     ),
                     'status' => ucwords(str_replace('_', ' ', $status)),
                     'context' => $status === 'settled'
-                        ? 'Payout settled; request left waiting queue.'
-                        : 'Payout reversed; review incident history if follow-up is required.',
+                        ? 'Payment was sent successfully.'
+                        : 'Payment was reversed. Open the request for details.',
                     'next_action_label' => 'Open Request',
                     'next_action_url' => route('requests.index', ['open_request_id' => (int) $request->id]),
                     'next_action_tone' => $status === 'settled' ? 'emerald' : 'amber',

@@ -55,7 +55,7 @@
         <div class="flex flex-wrap items-start justify-between gap-3">
             <div>
                 <span class="inline-flex items-center rounded-full border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-indigo-700">
-                    Payments Rails Integration
+                    Payment Provider Settings
                 </span>
                 <h2 class="mt-2 text-base font-semibold text-slate-900">Payments Rail Controls</h2>
                 <p class="mt-1 text-sm text-slate-600">

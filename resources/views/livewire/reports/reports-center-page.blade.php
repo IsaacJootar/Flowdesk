@@ -2,7 +2,7 @@
     <div class="fd-card p-5">
         <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div>
-                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Unified Reports Center</p>
+                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Unified Reports</p>
                 <p class="mt-1 text-sm text-slate-600">Monitor requests, expenses, vendors, procurement, treasury, assets, and budgets from one reporting surface.</p>
             </div>
             <div class="flex flex-wrap items-center gap-2">

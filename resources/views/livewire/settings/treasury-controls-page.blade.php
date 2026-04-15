@@ -110,7 +110,7 @@
 
                 <label class="mt-3 inline-flex items-center gap-2 text-sm text-slate-700">
                     <input type="checkbox" wire:model.defer="controlsForm.exception_action_requires_maker_checker" class="rounded border-slate-300 text-slate-700 focus:ring-slate-500">
-                    Require maker-checker for treasury issue closure actions
+                    Require two-person sign-off for treasury issue closure actions
                 </label>
             </div>
 

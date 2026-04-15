@@ -14,7 +14,7 @@
             <div>
                 <a href="{{ route('operations.control-desk') }}" class="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-white px-2.5 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-100">&larr; Back to Operations Overview</a>
                 <p class="mt-3 text-xs font-semibold uppercase tracking-[0.14em] text-rose-700">Desk 3</p>
-                <h2 class="mt-1 text-xl font-semibold text-slate-900">Period Close Desk</h2>
+                <h2 class="mt-1 text-xl font-semibold text-slate-900">Month-End Month-End Close</h2>
                 <p class="mt-1 text-sm text-slate-700">One page for month-end readiness checks across treasury, procurement, payout retries, and audit flags.</p>
             </div>
             <div class="flex flex-wrap gap-2">
@@ -65,7 +65,7 @@
 
         <section class="fd-card border border-slate-200 bg-slate-50 p-4">
             <div class="mb-3">
-                <h3 class="text-sm font-semibold text-slate-900">Period Close Checklist (One Action Per Row)</h3>
+                <h3 class="text-sm font-semibold text-slate-900">Month-End Close Checklist (One Action Per Row)</h3>
                 <p class="text-xs text-slate-500">Use this desk before close signoff to remove unresolved operations blockers.</p>
             </div>
             <div class="overflow-x-auto">

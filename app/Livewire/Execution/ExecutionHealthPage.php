@@ -172,7 +172,7 @@ class ExecutionHealthPage extends Component
         } elseif (($affectedBillings + $affectedPayouts) > 0) {
             $statusLabel = 'Delayed';
             $statusTone = 'delayed';
-            $nextAction = 'Open Execution & Payouts to run recovery or retry affected records.';
+            $nextAction = 'Some payments are queued but have not gone through yet. Use the button to review them and retry as needed.';
         }
 
         return [

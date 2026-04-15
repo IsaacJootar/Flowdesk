@@ -29,17 +29,14 @@
         <div>
             <h2 class="text-base font-semibold text-slate-900">Procurement Match Issues</h2>
             <p class="text-xs text-slate-500">Review 3-way match failures and apply controlled resolution actions.</p>
-            <p class="mt-1 text-xs text-slate-500">Action roles: {{ implode(', ', (array) $matchActionAllowedRoles) }}.</p>
+            <p class="mt-1 text-xs text-slate-500">Who can take action: {{ implode(', ', (array) $matchActionAllowedRoles) }}.</p>
             @if ($flowAgentsEnabled)
                 <p class="mt-1 text-xs text-sky-700">
-                    <span class="font-semibold">Flow Agent:</span> use <span class="font-semibold">Use Flow Agent</span> for `why blocked` and `next action` guidance.
-                    @if ($flowAgentsAdvisoryOnly)
-                        Advisory mode is active.
-                    @endif
+                    <span class="font-semibold">Flow Agent available:</span> click <span class="font-semibold">Use Flow Agent</span> on any row for risk analysis and a recommended next step.@if ($flowAgentsAdvisoryOnly) Advisory mode only.@endif
                 </p>
             @endif
             @if ($makerCheckerRequired)
-                <p class="text-xs text-amber-700">Maker-checker is enabled: the user who generated the mismatch cannot close it.</p>
+                <p class="text-xs text-amber-700">Two-person sign-off is on: you cannot close a mismatch you raised yourself.</p>
             @endif
         </div>
         <a href="{{ route('procurement.release-desk') }}" class="inline-flex items-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100">
@@ -118,7 +115,6 @@
                             <th class="px-4 py-3 text-left font-semibold">Details</th>
                             <th class="px-4 py-3 text-left font-semibold">Match</th>
                             <th class="px-4 py-3 text-left font-semibold">Status</th>
-                            <th class="px-4 py-3 text-left font-semibold">Flow Agent</th>
                             <th class="px-4 py-3 text-right font-semibold">Action</th>
                         </tr>
                     </thead>
@@ -131,14 +127,6 @@
                                     'waived' => 'bg-amber-100 text-amber-700',
                                     default => 'bg-slate-100 text-slate-700',
                                 };
-                                $insight = $flowAgentInsights[(int) $exception->id] ?? null;
-                                $riskLevel = strtolower((string) ($insight['risk_level'] ?? ''));
-                                $riskClass = match ($riskLevel) {
-                                    'high' => 'border-rose-200 bg-rose-50 text-rose-700',
-                                    'medium' => 'border-amber-200 bg-amber-50 text-amber-700',
-                                    'low' => 'border-emerald-200 bg-emerald-50 text-emerald-700',
-                                    default => 'border-slate-200 bg-slate-50 text-slate-600',
-                                };
                             @endphp
                             <tr class="hover:bg-slate-50">
                                 <td class="px-4 py-3">
@@ -150,8 +138,37 @@
                                     <p class="text-xs text-slate-500">Invoice: {{ $exception->invoice?->invoice_number ?? '-' }}</p>
                                 </td>
                                 <td class="px-4 py-3 text-slate-600">
-                                    <p>{{ $exception->details ?: '-' }}</p>
-                                    <p class="text-xs text-slate-500">Next: {{ (string) data_get((array) $exception->metadata, 'next_action', '-') }}</p>
+                                    @php
+                                        $exCode = strtolower((string) $exception->exception_code);
+                                        $matchInputs = (array) data_get((array) ($exception->matchResult?->metadata ?? []), 'inputs', []);
+                                        $excCurrency = strtoupper((string) ($exception->invoice?->currency ?: 'NGN'));
+                                        $excPoAmt = isset($matchInputs['po_amount']) ? (int) $matchInputs['po_amount'] : null;
+                                        $excInvAmt = isset($matchInputs['invoice_amount']) ? (int) $matchInputs['invoice_amount'] : null;
+                                        $excDiff = ($excPoAmt !== null && $excInvAmt !== null) ? abs($excInvAmt - $excPoAmt) : null;
+                                        $excOrdQty = isset($matchInputs['ordered_quantity']) ? (float) $matchInputs['ordered_quantity'] : null;
+                                        $excRecvQty = isset($matchInputs['received_quantity']) ? (float) $matchInputs['received_quantity'] : null;
+                                    @endphp
+                                    @if ($exCode === 'amount_mismatch' && $excPoAmt !== null && $excInvAmt !== null)
+                                        <div class="space-y-0.5 text-xs">
+                                            <p>PO: <span class="font-semibold text-slate-800">{{ $excCurrency }} {{ number_format($excPoAmt) }}</span></p>
+                                            <p>Invoice: <span class="font-semibold {{ $excInvAmt > $excPoAmt ? 'text-rose-700' : 'text-amber-700' }}">{{ $excCurrency }} {{ number_format($excInvAmt) }}</span></p>
+                                            <p class="font-semibold {{ $excInvAmt > $excPoAmt ? 'text-rose-700' : 'text-amber-700' }}">Diff: {{ $excCurrency }} {{ number_format($excDiff) }} {{ $excInvAmt > $excPoAmt ? 'over' : 'under' }}</p>
+                                        </div>
+                                    @elseif ($exCode === 'quantity_mismatch' && $excOrdQty !== null && $excRecvQty !== null)
+                                        <div class="space-y-0.5 text-xs">
+                                            <p>Ordered: <span class="font-semibold text-slate-800">{{ number_format($excOrdQty, 2) }}</span></p>
+                                            <p>Received: <span class="font-semibold {{ $excRecvQty < $excOrdQty ? 'text-amber-700' : 'text-slate-800' }}">{{ number_format($excRecvQty, 2) }}</span></p>
+                                            @if ($excOrdQty > 0)
+                                                <p class="font-semibold text-amber-700">Gap: {{ number_format(abs($excOrdQty - $excRecvQty), 2) }} units</p>
+                                            @endif
+                                        </div>
+                                    @else
+                                        <p class="text-xs">{{ $exception->details ?: '-' }}</p>
+                                    @endif
+                                    @php $nextAction = (string) data_get((array) $exception->metadata, 'next_action', ''); @endphp
+                                    @if ($nextAction !== '')
+                                        <p class="mt-1 text-[11px] text-slate-500">{{ $nextAction }}</p>
+                                    @endif
                                 </td>
                                 <td class="px-4 py-3 text-slate-600">
                                     <p>Status: {{ ucfirst((string) ($exception->matchResult?->match_status ?? 'pending')) }}</p>
@@ -162,22 +179,13 @@
                                         {{ ucfirst(str_replace('_', ' ', (string) $exception->exception_status)) }}
                                     </span>
                                 </td>
-                                <td class="px-4 py-3 text-slate-600">
-                                    @if (is_array($insight))
-                                        <span class="inline-flex rounded-full border px-2 py-0.5 text-xs font-semibold {{ $riskClass }}">
-                                            {{ ucfirst((string) ($insight['risk_level'] ?? 'low')) }} risk
-                                        </span>
-                                        <p class="mt-1 text-xs text-slate-600">{{ (string) ($insight['why_blocked'] ?? '-') }}</p>
-                                        <p class="mt-1 text-[11px] text-slate-500">Next: {{ (string) ($insight['next_action'] ?? '-') }}</p>
-                                    @elseif (! $flowAgentsEnabled)
-                                        <span class="text-xs text-slate-400">AI disabled for organization</span>
-                                    @else
-                                        <span class="text-xs text-slate-400">Not analyzed</span>
-                                    @endif
-                                </td>
                                 <td class="px-4 py-3 text-right">
                                     @if ((string) $exception->exception_status === 'open' || $flowAgentsEnabled)
                                         <div class="inline-flex items-center gap-2">
+                                            @if ((string) $exception->exception_status === 'open')
+                                                <button type="button" wire:click="openResolutionModal({{ $exception->id }}, 'resolved')" class="rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100">Resolve</button>
+                                                <button type="button" wire:click="openResolutionModal({{ $exception->id }}, 'waived')" class="rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700 hover:bg-amber-100">Waive</button>
+                                            @endif
                                             @if ($flowAgentsEnabled)
                                                 <button
                                                     type="button"
@@ -200,10 +208,6 @@
                                                     <span wire:loading wire:target="analyzeExceptionWithFlowAgent({{ (int) $exception->id }})">Analyzing...</span>
                                                 </button>
                                             @endif
-                                            @if ((string) $exception->exception_status === 'open')
-                                                <button type="button" wire:click="openResolutionModal({{ $exception->id }}, 'resolved')" class="rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100">Resolve</button>
-                                                <button type="button" wire:click="openResolutionModal({{ $exception->id }}, 'waived')" class="rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700 hover:bg-amber-100">Waive</button>
-                                            @endif
                                         </div>
                                     @else
                                         <span class="text-xs text-slate-500">Closed</span>
@@ -212,7 +216,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="7" class="px-4 py-10 text-center text-sm text-slate-500">No procurement match issues found for the selected filters.</td>
+                                <td colspan="6" class="px-4 py-10 text-center text-sm text-slate-500">No procurement match issues found for the selected filters.</td>
                             </tr>
                         @endforelse
                     </tbody>

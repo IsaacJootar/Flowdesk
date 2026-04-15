@@ -43,7 +43,7 @@
                     </td>
                 </tr>
             @empty
-                <tr><td colspan="4" class="px-3 py-8 text-center text-sm text-slate-500">No rows in this lane for current scope/filter.</td></tr>
+                <tr><td colspan="4" class="px-3 py-8 text-center text-sm text-slate-500">Nothing here right now.</td></tr>
             @endforelse
         </tbody>
     </table>

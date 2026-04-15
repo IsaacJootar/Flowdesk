@@ -143,7 +143,7 @@ class ProcurementMatchExceptionsPage extends Component
             ->with([
                 'order:id,po_number',
                 'invoice:id,invoice_number,total_amount,currency',
-                'matchResult:id,match_status,match_score',
+                'matchResult:id,match_status,match_score,metadata',
             ])
             ->where('company_id', (int) $user->company_id)
             ->whereKey($exceptionId)
@@ -173,7 +173,9 @@ class ProcurementMatchExceptionsPage extends Component
             ],
         );
 
-        $this->setFeedback('Flow Agent analyzed '.strtoupper((string) $exception->exception_code).': '.ucfirst((string) ($insight['risk_level'] ?? 'low')).' risk.');
+        $mismatchLabel = trim((string) ($insight['mismatch_label'] ?? ''));
+        $toastSuffix = $mismatchLabel !== '' ? ' — '.$mismatchLabel.'.' : '.';
+        $this->setFeedback('Flow Agent analyzed '.strtoupper((string) $exception->exception_code).': '.ucfirst((string) ($insight['risk_level'] ?? 'low')).' risk'.$toastSuffix);
     }
 
     /**
@@ -332,7 +334,7 @@ class ProcurementMatchExceptionsPage extends Component
             ->with([
                 'order:id,po_number',
                 'invoice:id,invoice_number,total_amount,currency',
-                'matchResult:id,match_status,match_score',
+                'matchResult:id,match_status,match_score,metadata',
             ])
             ->where('company_id', $companyId)
             ->when($this->search !== '', function ($builder): void {

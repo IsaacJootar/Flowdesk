@@ -4,7 +4,11 @@
         title="Spend Requests"
         description="This is where your team submits requests for company funds — travel, vendor payments, reimbursements, and one-off purchases."
         :bullets="[
-            Submitted
+            'Submit a new request and it goes straight to the right approver.',
+            'Track every request from submitted to paid — all in one list.',
+            'Approvers get notified automatically; no chasing required.',
+        ]"
+    />
     <div
         class="pointer-events-none fixed z-[95] space-y-2"
         style="right: 16px; top: 72px; width: 320px; max-width: calc(100vw - 24px);"
@@ -48,7 +52,7 @@
 </div>
 
     <div class="fd-card p-5">
-        <div class="grid gap-3 lg:grid-cols-5">
+        <div class="grid gap-3 lg:grid-cols-6">
             <label class="block lg:col-span-2">
                 <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Search</span>
                 <input
@@ -87,6 +91,15 @@
                     @foreach ($requestTypes as $type)
                         <option value="{{ $type->code }}">{{ $type->name }}</option>
                     @endforeach
+                </select>
+            </label>
+
+            <label class="block">
+                <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Purchase Order</span>
+                <select wire:model.live="poFilter" class="w-full rounded-xl border-slate-300 text-sm focus:border-slate-500 focus:ring-slate-500">
+                    <option value="all">All requests</option>
+                    <option value="with_po">Has a Purchase Order</option>
+                    <option value="without_po">No Purchase Order yet</option>
                 </select>
             </label>
         </div>
@@ -142,7 +155,7 @@
                             <path d="M4 12h16"></path>
                             <path d="M4 18h16"></path>
                         </svg>
-                        <span>Lifecycle Desk</span>
+                        <span>Progress Desk</span>
                     </a>
                     @can('create', \App\Domains\Requests\Models\SpendRequest::class)
                         <button
@@ -225,7 +238,7 @@
                 @endfor
             </div>
         @else
-            <div wire:loading.flex wire:target="search,statusFilter,typeFilter,departmentFilter,scopeFilter,dateFrom,dateTo,perPage,gotoPage,previousPage,nextPage" class="border-b border-slate-200 px-4 py-3 text-sm text-slate-500">
+            <div wire:loading.flex wire:target="search,statusFilter,typeFilter,departmentFilter,scopeFilter,poFilter,dateFrom,dateTo,perPage,gotoPage,previousPage,nextPage" class="border-b border-slate-200 px-4 py-3 text-sm text-slate-500">
                 Loading requests...
             </div>
 
@@ -308,6 +321,9 @@
                                 <td class="px-4 py-3 text-slate-600">
                                     <p class="font-medium text-slate-800">{{ strtoupper($request->currency) }} {{ number_format((int) $request->amount) }}</p>
                                     <p class="text-xs text-slate-500">{{ $request->items_count }} item(s)</p>
+                                    @if (($request->purchase_orders_count ?? 0) > 0)
+                                        <span class="mt-1 inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">PO Created</span>
+                                    @endif
                                 </td>
                                 <td class="px-4 py-3">
                                     <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold {{ $statusClass }}">
@@ -1241,46 +1257,48 @@
 
                         <div class="rounded-xl border border-slate-200 p-4">
                             <div class="mb-2 flex items-center justify-between gap-2">
-                                <p class="text-sm font-semibold text-slate-800">Expense Handoff</p>
+                                <p class="text-sm font-semibold text-slate-800">Expense Record</p>
                                 @if ($selectedRequest['linked_expense'])
-                                    <span class="inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">Linked</span>
+                                    <span class="inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">Recorded</span>
                                 @else
-                                    <span class="inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-700">Not linked</span>
+                                    <span class="inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-700">Not recorded yet</span>
                                 @endif
                             </div>
 
                             @if ($selectedRequest['linked_expense'])
                                 <p class="text-xs text-slate-600">
-                                    Expense {{ $selectedRequest['linked_expense']['expense_code'] }} |
-                                    {{ $selectedRequest['linked_expense']['currency'] }} {{ number_format((int) $selectedRequest['linked_expense']['amount']) }} |
+                                    {{ $selectedRequest['linked_expense']['expense_code'] }} &mdash;
+                                    {{ $selectedRequest['linked_expense']['currency'] }} {{ number_format((int) $selectedRequest['linked_expense']['amount']) }} &mdash;
                                     {{ ucfirst((string) $selectedRequest['linked_expense']['status']) }}
                                     @if (! empty($selectedRequest['linked_expense']['expense_date']))
-                                        | {{ $selectedRequest['linked_expense']['expense_date'] }}
+                                        &mdash; {{ $selectedRequest['linked_expense']['expense_date'] }}
                                     @endif
                                 </p>
                             @else
-                                <p class="text-xs text-slate-600">Create a posted expense record from this approved request with immutable linkage.</p>
+                                <p class="text-xs text-slate-600">Log this approved request as an expense so it appears in your expense reports and spend history.</p>
                             @endif
                         </div>
 
                         <div class="rounded-xl border border-slate-200 p-4">
                             <div class="mb-2 flex items-center justify-between gap-2">
-                                <p class="text-sm font-semibold text-slate-800">Procurement Handoff</p>
+                                <p class="text-sm font-semibold text-slate-800">Purchase Order</p>
                                 @if ($selectedRequest['linked_purchase_order'])
-                                    <span class="inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">Linked</span>
+                                    <span class="inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">Created</span>
                                 @else
-                                    <span class="inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-700">Not linked</span>
+                                    <span class="inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700">Not created yet</span>
                                 @endif
                             </div>
 
                             @if ($selectedRequest['linked_purchase_order'])
                                 <p class="text-xs text-slate-600">
-                                    PO {{ $selectedRequest['linked_purchase_order']['po_number'] }} |
-                                    {{ $selectedRequest['linked_purchase_order']['currency'] }} {{ number_format((int) $selectedRequest['linked_purchase_order']['amount']) }} |
+                                    <a href="{{ route('procurement.orders', ['search' => $selectedRequest['linked_purchase_order']['po_number']]) }}" class="font-semibold text-indigo-700 hover:underline">{{ $selectedRequest['linked_purchase_order']['po_number'] }}</a>
+                                    &mdash;
+                                    {{ $selectedRequest['linked_purchase_order']['currency'] }} {{ number_format((int) $selectedRequest['linked_purchase_order']['amount']) }} &mdash;
                                     {{ ucfirst(str_replace('_', ' ', (string) $selectedRequest['linked_purchase_order']['status'])) }}
                                 </p>
+                                <p class="mt-1.5 text-xs text-slate-500">Click the PO number above to open it in the Purchase Orders page.</p>
                             @else
-                                <p class="text-xs text-slate-600">Convert approved request to procurement order for pre-payment control and commitment posting.</p>
+                                <p class="text-xs text-slate-600">A Purchase Order is a formal document sent to the vendor that locks in what you are buying and at what price. It must be created before payment can be sent.</p>
                                 @if (! empty($selectedRequest['convert_to_po_blocker']))
                                     <p class="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-2 text-xs text-amber-700">
                                         {{ $selectedRequest['convert_to_po_blocker'] }}
@@ -1291,7 +1309,7 @@
 
                         @if (! empty($selectedRequest['mandatory_po_policy_message']))
                             <div class="rounded-xl border border-amber-200 bg-amber-50 p-4">
-                                <p class="text-sm font-semibold text-amber-800">Mandatory PO Policy</p>
+                                <p class="text-sm font-semibold text-amber-800">Purchase Order Required</p>
                                 <p class="mt-1 text-xs text-amber-700">{{ $selectedRequest['mandatory_po_policy_message'] }}</p>
                             </div>
                         @endif
@@ -1530,19 +1548,23 @@
                         @endif
                         @if ($selectedRequest['can_convert_to_po'])
                             <button type="button" wire:click="convertSelectedRequestToPurchaseOrder" wire:loading.attr="disabled" wire:target="convertSelectedRequestToPurchaseOrder" class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-700 hover:bg-amber-100 disabled:opacity-70">
-                                <span wire:loading.remove wire:target="convertSelectedRequestToPurchaseOrder">Convert to PO</span>
-                                <span wire:loading wire:target="convertSelectedRequestToPurchaseOrder">Converting...</span>
+                                <span wire:loading.remove wire:target="convertSelectedRequestToPurchaseOrder">Create Purchase Order</span>
+                                <span wire:loading wire:target="convertSelectedRequestToPurchaseOrder">Creating...</span>
                             </button>
                         @elseif ($selectedRequest['linked_purchase_order'])
-                            <div class="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700" title="Request already converted to procurement order">
-                                <span>PO Linked</span>
+                            <a href="{{ route('procurement.orders', ['search' => $selectedRequest['linked_purchase_order']['po_number']]) }}" class="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-100" title="Open this Purchase Order">
+                                <span>Purchase Order Created</span>
                                 <span class="rounded-full border border-emerald-200 bg-white px-2 py-0.5 text-xs font-semibold text-emerald-700">
                                     {{ $selectedRequest['linked_purchase_order']['po_number'] }}
                                 </span>
-                            </div>
+                                <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                    <path d="M5 12h14"></path>
+                                    <path d="m12 5 7 7-7 7"></path>
+                                </svg>
+                            </a>
                         @else
                             <button type="button" disabled class="cursor-not-allowed rounded-xl border border-slate-200 bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-400">
-                                Convert to PO
+                                Create Purchase Order
                             </button>
                         @endif
                         @if ($selectedRequest['can_create_expense'])

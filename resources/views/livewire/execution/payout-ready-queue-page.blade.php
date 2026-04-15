@@ -13,7 +13,7 @@
         <div class="flex flex-wrap items-start justify-between gap-3">
             <div>
                 <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Payments Ready to Send</p>
-                <h2 class="mt-1 text-xl font-semibold text-slate-900">Payout Ready Queue</h2>
+                <h2 class="mt-1 text-xl font-semibold text-slate-900">Payments Ready to Send</h2>
                 <p class="mt-1 text-sm text-slate-600">Single workspace for requests that are approved and waiting for payout execution.</p>
             </div>
 

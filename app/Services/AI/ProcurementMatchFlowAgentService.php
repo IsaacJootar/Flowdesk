@@ -18,6 +18,7 @@ class ProcurementMatchFlowAgentService
      *   top_risk:string,
      *   next_action:string,
      *   summary:string,
+     *   mismatch_label:string,
      *   signals:array<int,string>,
      *   engine:string,
      *   generated_at:string
@@ -25,7 +26,11 @@ class ProcurementMatchFlowAgentService
      */
     public function analyze(InvoiceMatchException $exception): array
     {
-        $exception->loadMissing(['order:id,po_number', 'invoice:id,invoice_number', 'matchResult:id,match_status,match_score']);
+        $exception->loadMissing([
+            'order:id,po_number',
+            'invoice:id,invoice_number,total_amount,currency',
+            'matchResult:id,match_status,match_score,metadata',
+        ]);
 
         $signals = [];
         $score = $this->severityBaseScore((string) $exception->severity);
@@ -53,8 +58,17 @@ class ProcurementMatchFlowAgentService
             $signals[] = 'Exception has remained unresolved for '.$ageDays.' days.';
         }
 
+        // Extract amount context from match result inputs for richer guidance.
+        $inputs = (array) data_get((array) ($exception->matchResult?->metadata ?? []), 'inputs', []);
+        $currency = strtoupper((string) ($exception->invoice?->currency ?: 'NGN'));
+        $poAmount = isset($inputs['po_amount']) ? (int) $inputs['po_amount'] : null;
+        $invoiceAmount = isset($inputs['invoice_amount']) ? (int) $inputs['invoice_amount'] : null;
+        $amountContext = ($poAmount !== null && $invoiceAmount !== null)
+            ? ['currency' => $currency, 'po_amount' => $poAmount, 'invoice_amount' => $invoiceAmount]
+            : null;
+
         $exceptionCode = strtolower(trim((string) $exception->exception_code));
-        [$whyBlocked, $nextAction] = $this->codeGuidance($exceptionCode);
+        [$whyBlocked, $nextAction] = $this->codeGuidance($exceptionCode, $amountContext);
 
         if ($whyBlocked === '') {
             $whyBlocked = trim((string) ($exception->details ?? 'Match exception requires manual review before payout handoff.'));
@@ -65,6 +79,15 @@ class ProcurementMatchFlowAgentService
 
         if ($whyBlocked !== '') {
             $signals[] = $whyBlocked;
+        }
+
+        // Build a short mismatch label and add a formatted amount signal when we have the raw numbers.
+        $mismatchLabel = '';
+        if ($amountContext !== null && $poAmount !== null && $invoiceAmount !== null) {
+            $diff = abs($invoiceAmount - $poAmount);
+            $direction = $invoiceAmount > $poAmount ? 'over' : 'under';
+            $mismatchLabel = sprintf('%s %s %s PO amount', $currency, number_format($diff), $direction);
+            $signals[] = sprintf('Amount gap: %s %s %s the PO amount.', $currency, number_format($diff), $direction);
         }
 
         $score = max(0, min(100, $score));
@@ -78,6 +101,7 @@ class ProcurementMatchFlowAgentService
             'top_risk' => $signals[0] ?? 'No elevated risk signal detected.',
             'next_action' => $nextAction,
             'summary' => $this->summary($riskLevel, $score),
+            'mismatch_label' => $mismatchLabel,
             'signals' => array_slice(array_values(array_unique(array_filter($signals))), 0, 4),
             'engine' => 'deterministic_procurement_rules',
             'generated_at' => now()->format('M d, Y H:i'),
@@ -95,9 +119,10 @@ class ProcurementMatchFlowAgentService
     }
 
     /**
+     * @param  array{currency:string,po_amount:int,invoice_amount:int}|null  $amountContext
      * @return array{0:string,1:string}
      */
-    private function codeGuidance(string $exceptionCode): array
+    private function codeGuidance(string $exceptionCode, ?array $amountContext = null): array
     {
         return match ($exceptionCode) {
             'no_receipt_recorded' => [
@@ -106,13 +131,10 @@ class ProcurementMatchFlowAgentService
             ],
             'quantity_mismatch' => [
                 'Invoice quantity does not align with PO and recorded receipt quantities.',
-                'Confirm delivery quantity and either record remaining receipt or request corrected invoice.',
+                'Confirm delivery quantity and either record remaining receipt or request a corrected invoice.',
             ],
-            'amount_mismatch' => [
-                'Invoice total does not align with PO/receipt amount expectations.',
-                'Verify item pricing/tax on PO and invoice, then correct source document before closing.',
-            ],
-            'date_outside_tolerance' => [
+            'amount_mismatch' => $this->amountMismatchGuidance($amountContext),
+            'date_outside_tolerance', 'invoice_date_out_of_window' => [
                 'Invoice/receipt timing is outside configured tolerance for automatic match.',
                 'Validate document dates and adjust tolerance policy only if business-approved.',
             ],
@@ -122,6 +144,44 @@ class ProcurementMatchFlowAgentService
             ],
             default => ['', ''],
         };
+    }
+
+    /**
+     * @param  array{currency:string,po_amount:int,invoice_amount:int}|null  $amountContext
+     * @return array{0:string,1:string}
+     */
+    private function amountMismatchGuidance(?array $amountContext): array
+    {
+        if ($amountContext === null) {
+            return [
+                'Invoice total does not align with PO/receipt amount expectations.',
+                'Verify item pricing/tax on PO and invoice, then correct source document before closing.',
+            ];
+        }
+
+        $currency = (string) $amountContext['currency'];
+        $poAmt = (int) $amountContext['po_amount'];
+        $invAmt = (int) $amountContext['invoice_amount'];
+        $diff = abs($invAmt - $poAmt);
+        $direction = $invAmt > $poAmt ? 'higher' : 'lower';
+
+        return [
+            sprintf(
+                'Invoice amount (%s %s) is %s %s %s than the PO amount (%s %s).',
+                $currency,
+                number_format($invAmt),
+                $currency,
+                number_format($diff),
+                $direction,
+                $currency,
+                number_format($poAmt)
+            ),
+            sprintf(
+                'Correct the invoice to match the PO total of %s %s, or amend the PO if the price genuinely changed.',
+                $currency,
+                number_format($poAmt)
+            ),
+        ];
     }
 
     /**
@@ -146,4 +206,3 @@ class ProcurementMatchFlowAgentService
         };
     }
 }
-

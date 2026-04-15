@@ -37,7 +37,7 @@
             </span>
             <h2 class="mt-2 text-base font-semibold text-slate-900">Organization Defaults</h2>
             <p class="mt-1 text-sm text-slate-600">
-                Set the default response timing for approval steps, when reminders fire, and when escalation starts.
+                Set the default response timing for approval steps, when reminders fire, and when reminder starts.
             </p>
         </div>
 
@@ -67,15 +67,15 @@
                 </label>
 
                 <label class="block">
-                    <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Escalation Grace</span>
+                    <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Reminder Grace</span>
                     <input
                         type="number"
                         min="0"
                         max="720"
-                        wire:model.defer="org_escalation_grace_hours"
+                        wire:model.defer="org_reminder_grace_hours"
                         class="w-full rounded-xl border-slate-300 text-sm focus:border-slate-500 focus:ring-slate-500"
                     >
-                    @error('org_escalation_grace_hours')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+                    @error('org_reminder_grace_hours')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
                 </label>
             </div>
 
@@ -83,7 +83,7 @@
                 <p class="font-semibold">How this is applied</p>
                 <p class="mt-1">
                     When an approval step becomes pending, Flowdesk sets its response timing using these values.
-                    Reminder and escalation times are calculated from that step deadline.
+                    Reminder and reminder times are calculated from that step deadline.
                 </p>
             </div>
 
@@ -123,7 +123,7 @@
                         <th class="px-4 py-3 text-left font-semibold">Department</th>
                         <th class="px-4 py-3 text-left font-semibold">Due Hours</th>
                         <th class="px-4 py-3 text-left font-semibold">Reminder Before Due</th>
-                        <th class="px-4 py-3 text-left font-semibold">Escalation Grace</th>
+                        <th class="px-4 py-3 text-left font-semibold">Reminder Grace</th>
                         <th class="px-4 py-3 text-right font-semibold">Actions</th>
                     </tr>
                 </thead>
@@ -133,7 +133,7 @@
                             <td class="px-4 py-3 text-slate-700">{{ $override->department?->name ?? ('Department #'.$override->department_id) }}</td>
                             <td class="px-4 py-3 text-slate-700">{{ (int) $override->step_due_hours }}h</td>
                             <td class="px-4 py-3 text-slate-700">{{ (int) $override->reminder_hours_before_due }}h</td>
-                            <td class="px-4 py-3 text-slate-700">{{ (int) $override->escalation_grace_hours }}h</td>
+                            <td class="px-4 py-3 text-slate-700">{{ (int) $override->reminder_grace_hours }}h</td>
                             <td class="px-4 py-3 text-right">
                                 <div class="inline-flex items-center gap-2">
                                     <button
@@ -184,8 +184,8 @@
                 <p class="mt-1 text-lg font-semibold text-slate-900">{{ (int) $orgEffective['reminder_hours_before_due'] }}h before due</p>
             </div>
             <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                <p class="text-xs uppercase tracking-[0.1em] text-slate-500">Escalation Trigger</p>
-                <p class="mt-1 text-lg font-semibold text-slate-900">{{ (int) $orgEffective['escalation_grace_hours'] }}h after due</p>
+                <p class="text-xs uppercase tracking-[0.1em] text-slate-500">Reminder Trigger</p>
+                <p class="mt-1 text-lg font-semibold text-slate-900">{{ (int) $orgEffective['reminder_grace_hours'] }}h after due</p>
             </div>
         </div>
     </div>
@@ -240,9 +240,9 @@
                             @error('overrideForm.reminder_hours_before_due')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
                         </label>
                         <label class="block">
-                            <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Escalation Grace</span>
-                            <input type="number" min="0" max="720" wire:model.defer="overrideForm.escalation_grace_hours" class="w-full rounded-xl border-slate-300 text-sm focus:border-slate-500 focus:ring-slate-500">
-                            @error('overrideForm.escalation_grace_hours')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+                            <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Reminder Grace</span>
+                            <input type="number" min="0" max="720" wire:model.defer="overrideForm.reminder_grace_hours" class="w-full rounded-xl border-slate-300 text-sm focus:border-slate-500 focus:ring-slate-500">
+                            @error('overrideForm.reminder_grace_hours')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
                         </label>
                     </div>
 

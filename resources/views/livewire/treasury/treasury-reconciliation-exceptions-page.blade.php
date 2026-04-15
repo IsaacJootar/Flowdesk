@@ -6,7 +6,7 @@
         :bullets="[
             'Critical and high-severity items appear at the top — deal with those first.',
             'Resolve means the item is explained and matched. Waive means you acknowledge it but skip matching.',
-            'All decisions are recorded for audit. Maker-checker policy requires a second approver on high-value waivers.',
+            'All decisions are logged for audit. High-value items require a second person to confirm before they can be closed.',
         ]"
     />
     <div
@@ -31,15 +31,15 @@
             <div>
                 <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Treasury Reconciliation Issues</p>
                 <p class="mt-1 text-sm text-slate-600">Resolve or waive issues, then return to the main treasury workspace.</p>
-                <p class="mt-1 text-xs text-slate-500">Action roles: {{ implode(', ', (array) $exceptionActionAllowedRoles) }}.</p>
+                <p class="mt-1 text-xs text-slate-500">Who can take action: {{ implode(', ', (array) $exceptionActionAllowedRoles) }}.</p>
                 @if ($makerCheckerRequired)
-                    <p class="text-xs text-amber-700">Maker-checker is enabled: the person who raised the issue cannot close the same issue.</p>
+                    <p class="text-xs text-amber-700">Two-person sign-off is on: you cannot close an item you raised yourself.</p>
                 @endif
                 @if ($flowAgentsEnabled)
                     <div class="mt-2 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-800">
                         <span class="font-semibold">Flow Agent:</span> use <span class="font-semibold">Use Flow Agent</span> for suggested match, confidence, and next-step guidance.
                         @if ($flowAgentsAdvisoryOnly)
-                            Guidance is advisory only and does not auto-resolve issues.
+                            It recommends only — your team makes the final call.
                         @endif
                     </div>
                 @endif
@@ -256,7 +256,7 @@
                                     @elseif (! $flowAgentsEnabled)
                                         <span class="text-xs text-slate-400">AI disabled for tenant</span>
                                     @else
-                                        <span class="text-xs text-slate-400">Not analyzed</span>
+                                        <span class="text-xs text-slate-400">Not reviewed yet</span>
                                     @endif
                                 </td>
                                 <td class="px-4 py-3 text-right">
@@ -285,8 +285,8 @@
                                                 </button>
                                             @endif
                                             @if ($canOperate && (string) $exception->exception_status === 'open')
-                                                <button type="button" wire:click="openResolutionModal({{ $exception->id }}, 'resolved')" class="rounded-lg border border-emerald-300 px-3 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-50">Resolve</button>
-                                                <button type="button" wire:click="openResolutionModal({{ $exception->id }}, 'waived')" class="rounded-lg border border-amber-300 px-3 py-1.5 text-xs font-medium text-amber-700 hover:bg-amber-50">Waive</button>
+                                                <button type="button" wire:click="openResolutionModal({{ $exception->id }}, 'resolved')" class="rounded-lg border border-emerald-300 px-3 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-50">Mark as Fixed</button>
+                                                <button type="button" wire:click="openResolutionModal({{ $exception->id }}, 'waived')" class="rounded-lg border border-amber-300 px-3 py-1.5 text-xs font-medium text-amber-700 hover:bg-amber-50">Accept & Close</button>
                                             @endif
                                         </div>
                                     @else
@@ -316,12 +316,12 @@
         <div wire:click="closeResolutionModal" class="fixed inset-0 z-40 overflow-y-auto bg-slate-900/40 p-3">
             <div class="flex items-start justify-center pt-8">
                 <div wire:click.stop class="fd-card w-full max-w-xl p-6">
-                    <h3 class="text-base font-semibold text-slate-900">{{ $resolutionAction === 'waived' ? 'Waive Treasury Issue' : 'Resolve Treasury Issue' }}</h3>
+                    <h3 class="text-base font-semibold text-slate-900">{{ $resolutionAction === 'waived' ? 'Accept & Close This Item' : 'Mark This Item as Fixed' }}</h3>
                     <p class="mt-1 text-sm text-slate-600">Capture a note for audit and handoff clarity.</p>
 
                     <label class="mt-4 block">
                         <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Resolution Note</span>
-                        <textarea wire:model.defer="resolutionNotes" rows="4" class="w-full rounded-xl border-slate-300 text-sm focus:border-slate-500 focus:ring-slate-500" placeholder="What was validated and why is this closed?"></textarea>
+                        <textarea wire:model.defer="resolutionNotes" rows="4" class="w-full rounded-xl border-slate-300 text-sm focus:border-slate-500 focus:ring-slate-500" placeholder="What did you check? Why is this item done?"></textarea>
                         @error('resolutionNotes')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
                     </label>
 

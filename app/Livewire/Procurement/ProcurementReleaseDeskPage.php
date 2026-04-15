@@ -81,28 +81,28 @@ class ProcurementReleaseDeskPage extends Component
         $segments = [
             [
                 'key' => 'approved_need_po',
-                'label' => 'Need PO',
+                'label' => 'No PO Yet',
                 'count' => $approvedNeedPo,
                 'percent' => $workloadTotal > 0 ? round(($approvedNeedPo / $workloadTotal) * 100, 1) : 0.0,
                 'tone' => 'amber',
             ],
             [
                 'key' => 'po_drafts_need_issue',
-                'label' => 'Waiting for Issue',
+                'label' => 'Not Sent to Vendor',
                 'count' => $poDraftsNeedIssue,
                 'percent' => $workloadTotal > 0 ? round(($poDraftsNeedIssue / $workloadTotal) * 100, 1) : 0.0,
                 'tone' => 'indigo',
             ],
             [
                 'key' => 'issued_need_receipt',
-                'label' => 'Waiting for Receipt',
+                'label' => 'Awaiting Delivery',
                 'count' => $issuedNeedReceipt,
                 'percent' => $workloadTotal > 0 ? round(($issuedNeedReceipt / $workloadTotal) * 100, 1) : 0.0,
                 'tone' => 'sky',
             ],
             [
                 'key' => 'invoice_match_resolve',
-                'label' => 'Exception to Resolve',
+                'label' => 'Invoice Mismatch',
                 'count' => $invoiceMatchResolve,
                 'percent' => $workloadTotal > 0 ? round(($invoiceMatchResolve / $workloadTotal) * 100, 1) : 0.0,
                 'tone' => 'rose',
@@ -168,8 +168,8 @@ class ProcurementReleaseDeskPage extends Component
                     strtoupper((string) ($request->currency ?: 'NGN')),
                     number_format($amount)
                 ),
-                'status' => 'Approved - Need PO',
-                'next_action_label' => 'Convert to PO',
+                'status' => 'Approved — No PO Yet',
+                'next_action_label' => 'Create Purchase Order',
                 'next_action_url' => route('requests.index', ['open_request_id' => (int) $request->id]),
                 'next_action_tone' => 'amber',
             ];
@@ -205,8 +205,8 @@ class ProcurementReleaseDeskPage extends Component
                         strtoupper((string) ($order->currency_code ?: 'NGN')),
                         number_format((int) $order->total_amount)
                     ),
-                    'status' => 'Draft - Waiting for Issue',
-                    'next_action_label' => 'Issue PO',
+                    'status' => 'Draft — Not Sent to Vendor',
+                    'next_action_label' => 'Send to Vendor',
                     'next_action_url' => route('procurement.orders', ['search' => (string) $order->po_number]),
                     'next_action_tone' => 'indigo',
                 ];
@@ -243,8 +243,8 @@ class ProcurementReleaseDeskPage extends Component
                     'ref' => (string) $order->po_number,
                     'title' => (string) ($order->request?->title ?? 'Issued purchase order'),
                     'meta' => sprintf('%s | Receipts logged: %d', (string) ($order->vendor?->name ?? '-'), $receiptCount),
-                    'status' => 'Waiting for Receipt',
-                    'next_action_label' => 'Record Receipt',
+                    'status' => 'Waiting for Delivery',
+                    'next_action_label' => 'Confirm Goods Received',
                     'next_action_url' => route('procurement.orders', ['search' => (string) $order->po_number]),
                     'next_action_tone' => 'sky',
                 ];
@@ -273,13 +273,13 @@ class ProcurementReleaseDeskPage extends Component
                 'ref' => (string) $order->po_number,
                 'title' => (string) ($order->request?->title ?? 'Invoice or match follow-up'),
                 'meta' => sprintf(
-                    '%s | Invoices: %d | Open exceptions: %d',
+                    '%s | Invoices: %d | Mismatches: %d',
                     (string) ($order->vendor?->name ?? '-'),
                     (int) ($order->vendor_invoices_count ?? 0),
                     $openExceptionCount
                 ),
                 'status' => $status,
-                'next_action_label' => $isInvoiceLinkingStep ? 'Link Invoice' : 'Resolve Exception',
+                'next_action_label' => $isInvoiceLinkingStep ? 'Attach Invoice' : 'Fix Mismatch',
                 'next_action_url' => $isInvoiceLinkingStep
                     ? route('procurement.orders', ['search' => (string) $order->po_number])
                     : route('procurement.match-exceptions', ['search' => (string) $order->po_number]),
@@ -312,7 +312,7 @@ class ProcurementReleaseDeskPage extends Component
 
             $result[] = [
                 'ref' => (string) $order->po_number,
-                'title' => (string) ($order->request?->title ?? 'Ready for payout'),
+                'title' => (string) ($order->request?->title ?? 'Ready for payment'),
                 'meta' => sprintf(
                     'Request: %s | %s | %s %s',
                     $requestCode,
@@ -320,8 +320,8 @@ class ProcurementReleaseDeskPage extends Component
                     strtoupper((string) ($order->currency_code ?: 'NGN')),
                     number_format((int) $order->total_amount)
                 ),
-                'status' => 'Ready for Payout',
-                'next_action_label' => 'Run Payout',
+                'status' => 'Ready to Pay',
+                'next_action_label' => 'Send Payment',
                 'next_action_url' => route('execution.payout-ready', ['search' => $requestCode]),
                 'next_action_tone' => 'slate',
             ];
@@ -494,20 +494,20 @@ class ProcurementReleaseDeskPage extends Component
         $openExceptions = (int) ($order->open_match_exceptions_count ?? 0);
 
         if ($invoiceCount === 0) {
-            return 'Waiting for Invoice';
+            return 'Invoice Not Attached';
         }
 
         if ($openExceptions > 0) {
-            return 'Exception to Resolve';
+            return 'Invoice Mismatch';
         }
 
         if ($matchResultCount < $invoiceCount) {
-            return 'Exception to Resolve';
+            return 'Invoice Mismatch';
         }
 
         foreach ($order->matchResults as $result) {
             if (! in_array((string) $result->match_status, self::MATCH_PASS_STATUSES, true)) {
-                return 'Exception to Resolve';
+                return 'Invoice Mismatch';
             }
         }
 

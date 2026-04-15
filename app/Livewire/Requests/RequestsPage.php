@@ -59,6 +59,8 @@ class RequestsPage extends Component
 
     public string $scopeFilter = 'all';
 
+    public string $poFilter = 'all'; // all | with_po | without_po
+
     public string $dateFrom = '';
 
     public string $dateTo = '';
@@ -945,7 +947,7 @@ class RequestsPage extends Component
         // List query includes eager loads + item counts for table rendering only.
         return SpendRequest::query()
             ->with(['requester:id,name,avatar_path,gender,updated_at', 'department:id,name', 'vendor:id,name'])
-            ->withCount('items')
+            ->withCount(['items', 'purchaseOrders'])
             ->when($this->search !== '', function ($query): void {
                 $query->where(function ($inner): void {
                     $inner->where('request_code', 'like', '%'.$this->search.'%')
@@ -975,6 +977,8 @@ class RequestsPage extends Component
                         });
                 });
             })
+            ->when($this->poFilter === 'with_po', fn ($query) => $query->has('purchaseOrders'))
+            ->when($this->poFilter === 'without_po', fn ($query) => $query->doesntHave('purchaseOrders'))
             ->when($this->scopeFilter === 'mine', fn ($query) => $query->where('requested_by', (int) $user->id))
             ->when($this->scopeFilter === 'pending_my_approval', function ($query) use ($pendingIds): void {
                 $query->whereIn('id', empty($pendingIds) ? [0] : $pendingIds);
@@ -1458,30 +1462,29 @@ class RequestsPage extends Component
             && $hasConversionVendor;
         $convertToPurchaseOrderBlocker = null;
         if (! $procurementModuleEnabled) {
-            $convertToPurchaseOrderBlocker = 'Policy disallow: procurement module is disabled for this tenant plan.';
+            $convertToPurchaseOrderBlocker = 'Purchase Orders are not enabled on your plan. Contact your administrator.';
         } elseif ($hasLinkedPurchaseOrder) {
             $convertToPurchaseOrderBlocker = sprintf(
-                'Policy disallow: this request is already linked to PO %s.',
+                'A Purchase Order (%s) has already been created for this request.',
                 (string) ($linkedPurchaseOrder?->po_number ?? '#')
             );
         } elseif (! $statusAllowedForConversion) {
             $convertToPurchaseOrderBlocker = sprintf(
-                'Policy disallow: only %s can be converted. Current status is %s.',
-                $allowedConversionStatusLabel !== '' ? $allowedConversionStatusLabel : 'approved requests',
+                'Purchase Orders can only be created for approved requests. This request is currently "%s".',
                 $requestStatusLabel
             );
         } elseif (! $canConvertByPolicy) {
             $actor = \Illuminate\Support\Facades\Auth::user();
             $role = strtolower((string) ($actor?->role ?? ''));
             if (! in_array($role, ['owner', 'finance', 'manager'], true)) {
-                $convertToPurchaseOrderBlocker = 'Policy disallow: only owner, finance, or manager can convert requests to PO.';
+                $convertToPurchaseOrderBlocker = 'Only Finance, Manager, or Owner roles can create Purchase Orders. Ask your Finance team to do this.';
             } elseif ($role === 'manager' && (int) ($actor?->department_id ?? 0) !== (int) $request->department_id) {
-                $convertToPurchaseOrderBlocker = 'Policy disallow: managers can only convert requests in their own department.';
+                $convertToPurchaseOrderBlocker = 'You can only create Purchase Orders for requests in your own department.';
             } else {
-                $convertToPurchaseOrderBlocker = 'Policy disallow: your current role/scope cannot convert this request to PO.';
+                $convertToPurchaseOrderBlocker = 'Your role does not have permission to create Purchase Orders for this request.';
             }
         } elseif (! $hasConversionVendor) {
-            $convertToPurchaseOrderBlocker = 'Policy disallow: vendor must be linked on the request or at least one request item before conversion.';
+            $convertToPurchaseOrderBlocker = 'A vendor must be selected on this request before a Purchase Order can be created. Edit the request to add a vendor.';
         }
         $approvalContextMessage = null;
         if ((string) $request->status === 'in_review' && ! Gate::allows('approve', $request)) {
@@ -1528,7 +1531,7 @@ class RequestsPage extends Component
             'can_convert_to_po' => $canConvertToPurchaseOrder,
             'convert_to_po_blocker' => $convertToPurchaseOrderBlocker,
             'mandatory_po_policy_message' => $mandatoryPoRequiredNoOrder
-                ? (string) ($mandatoryPoPolicy['reason'] ?? 'Mandatory PO policy requires conversion before expense handoff.')
+                ? (string) ($mandatoryPoPolicy['reason'] ?? 'Your organisation requires a Purchase Order to be created before this request can be logged as an expense.')
                 : null,
             'linked_expense' => $linkedExpense ? [
                 'id' => (int) $linkedExpense->id,

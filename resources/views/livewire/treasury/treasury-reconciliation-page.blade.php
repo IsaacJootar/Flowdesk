@@ -6,7 +6,7 @@
         :bullets="[
             'Sync today\'s bank statement automatically via Mono Connect, or upload a CSV if needed.',
             'Auto-Reconcile matches statement lines to payment runs in seconds.',
-            'Unmatched lines become open issues — resolve or waive them before end-of-day sign-off.',
+            'Any lines that don\'t match a payment become items for review — clear them before you close the day.',
         ]"
         guide-route="treasury.reconciliation-help"
     />
@@ -45,7 +45,7 @@
 
     <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
         <div class="rounded-2xl border border-slate-200 bg-white p-4">
-            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Import Status</p>
+            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Statement Status</p>
             <p class="mt-2 text-sm font-semibold text-slate-900">{{ strtoupper((string) ($importStatus['import_status'] ?? 'not imported')) }}</p>
             <p class="mt-1 text-xs text-slate-500">{{ $importStatus['statement_reference'] ?? '-' }}</p>
             <p class="text-xs text-slate-500">{{ $importStatus['imported_at'] ?: 'No import yet' }}</p>
@@ -315,190 +315,8 @@
         @error('selectedBankAccountId')<p class="mt-2 text-xs text-red-600">{{ $message }}</p>@enderror
     </div>
 
-    <div class="fd-card overflow-hidden">
-        <div class="border-b border-slate-200 px-4 py-3">
-            <h3 class="text-sm font-semibold text-slate-900">Unmatched / Statement Line Monitor</h3>
-            <p class="text-xs text-slate-500">Track queued lines and reconciliation state from one table.</p>
-        </div>
-        @if (! $readyToLoad)
-            <div class="space-y-3 p-4">
-                @for ($i = 0; $i < 8; $i++)
-                    <div class="h-12 animate-pulse rounded-lg bg-slate-100"></div>
-                @endfor
-            </div>
-        @else
-            <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-slate-200 text-sm">
-                    <thead class="bg-slate-50 text-xs uppercase tracking-[0.12em] text-slate-500">
-                        <tr>
-                            <th class="px-4 py-3 text-left font-semibold">Posted</th>
-                            <th class="px-4 py-3 text-left font-semibold">Reference</th>
-                            <th class="px-4 py-3 text-left font-semibold">Account</th>
-                            <th class="px-4 py-3 text-left font-semibold">Direction</th>
-                            <th class="px-4 py-3 text-right font-semibold">Amount</th>
-                            <th class="px-4 py-3 text-left font-semibold">State</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-slate-100">
-                        @forelse ($lines as $line)
-                            <tr class="hover:bg-slate-50">
-                                <td class="px-4 py-3 text-slate-600">{{ optional($line->posted_at)->format('M d, Y H:i') }}</td>
-                                <td class="px-4 py-3 text-slate-600">
-                                    <p>{{ $line->line_reference ?: '-' }}</p>
-                                    <p class="text-xs text-slate-500">{{ $line->description ?: '-' }}</p>
-                                </td>
-                                <td class="px-4 py-3 text-slate-600">{{ $line->account?->bank_name }} | {{ $line->account?->account_name }}</td>
-                                <td class="px-4 py-3 text-slate-600">{{ ucfirst((string) $line->direction) }}</td>
-                                <td class="px-4 py-3 text-right text-slate-700">{{ strtoupper((string) $line->currency_code) }} {{ number_format((int) $line->amount) }}</td>
-                                <td class="px-4 py-3">
-                                    @if ($line->is_reconciled)
-                                        <span class="inline-flex rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">Matched</span>
-                                    @else
-                                        <span class="inline-flex rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-700">Unmatched</span>
-                                    @endif
-                                </td>
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="6" class="px-4 py-10 text-center text-sm text-slate-500">No statement lines available. Import a statement to begin reconciliation.</td>
-                            </tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
-
-            <div class="border-t border-slate-200 px-4 py-3">
-                <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <p class="text-xs text-slate-500">Showing {{ $lines->firstItem() ?? 0 }}-{{ $lines->lastItem() ?? 0 }} of {{ $lines->total() }}</p>
-                    {{ $lines->links() }}
-                </div>
-            </div>
-        @endif
-    </div>
-
-    <div class="fd-card p-5">
-        <div class="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-                <h3 class="text-sm font-semibold text-slate-900">Issue Queue (Inline)</h3>
-                <p class="text-xs text-slate-500">Resolve/waive from this desk or open full queue for deeper triage.</p>
-                <p class="mt-1 text-xs text-slate-500">Action roles: {{ implode(', ', (array) $exceptionActionAllowedRoles) }}.</p>
-                @if ($makerCheckerRequired)
-                    <p class="text-xs text-amber-700">Maker-checker is enabled for issue decisions.</p>
-                @endif
-                @if ($flowAgentsEnabled)
-                    <div class="mt-2 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-800">
-                        <span class="font-semibold">Flow Agent:</span> use <span class="font-semibold">Use Flow Agent</span> for suggested match and manual recovery guidance.
-                        @if ($flowAgentsAdvisoryOnly)
-                            Guidance is advisory only and does not auto-resolve issues.
-                        @endif
-                    </div>
-                @endif
-            </div>
-            <a href="{{ route('treasury.reconciliation-exceptions') }}" class="inline-flex h-9 items-center rounded-lg border border-rose-300 bg-rose-50 px-3 text-xs font-semibold text-rose-700 transition hover:bg-rose-100">Open Full Issue Queue</a>
-        </div>
-
-        <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-slate-200 text-sm">
-                <thead class="bg-slate-50 text-xs uppercase tracking-[0.12em] text-slate-500">
-                    <tr>
-                        <th class="px-3 py-2 text-left font-semibold">Issue</th>
-                        <th class="px-3 py-2 text-left font-semibold">Line</th>
-                        <th class="px-3 py-2 text-left font-semibold">Next Action</th>
-                        <th class="px-3 py-2 text-left font-semibold">Created</th>
-                        <th class="px-3 py-2 text-left font-semibold">Flow Agent</th>
-                        <th class="px-3 py-2 text-right font-semibold">Action</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-slate-100">
-                    @forelse ($openExceptionsPreview as $exception)
-                        @php
-                            $severityClass = match ((string) $exception->severity) {
-                                'critical' => 'bg-red-100 text-red-700',
-                                'high' => 'bg-rose-100 text-rose-700',
-                                'medium' => 'bg-amber-100 text-amber-700',
-                                default => 'bg-slate-100 text-slate-700',
-                            };
-                        @endphp
-                        <tr class="hover:bg-slate-50">
-                            <td class="px-3 py-3 text-slate-600">
-                                <p class="font-medium text-slate-800">{{ strtoupper((string) $exception->exception_code) }}</p>
-                                <p class="text-xs text-slate-500">{{ ucfirst(str_replace('_', ' ', (string) $exception->match_stream)) }}</p>
-                                <span class="mt-1 inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold {{ $severityClass }}">{{ ucfirst((string) $exception->severity) }}</span>
-                            </td>
-                            <td class="px-3 py-3 text-slate-600">
-                                <p>{{ $exception->line?->line_reference ?: '-' }}</p>
-                                <p class="text-xs text-slate-500">{{ strtoupper((string) ($exception->line?->currency_code ?: 'NGN')) }} {{ number_format((int) ($exception->line?->amount ?? 0)) }}</p>
-                            </td>
-                            <td class="px-3 py-3 text-slate-600">{{ $exception->next_action ?: '-' }}</td>
-                            <td class="px-3 py-3 text-slate-600">{{ optional($exception->created_at)->format('M d, Y H:i') }}</td>
-                            <td class="px-3 py-3 text-slate-600">
-                                @php
-                                    $insight = $flowAgentInsights[(int) $exception->id] ?? null;
-                                @endphp
-                                @if (is_array($insight))
-                                    @php
-                                        $riskClass = match ((string) ($insight['risk_level'] ?? 'low')) {
-                                            'high' => 'bg-red-100 text-red-700',
-                                            'medium' => 'bg-amber-100 text-amber-700',
-                                            default => 'bg-emerald-100 text-emerald-700',
-                                        };
-                                    @endphp
-                                    <span class="inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold {{ $riskClass }}">
-                                        {{ ucfirst((string) ($insight['risk_level'] ?? 'low')) }} risk
-                                    </span>
-                                    <p class="mt-1 text-xs text-slate-700">{{ (string) ($insight['suggested_match'] ?? '-') }}</p>
-                                    <p class="mt-1 text-[11px] text-slate-500">Confidence {{ (int) ($insight['confidence'] ?? 0) }}%</p>
-                                @elseif (! $flowAgentsEnabled)
-                                        <span class="text-xs text-slate-400">AI disabled for organization</span>
-                                @else
-                                    <span class="text-xs text-slate-400">Not analyzed</span>
-                                @endif
-                            </td>
-                            <td class="px-3 py-3 text-right">
-                                @if ($canResolveExceptions || $flowAgentsEnabled)
-                                    <div class="inline-flex items-center gap-2">
-                                        @if ($flowAgentsEnabled)
-                                            <button
-                                                type="button"
-                                                wire:click="analyzeOpenExceptionWithFlowAgent({{ (int) $exception->id }})"
-                                                wire:loading.attr="disabled"
-                                                wire:target="analyzeOpenExceptionWithFlowAgent({{ (int) $exception->id }})"
-                                                class="inline-flex items-center gap-1.5 rounded-lg border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-semibold text-sky-700 hover:bg-sky-100 disabled:opacity-70"
-                                            >
-                                                <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                                                    <path d="M12 3v3"></path>
-                                                    <path d="M12 18v3"></path>
-                                                    <path d="M3 12h3"></path>
-                                                    <path d="M18 12h3"></path>
-                                                    <path d="M6.3 6.3l2.1 2.1"></path>
-                                                    <path d="M15.6 15.6l2.1 2.1"></path>
-                                                    <path d="M17.7 6.3l-2.1 2.1"></path>
-                                                    <path d="M8.4 15.6l-2.1 2.1"></path>
-                                                </svg>
-                                                <span wire:loading.remove wire:target="analyzeOpenExceptionWithFlowAgent({{ (int) $exception->id }})">Use Flow Agent</span>
-                                                <span wire:loading wire:target="analyzeOpenExceptionWithFlowAgent({{ (int) $exception->id }})">Analyzing...</span>
-                                            </button>
-                                        @endif
-                                        @if ($canResolveExceptions)
-                                            <button type="button" wire:click="openResolutionModal({{ $exception->id }}, 'resolved')" class="rounded-lg border border-emerald-300 px-3 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-50">Resolve</button>
-                                            <button type="button" wire:click="openResolutionModal({{ $exception->id }}, 'waived')" class="rounded-lg border border-amber-300 px-3 py-1.5 text-xs font-medium text-amber-700 hover:bg-amber-50">Waive</button>
-                                        @endif
-                                    </div>
-                                @else
-                                    <span class="text-xs text-slate-500">View only</span>
-                                @endif
-                            </td>
-                        </tr>
-                    @empty
-                        <tr>
-                            <td colspan="6" class="px-3 py-8 text-center text-sm text-slate-500">No open issues for the selected statement scope.</td>
-                        </tr>
-                    @endforelse
-                </tbody>
-            </table>
-        </div>
-    </div>
-
+    @include('livewire.treasury.partials.recon-transactions-table')
+    @include('livewire.treasury.partials.recon-items-queue')
     <div class="fd-card p-5">
         <h3 class="text-sm font-semibold text-slate-900">Close-Day Checklist</h3>
         <p class="mt-1 text-xs text-slate-500">Use this checklist before confirming daily treasury close. Backlog threshold: {{ number_format((int) $backlogAlertThreshold) }} unreconciled lines.</p>
@@ -530,12 +348,12 @@
         <div wire:click="closeResolutionModal" class="fixed inset-0 z-40 overflow-y-auto bg-slate-900/40 p-3">
             <div class="flex items-start justify-center pt-8">
                 <div wire:click.stop class="fd-card w-full max-w-xl p-6">
-                    <h3 class="text-base font-semibold text-slate-900">{{ $resolutionAction === 'waived' ? 'Waive Treasury Issue' : 'Resolve Treasury Issue' }}</h3>
-                    <p class="mt-1 text-sm text-slate-600">Capture a note for audit and incident handoff clarity.</p>
+                    <h3 class="text-base font-semibold text-slate-900">{{ $resolutionAction === 'waived' ? 'Accept & Close This Item' : 'Mark This Item as Fixed' }}</h3>
+                    <p class="mt-1 text-sm text-slate-600">Add a note explaining what you checked and why this item is now closed.</p>
 
                     <label class="mt-4 block">
                         <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Resolution Note</span>
-                        <textarea wire:model.defer="resolutionNotes" rows="4" class="w-full rounded-xl border-slate-300 text-sm focus:border-slate-500 focus:ring-slate-500" placeholder="What was validated and why is this closed?"></textarea>
+                        <textarea wire:model.defer="resolutionNotes" rows="4" class="w-full rounded-xl border-slate-300 text-sm focus:border-slate-500 focus:ring-slate-500" placeholder="What did you check? Why is this item done?"></textarea>
                         @error('resolutionNotes')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
                     </label>
 
