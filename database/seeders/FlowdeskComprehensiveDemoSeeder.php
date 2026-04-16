@@ -349,7 +349,7 @@ class FlowdeskComprehensiveDemoSeeder extends Seeder
             'execution_daily_cap_amount' => $tenant['mode'] === TenantExecutionModeService::MODE_EXECUTION_ENABLED ? 5000000 : null,
             'execution_monthly_cap_amount' => $tenant['mode'] === TenantExecutionModeService::MODE_EXECUTION_ENABLED ? 90000000 : null,
             'execution_maker_checker_threshold_amount' => $tenant['mode'] === TenantExecutionModeService::MODE_EXECUTION_ENABLED ? 350000 : null,
-            'execution_allowed_channels' => $tenant['mode'] === TenantExecutionModeService::MODE_EXECUTION_ENABLED ? ['bank_transfer', 'wallet_payout'] : ['bank_transfer'],
+            'execution_allowed_channels' => ['bank_transfer'],
             'execution_policy_notes' => $tenant['mode'] === TenantExecutionModeService::MODE_EXECUTION_ENABLED ? 'execution_enabled' : 'decision_only',
             'billing_reference' => 'SUB-'.strtoupper(Str::random(8)),
             'notes' => 'seeded',

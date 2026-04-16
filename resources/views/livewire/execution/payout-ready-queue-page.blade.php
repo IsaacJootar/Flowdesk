@@ -24,7 +24,7 @@
                     Request Tracker
                 </a>
                 <a href="{{ route('execution.help') }}" class="inline-flex items-center rounded-lg border border-slate-700 bg-slate-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800" style="background-color:#334155;border-color:#334155;color:#ffffff;">
-                    Help / Usage Guide
+                    Payment Provider Guide
                 </a>
             </div>
         </div>

@@ -225,7 +225,7 @@ class TenantManagementPage extends Component
             'execution_daily_cap_amount' => $subscription?->execution_daily_cap_amount !== null ? (string) $subscription->execution_daily_cap_amount : '',
             'execution_monthly_cap_amount' => $subscription?->execution_monthly_cap_amount !== null ? (string) $subscription->execution_monthly_cap_amount : '',
             'execution_maker_checker_threshold_amount' => $subscription?->execution_maker_checker_threshold_amount !== null ? (string) $subscription->execution_maker_checker_threshold_amount : '',
-            'execution_allowed_channels' => array_values((array) ($subscription?->execution_allowed_channels ?? [])),
+            'execution_allowed_channels' => $this->activeExecutionChannels((array) ($subscription?->execution_allowed_channels ?? [])),
             'execution_policy_notes' => (string) ($subscription?->execution_policy_notes ?? ''),
             'starts_at' => (string) optional($subscription?->starts_at)->toDateString(),
             'ends_at' => (string) optional($subscription?->ends_at)->toDateString(),
@@ -1237,9 +1237,23 @@ class TenantManagementPage extends Component
             'execution_daily_cap_amount' => $subscription->execution_daily_cap_amount !== null ? (float) $subscription->execution_daily_cap_amount : null,
             'execution_monthly_cap_amount' => $subscription->execution_monthly_cap_amount !== null ? (float) $subscription->execution_monthly_cap_amount : null,
             'execution_maker_checker_threshold_amount' => $subscription->execution_maker_checker_threshold_amount !== null ? (float) $subscription->execution_maker_checker_threshold_amount : null,
-            'execution_allowed_channels' => array_values((array) ($subscription->execution_allowed_channels ?? [])),
+            'execution_allowed_channels' => $this->activeExecutionChannels((array) ($subscription->execution_allowed_channels ?? [])),
             'execution_policy_notes' => (string) ($subscription->execution_policy_notes ?? ''),
         ];
+    }
+
+    /**
+     * @param  array<int, mixed>  $channels
+     * @return array<int, string>
+     */
+    private function activeExecutionChannels(array $channels): array
+    {
+        $activeChannels = app(TenantExecutionModeService::class)->supportedChannels();
+
+        return array_values(array_filter(
+            array_map('strval', $channels),
+            static fn (string $channel): bool => in_array($channel, $activeChannels, true)
+        ));
     }
 
     /**
@@ -1366,7 +1380,6 @@ class TenantManagementPage extends Component
         app(PlatformAccessService::class)->authorizePlatformOperator();
     }
 }
-
 
 
 

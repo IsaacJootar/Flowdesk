@@ -18,7 +18,7 @@ use Livewire\Component;
 use Throwable;
 
 #[Layout('layouts.app')]
-#[Title('Client Payment Rules')]
+#[Title('Client Payment Controls')]
 class TenantExecutionPolicyPage extends Component
 {
     use InteractsWithTenantCompanies;
@@ -145,6 +145,7 @@ class TenantExecutionPolicyPage extends Component
         return view('livewire.platform.tenant-execution-policy-page', [
             'company' => $company,
             'channels' => app(TenantExecutionModeService::class)->supportedChannels(),
+            'futureChannels' => app(TenantExecutionModeService::class)->futureChannels(),
         ]);
     }
 
@@ -155,6 +156,13 @@ class TenantExecutionPolicyPage extends Component
             ->findOrFail((int) $this->company->id);
 
         $subscription = $company->subscription;
+
+        $service = app(TenantExecutionModeService::class);
+        $activeChannels = $service->supportedChannels();
+        $savedChannels = array_values(array_filter(
+            array_map('strval', (array) ($subscription?->execution_allowed_channels ?? [])),
+            static fn (string $channel): bool => in_array($channel, $activeChannels, true)
+        ));
 
         $this->policyForm = [
             'execution_max_transaction_amount' => $subscription?->execution_max_transaction_amount !== null
@@ -169,7 +177,7 @@ class TenantExecutionPolicyPage extends Component
             'execution_maker_checker_threshold_amount' => $subscription?->execution_maker_checker_threshold_amount !== null
                 ? (string) $subscription->execution_maker_checker_threshold_amount
                 : '',
-            'execution_allowed_channels' => array_values((array) ($subscription?->execution_allowed_channels ?? [])),
+            'execution_allowed_channels' => $savedChannels,
             'execution_policy_notes' => (string) ($subscription?->execution_policy_notes ?? ''),
         ];
     }

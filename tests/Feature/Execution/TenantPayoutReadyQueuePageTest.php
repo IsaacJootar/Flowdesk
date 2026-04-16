@@ -29,7 +29,7 @@ class TenantPayoutReadyQueuePageTest extends TestCase
         $this->actingAs($owner)
             ->get(route('execution.payout-ready'))
             ->assertOk()
-            ->assertSee('Payout Ready Queue');
+            ->assertSee('Payments Ready to Send');
     }
 
     public function test_staff_and_platform_operator_cannot_view_page(): void

@@ -23,9 +23,9 @@ class TenantExecutionUsageGuidePageTest extends TestCase
         $this->actingAs($finance)
             ->get(route('execution.help'))
             ->assertOk()
-            ->assertSee('Payout Money Movement Guide')
-            ->assertSee('Run Payout')
-            ->assertSee('Rerun Payout');
+            ->assertSee('Payment Movement Guide')
+            ->assertSee('Send Payment')
+            ->assertSee('Retry Payment');
     }
 
     public function test_staff_and_platform_users_cannot_view_execution_help_page(): void

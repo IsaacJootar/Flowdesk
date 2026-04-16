@@ -31,7 +31,7 @@ class TenantExecutionHealthPageTest extends TestCase
         $this->actingAs($owner)
             ->get(route('execution.health'))
             ->assertOk()
-            ->assertSee('Execution Health');
+            ->assertSee('Payment Provider Health');
 
         $routes = array_column(app(NavAccessService::class)->forUser($owner)['items'], 'route');
         $this->assertContains('execution.health', $routes);
@@ -242,7 +242,7 @@ class TenantExecutionHealthPageTest extends TestCase
             ->assertSet('summary.status_label', 'Delayed')
             ->assertSet('summary.affected_billings', 1)
             ->assertSet('summary.affected_payouts', 1)
-            ->assertSet('summary.next_action', 'Open Execution & Payouts to run recovery or retry affected records.');
+            ->assertSet('summary.next_action', 'Some payments are queued but have not gone through yet. Use the button to review them and retry as needed.');
     }
     public function test_execution_health_can_show_focused_billing_context_from_deep_link(): void
     {
@@ -274,7 +274,7 @@ class TenantExecutionHealthPageTest extends TestCase
             ->call('loadData')
             ->assertSet('focusContext.pipeline', 'Billing')
             ->assertSet('focusContext.record_label', 'Billing attempt #'.(int) $attempt->id)
-            ->assertSee('Focused Execution Context')
+            ->assertSee('Affected Payment Details')
             ->assertSee('Billing attempt #'.(int) $attempt->id)
             ->assertSee('EXE-123456');
     }

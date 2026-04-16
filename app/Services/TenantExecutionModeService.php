@@ -36,8 +36,19 @@ class TenantExecutionModeService
     {
         return [
             'bank_transfer',
-            'wallet_payout',
-            'card_charge',
+        ];
+    }
+
+    /**
+     * Channels listed here are intentionally not active for request payouts yet.
+     *
+     * @return array<string, string>
+     */
+    public function futureChannels(): array
+    {
+        return [
+            'wallet_payout' => 'Requires a Flowdesk wallet balance and wallet ledger before it can send vendor payments.',
+            'card_charge' => 'Card charging is for collections or card products, not vendor payouts in the current release.',
         ];
     }
 

@@ -204,6 +204,10 @@ class PayoutReadyQueuePage extends Component
                 return 'No payment provider configured. Contact your administrator.';
             }
 
+            if ($this->activeRequestPaymentChannels((array) ($subscription->execution_allowed_channels ?? [])) === []) {
+                return 'Bank transfer is not enabled in Client Payment Controls.';
+            }
+
             return 'Ready to send.';
         }
 
@@ -274,7 +278,7 @@ class PayoutReadyQueuePage extends Component
     {
         $query = $this->baseRequestQuery()
             ->with([
-                'company.subscription:id,company_id,payment_execution_mode,execution_provider',
+                'company.subscription:id,company_id,payment_execution_mode,execution_provider,execution_allowed_channels',
                 'requester:id,name',
                 // Latest approved action indicates the final approver in the chain.
                 'approvals' => function ($approvalQuery): void {
@@ -455,7 +459,25 @@ class PayoutReadyQueuePage extends Component
             return 'Payment could not be sent. No payment provider is configured — contact your administrator.';
         }
 
+        if ($this->activeRequestPaymentChannels((array) ($subscription->execution_allowed_channels ?? [])) === []) {
+            return 'Payment could not be sent. Enable Bank Transfer in Client Payment Controls.';
+        }
+
         return 'Payment could not be sent. Check your provider configuration and try again.';
+    }
+
+    /**
+     * @param  array<int, mixed>  $channels
+     * @return array<int, string>
+     */
+    private function activeRequestPaymentChannels(array $channels): array
+    {
+        $supportedChannels = app(TenantExecutionModeService::class)->supportedChannels();
+
+        return array_values(array_filter(
+            array_map('strval', $channels),
+            static fn (string $channel): bool => in_array($channel, $supportedChannels, true)
+        ));
     }
 
     /**
@@ -495,4 +517,3 @@ class PayoutReadyQueuePage extends Component
         $this->feedbackKey++;
     }
 }
-

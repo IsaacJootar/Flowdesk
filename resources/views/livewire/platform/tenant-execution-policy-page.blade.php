@@ -17,9 +17,9 @@
 
     <div class="flex items-center justify-between">
         <div>
-            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Organization Execution Policy</p>
+            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Client Payment Controls</p>
             <h2 class="mt-1 text-xl font-semibold text-slate-900">{{ $company->name }}</h2>
-            <p class="text-sm text-slate-500">Configure caps, checker limit, channels, and policy notes.</p>
+            <p class="text-sm text-slate-500">Configure caps, checker limit, active payout method, and policy notes.</p>
         </div>
 </div>
 
@@ -46,7 +46,7 @@
         </div>
 
         <div>
-            <p class="mb-1 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Allowed Execution Channels</p>
+            <p class="mb-1 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Allowed Payment Methods</p>
             <div class="grid gap-2 sm:grid-cols-3">
                 @foreach ($channels as $channel)
                     <label class="inline-flex items-center gap-2 text-sm text-slate-700">
@@ -54,17 +54,28 @@
                         <span>{{ str_replace('_', ' ', ucfirst($channel)) }}</span>
                     </label>
                 @endforeach
+                @foreach ($futureChannels as $channel => $reason)
+                    <div class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-500">
+                        <label class="inline-flex items-center gap-2">
+                            <input type="checkbox" disabled class="rounded border-slate-300">
+                            <span>{{ str_replace('_', ' ', ucfirst((string) $channel)) }}</span>
+                            <span class="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">Coming later</span>
+                        </label>
+                        <p class="mt-1 text-xs leading-5">{{ $reason }}</p>
+                    </div>
+                @endforeach
             </div>
+            <p class="mt-2 text-xs text-slate-500">Approved vendor payments currently send through bank transfer only. Wallet and card flows will need their own wallet/card modules before they can move money.</p>
         </div>
 
         <label class="block">
-            <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Execution Policy Notes</span>
+            <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Payment Control Notes</span>
             <textarea rows="3" wire:model.defer="policyForm.execution_policy_notes" class="w-full rounded-xl border-slate-300 text-sm" placeholder="Optional policy notes"></textarea>
         </label>
 
         <div class="flex justify-end border-t border-slate-200 pt-3">
             <button type="submit" wire:loading.attr="disabled" wire:target="save" class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white">
-                <span wire:loading.remove wire:target="save">Save Execution Policy</span>
+                <span wire:loading.remove wire:target="save">Save Payment Controls</span>
                 <span wire:loading wire:target="save">Saving...</span>
             </button>
         </div>

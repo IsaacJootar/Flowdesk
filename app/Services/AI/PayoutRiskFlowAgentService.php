@@ -144,10 +144,9 @@ class PayoutRiskFlowAgentService
     private function guidance(string $riskLevel): string
     {
         return match ($riskLevel) {
-            'high' => 'Open Execution Health first, confirm provider/runtime status, then run payout when blockers are addressed.',
-            'medium' => 'Run payout with monitoring and capture incident notes quickly if status degrades to failed.',
-            default => 'Proceed with standard payout run and continue normal execution monitoring.',
+            'high' => 'Open Payment Provider Health first, confirm provider/runtime status, then send payment when blockers are addressed.',
+            'medium' => 'Send payment with monitoring and capture incident notes quickly if status degrades to failed.',
+            default => 'Proceed with the standard payment run and continue normal provider monitoring.',
         };
     }
 }
-

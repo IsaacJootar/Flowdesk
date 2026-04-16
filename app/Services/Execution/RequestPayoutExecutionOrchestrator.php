@@ -73,8 +73,16 @@ class RequestPayoutExecutionOrchestrator
             return null;
         }
 
-        $allowedChannels = array_values(array_filter(array_map('strval', (array) ($subscription->execution_allowed_channels ?? []))));
-        $channel = $allowedChannels[0] ?? 'bank_transfer';
+        $supportedChannels = app(TenantExecutionModeService::class)->supportedChannels();
+        $allowedChannels = array_values(array_filter(
+            array_map('strval', (array) ($subscription->execution_allowed_channels ?? [])),
+            static fn (string $channel): bool => in_array($channel, $supportedChannels, true)
+        ));
+        if ($allowedChannels === []) {
+            return null;
+        }
+
+        $channel = $allowedChannels[0];
 
         $attempt = RequestPayoutExecutionAttempt::query()->firstOrCreate(
             ['request_id' => (int) $request->id],
