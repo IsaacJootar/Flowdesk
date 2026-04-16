@@ -32,7 +32,7 @@ use Livewire\Component;
 use Livewire\WithPagination;
 
 #[Layout('layouts.app')]
-#[Title('Reports Center')]
+#[Title('Reports')]
 class ReportsCenterPage extends Component
 {
     use WithPagination;
@@ -1117,7 +1117,6 @@ class ReportsCenterPage extends Component
         return (bool) config('performance.cache.enabled', true);
     }
 }
-
 
 
 

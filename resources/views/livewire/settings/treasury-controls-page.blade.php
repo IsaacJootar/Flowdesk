@@ -23,7 +23,7 @@
                 <span class="inline-flex items-center rounded-full border border-slate-300 bg-slate-200 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-800">
                     Treasury Controls
                 </span>
-                <h2 class="mt-2 text-base font-semibold text-slate-900">Tenant Reconciliation Guardrails</h2>
+                <h2 class="mt-2 text-base font-semibold text-slate-900">Bank Reconciliation Controls</h2>
                 <p class="mt-1 text-sm text-slate-600">
                     Configure statement import limits and auto-match tolerances for treasury operations.
                 </p>

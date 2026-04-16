@@ -159,7 +159,7 @@ class TreasuryReconciliationExceptionsPage extends Component
         }
 
         if (! $this->flowAgentsEnabled) {
-            $this->setFeedbackError('Flow Agent is not enabled for this tenant.');
+            $this->setFeedbackError('Flow Agent is not enabled for your organization.');
 
             return;
         }
@@ -171,7 +171,7 @@ class TreasuryReconciliationExceptionsPage extends Component
             ->first();
 
         if (! $exception) {
-            $this->setFeedbackError('Selected exception is no longer available in your tenant scope.');
+            $this->setFeedbackError('This item is no longer available — it may have already been resolved by someone else.');
 
             return;
         }
@@ -216,7 +216,7 @@ class TreasuryReconciliationExceptionsPage extends Component
         $requiresMakerChecker = (bool) ($controls['exception_action_requires_maker_checker'] ?? true);
 
         if (! $this->canOperate($user)) {
-            $this->setFeedbackError(sprintf('Only [%s] can resolve or waive treasury exceptions.', implode(', ', $allowedRoles)));
+            $this->setFeedbackError(sprintf('Only %s can mark items as fixed or accept and close them.', implode(', ', $allowedRoles)));
 
             $tenantAuditLogger->log(
                 companyId: (int) $user->company_id,
@@ -235,7 +235,7 @@ class TreasuryReconciliationExceptionsPage extends Component
         }
 
         if (! $this->selectedExceptionId) {
-            $this->setFeedbackError('Select an exception to resolve first.');
+            $this->setFeedbackError('No item selected. Please select an item first.');
 
             return;
         }
@@ -252,7 +252,7 @@ class TreasuryReconciliationExceptionsPage extends Component
             ->firstOrFail();
 
         if ((string) $exception->exception_status !== ReconciliationException::STATUS_OPEN) {
-            $this->setFeedbackError('Exception is already closed.');
+            $this->setFeedbackError('This item is already closed — no further action needed.');
 
             return;
         }
@@ -265,7 +265,7 @@ class TreasuryReconciliationExceptionsPage extends Component
 
             // Control intent: exception maker and checker must be different for sensitive closure actions.
             if (in_array((int) $user->id, $makerIds, true)) {
-                $this->setFeedbackError('Maker-checker policy requires another authorized user to resolve or waive this exception.');
+                $this->setFeedbackError('A second person must confirm this decision — you cannot close an item you raised yourself.');
 
                 $tenantAuditLogger->log(
                     companyId: (int) $user->company_id,
@@ -333,7 +333,10 @@ class TreasuryReconciliationExceptionsPage extends Component
         );
 
         $this->closeResolutionModal();
-        $this->setFeedback('Treasury exception updated.');
+        $this->setFeedback($newStatus === ReconciliationException::STATUS_WAIVED
+            ? 'Item accepted and closed.'
+            : 'Item marked as fixed and closed.'
+        );
     }
 
     public function render(TreasuryControlSettingsService $treasuryControlSettingsService): View

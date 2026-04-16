@@ -13,13 +13,13 @@
         <div class="flex flex-wrap items-start justify-between gap-3">
             <div>
                 <a href="{{ route('operations.control-desk') }}" class="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-white px-2.5 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-100">&larr; Back to Operations Overview</a>
-                <p class="mt-3 text-xs font-semibold uppercase tracking-[0.14em] text-rose-700">Desk 3</p>
-                <h2 class="mt-1 text-xl font-semibold text-slate-900">Month-End Month-End Close</h2>
-                <p class="mt-1 text-sm text-slate-700">One page for month-end readiness checks across treasury, procurement, payout retries, and audit flags.</p>
+                <p class="mt-3 text-xs font-semibold uppercase tracking-[0.14em] text-rose-700">Month-End</p>
+                <h2 class="mt-1 text-xl font-semibold text-slate-900">Month-End Close</h2>
+                <p class="mt-1 text-sm text-slate-700">One page for month-end readiness checks across bank reconciliation, purchase orders, payment retries, and audit flags.</p>
             </div>
             <div class="flex flex-wrap gap-2">
-                <a href="{{ route('operations.approval-desk') }}" class="inline-flex items-center rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100">Approval Desk</a>
-                <a href="{{ route('operations.vendor-payables-desk') }}" class="inline-flex items-center rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700 hover:bg-amber-100">Vendor Payables Desk</a>
+                <a href="{{ route('operations.approval-desk') }}" class="inline-flex items-center rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100">Approvals Overview</a>
+                <a href="{{ route('operations.vendor-payables-desk') }}" class="inline-flex items-center rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700 hover:bg-amber-100">Vendor Payables</a>
             </div>
         </div>
     </section>
@@ -36,8 +36,8 @@
     @else
         <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
             <div class="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-amber-900"><p class="text-xs font-semibold uppercase tracking-[0.14em]">Unreconciled Lines</p><p class="mt-2 text-2xl font-semibold">{{ number_format((int) ($closeDesk['summary']['unreconciled_lines'] ?? 0)) }}</p></div>
-            <div class="rounded-2xl border border-rose-200 bg-rose-50 p-5 text-rose-900"><p class="text-xs font-semibold uppercase tracking-[0.14em]">Procurement Issues</p><p class="mt-2 text-2xl font-semibold">{{ number_format((int) ($closeDesk['summary']['open_procurement_exceptions'] ?? 0)) }}</p></div>
-            <div class="rounded-2xl border border-sky-200 bg-sky-50 p-5 text-sky-900"><p class="text-xs font-semibold uppercase tracking-[0.14em]">Failed Payouts</p><p class="mt-2 text-2xl font-semibold">{{ number_format((int) ($closeDesk['summary']['failed_payouts'] ?? 0)) }}</p></div>
+            <div class="rounded-2xl border border-rose-200 bg-rose-50 p-5 text-rose-900"><p class="text-xs font-semibold uppercase tracking-[0.14em]">Purchase Order Issues</p><p class="mt-2 text-2xl font-semibold">{{ number_format((int) ($closeDesk['summary']['open_procurement_exceptions'] ?? 0)) }}</p></div>
+            <div class="rounded-2xl border border-sky-200 bg-sky-50 p-5 text-sky-900"><p class="text-xs font-semibold uppercase tracking-[0.14em]">Failed Payments</p><p class="mt-2 text-2xl font-semibold">{{ number_format((int) ($closeDesk['summary']['failed_payouts'] ?? 0)) }}</p></div>
             <div class="rounded-2xl border border-indigo-200 bg-indigo-50 p-5 text-indigo-900"><p class="text-xs font-semibold uppercase tracking-[0.14em]">Audit Flags (30d)</p><p class="mt-2 text-2xl font-semibold">{{ number_format((int) ($closeDesk['summary']['audit_flags'] ?? 0)) }}</p></div>
             <div class="rounded-2xl border border-slate-200 bg-slate-50 p-5 text-slate-900"><p class="text-xs font-semibold uppercase tracking-[0.14em]">Close Status</p><p class="mt-2 text-2xl font-semibold">{{ $closeDesk['summary']['close_status'] ?? 'Action Needed' }}</p></div>
         </section>

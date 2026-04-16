@@ -48,8 +48,8 @@ class SettingsControlCenterPage extends Component
 
         $sectionMeta = [
             'organization' => [
-                'label' => 'Organization Settings',
-                'description' => 'Tenant structure, teams, and approval ownership.',
+                'label' => 'Company Settings',
+                'description' => 'Company structure, teams, and approval ownership.',
                 'tone' => 'sky',
             ],
             'requests' => [
@@ -59,7 +59,7 @@ class SettingsControlCenterPage extends Component
             ],
             'controls' => [
                 'label' => 'Module Controls',
-                'description' => 'Operational guardrails for finance and operations modules.',
+                'description' => 'Operational controls for finance and workflow modules.',
                 'tone' => 'amber',
             ],
             'security' => [
@@ -85,7 +85,7 @@ class SettingsControlCenterPage extends Component
                 ],
                 [
                     'label' => 'Team',
-                    'description' => 'Role assignment, reporting lines, and user lifecycle controls.',
+                    'description' => 'Role assignment, reporting lines, and user access controls.',
                     'route' => 'team.index',
                     'module' => null,
                 ],
@@ -98,14 +98,14 @@ class SettingsControlCenterPage extends Component
             ],
             'requests' => [
                 [
-                    'label' => 'Request Configuration',
-                    'description' => 'Request types, spend categories, and request policy scaffolding.',
+                    'label' => 'Request Settings',
+                    'description' => 'Request types, spend categories, and submission policies.',
                     'route' => 'settings.request-configuration',
                     'module' => 'requests',
                 ],
                 [
-                    'label' => 'Approval Timing Controls',
-                    'description' => 'SLA windows, reminder cadence, and escalation timing policies.',
+                    'label' => 'Approval Deadline Controls',
+                    'description' => 'Response deadlines, reminder timing, and overdue approval handling.',
                     'route' => 'settings.approval-timing-controls',
                     'module' => 'requests',
                 ],
@@ -119,13 +119,13 @@ class SettingsControlCenterPage extends Component
             'controls' => [
                 [
                     'label' => 'Expense Controls',
-                    'description' => 'Posting/edit/void guardrails and maker-checker policy.',
+                    'description' => 'Posting, editing, voiding, and two-person review controls.',
                     'route' => 'settings.expense-controls',
                     'module' => 'expenses',
                 ],
                 [
                     'label' => 'Vendor Controls',
-                    'description' => 'Vendor profile and payables action guardrails.',
+                    'description' => 'Vendor profile requirements and payables action controls.',
                     'route' => 'settings.vendor-controls',
                     'module' => 'vendors',
                 ],
@@ -136,8 +136,8 @@ class SettingsControlCenterPage extends Component
                     'module' => 'assets',
                 ],
                 [
-                    'label' => 'Procurement Controls',
-                    'description' => 'PO conversion requirements and procurement release guardrails.',
+                    'label' => 'Purchase Order Controls',
+                    'description' => 'Purchase order conversion, invoice matching, and release controls.',
                     'route' => 'settings.procurement-controls',
                     'module' => 'procurement',
                 ],
@@ -148,8 +148,8 @@ class SettingsControlCenterPage extends Component
                     'module' => 'treasury',
                 ],
                 [
-                    'label' => 'Payments Rails Integration',
-                    'description' => 'Business-level provider connection status and tenant rail readiness.',
+                    'label' => 'Payment Provider Controls',
+                    'description' => 'Provider connection status, payment mode, and readiness checks.',
                     'route' => 'settings.payments-rails',
                     'module' => 'fintech',
                 ],
@@ -220,5 +220,4 @@ class SettingsControlCenterPage extends Component
         return (string) $user->role === UserRole::Owner->value;
     }
 }
-
 

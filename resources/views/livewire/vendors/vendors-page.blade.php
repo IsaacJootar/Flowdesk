@@ -94,7 +94,7 @@
                             <svg class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                                 <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
                             </svg>
-                            <span>Vendor</span>
+                            <span>Add Vendor</span>
                         </span>
                         <span wire:loading wire:target="openCreateModal">Opening...</span>
                     </button>
@@ -105,7 +105,7 @@
                     class="inline-flex h-10 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl border border-slate-300 bg-white px-3.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
                 >
                     <span aria-hidden="true">&larr;</span>
-                    <span>Back to Vendor Management</span>
+                    <span>Back to Vendor Directory</span>
                 </a>
             </div>
         </div>
@@ -198,7 +198,7 @@
                                                 wire:click.stop="delete({{ $vendor->id }})"
                                                 wire:loading.attr="disabled"
                                                 wire:target="delete({{ $vendor->id }})"
-                                                wire:confirm="Delete this vendor?"
+                                                wire:confirm="Are you sure you want to delete this vendor? This action cannot be undone."
                                                 class="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-70"
                                             >
                                                 <span wire:loading.remove wire:target="delete({{ $vendor->id }})">Delete</span>

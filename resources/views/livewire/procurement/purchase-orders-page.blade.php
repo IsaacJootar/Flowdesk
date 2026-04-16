@@ -11,7 +11,7 @@
     />
     <div class="flex items-center justify-between">
         <div>
-            <h2 class="text-base font-semibold text-slate-900">Procurement Orders</h2>
+            <h2 class="text-base font-semibold text-slate-900">Purchase Orders</h2>
             <p class="text-xs text-slate-500">Create and issue purchase orders from approved requests.</p>
         </div>
         <div class="flex items-center gap-2">
@@ -71,8 +71,8 @@
     </div>
 
     <div class="flex justify-end gap-2">
-        <a href="{{ route('procurement.receipts') }}" class="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100">Open Receipts Table</a>
-        <a href="{{ route('procurement.match-exceptions') }}" class="rounded-lg border border-rose-300 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100">Open Match Issues</a>
+        <a href="{{ route('procurement.receipts') }}" class="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100">Goods Receipts</a>
+        <a href="{{ route('procurement.match-exceptions') }}" class="rounded-lg border border-rose-300 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100">Invoice Mismatches</a>
     </div>
 
     <div class="grid gap-3 sm:grid-cols-4">
@@ -130,7 +130,7 @@
                             <tr class="hover:bg-slate-50">
                                 <td class="px-4 py-3">
                                     <p class="font-medium text-slate-800">{{ $order->po_number }}</p>
-                                    <p class="text-xs text-slate-500">{{ $order->items_count }} line(s) | {{ $order->commitments_count }} commitment(s)</p>
+                                    <p class="text-xs text-slate-500">{{ $order->items_count }} {{ Str::plural('line', $order->items_count) }} · {{ $order->commitments_count }} {{ Str::plural('commitment', $order->commitments_count) }}</p>
                                 </td>
                                 <td class="px-4 py-3 text-slate-600">
                                     <p>{{ $order->request?->request_code ?? '-' }}</p>
@@ -183,13 +183,8 @@
                 <div wire:click.stop class="fd-card w-full max-w-5xl p-6" style="max-height: calc(100vh - 3rem); overflow-y: auto;">
                     <div class="mb-4 flex items-start justify-between">
                         <div>
-                            <span class="inline-flex items-center rounded-full border border-indigo-200 bg-indigo-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-indigo-700">Procurement Order</span>
+                            <span class="inline-flex items-center rounded-full border border-indigo-200 bg-indigo-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-indigo-700">Purchase Order</span>
                             <h2 class="text-lg font-semibold text-slate-900">{{ $selectedOrder['po_number'] }}</h2>
-                            <p class="text-sm text-slate-500">
-                                Issue roles: {{ implode(', ', array_map('ucfirst', $issueRoles)) }} |
-                                Receipt roles: {{ implode(', ', array_map('ucfirst', $receiptRoles)) }} |
-                                Invoice-link roles: {{ implode(', ', array_map('ucfirst', $invoiceLinkRoles)) }}
-                            </p>
                         </div>
                         <button type="button" wire:click="closeDetails" class="rounded-lg border border-slate-200 px-3 py-1 text-sm text-slate-600 hover:bg-slate-50">Close</button>
                     </div>
@@ -263,7 +258,7 @@
 
                             @if ($selectedOrder['can_receive'])
                                 <div class="mt-3 rounded-lg border border-indigo-100 bg-indigo-50 p-3">
-                                    <p class="text-xs font-semibold uppercase tracking-[0.08em] text-indigo-700">New receipt entry</p>
+                                    <p class="text-xs font-semibold uppercase tracking-[0.08em] text-indigo-700">Record Delivery</p>
                                     <p class="mt-1 text-xs text-indigo-700">Over-receipt allowed: {{ $selectedOrder['allow_over_receipt'] ? 'Yes' : 'No' }}</p>
 
                                     <div class="mt-2 space-y-2">
@@ -326,7 +321,7 @@
 
                             @if ($selectedOrder['can_link_invoice'])
                                 <div class="mt-3 rounded-lg border border-emerald-100 bg-emerald-50 p-3">
-                                    <p class="text-xs font-semibold uppercase tracking-[0.08em] text-emerald-700">Link invoice to this PO</p>
+                                    <p class="text-xs font-semibold uppercase tracking-[0.08em] text-emerald-700">Attach an Invoice</p>
                                     <div class="mt-2 grid gap-2 sm:grid-cols-[1fr,auto]">
                                         <select wire:model="selectedVendorInvoiceId" class="w-full rounded-lg border-slate-300 text-xs focus:border-slate-500 focus:ring-slate-500">
                                             @foreach ($selectedOrder['selectable_invoices'] as $invoiceOption)
@@ -334,8 +329,8 @@
                                             @endforeach
                                         </select>
                                         <button type="button" wire:click="linkSelectedVendorInvoice" wire:loading.attr="disabled" wire:target="linkSelectedVendorInvoice" class="rounded-lg border border-emerald-200 bg-emerald-100 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-200">
-                                            <span wire:loading.remove wire:target="linkSelectedVendorInvoice">Link</span>
-                                            <span wire:loading wire:target="linkSelectedVendorInvoice">Linking...</span>
+                                            <span wire:loading.remove wire:target="linkSelectedVendorInvoice">Attach</span>
+                                            <span wire:loading wire:target="linkSelectedVendorInvoice">Attaching...</span>
                                         </button>
                                     </div>
                                 </div>
@@ -356,7 +351,7 @@
                     </div>
 
                     <div class="mt-4 rounded-xl border border-slate-200 p-4">
-                        <p class="text-sm font-semibold text-slate-800">Procurement Timeline</p>
+                        <p class="text-sm font-semibold text-slate-800">Activity Timeline</p>
                         <div class="mt-2 space-y-1">
                             @forelse ($selectedOrder['timeline'] as $event)
                                 <p class="text-xs text-slate-600">{{ $event['at'] ?? '-' }} | {{ $event['label'] }} @if (! empty($event['meta'])) | {{ $event['meta'] }} @endif</p>
@@ -369,8 +364,8 @@
                     <div class="mt-4 flex items-center justify-end gap-3 border-t border-slate-200 pt-4">
                         @if ($selectedOrder['can_issue'])
                             <button type="button" wire:click="issueSelectedOrder" wire:loading.attr="disabled" wire:target="issueSelectedOrder" class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-70">
-                                <span wire:loading.remove wire:target="issueSelectedOrder">Issue PO</span>
-                                <span wire:loading wire:target="issueSelectedOrder">Issuing...</span>
+                                <span wire:loading.remove wire:target="issueSelectedOrder">Send to Vendor</span>
+                                <span wire:loading wire:target="issueSelectedOrder">Sending...</span>
                             </button>
                         @endif
                         <button type="button" wire:click="closeDetails" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Close</button>

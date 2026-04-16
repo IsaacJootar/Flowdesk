@@ -17,7 +17,7 @@
             </div>
             <a href="{{ route('treasury.reconciliation') }}" class="inline-flex h-10 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl border border-slate-300 bg-white px-3.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
                 <span aria-hidden="true">&larr;</span>
-                <span>Back to Manage Treasury</span>
+                <span>Back to Bank Reconciliation</span>
             </a>
         </div>
     </div>
@@ -118,4 +118,3 @@
         @endif
     </div>
 </div>
-

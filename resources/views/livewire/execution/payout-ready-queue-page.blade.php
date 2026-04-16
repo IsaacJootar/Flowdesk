@@ -12,17 +12,16 @@
     <section class="fd-card border border-slate-200 bg-slate-50 p-5">
         <div class="flex flex-wrap items-start justify-between gap-3">
             <div>
-                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Payments Ready to Send</p>
                 <h2 class="mt-1 text-xl font-semibold text-slate-900">Payments Ready to Send</h2>
-                <p class="mt-1 text-sm text-slate-600">Single workspace for requests that are approved and waiting for payout execution.</p>
+                <p class="mt-1 text-sm text-slate-600">Approved payments that have passed all checks and are waiting to be sent.</p>
             </div>
 
             <div class="flex flex-wrap gap-2">
                 <a href="{{ route('execution.health') }}" class="inline-flex items-center rounded-lg border border-slate-700 bg-slate-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800" style="background-color:#334155;border-color:#334155;color:#ffffff;">
-                    View Execution Health
+                    Payment Provider Health
                 </a>
                 <a href="{{ route('requests.lifecycle-desk') }}" class="inline-flex items-center rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100">
-                    Request Lifecycle Desk
+                    Request Tracker
                 </a>
                 <a href="{{ route('execution.help') }}" class="inline-flex items-center rounded-lg border border-slate-700 bg-slate-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800" style="background-color:#334155;border-color:#334155;color:#ffffff;">
                     Help / Usage Guide
@@ -114,9 +113,9 @@
         <section class="fd-card border border-slate-200 bg-slate-50 p-5">
             <div class="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                    <span class="inline-flex rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-sky-700">Execution Workload Progress</span>
-                    <p class="mt-2 text-sm text-slate-700">Open payout workload: <span class="font-semibold">{{ number_format($executionTotal) }}</span></p>
-                    <p class="text-xs text-slate-500">Current bottleneck: {{ $executionBottleneckLabel }} ({{ number_format($executionBottleneckCount) }})</p>
+                    <span class="inline-flex rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-sky-700">Progress Overview</span>
+                    <p class="mt-2 text-sm text-slate-700">Total payments waiting: <span class="font-semibold">{{ number_format($executionTotal) }}</span></p>
+                    <p class="text-xs text-slate-500">Biggest hold-up: {{ $executionBottleneckLabel }} ({{ number_format($executionBottleneckCount) }})</p>
                 </div>
             </div>
 
@@ -157,8 +156,8 @@
                 <div>
                     <label for="payout-ready-status-filter" class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Status</label>
                     <select id="payout-ready-status-filter" wire:model.live="statusFilter" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
-                        <option value="all">All waiting states</option>
-                        <option value="ready">Ready to queue</option>
+                        <option value="all">All</option>
+                        <option value="ready">Ready to send</option>
                         <option value="queued">Queued</option>
                         <option value="processing">Processing</option>
                         <option value="failed">Failed</option>
@@ -191,7 +190,7 @@
         <section class="fd-card border border-slate-200 bg-slate-50 p-4">
             <div class="mb-3 flex items-center justify-between gap-3">
                 <div>
-                    <h3 class="text-sm font-semibold text-slate-900">Requests Waiting for Payout</h3>
+                    <h3 class="text-sm font-semibold text-slate-900">Payments Waiting to Be Sent</h3>
                     <p class="text-xs text-slate-500">Rows leave this queue automatically after payout settles or is reversed.</p>
                 </div>
             </div>
@@ -205,9 +204,8 @@
                             <th class="px-3 py-2">Final Approver</th>
                             <th class="px-3 py-2">Amount</th>
                             <th class="px-3 py-2">Request Status</th>
-                            <th class="px-3 py-2">Execution State</th>
-                            <th class="px-3 py-2">Condition</th>
-                            <th class="px-3 py-2">Flow Agent Risk</th>
+                            <th class="px-3 py-2">Payment Status</th>
+                            <th class="px-3 py-2">What's Happening</th>
                             <th class="px-3 py-2 text-right">Action</th>
                         </tr>
                     </thead>
@@ -244,21 +242,24 @@
                                 </td>
                                 <td class="px-3 py-3 text-slate-700">{{ $executionState }}</td>
                                 <td class="px-3 py-3 text-slate-600">{{ $this->pipelineCondition($request) }}</td>
-                                <td class="px-3 py-3 text-slate-600">
-                                    @if (is_array($risk))
-                                        <span class="inline-flex rounded-full border px-2 py-0.5 text-xs font-semibold {{ $riskBadgeClass }}">
-                                            {{ ucfirst((string) ($risk['risk_level'] ?? 'low')) }} risk
-                                        </span>
-                                        <p class="mt-1 text-xs text-slate-600">{{ (string) ($risk['top_reason'] ?? '') }}</p>
-                                        <p class="mt-1 text-[11px] text-slate-500">Score {{ (int) ($risk['risk_score'] ?? 0) }}/100 · {{ (string) ($risk['generated_at'] ?? '-') }}</p>
-                                    @elseif (! $flowAgentsEnabled)
-                                        <span class="text-xs text-slate-400">AI disabled for tenant</span>
-                                    @else
-                                        <span class="text-xs text-slate-400">Not analyzed</span>
-                                    @endif
-                                </td>
                                 <td class="px-3 py-3 text-right">
                                     <div class="flex items-center justify-end gap-2">
+                                        @if ($canRunPayoutActions)
+                                            <button
+                                                wire:key="payout-ready-run-{{ (int) $request->id }}"
+                                                type="button"
+                                                wire:click="runPayoutNow({{ (int) $request->id }})"
+                                                wire:loading.attr="disabled"
+                                                wire:target="runPayoutNow({{ (int) $request->id }})"
+                                                class="inline-flex items-center rounded-lg border border-slate-700 bg-slate-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60" style="background-color:#334155;border-color:#334155;color:#ffffff;"
+                                            >
+                                                <span wire:loading.remove wire:target="runPayoutNow({{ (int) $request->id }})">{{ $isProcessing ? 'Check Status' : ($isFailedRow ? 'Retry Payment' : 'Send Payment') }}</span>
+                                                <span wire:loading wire:target="runPayoutNow({{ (int) $request->id }})">Running...</span>
+                                            </button>
+                                        @elseif (! $flowAgentsEnabled)
+                                            <span class="text-xs text-slate-500">View only</span>
+                                        @endif
+
                                         @if ($flowAgentsEnabled)
                                             <button
                                                 wire:key="payout-ready-risk-{{ (int) $request->id }}"
@@ -282,28 +283,12 @@
                                                 <span wire:loading wire:target="analyzePayoutRisk({{ (int) $request->id }})">Analyzing...</span>
                                             </button>
                                         @endif
-
-                                        @if ($canRunPayoutActions)
-                                            <button
-                                                wire:key="payout-ready-run-{{ (int) $request->id }}"
-                                                type="button"
-                                                wire:click="runPayoutNow({{ (int) $request->id }})"
-                                                wire:loading.attr="disabled"
-                                                wire:target="runPayoutNow({{ (int) $request->id }})"
-                                                class="inline-flex items-center rounded-lg border border-slate-700 bg-slate-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60" style="background-color:#334155;border-color:#334155;color:#ffffff;"
-                                            >
-                                                <span wire:loading.remove wire:target="runPayoutNow({{ (int) $request->id }})">{{ $isProcessing ? 'Re-check' : ($isFailedRow ? 'Rerun Payout' : 'Run Payout') }}</span>
-                                                <span wire:loading wire:target="runPayoutNow({{ (int) $request->id }})">Running...</span>
-                                            </button>
-                                        @elseif (! $flowAgentsEnabled)
-                                            <span class="text-xs text-slate-500">View only</span>
-                                        @endif
                                     </div>
                                 </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="9" class="px-3 py-8 text-center text-sm text-slate-500">No payout-ready requests in your tenant queue.</td>
+                                <td colspan="8" class="px-3 py-8 text-center text-sm text-slate-500">No payments waiting to be sent.</td>
                             </tr>
                         @endforelse
                     </tbody>

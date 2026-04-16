@@ -4,7 +4,7 @@
             <div>
                 <p class="text-xs font-semibold uppercase tracking-[0.14em] text-sky-700">Organization Workspace</p>
                 <h2 class="mt-1 text-xl font-semibold text-slate-900">Organization Admin Desk</h2>
-                <p class="mt-1 text-sm text-slate-700">Single page for department setup, team assignment quality, and approval workflow governance.</p>
+                <p class="mt-1 text-sm text-slate-700">Set up departments, assign team members, and configure approval chains — all in one place.</p>
             </div>
 
             <div class="flex flex-wrap gap-2">
@@ -16,7 +16,7 @@
 
         <div class="mt-4 grid gap-3 md:grid-cols-4">
             <div class="md:col-span-3">
-                <label for="organization-admin-search" class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Search Desk</label>
+                <label for="organization-admin-search" class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Search Administration</label>
                 <input id="organization-admin-search" type="text" wire:model.live.debounce.300ms="search" placeholder="Department, team member, workflow scope" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
             </div>
             <div class="rounded-xl border border-sky-200 bg-white px-3 py-2 text-xs text-slate-600">
@@ -42,12 +42,12 @@
         <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <div class="rounded-2xl border border-sky-200 bg-sky-50 p-5 text-sky-900"><p class="text-xs font-semibold uppercase tracking-[0.14em]">Departments Needing Head</p><p class="mt-2 text-2xl font-semibold">{{ number_format((int) ($desk['summary']['department_coverage'] ?? 0)) }}</p></div>
             <div class="rounded-2xl border border-indigo-200 bg-indigo-50 p-5 text-indigo-900"><p class="text-xs font-semibold uppercase tracking-[0.14em]">Team Assignment Gaps</p><p class="mt-2 text-2xl font-semibold">{{ number_format((int) ($desk['summary']['team_assignment'] ?? 0)) }}</p></div>
-            <div class="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-amber-900"><p class="text-xs font-semibold uppercase tracking-[0.14em]">Workflow Governance Gaps</p><p class="mt-2 text-2xl font-semibold">{{ number_format((int) ($desk['summary']['workflow_governance'] ?? 0)) }}</p></div>
+            <div class="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-amber-900"><p class="text-xs font-semibold uppercase tracking-[0.14em]">Approval Chain Gaps</p><p class="mt-2 text-2xl font-semibold">{{ number_format((int) ($desk['summary']['workflow_governance'] ?? 0)) }}</p></div>
             <div class="rounded-2xl border border-slate-200 bg-slate-50 p-5 text-slate-900"><p class="text-xs font-semibold uppercase tracking-[0.14em]">Total Workload</p><p class="mt-2 text-2xl font-semibold">{{ number_format((int) ($desk['summary']['workload_total'] ?? 0)) }}</p></div>
         </section>
 
         <section class="fd-card border border-sky-200 bg-sky-50 p-5">
-            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-sky-700">Organization Workload Progress</p>
+            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-sky-700">Progress Overview</p>
             <p class="mt-1 text-sm text-slate-700">Current bottleneck: {{ $desk['summary']['bottleneck_label'] ?? 'No blockers' }} ({{ number_format((int) ($desk['summary']['bottleneck_count'] ?? 0)) }})</p>
             <div class="mt-3 h-3 overflow-hidden rounded-full bg-slate-100"><div class="flex h-full w-full">
                 @foreach (($desk['summary']['segments'] ?? []) as $segment)
@@ -70,7 +70,7 @@
             @foreach ([
                 'department_coverage' => ['title' => 'Departments Missing Head', 'hint' => 'Assign ownership so department approvals and escalations are explicit.', 'tone' => 'sky'],
                 'team_assignment' => ['title' => 'Team Assignment Gaps', 'hint' => 'Fix missing department/reporting lines for active users.', 'tone' => 'indigo'],
-                'workflow_governance' => ['title' => 'Workflow Governance Gaps', 'hint' => 'Ensure each workflow scope has a usable default chain.', 'tone' => 'amber'],
+                'workflow_governance' => ['title' => 'Approval Chain Gaps', 'hint' => 'Make sure each workflow area has an approval chain assigned.', 'tone' => 'amber'],
             ] as $laneKey => $laneMeta)
                 @php
                     $laneBorder = match ($laneMeta['tone']) {
@@ -93,7 +93,7 @@
                     <div class="space-y-2">
                         @forelse (($desk['lanes'][$laneKey] ?? []) as $row)
                             <div class="rounded-xl border border-white/70 bg-white px-3 py-2">
-                                <p class="text-sm font-semibold text-slate-900">{{ $row['ref'] }} <span class="text-xs font-medium text-slate-500">? {{ $row['status'] }}</span></p>
+                                <p class="text-sm font-semibold text-slate-900">{{ $row['ref'] }} <span class="text-xs font-medium text-slate-500">· {{ $row['status'] }}</span></p>
                                 <p class="mt-1 text-xs text-slate-600">{{ $row['title'] }}</p>
                                 <p class="mt-1 text-xs text-slate-500">{{ $row['meta'] }}</p>
                                 <p class="mt-1 text-xs text-slate-500">{{ $row['context'] }}</p>
@@ -102,7 +102,7 @@
                                 </div>
                             </div>
                         @empty
-                            <p class="rounded-xl border border-slate-200 bg-white px-3 py-6 text-center text-sm text-slate-500">No rows in this lane for current scope/filter.</p>
+                            <p class="rounded-xl border border-slate-200 bg-white px-3 py-6 text-center text-sm text-slate-500">Nothing needs attention here right now.</p>
                         @endforelse
                     </div>
                 </div>

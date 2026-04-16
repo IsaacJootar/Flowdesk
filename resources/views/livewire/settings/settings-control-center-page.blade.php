@@ -13,8 +13,8 @@
         <div class="flex flex-wrap items-start justify-between gap-3">
             <div>
                 <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Settings</p>
-                <h2 class="mt-1 text-xl font-semibold text-slate-900">Settings Control Center</h2>
-                <p class="mt-1 text-sm text-slate-600">Section-based cards for organization configuration. Open any card to manage that settings area.</p>
+                <h2 class="mt-1 text-xl font-semibold text-slate-900">Settings</h2>
+                <p class="mt-1 text-sm text-slate-600">Open a section to manage company setup, requests, controls, payment providers, or access.</p>
             </div>
 
             <div class="flex flex-wrap gap-2">
@@ -113,7 +113,6 @@
         Assets {{ $moduleFlags['assets'] ? 'enabled' : 'disabled' }} |
         Procurement {{ $moduleFlags['procurement'] ? 'enabled' : 'disabled' }} |
         Treasury {{ $moduleFlags['treasury'] ? 'enabled' : 'disabled' }} |
-        Payments Rails {{ $moduleFlags['fintech'] ? 'enabled' : 'disabled' }}.
+        Payment Providers {{ $moduleFlags['fintech'] ? 'enabled' : 'disabled' }}.
     </section>
 </div>
-

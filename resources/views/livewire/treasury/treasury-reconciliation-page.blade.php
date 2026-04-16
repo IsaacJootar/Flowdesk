@@ -30,13 +30,12 @@
     <div class="fd-card p-5">
         <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div>
-                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Manage Treasury</p>
-                <h2 class="mt-1 text-xl font-semibold text-slate-900">Daily Bank Reconciliation</h2>
-                <p class="mt-1 text-sm text-slate-600">Match your bank statement lines against approved payments, unmatched lines, issue decisions, auto-reconcile, and close-day checks.</p>
+                <h2 class="text-xl font-semibold text-slate-900">Daily Bank Reconciliation</h2>
+                <p class="mt-1 text-sm text-slate-600">Match your bank statement lines against approved payments and flag anything that doesn't add up before you close the day.</p>
             </div>
             <div class="flex flex-wrap items-center gap-2">
                 <a href="{{ route('treasury.reconciliation-help') }}" class="inline-flex h-9 items-center rounded-lg border border-slate-700 bg-slate-700 px-3 text-xs font-semibold text-white transition hover:bg-slate-800" style="background-color:#334155;border-color:#334155;color:#ffffff;">Help / Usage Guide</a>
-                <a href="{{ route('treasury.reconciliation-exceptions') }}" class="inline-flex h-9 items-center rounded-lg border border-rose-300 bg-rose-50 px-3 text-xs font-semibold text-rose-700 transition hover:bg-rose-100">Issue Queue</a>
+                <a href="{{ route('treasury.reconciliation-exceptions') }}" class="inline-flex h-9 items-center rounded-lg border border-rose-300 bg-rose-50 px-3 text-xs font-semibold text-rose-700 transition hover:bg-rose-100">View All Unresolved Items</a>
                 <a href="{{ route('treasury.payment-runs') }}" class="inline-flex h-9 items-center rounded-lg border border-indigo-300 bg-indigo-50 px-3 text-xs font-semibold text-indigo-700 transition hover:bg-indigo-100">Payment Runs</a>
                 <a href="{{ route('treasury.cash-position') }}" class="inline-flex h-9 items-center rounded-lg border border-emerald-300 bg-emerald-50 px-3 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100">Cash Position</a>
             </div>
@@ -87,9 +86,9 @@
     <div class="fd-card border border-indigo-200 bg-indigo-50 p-5">
         <div class="flex flex-wrap items-center justify-between gap-3">
             <div>
-                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-indigo-700">Treasury Workload Progress</p>
-                <p class="mt-1 text-sm text-slate-700">Open treasury workload: <span class="font-semibold">{{ number_format($workloadTotal) }}</span></p>
-                <p class="text-xs text-slate-500">Current bottleneck: {{ $bottleneckLabel }} ({{ number_format($bottleneckCount) }})</p>
+                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-indigo-700">Progress Overview</p>
+                <p class="mt-1 text-sm text-slate-700">Total open items: <span class="font-semibold">{{ number_format($workloadTotal) }}</span></p>
+                <p class="text-xs text-slate-500">Biggest hold-up: {{ $bottleneckLabel }} ({{ number_format($bottleneckCount) }})</p>
             </div>
         </div>
 

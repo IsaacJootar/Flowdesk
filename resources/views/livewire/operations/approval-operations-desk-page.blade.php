@@ -2,20 +2,20 @@
     <section class="fd-card border border-indigo-200 bg-indigo-50 p-5">
         <div class="flex flex-wrap items-start justify-between gap-3">
             <div>
-                <a href="{{ route('operations.control-desk') }}" class="inline-flex items-center gap-1 rounded-lg border border-indigo-200 bg-white px-2.5 py-1 text-xs font-semibold text-indigo-700 hover:bg-indigo-100">&larr; Back to Operations Desks</a>
-                <p class="mt-3 text-xs font-semibold uppercase tracking-[0.14em] text-indigo-700">Desk 1</p>
+                <a href="{{ route('operations.control-desk') }}" class="inline-flex items-center gap-1 rounded-lg border border-indigo-200 bg-white px-2.5 py-1 text-xs font-semibold text-indigo-700 hover:bg-indigo-100">&larr; Back to Operations Overview</a>
+                <p class="mt-3 text-xs font-semibold uppercase tracking-[0.14em] text-indigo-700">Approvals</p>
                 <h2 class="mt-1 text-xl font-semibold text-slate-900">Approvals Overview</h2>
-                <p class="mt-1 text-sm text-slate-700">One execution page for pending approvals, overdue SLA items, and returned requests.</p>
+                <p class="mt-1 text-sm text-slate-700">Pending approvals, overdue items, and returned requests — all in one place.</p>
             </div>
             <div class="flex flex-wrap gap-2">
-                <a href="{{ route('operations.vendor-payables-desk') }}" class="inline-flex items-center rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700 hover:bg-amber-100">Vendor Payables Desk</a>
-                <a href="{{ route('operations.period-close-desk') }}" class="inline-flex items-center rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100">Period Close Desk</a>
+                <a href="{{ route('operations.vendor-payables-desk') }}" class="inline-flex items-center rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700 hover:bg-amber-100">Vendor Payables</a>
+                <a href="{{ route('operations.period-close-desk') }}" class="inline-flex items-center rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100">Month-End Close</a>
             </div>
         </div>
 
         <div class="mt-4 grid gap-3 md:grid-cols-4">
             <div class="md:col-span-2">
-                <label for="approval-ops-search" class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Search Desk</label>
+                <label for="approval-ops-search" class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Search Approvals</label>
                 <input id="approval-ops-search" type="text" wire:model.live.debounce.300ms="search" placeholder="Request code, requester, title" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
             </div>
             <div class="rounded-xl border border-indigo-200 bg-white px-3 py-2 text-xs text-slate-600 md:col-span-2">
@@ -44,7 +44,7 @@
                 <p class="mt-2 text-2xl font-semibold">{{ number_format((int) ($approvalDesk['summary']['pending_count'] ?? 0)) }}</p>
             </div>
             <div class="rounded-2xl border border-rose-200 bg-rose-50 p-5 text-rose-900">
-                <p class="text-xs font-semibold uppercase tracking-[0.14em]">Overdue / SLA</p>
+                <p class="text-xs font-semibold uppercase tracking-[0.14em]">Overdue</p>
                 <p class="mt-2 text-2xl font-semibold">{{ number_format((int) ($approvalDesk['summary']['overdue_count'] ?? 0)) }}</p>
             </div>
             <div class="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-amber-900">
@@ -58,7 +58,7 @@
         </section>
 
         <section class="fd-card border border-indigo-200 bg-indigo-50 p-5">
-            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-indigo-700">Approval Workload Progress</p>
+            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-indigo-700">Progress Overview</p>
             <p class="mt-1 text-sm text-slate-700">Current bottleneck: {{ $approvalDesk['summary']['bottleneck_label'] ?? 'No blockers' }} ({{ number_format((int) ($approvalDesk['summary']['bottleneck_count'] ?? 0)) }})</p>
             <div class="mt-3 h-3 overflow-hidden rounded-full bg-slate-100">
                 <div class="flex h-full w-full">
@@ -123,7 +123,7 @@
             <div class="fd-card border border-rose-200 bg-rose-50 p-4">
                 <div class="mb-3 flex items-center justify-between gap-2">
                     <div>
-                        <h3 class="text-sm font-semibold text-slate-900">Overdue / SLA Priority</h3>
+                        <h3 class="text-sm font-semibold text-slate-900">Overdue Approvals</h3>
                         <p class="text-xs text-slate-500">Overdue approvals that should be handled first.</p>
                     </div>
                 </div>
@@ -157,7 +157,7 @@
                             <div class="mt-2 text-right"><a href="{{ $row['next_action_url'] }}" class="inline-flex rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700 hover:bg-amber-100">{{ $row['next_action_label'] }}</a></div>
                         </div>
                     @empty
-                        <p class="rounded-xl border border-slate-200 bg-white px-3 py-6 text-center text-sm text-slate-500">No returned requests in the current scope.</p>
+                        <p class="rounded-xl border border-slate-200 bg-white px-3 py-6 text-center text-sm text-slate-500">No returned requests right now.</p>
                     @endforelse
                 </div>
             </div>

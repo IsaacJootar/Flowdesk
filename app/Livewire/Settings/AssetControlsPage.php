@@ -14,7 +14,7 @@ use Livewire\Attributes\Title;
 use Livewire\Component;
 
 #[Layout('layouts.app')]
-#[Title('Asset Rules')]
+#[Title('Asset Controls')]
 class AssetControlsPage extends Component
 {
     public ?string $feedbackMessage = null;
@@ -146,4 +146,3 @@ class AssetControlsPage extends Component
         }
     }
 }
-

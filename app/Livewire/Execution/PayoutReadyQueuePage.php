@@ -109,7 +109,7 @@ class PayoutReadyQueuePage extends Component
             ->first();
 
         if (! $request) {
-            $this->setFeedbackError('Request is no longer available in your tenant scope.');
+            $this->setFeedbackError('This payment is no longer available — it may have already been processed or removed.');
 
             return;
         }
@@ -128,7 +128,7 @@ class PayoutReadyQueuePage extends Component
     public function analyzePayoutRisk(int $requestId): void
     {
         if (! $this->flowAgentsEnabled) {
-            $this->setFeedbackError('Flow Agent is not enabled for this tenant.');
+            $this->setFeedbackError('Flow Agent is not enabled for your organization.');
 
             return;
         }
@@ -138,7 +138,7 @@ class PayoutReadyQueuePage extends Component
             ->first();
 
         if (! $request) {
-            $this->setFeedbackError('Request is no longer available in your tenant scope.');
+            $this->setFeedbackError('This payment is no longer available — it may have already been processed or removed.');
 
             return;
         }
@@ -188,32 +188,32 @@ class PayoutReadyQueuePage extends Component
 
         if (! $attempt) {
             if ((bool) data_get((array) ($request->metadata ?? []), 'execution.procurement_gate.blocked', false)) {
-                return 'Blocked by procurement gate: '.trim((string) data_get((array) ($request->metadata ?? []), 'execution.procurement_gate.reason', 'Review procurement match requirements.'));
+                return 'Payment is blocked — invoice match not yet completed.';
             }
 
             $subscription = $request->company?->subscription;
             if (! $subscription) {
-                return 'No tenant subscription found for execution handoff.';
+                return 'No active subscription found. Contact your administrator.';
             }
 
             if ((string) $subscription->payment_execution_mode !== TenantExecutionModeService::MODE_EXECUTION_ENABLED) {
-                return 'Execution mode is decision-only for this tenant.';
+                return 'Your organization is in approval-only mode — payments are not sent automatically.';
             }
 
             if (trim((string) $subscription->execution_provider) === '') {
-                return 'Execution provider is not configured.';
+                return 'No payment provider configured. Contact your administrator.';
             }
 
-            return 'Ready to queue payout execution.';
+            return 'Ready to send.';
         }
 
         return match ((string) $attempt->execution_status) {
-            'queued' => 'Queued and waiting for processing.',
-            'processing' => 'Currently processing.',
-            'webhook_pending' => 'Waiting for provider webhook confirmation.',
+            'queued' => 'Queued — waiting to be sent.',
+            'processing' => 'Payment is being sent.',
+            'webhook_pending' => 'Waiting for confirmation from the bank.',
             'failed' => $this->formatFailureCondition($attempt->error_code, $attempt->error_message),
-            'skipped' => 'Skipped by no-op provider configuration.',
-            default => 'Execution state: '.str_replace('_', ' ', (string) $attempt->execution_status).'.',
+            'skipped' => 'No payment provider configured — payment was skipped.',
+            default => 'Status: '.str_replace('_', ' ', (string) $attempt->execution_status).'.',
         };
     }
 
@@ -439,25 +439,23 @@ class PayoutReadyQueuePage extends Component
 
         $metadata = (array) ($request->metadata ?? []);
         if ((bool) data_get($metadata, 'execution.procurement_gate.blocked', false)) {
-            $reason = trim((string) data_get($metadata, 'execution.procurement_gate.reason', 'Procurement gate blocked payout queueing.'));
-
-            return 'Payout was not queued. '.$reason;
+            return 'Payment could not be sent — invoice match not yet completed.';
         }
 
         $subscription = $request->company?->subscription;
         if (! $subscription) {
-            return 'Payout was not queued. Tenant subscription is missing.';
+            return 'Payment could not be sent. No active subscription found — contact your administrator.';
         }
 
         if ((string) $subscription->payment_execution_mode !== TenantExecutionModeService::MODE_EXECUTION_ENABLED) {
-            return 'Payout was not queued. Tenant is in decision-only mode.';
+            return 'Payment could not be sent. Your organization is in approval-only mode.';
         }
 
         if (trim((string) $subscription->execution_provider) === '') {
-            return 'Payout was not queued. Execution provider is not configured.';
+            return 'Payment could not be sent. No payment provider is configured — contact your administrator.';
         }
 
-        return 'Payout could not be queued. Check provider/config/state and retry.';
+        return 'Payment could not be sent. Check your provider configuration and try again.';
     }
 
     /**

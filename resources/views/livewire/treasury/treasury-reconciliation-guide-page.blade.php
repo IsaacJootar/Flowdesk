@@ -20,7 +20,7 @@
             <li>Import statement file for the day.</li>
             <li>Run auto-reconcile to classify matched vs unmatched lines.</li>
             <li>Review unmatched lines and open issues in the same desk.</li>
-            <li>Resolve or waive issues with clear notes (maker-checker policy applies if enabled).</li>
+            <li>Resolve or waive issues with clear notes. If two-person review is enabled, another authorized user must confirm the decision.</li>
             <li>Use close-day checklist to confirm readiness before signoff.</li>
         </ol>
     </section>

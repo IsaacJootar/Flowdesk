@@ -21,9 +21,9 @@
         <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
             <div>
                 <span class="inline-flex items-center rounded-full border border-slate-300 bg-slate-200 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-800">
-                    Procurement Controls
+                    Purchase Order Controls
                 </span>
-                <h2 class="mt-2 text-base font-semibold text-slate-900">Tenant Procurement Guardrails</h2>
+                <h2 class="mt-2 text-base font-semibold text-slate-900">Purchase Order Controls</h2>
                 <p class="mt-1 text-sm text-slate-600">
                     Configure conversion scope, issuance/receiving roles, invoice-link controls, and 3-way match tolerances.
                 </p>
@@ -236,7 +236,7 @@
 
                 <label class="inline-flex items-center gap-2 text-sm text-slate-700 sm:col-span-2">
                     <input type="checkbox" wire:model.defer="controlsForm.match_override_requires_maker_checker" class="rounded border-slate-300 text-slate-700 focus:ring-slate-500">
-                    Require maker-checker for procurement issue overrides
+                    Require two-person review for purchase order issue overrides
                 </label>
             </div>
 
@@ -247,7 +247,7 @@
                     wire:target="save"
                     class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700 disabled:opacity-70"
                 >
-                    <span wire:loading.remove wire:target="save">Save Procurement Controls</span>
+                    <span wire:loading.remove wire:target="save">Save Purchase Order Controls</span>
                     <span wire:loading wire:target="save">Saving...</span>
                 </button>
             </div>

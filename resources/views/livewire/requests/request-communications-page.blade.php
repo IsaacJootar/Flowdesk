@@ -49,7 +49,7 @@
                         wire:click="switchTab('delivery')"
                         class="rounded-lg px-3 py-1.5 transition {{ $activeTab === 'delivery' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-800' }}"
                     >
-                        Recovery Desk
+                        Message Delivery
                     </button>
                 @endif
             </div>
@@ -90,7 +90,7 @@
                             wire:target="processQueuedBacklog"
                             class="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-700 hover:bg-amber-100 disabled:opacity-70"
                         >
-                            <span wire:loading.remove wire:target="processQueuedBacklog">Process Queued</span>
+                            <span wire:loading.remove wire:target="processQueuedBacklog">Process Pending</span>
                             <span wire:loading wire:target="processQueuedBacklog">Processing...</span>
                         </button>
                     @endif
@@ -101,24 +101,24 @@
         @if ($activeTab === 'delivery')
             <div class="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                 <div class="rounded-2xl border border-slate-200 bg-slate-50 p-3">
-                    <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Active Recovery Items</p>
+                    <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Needs Attention</p>
                     <p class="mt-2 text-2xl font-semibold text-slate-900">{{ number_format((int) ($recoverySummary['totals']['active'] ?? 0)) }}</p>
-                    <p class="text-xs text-slate-500">Failed + stuck queued by current display scope</p>
+                    <p class="text-xs text-slate-500">Failed messages and messages stuck pending</p>
                 </div>
                 <div class="rounded-2xl border border-red-200 bg-red-50 p-3">
                     <p class="text-xs font-semibold uppercase tracking-[0.14em] text-red-700">Failed</p>
                     <p class="mt-2 text-2xl font-semibold text-red-700">{{ number_format((int) ($recoverySummary['totals']['failed'] ?? 0)) }}</p>
                 </div>
                 <div class="rounded-2xl border border-amber-200 bg-amber-50 p-3">
-                    <p class="text-xs font-semibold uppercase tracking-[0.14em] text-amber-700">Stuck Queued</p>
+                    <p class="text-xs font-semibold uppercase tracking-[0.14em] text-amber-700">Stuck Pending</p>
                     <p class="mt-2 text-2xl font-semibold text-amber-700">{{ number_format((int) ($recoverySummary['totals']['queued_stuck'] ?? 0)) }}</p>
-                    <p class="text-xs text-amber-700">Older than {{ max(0, (int) $queuedOlderThanMinutes) }} mins</p>
+                    <p class="text-xs text-amber-700">Waiting more than {{ max(0, (int) $queuedOlderThanMinutes) }} mins</p>
                 </div>
                 <div class="rounded-2xl border border-slate-200 bg-white p-3">
-                    <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Recovery Controls</p>
+                    <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Filters</p>
                     <div class="mt-2 grid gap-2 sm:grid-cols-2">
                         <label class="block">
-                            <span class="mb-1 block text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Display Age Filter (mins)</span>
+                            <span class="mb-1 block text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Show items older than (mins)</span>
                             <input
                                 type="number"
                                 min="0"
@@ -127,7 +127,7 @@
                             >
                         </label>
                         <label class="block">
-                            <span class="mb-1 block text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Display Scope</span>
+                            <span class="mb-1 block text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Show</span>
                             <select wire:model.live="displayScope" class="w-full rounded-lg border-slate-300 px-2 py-1 text-xs focus:border-slate-500 focus:ring-slate-500">
                                 @foreach ($scopes as $scopeValue => $scopeLabel)
                                     <option value="{{ $scopeValue }}">{{ $scopeLabel }}</option>
@@ -140,13 +140,13 @@
 
             <div class="mt-4 grid gap-3 xl:grid-cols-2">
                 <div class="rounded-2xl border border-slate-200 bg-white p-3">
-                    <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Failed/Queued by Module</p>
+                    <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Failed & Pending by Module</p>
                     <div class="mt-3 grid gap-2 sm:grid-cols-3">
                         @foreach (($recoverySummary['modules'] ?? []) as $module)
                             <div class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
                                 <p class="text-xs font-semibold text-slate-700">{{ $module['label'] }}</p>
                                 <p class="mt-1 text-xs text-red-700">Failed: {{ number_format((int) ($module['failed'] ?? 0)) }}</p>
-                                <p class="text-xs text-amber-700">Queued: {{ number_format((int) ($module['queued_stuck'] ?? 0)) }}</p>
+                                <p class="text-xs text-amber-700">Pending: {{ number_format((int) ($module['queued_stuck'] ?? 0)) }}</p>
                             </div>
                         @endforeach
                     </div>
@@ -161,17 +161,17 @@
                                 <p class="text-xs text-slate-600">
                                     <span class="text-red-700">Failed {{ (int) $channel['failed'] }}</span>
                                     <span class="mx-1 text-slate-400">|</span>
-                                    <span class="text-amber-700">Queued {{ (int) $channel['queued_stuck'] }}</span>
+                                    <span class="text-amber-700">Pending {{ (int) $channel['queued_stuck'] }}</span>
                                 </p>
                             </div>
                         @empty
-                            <p class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500">No channel recovery issues in current scope.</p>
+                            <p class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500">No delivery issues at the moment.</p>
                         @endforelse
                     </div>
                 </div>
 
                 <div class="rounded-2xl border border-slate-200 bg-white p-3 xl:col-span-2">
-                    <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Recipient / Config Breakdown (Failed Rows)</p>
+                    <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Failed Recipient Breakdown</p>
                     <div class="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
                         @forelse (($recoverySummary['recipient_issues'] ?? []) as $issue)
                             <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
@@ -179,7 +179,7 @@
                                 <p class="mt-1 text-base font-semibold text-slate-800">{{ number_format((int) $issue['count']) }}</p>
                             </div>
                         @empty
-                            <p class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500 sm:col-span-2 lg:col-span-4">No failed recipient/config issues in current scope.</p>
+                            <p class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500 sm:col-span-2 lg:col-span-4">No failed recipient issues.</p>
                         @endforelse
                     </div>
                 </div>
@@ -372,7 +372,7 @@
                                     @if ($activeTab === 'inbox')
                                         No in-app notifications match your filters.
                                     @else
-                                        No communication recovery rows match your filters.
+                                        No delivery issues match your filters.
                                     @endif
                                 </td>
                             </tr>

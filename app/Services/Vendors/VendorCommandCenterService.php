@@ -65,7 +65,7 @@ class VendorCommandCenterService
             ['key' => 'profile_hygiene', 'label' => 'Profile Hygiene', 'count' => $profileLane['count'], 'tone' => 'sky'],
             ['key' => 'invoice_follow_up', 'label' => 'Invoice Follow-up', 'count' => $invoiceLane['count'], 'tone' => 'amber'],
             ['key' => 'blocked_handoff', 'label' => 'Blocked Handoff', 'count' => $blockedLane['count'], 'tone' => 'rose'],
-            ['key' => 'failed_retries', 'label' => 'Failed Payout Retries', 'count' => $failedLane['count'], 'tone' => 'indigo'],
+            ['key' => 'failed_retries', 'label' => 'Failed Payment Retries', 'count' => $failedLane['count'], 'tone' => 'indigo'],
         ]);
 
         return [
@@ -259,7 +259,7 @@ class VendorCommandCenterService
                     ),
                     'status' => 'Blocked handoff',
                     'context' => $reason,
-                    'next_action_label' => 'Resolve in Payables Desk',
+                    'next_action_label' => 'Resolve in Vendor Payables',
                     'next_action_url' => route('operations.vendor-payables-desk', ['search' => (string) $request->request_code]),
                     'next_action_tone' => 'rose',
                 ];
@@ -314,7 +314,7 @@ class VendorCommandCenterService
                     ),
                     'status' => 'Retry required',
                     'context' => trim((string) ($attempt->error_message ?: 'Check provider/config/state and retry.')),
-                    'next_action_label' => 'Open Payout Queue',
+                    'next_action_label' => 'Payments Ready to Send',
                     'next_action_url' => route('execution.payout-ready', ['search' => (string) ($request?->request_code ?? '')]),
                     'next_action_tone' => 'indigo',
                 ];

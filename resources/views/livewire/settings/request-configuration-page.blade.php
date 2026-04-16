@@ -75,7 +75,7 @@
             <span class="inline-flex items-center rounded-full border border-slate-300 bg-slate-200 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-800">
                 Request Types
             </span>
-            <h2 class="mt-2 text-base font-semibold text-slate-900">Company Request Type Rules</h2>
+            <h2 class="mt-2 text-base font-semibold text-slate-900">Company Request Types</h2>
             <p class="mt-1 text-sm text-slate-600">Define which request types exist and what fields each type requires.</p>
         </div>
 

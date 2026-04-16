@@ -13,7 +13,7 @@
         <div class="flex flex-wrap items-start justify-between gap-3">
             <div>
                 <p class="text-xs font-semibold uppercase tracking-[0.14em] text-amber-700">Vendor Directory</p>
-                <h2 class="mt-1 text-xl font-semibold text-slate-900">Vendor Management Workspace</h2>
+                <h2 class="mt-1 text-xl font-semibold text-slate-900">Vendor Directory</h2>
                 <p class="mt-1 text-sm text-slate-700">Single page for vendor profile quality, invoice follow-up, and payables handoff actions.</p>
             </div>
 
@@ -21,14 +21,14 @@
                 <a href="{{ route('vendors.registry') }}" class="inline-flex items-center rounded-lg border border-amber-200 bg-white px-3 py-1.5 text-xs font-semibold text-amber-700 hover:bg-amber-100">Vendor Registry</a>
                 <a href="{{ route('vendors.reports') }}" class="inline-flex items-center rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100">Vendor Reports</a>
                 @if ($canOpenPayablesDesk)
-                    <a href="{{ route('operations.vendor-payables-desk') }}" class="inline-flex items-center rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100">Vendor Payables Desk</a>
+                    <a href="{{ route('operations.vendor-payables-desk') }}" class="inline-flex items-center rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100">Vendor Payables</a>
                 @endif
             </div>
         </div>
 
         <div class="mt-4 grid gap-3 md:grid-cols-4">
             <div class="md:col-span-3">
-                <label for="vendor-command-search" class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Search Desk</label>
+                <label for="vendor-command-search" class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Search Vendors</label>
                 <input id="vendor-command-search" type="text" wire:model.live.debounce.300ms="search" placeholder="Vendor, invoice, request code" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
             </div>
             <div class="rounded-xl border border-amber-200 bg-white px-3 py-2 text-xs text-slate-600">
@@ -91,7 +91,7 @@
                 'profile_hygiene' => ['title' => 'Profile Hygiene', 'hint' => 'Vendors with missing bank/contact details.', 'tone' => 'sky'],
                 'invoice_follow_up' => ['title' => 'Invoice & Statement Follow-up', 'hint' => 'Open and overdue invoices awaiting payment progress.', 'tone' => 'amber'],
                 'blocked_handoff' => ['title' => 'Blocked Payables Handoff', 'hint' => 'Vendor-linked requests blocked by procurement gate.', 'tone' => 'rose'],
-                'failed_retries' => ['title' => 'Failed Payout Retries', 'hint' => 'Vendor-linked payouts that failed and require rerun.', 'tone' => 'indigo'],
+                'failed_retries' => ['title' => 'Failed Payment Retries', 'hint' => 'Vendor-linked payments that failed and require retry.', 'tone' => 'indigo'],
             ] as $laneKey => $laneMeta)
                 @php
                     $laneBorder = match ($laneMeta['tone']) {
@@ -133,4 +133,3 @@
         </section>
     @endif
 </div>
-

@@ -43,7 +43,7 @@
         <a href="{{ route('settings.request-configuration') }}" class="fd-card block p-6 transition hover:border-slate-300" style="background-color: #fffbeb;">
             <h2 class="flex items-center gap-2 text-sm font-semibold text-slate-900">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="h-4 w-4 text-amber-700"><path stroke-linecap="round" stroke-linejoin="round" d="M9 4h6a2 2 0 0 1 2 2v1h2a1 1 0 0 1 1 1v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a1 1 0 0 1 1-1h2V6a2 2 0 0 1 2-2Z"/></svg>
-                Request Configuration
+                Request Settings
             </h2>
             <p class="mt-2 text-sm text-slate-500">Manage company request types and controlled spend categories.</p>
         </a>
@@ -51,9 +51,9 @@
         <a href="{{ route('settings.approval-timing-controls') }}" class="fd-card block p-6 transition hover:border-slate-300" style="background-color: #f1f5f9;">
             <h2 class="flex items-center gap-2 text-sm font-semibold text-slate-900">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="h-4 w-4 text-slate-700"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 7v6l4 2"/></svg>
-                Approval Timing Controls
+                Approval Deadline Controls
             </h2>
-            <p class="mt-2 text-sm text-slate-500">Configure approval response timing, reminder, and escalation timings for organization and departments.</p>
+            <p class="mt-2 text-sm text-slate-500">Configure approval response deadlines, reminders, and overdue handling for company and departments.</p>
         </a>
 
         <a href="{{ route('settings.expense-controls') }}" class="fd-card block p-6 transition hover:border-slate-300" style="background-color: #eff6ff;">
@@ -83,9 +83,9 @@
         <a href="{{ route('settings.procurement-controls') }}" class="fd-card block p-6 transition hover:border-slate-300" style="background-color: #fff7ed;">
             <h2 class="flex items-center gap-2 text-sm font-semibold text-slate-900">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="h-4 w-4 text-orange-700"><path stroke-linecap="round" stroke-linejoin="round" d="M3 7h18M6 7V5a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v2m-1 4H7m12 0v8a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-8h14Z"/></svg>
-                Procurement Controls
+                Purchase Order Controls
             </h2>
-            <p class="mt-2 text-sm text-slate-500">Configure request-to-PO conversion and commitment issue guardrails.</p>
+            <p class="mt-2 text-sm text-slate-500">Configure request-to-purchase-order conversion and commitment issue controls.</p>
         </a>
 
         <a href="{{ route('settings.treasury-controls') }}" class="fd-card block p-6 transition hover:border-slate-300" style="background-color: #f5f3ff;">

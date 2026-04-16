@@ -29,15 +29,14 @@
     <div class="fd-card p-5">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Treasury Reconciliation Issues</p>
-                <p class="mt-1 text-sm text-slate-600">Resolve or waive issues, then return to the main treasury workspace.</p>
+                <p class="mt-1 text-sm text-slate-600">Resolve or waive each item, then return to the reconciliation workspace.</p>
                 <p class="mt-1 text-xs text-slate-500">Who can take action: {{ implode(', ', (array) $exceptionActionAllowedRoles) }}.</p>
                 @if ($makerCheckerRequired)
                     <p class="text-xs text-amber-700">Two-person sign-off is on: you cannot close an item you raised yourself.</p>
                 @endif
                 @if ($flowAgentsEnabled)
                     <div class="mt-2 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-800">
-                        <span class="font-semibold">Flow Agent:</span> use <span class="font-semibold">Use Flow Agent</span> for suggested match, confidence, and next-step guidance.
+                        <span class="font-semibold">Flow Agent available:</span> click <span class="font-semibold">Use Flow Agent</span> on any row for a suggested match and recommended next step.
                         @if ($flowAgentsAdvisoryOnly)
                             It recommends only — your team makes the final call.
                         @endif
@@ -46,7 +45,7 @@
             </div>
             <a href="{{ route('treasury.reconciliation') }}" class="inline-flex h-10 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl border border-slate-300 bg-white px-3.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
                 <span aria-hidden="true">&larr;</span>
-                <span>Back to Manage Treasury</span>
+                <span>Back to Reconciliation</span>
             </a>
         </div>
     </div>
@@ -86,7 +85,7 @@
             </label>
 
             <label class="block">
-                <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Queue Mode</span>
+                <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Sort Order</span>
                 <select wire:model.live="queueSort" class="w-full rounded-xl border-slate-300 text-sm focus:border-slate-500 focus:ring-slate-500">
                     @foreach ($queueSortOptions as $sortValue => $sortLabel)
                         <option value="{{ $sortValue }}">{{ $sortLabel }}</option>
@@ -96,7 +95,7 @@
         </div>
 
         <p class="mt-3 text-xs text-slate-500">
-            Priority queue uses severity, queue age, and transaction value. SLA breach limit is {{ (int) $slaHours }} hour(s) from treasury controls.
+            Items are sorted by severity, age, and transaction value. Each item must be resolved within {{ (int) $slaHours }} hour(s) — set in Treasury Controls.
         </p>
     </div>
 
@@ -128,11 +127,10 @@
                     <thead class="bg-slate-50 text-xs uppercase tracking-[0.12em] text-slate-500">
                         <tr>
                             <th class="px-4 py-3 text-left font-semibold">Issue</th>
-                            <th class="px-4 py-3 text-left font-semibold">Priority / SLA</th>
+                            <th class="px-4 py-3 text-left font-semibold">Priority</th>
                             <th class="px-4 py-3 text-left font-semibold">Line</th>
                             <th class="px-4 py-3 text-left font-semibold">Details</th>
                             <th class="px-4 py-3 text-left font-semibold">Status</th>
-                            <th class="px-4 py-3 text-left font-semibold">Flow Agent</th>
                             <th class="px-4 py-3 text-right font-semibold">Action</th>
                         </tr>
                     </thead>
@@ -159,6 +157,20 @@
                                 $slaHoursForRow = (int) ($exception->sla_hours ?? $slaHours);
                                 $slaBreached = (bool) ($exception->sla_breached ?? false);
                                 $slaRemaining = max(0, $slaHoursForRow - $ageHours);
+
+                                // Convert hours to human-readable duration
+                                $hoursToReadable = function (int $h, string $fallback = '0h') use (&$hoursToReadable): string {
+                                    if ($h < 1) return $fallback;
+                                    if ($h < 24) return $h . 'h';
+                                    $d = intdiv($h, 24);
+                                    if ($d < 7) return $d . ' day' . ($d !== 1 ? 's' : '');
+                                    if ($d < 30) { $w = intdiv($d, 7); $rd = $d % 7; return $rd > 0 ? $w . 'w ' . $rd . 'd' : $w . ' week' . ($w !== 1 ? 's' : ''); }
+                                    if ($d < 365) { $mo = intdiv($d, 30); $rd = $d % 30; return $rd > 0 ? $mo . ' month' . ($mo !== 1 ? 's' : '') . ' ' . $rd . 'd' : $mo . ' month' . ($mo !== 1 ? 's' : ''); }
+                                    $yr = intdiv($d, 365); $rmo = intdiv($d % 365, 30); return $rmo > 0 ? $yr . ' yr ' . $rmo . 'mo' : $yr . ' year' . ($yr !== 1 ? 's' : '');
+                                };
+
+                                $ageReadable = $hoursToReadable($ageHours, 'Just now');
+                                $slaRemainingReadable = $hoursToReadable($slaRemaining, '< 1h');
                             @endphp
                             <tr class="hover:bg-slate-50">
                                 <td class="px-4 py-3 text-slate-600">
@@ -170,13 +182,13 @@
                                         <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold {{ $priorityClass }}">{{ ucfirst($priorityBand) }}</span>
                                         @if ((string) $exception->exception_status === 'open')
                                             @if ($slaBreached)
-                                                <span class="inline-flex rounded-full bg-red-100 px-2.5 py-1 text-xs font-semibold text-red-700">SLA Breached</span>
+                                                <span class="inline-flex rounded-full bg-red-100 px-2.5 py-1 text-xs font-semibold text-red-700">Overdue</span>
                                             @else
-                                                <span class="inline-flex rounded-full bg-sky-100 px-2.5 py-1 text-xs font-semibold text-sky-700">SLA due in {{ $slaRemaining }}h</span>
+                                                <span class="inline-flex rounded-full bg-sky-100 px-2.5 py-1 text-xs font-semibold text-sky-700">Due in {{ $slaRemainingReadable }}</span>
                                             @endif
                                         @endif
                                     </div>
-                                    <p class="mt-1 text-xs text-slate-500">Age {{ $ageHours }}h</p>
+                                    <p class="mt-1 text-xs text-slate-500">Open for {{ $ageReadable }}</p>
                                 </td>
                                 <td class="px-4 py-3 text-slate-600">
                                     <p>{{ $exception->line?->line_reference ?: '-' }}</p>
@@ -193,29 +205,17 @@
                                         $webhookEventId = (int) data_get($executionMetadata, 'execution_webhook_event_id', 0);
 
                                         $contextQuery = [];
-                                        $contextLabel = 'Open Execution Health';
+                                        $contextLabel = 'View Payment Health';
 
                                         if ($billingAttemptId > 0) {
-                                            $contextQuery = [
-                                                'focus_pipeline' => 'billing',
-                                                'billing_attempt_id' => $billingAttemptId,
-                                                'incident_id' => $incidentId,
-                                            ];
-                                            $contextLabel = 'Open Billing Context';
+                                            $contextQuery = ['focus_pipeline' => 'billing', 'billing_attempt_id' => $billingAttemptId, 'incident_id' => $incidentId];
+                                            $contextLabel = 'View Billing Details';
                                         } elseif ($payoutAttemptId > 0) {
-                                            $contextQuery = [
-                                                'focus_pipeline' => 'payout',
-                                                'payout_attempt_id' => $payoutAttemptId,
-                                                'incident_id' => $incidentId,
-                                            ];
-                                            $contextLabel = 'Open Payout Context';
+                                            $contextQuery = ['focus_pipeline' => 'payout', 'payout_attempt_id' => $payoutAttemptId, 'incident_id' => $incidentId];
+                                            $contextLabel = 'View Payout Details';
                                         } elseif ($webhookEventId > 0) {
-                                            $contextQuery = [
-                                                'focus_pipeline' => 'webhook',
-                                                'webhook_event_id' => $webhookEventId,
-                                                'incident_id' => $incidentId,
-                                            ];
-                                            $contextLabel = 'Open Webhook Context';
+                                            $contextQuery = ['focus_pipeline' => 'webhook', 'webhook_event_id' => $webhookEventId, 'incident_id' => $incidentId];
+                                            $contextLabel = 'View Webhook Details';
                                         }
 
                                         $hasContextLink = ($incidentId !== '') || ($contextQuery !== []);
@@ -225,8 +225,6 @@
                                         <p class="text-xs text-slate-500">
                                             @if ($incidentId !== '')
                                                 Incident {{ $incidentId }}
-                                            @else
-                                                Linked execution record
                                             @endif
                                             <a href="{{ route('execution.health', $contextQuery) }}" class="ml-1 font-semibold text-slate-700 hover:text-slate-900">{{ $contextLabel }}</a>
                                         </p>
@@ -235,33 +233,13 @@
                                 <td class="px-4 py-3">
                                     <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold {{ $statusClass }}">{{ ucfirst((string) $exception->exception_status) }}</span>
                                 </td>
-                                <td class="px-4 py-3 text-slate-600">
-                                    @php
-                                        $insight = $flowAgentInsights[(int) $exception->id] ?? null;
-                                    @endphp
-                                    @if (is_array($insight))
-                                        @php
-                                            $riskClass = match ((string) ($insight['risk_level'] ?? 'low')) {
-                                                'high' => 'bg-red-100 text-red-700',
-                                                'medium' => 'bg-amber-100 text-amber-700',
-                                                default => 'bg-emerald-100 text-emerald-700',
-                                            };
-                                        @endphp
-                                        <span class="inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold {{ $riskClass }}">
-                                            {{ ucfirst((string) ($insight['risk_level'] ?? 'low')) }} risk
-                                        </span>
-                                        <p class="mt-1 text-xs text-slate-700">{{ (string) ($insight['suggested_match'] ?? '-') }}</p>
-                                        <p class="mt-1 text-[11px] text-slate-500">Confidence {{ (int) ($insight['confidence'] ?? 0) }}% | {{ (string) ($insight['generated_at'] ?? '-') }}</p>
-                                        <p class="mt-1 text-[11px] text-slate-500">Next: {{ (string) ($insight['next_action'] ?? '-') }}</p>
-                                    @elseif (! $flowAgentsEnabled)
-                                        <span class="text-xs text-slate-400">AI disabled for tenant</span>
-                                    @else
-                                        <span class="text-xs text-slate-400">Not reviewed yet</span>
-                                    @endif
-                                </td>
                                 <td class="px-4 py-3 text-right">
                                     @if (($canOperate && (string) $exception->exception_status === 'open') || $flowAgentsEnabled)
                                         <div class="inline-flex items-center gap-2">
+                                            @if ($canOperate && (string) $exception->exception_status === 'open')
+                                                <button type="button" wire:click="openResolutionModal({{ $exception->id }}, 'resolved')" class="rounded-lg border border-emerald-300 px-3 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-50">Mark as Fixed</button>
+                                                <button type="button" wire:click="openResolutionModal({{ $exception->id }}, 'waived')" class="rounded-lg border border-amber-300 px-3 py-1.5 text-xs font-medium text-amber-700 hover:bg-amber-50">Accept & Close</button>
+                                            @endif
                                             @if ($flowAgentsEnabled)
                                                 <button
                                                     type="button"
@@ -284,10 +262,6 @@
                                                     <span wire:loading wire:target="analyzeExceptionWithFlowAgent({{ (int) $exception->id }})">Analyzing...</span>
                                                 </button>
                                             @endif
-                                            @if ($canOperate && (string) $exception->exception_status === 'open')
-                                                <button type="button" wire:click="openResolutionModal({{ $exception->id }}, 'resolved')" class="rounded-lg border border-emerald-300 px-3 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-50">Mark as Fixed</button>
-                                                <button type="button" wire:click="openResolutionModal({{ $exception->id }}, 'waived')" class="rounded-lg border border-amber-300 px-3 py-1.5 text-xs font-medium text-amber-700 hover:bg-amber-50">Accept & Close</button>
-                                            @endif
                                         </div>
                                     @else
                                         <span class="text-xs text-slate-500">Closed</span>
@@ -296,7 +270,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="7" class="px-4 py-10 text-center text-sm text-slate-500">No reconciliation issues found for the selected filters.</td>
+                                <td colspan="6" class="px-4 py-10 text-center text-sm text-slate-500">No reconciliation issues found for the selected filters.</td>
                             </tr>
                         @endforelse
                     </tbody>
@@ -337,5 +311,3 @@
         </div>
     @endif
 </div>
-
-

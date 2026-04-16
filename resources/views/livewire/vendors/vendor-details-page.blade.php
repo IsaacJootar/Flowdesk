@@ -33,7 +33,7 @@
         <div class="fd-card p-6">
             <p class="text-sm text-slate-600">Vendor not found or no longer available.</p>
             <a href="{{ route('vendors.index') }}" class="mt-3 inline-flex rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
-                Back to Vendor Management
+                Back to Vendor Directory
             </a>
         </div>
     @else
@@ -42,7 +42,7 @@
                 <div>
                     <a href="{{ route('vendors.index') }}" class="inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-[0.1em] text-slate-500 hover:text-slate-700">
                         <span aria-hidden="true">&larr;</span>
-                        <span>Back to Vendor Management</span>
+                        <span>Back to Vendor Directory</span>
                     </a>
                     <h2 class="mt-2 text-xl font-semibold text-slate-900">{{ $vendor->name }}</h2>
                     <p class="text-sm text-slate-500">{{ $vendor->vendor_type ? ucfirst($vendor->vendor_type) : 'Uncategorized' }}</p>

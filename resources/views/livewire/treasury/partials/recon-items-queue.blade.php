@@ -77,6 +77,10 @@
                         <td class="px-3 py-3 text-right">
                             @if ($canResolveExceptions || $flowAgentsEnabled)
                                 <div class="inline-flex items-center gap-2">
+                                    @if ($canResolveExceptions)
+                                        <button type="button" wire:click="openResolutionModal({{ $exception->id }}, 'resolved')" class="rounded-lg border border-emerald-300 px-3 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-50">Mark as Fixed</button>
+                                        <button type="button" wire:click="openResolutionModal({{ $exception->id }}, 'waived')" class="rounded-lg border border-amber-300 px-3 py-1.5 text-xs font-medium text-amber-700 hover:bg-amber-50">Accept & Close</button>
+                                    @endif
                                     @if ($flowAgentsEnabled)
                                         <button
                                             type="button"
@@ -94,10 +98,6 @@
                                             <span wire:loading.remove wire:target="analyzeOpenExceptionWithFlowAgent({{ (int) $exception->id }})">Suggest a Match</span>
                                             <span wire:loading wire:target="analyzeOpenExceptionWithFlowAgent({{ (int) $exception->id }})">Analyzing...</span>
                                         </button>
-                                    @endif
-                                    @if ($canResolveExceptions)
-                                        <button type="button" wire:click="openResolutionModal({{ $exception->id }}, 'resolved')" class="rounded-lg border border-emerald-300 px-3 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-50">Mark as Fixed</button>
-                                        <button type="button" wire:click="openResolutionModal({{ $exception->id }}, 'waived')" class="rounded-lg border border-amber-300 px-3 py-1.5 text-xs font-medium text-amber-700 hover:bg-amber-50">Accept & Close</button>
                                     @endif
                                 </div>
                             @else

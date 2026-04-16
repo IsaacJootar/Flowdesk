@@ -125,7 +125,7 @@ trait BuildsOperationsDeskData
 
         $workload = $this->buildWorkloadSummary([
             ['key' => 'pending', 'label' => 'Pending My Approval', 'count' => $pendingCount, 'tone' => 'indigo'],
-            ['key' => 'overdue', 'label' => 'Overdue / SLA', 'count' => $overdueCount, 'tone' => 'rose'],
+            ['key' => 'overdue', 'label' => 'Overdue', 'count' => $overdueCount, 'tone' => 'rose'],
             ['key' => 'returned', 'label' => 'Returned for Update', 'count' => $returnedCount, 'tone' => 'amber'],
         ]);
 
@@ -238,7 +238,7 @@ trait BuildsOperationsDeskData
 
                 return [
                     'ref' => (string) ($request?->request_code ?? 'N/A'),
-                    'title' => (string) ($request?->title ?? 'Payout execution attempt'),
+                    'title' => (string) ($request?->title ?? 'Payment attempt'),
                     'meta' => sprintf(
                         '%s | Last error: %s',
                         strtoupper((string) ($attempt->currency_code ?? 'NGN')).' '.number_format((float) ($attempt->amount ?? 0), 2),
@@ -246,7 +246,7 @@ trait BuildsOperationsDeskData
                     ),
                     'status' => 'Failed payout retry',
                     'context' => 'Retry payout after validating provider/config/state.',
-                    'next_action_label' => 'Open Payout Queue',
+                    'next_action_label' => 'Payments Ready to Send',
                     'next_action_url' => route('execution.payout-ready', [
                         'search' => (string) ($request?->request_code ?? ''),
                     ]),
@@ -257,8 +257,8 @@ trait BuildsOperationsDeskData
         $workload = $this->buildWorkloadSummary([
             ['key' => 'open_invoices', 'label' => 'Open Invoices', 'count' => $openInvoiceCount, 'tone' => 'indigo'],
             ['key' => 'part_paid', 'label' => 'Part-Paid Invoices', 'count' => $partPaidCount, 'tone' => 'amber'],
-            ['key' => 'blocked_handoff', 'label' => 'Blocked Payout Handoff', 'count' => (int) $blocked['count'], 'tone' => 'rose'],
-            ['key' => 'failed_retry', 'label' => 'Failed Payout Retries', 'count' => $failedRetryCount, 'tone' => 'sky'],
+            ['key' => 'blocked_handoff', 'label' => 'Blocked Payment Handoff', 'count' => (int) $blocked['count'], 'tone' => 'rose'],
+            ['key' => 'failed_retry', 'label' => 'Failed Payment Retries', 'count' => $failedRetryCount, 'tone' => 'sky'],
         ]);
 
         return [
@@ -321,8 +321,8 @@ trait BuildsOperationsDeskData
 
         $workload = $this->buildWorkloadSummary([
             ['key' => 'treasury_unreconciled', 'label' => 'Unreconciled Treasury Lines', 'count' => $unreconciledLines, 'tone' => 'amber'],
-            ['key' => 'procurement_open', 'label' => 'Open Procurement Exceptions', 'count' => $openProcurementExceptions, 'tone' => 'rose'],
-            ['key' => 'failed_payout', 'label' => 'Failed Payout Retries', 'count' => $failedPayouts, 'tone' => 'sky'],
+            ['key' => 'procurement_open', 'label' => 'Open Purchase Order Issues', 'count' => $openProcurementExceptions, 'tone' => 'rose'],
+            ['key' => 'failed_payout', 'label' => 'Failed Payment Retries', 'count' => $failedPayouts, 'tone' => 'sky'],
             ['key' => 'audit_flags', 'label' => 'Audit Flags (30d)', 'count' => $auditFlags, 'tone' => 'indigo'],
         ]);
 
@@ -336,17 +336,17 @@ trait BuildsOperationsDeskData
                 'note' => $treasuryEnabled
                     ? 'Unreconciled bank lines should be cleared or triaged before close.'
                     : 'Treasury module is disabled for this tenant plan.',
-                'next_action_label' => $treasuryEnabled ? 'Open Treasury Desk' : null,
+                'next_action_label' => $treasuryEnabled ? 'Bank Reconciliation' : null,
                 'next_action_url' => $treasuryEnabled ? route('treasury.reconciliation') : null,
             ],
             [
-                'label' => 'Procurement mismatch backlog',
+                'label' => 'Purchase order mismatch backlog',
                 'count' => $openProcurementExceptions,
                 'status' => $openProcurementExceptions === 0 ? 'Ready' : 'Action needed',
                 'note' => $procurementEnabled
                     ? 'Open 3-way match exceptions should be resolved or waived with notes.'
-                    : 'Procurement module is disabled for this tenant plan.',
-                'next_action_label' => $procurementEnabled ? 'Open Procurement Desk' : null,
+                    : 'Purchase order module is disabled for this tenant plan.',
+                'next_action_label' => $procurementEnabled ? 'Purchase Order Management' : null,
                 'next_action_url' => $procurementEnabled ? route('procurement.release-desk') : null,
             ],
             [
@@ -356,7 +356,7 @@ trait BuildsOperationsDeskData
                 'note' => $requestsEnabled
                     ? 'Failed payout attempts should be rerun or escalated before close.'
                     : 'Requests module is disabled for this tenant plan.',
-                'next_action_label' => $requestsEnabled ? 'Open Payout Queue' : null,
+                'next_action_label' => $requestsEnabled ? 'Payments Ready to Send' : null,
                 'next_action_url' => $requestsEnabled ? route('execution.payout-ready', ['status' => 'failed']) : null,
             ],
             [
@@ -444,7 +444,7 @@ trait BuildsOperationsDeskData
                         ),
                         'status' => 'Blocked payout handoff',
                         'context' => trim((string) data_get((array) ($request->metadata ?? []), 'execution.procurement_gate.reason', 'Resolve procurement mismatch blockers and retry payout queueing.')),
-                        'next_action_label' => 'Open Procurement Desk',
+                        'next_action_label' => 'Purchase Order Management',
                         'next_action_url' => route('procurement.release-desk'),
                     ]);
                 }

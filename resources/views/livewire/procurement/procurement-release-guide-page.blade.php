@@ -8,7 +8,7 @@
             </div>
             <div class="flex flex-wrap gap-2">
                 <a href="{{ route('procurement.release-desk') }}" class="inline-flex items-center rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100">Open Release Desk</a>
-                <a href="{{ route('execution.payout-ready') }}" class="inline-flex items-center rounded-lg border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-semibold text-sky-700 hover:bg-sky-100">Open Payout Queue</a>
+                <a href="{{ route('execution.payout-ready') }}" class="inline-flex items-center rounded-lg border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-semibold text-sky-700 hover:bg-sky-100">Payments Ready to Send</a>
             </div>
         </div>
     </section>

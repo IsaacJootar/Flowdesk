@@ -19,7 +19,7 @@ use Livewire\Component;
 use Livewire\WithPagination;
 
 #[Layout('layouts.app')]
-#[Title('Payment Provider Settings')]
+#[Title('Payment Provider Controls')]
 class PaymentsRailsIntegrationPage extends Component
 {
     use WithPagination;
@@ -639,7 +639,7 @@ class PaymentsRailsIntegrationPage extends Component
         $user = auth()->user();
 
         if (! $user instanceof User || (string) $user->role !== UserRole::Owner->value) {
-            throw new AuthorizationException('Only admin (owner) can manage Payments Rails settings.');
+            throw new AuthorizationException('Only admin (owner) can manage payment provider controls.');
         }
     }
 
