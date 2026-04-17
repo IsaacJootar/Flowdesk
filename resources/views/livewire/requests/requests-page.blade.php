@@ -1382,9 +1382,9 @@
                                 </div>
 
                                 <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-                                    <p class="text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-500">Expense Record</p>
+                                    <p class="text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-500">Expense Source</p>
                                     <p class="mt-1 text-sm font-semibold text-slate-900">{{ (int) data_get($financialTrace, 'expense.count', 0) }} record(s)</p>
-                                    <p class="mt-0.5 text-[11px] text-slate-500">{{ $selectedRequest['currency'] }} {{ number_format((int) data_get($financialTrace, 'expense.amount', 0)) }} posted</p>
+                                    <p class="mt-0.5 text-[11px] text-slate-500">{{ $selectedRequest['currency'] }} {{ number_format((int) data_get($financialTrace, 'expense.amount', 0)) }} request-linked</p>
                                 </div>
 
                                 <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">

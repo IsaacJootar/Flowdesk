@@ -150,6 +150,7 @@
                     <thead class="bg-slate-50 text-xs uppercase tracking-[0.12em] text-slate-500">
                         <tr>
                             <th class="px-4 py-3 text-left font-semibold">Expense</th>
+                            <th class="px-4 py-3 text-left font-semibold">Source</th>
                             <th class="px-4 py-3 text-left font-semibold">Department</th>
                             <th class="px-4 py-3 text-left font-semibold">Vendor</th>
                             <th class="px-4 py-3 text-left font-semibold">Payment</th>
@@ -164,6 +165,21 @@
                                 <td class="px-4 py-3">
                                     <p class="font-medium text-slate-800">{{ $expense->title }}</p>
                                     <p class="text-xs text-slate-500">{{ $expense->expense_code }}</p>
+                                </td>
+                                <td class="px-4 py-3">
+                                    @if ($expense->is_direct)
+                                        <span class="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">Direct</span>
+                                        <p class="mt-1 text-xs text-slate-500">Posted in Expenses</p>
+                                    @else
+                                        <span class="inline-flex rounded-full bg-sky-100 px-2.5 py-1 text-xs font-semibold text-sky-700">From Request</span>
+                                        @if ($expense->request)
+                                            <a href="{{ route('requests.index', ['open_request_id' => (int) $expense->request_id]) }}" class="mt-1 block text-xs font-semibold text-sky-700 hover:underline">
+                                                {{ $expense->request->request_code }}
+                                            </a>
+                                        @else
+                                            <p class="mt-1 text-xs text-slate-500">Linked request</p>
+                                        @endif
+                                    @endif
                                 </td>
                                 <td class="px-4 py-3 text-slate-600">{{ $expense->department?->name ?? '-' }}</td>
                                 <td class="px-4 py-3 text-slate-600">{{ $expense->vendor?->name ?? 'Unlinked' }}</td>
@@ -232,7 +248,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="7" class="px-4 py-10 text-center text-sm text-slate-500">
+                                <td colspan="8" class="px-4 py-10 text-center text-sm text-slate-500">
                                     No expenses recorded yet. Expenses appear here automatically when approved spend requests are paid out. You can also log out-of-pocket claims manually.
                                 </td>
                             </tr>
@@ -539,6 +555,24 @@
                             </div>
                         </div>
 
+                        <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                            <p class="text-xs uppercase tracking-[0.1em] text-slate-500">Source</p>
+                            <div class="mt-2 flex flex-wrap items-center gap-2">
+                                <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold {{ $viewExpense['source_label'] === 'Direct' ? 'bg-slate-100 text-slate-700' : 'bg-sky-100 text-sky-700' }}">
+                                    {{ $viewExpense['source_label'] }}
+                                </span>
+                                @if ($viewExpense['source_request_url'])
+                                    <a href="{{ $viewExpense['source_request_url'] }}" class="text-sm font-semibold text-sky-700 hover:underline">
+                                        {{ $viewExpense['source_request_code'] ?: 'Open Request' }}
+                                    </a>
+                                @endif
+                            </div>
+                            <p class="mt-2 text-sm text-slate-700">{{ $viewExpense['source_description'] }}</p>
+                            @if ($viewExpense['source_request_title'])
+                                <p class="mt-1 text-xs text-slate-500">{{ $viewExpense['source_request_title'] }}</p>
+                            @endif
+                        </div>
+
                         <div class="rounded-xl border border-slate-200 p-4">
                             <dl class="grid gap-3 text-sm sm:grid-cols-2">
                                 <div><dt class="text-xs uppercase tracking-[0.1em] text-slate-500">Department</dt><dd class="mt-1 font-medium text-slate-800">{{ $viewExpense['department'] }}</dd></div>
@@ -638,4 +672,3 @@
         </div>
     @endif
 </div>
-

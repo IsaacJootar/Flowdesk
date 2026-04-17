@@ -196,6 +196,16 @@
                                 <td class="px-4 py-3">
                                     <p class="font-medium text-slate-800">{{ $activity['title'] }}</p>
                                     <p class="text-xs text-slate-500">{{ $activity['code'] }}</p>
+                                    @if (($activity['module'] ?? '') === 'Expenses' && ($activity['source_label'] ?? '') !== '')
+                                        <div class="mt-1 flex flex-wrap items-center gap-1.5">
+                                            <span class="inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold {{ $activity['source_label'] === 'Direct' ? 'bg-slate-100 text-slate-700' : 'bg-sky-100 text-sky-700' }}">
+                                                {{ $activity['source_label'] }}
+                                            </span>
+                                            @if (($activity['source_code'] ?? '') !== '')
+                                                <span class="text-xs text-slate-500">{{ $activity['source_code'] }}</span>
+                                            @endif
+                                        </div>
+                                    @endif
                                 </td>
                                 <td class="px-4 py-3 text-slate-700">{{ $activity['department'] ?: '-' }}</td>
                                 <td class="px-4 py-3 text-slate-700">{{ $activity['owner'] ?: '-' }}</td>

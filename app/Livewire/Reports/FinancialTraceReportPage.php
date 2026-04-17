@@ -343,7 +343,7 @@ class FinancialTraceReportPage extends Component
             'payment_method' => $this->label((string) ($paymentAttempt['method'] ?? '')),
             'payment_reference' => (string) ($paymentAttempt['provider_reference'] ?? ''),
             'expense_status' => count($expenses) > 0
-                ? count($expenses).' record(s), '.\App\Support\Money::formatCurrency((int) $expenseAmount, strtoupper((string) $request->currency)).' posted'
+                ? count($expenses).' request-linked record(s), '.\App\Support\Money::formatCurrency((int) $expenseAmount, strtoupper((string) $request->currency)).' posted'
                 : 'No expense record',
             'reconciliation_status' => $hasBankMatch
                 ? ($openExceptions > 0 ? 'Matched with exceptions' : 'Matched')

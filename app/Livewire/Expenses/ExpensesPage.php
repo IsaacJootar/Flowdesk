@@ -666,12 +666,13 @@ class ExpensesPage extends Component
     {
         // Query powers table + summary cards; keep all filters in one place for consistency.
         return Expense::query()
-            ->with(['department:id,name', 'vendor:id,name', 'creator:id,name'])
+            ->with(['department:id,name', 'vendor:id,name', 'creator:id,name', 'request:id,request_code,title'])
             ->when($this->search !== '', function ($query): void {
                 $query->where(function ($inner): void {
                     $inner->where('title', 'like', '%'.$this->search.'%')
                         ->orWhere('expense_code', 'like', '%'.$this->search.'%')
-                        ->orWhereHas('vendor', fn ($vendorQuery) => $vendorQuery->where('name', 'like', '%'.$this->search.'%'));
+                        ->orWhereHas('vendor', fn ($vendorQuery) => $vendorQuery->where('name', 'like', '%'.$this->search.'%'))
+                        ->orWhereHas('request', fn ($requestQuery) => $requestQuery->where('request_code', 'like', '%'.$this->search.'%'));
                 });
             })
             ->when($this->dateFrom !== '', fn ($query) => $query->whereDate('expense_date', '>=', $this->dateFrom))
@@ -1060,6 +1061,7 @@ class ExpensesPage extends Component
                 'vendor:id,name',
                 'paidBy:id,name',
                 'creator:id,name',
+                'request:id,request_code,title',
                 'attachments' => fn ($query) => $query->latest('uploaded_at'),
             ])
             ->findOrFail($expenseId);
@@ -1080,6 +1082,13 @@ class ExpensesPage extends Component
         $this->viewExpense = [
             'id' => $expense->id,
             'expense_code' => $expense->expense_code,
+            'source_label' => $expense->is_direct ? 'Direct' : 'From Request',
+            'source_description' => $expense->is_direct
+                ? 'Posted directly in Expenses'
+                : ($expense->request?->request_code ? 'Linked to '.$expense->request->request_code : 'Linked request record'),
+            'source_request_code' => $expense->request?->request_code,
+            'source_request_title' => $expense->request?->title,
+            'source_request_url' => $expense->request_id ? route('requests.index', ['open_request_id' => (int) $expense->request_id]) : null,
             'title' => $expense->title,
             'amount' => (int) $expense->amount,
             'expense_date' => $expense->expense_date?->format('M d, Y'),
@@ -1102,5 +1111,4 @@ class ExpensesPage extends Component
         ];
     }
 }
-
 

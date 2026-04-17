@@ -413,6 +413,8 @@ class ReportsCenterPage extends Component
             DB::raw("COALESCE(dept.name, '-') as department"),
             DB::raw("COALESCE(requester.name, '-') as owner"),
             DB::raw('COALESCE(requests.updated_at, requests.created_at) as occurred_at'),
+            DB::raw("'' as source_label"),
+            DB::raw("'' as source_code"),
         ]);
     }
 
@@ -424,6 +426,7 @@ class ReportsCenterPage extends Component
         $query = DB::table('expenses')
             ->leftJoin('users as creator', 'creator.id', '=', 'expenses.created_by')
             ->leftJoin('departments as dept', 'dept.id', '=', 'expenses.department_id')
+            ->leftJoin('requests as linked_request', 'linked_request.id', '=', 'expenses.request_id')
             ->where('expenses.company_id', $companyId)
             ->whereNull('expenses.deleted_at');
 
@@ -432,7 +435,8 @@ class ReportsCenterPage extends Component
             $query->where(function (QueryBuilder $inner) use ($search): void {
                 $inner
                     ->where('expenses.expense_code', 'like', '%'.$search.'%')
-                    ->orWhere('expenses.title', 'like', '%'.$search.'%');
+                    ->orWhere('expenses.title', 'like', '%'.$search.'%')
+                    ->orWhere('linked_request.request_code', 'like', '%'.$search.'%');
             });
         }
 
@@ -472,6 +476,8 @@ class ReportsCenterPage extends Component
             DB::raw("COALESCE(dept.name, '-') as department"),
             DB::raw("COALESCE(creator.name, '-') as owner"),
             DB::raw('COALESCE(expenses.updated_at, expenses.created_at) as occurred_at'),
+            DB::raw("CASE WHEN expenses.is_direct = 1 OR expenses.request_id IS NULL THEN 'Direct' ELSE 'From Request' END as source_label"),
+            DB::raw("COALESCE(linked_request.request_code, '') as source_code"),
         ]);
     }
 
@@ -514,6 +520,8 @@ class ReportsCenterPage extends Component
             DB::raw("'-' as department"),
             DB::raw("'-' as owner"),
             DB::raw('COALESCE(vendor_invoices.updated_at, vendor_invoices.created_at) as occurred_at'),
+            DB::raw("'' as source_label"),
+            DB::raw("'' as source_code"),
         ]);
     }
 
@@ -576,6 +584,8 @@ class ReportsCenterPage extends Component
             DB::raw("COALESCE(dept.name, '-') as department"),
             DB::raw("COALESCE(assignee.name, '-') as owner"),
             DB::raw('COALESCE(assets.updated_at, assets.created_at) as occurred_at'),
+            DB::raw("'' as source_label"),
+            DB::raw("'' as source_code"),
         ]);
     }
 
@@ -631,6 +641,8 @@ class ReportsCenterPage extends Component
             DB::raw("COALESCE(dept.name, '-') as department"),
             DB::raw("'-' as owner"),
             DB::raw('COALESCE(department_budgets.updated_at, department_budgets.created_at) as occurred_at'),
+            DB::raw("'' as source_label"),
+            DB::raw("'' as source_code"),
         ]);
     }
 
@@ -671,6 +683,8 @@ class ReportsCenterPage extends Component
             DB::raw("'-' as department"),
             DB::raw("'-' as owner"),
             DB::raw('COALESCE(reconciliation_exceptions.updated_at, reconciliation_exceptions.created_at) as occurred_at'),
+            DB::raw("'' as source_label"),
+            DB::raw("'' as source_code"),
         ]);
     }
 
@@ -712,6 +726,8 @@ class ReportsCenterPage extends Component
             DB::raw("'-' as department"),
             DB::raw("COALESCE(decided_by.name, '-') as owner"),
             DB::raw('COALESCE(tenant_pilot_wave_outcomes.decision_at, tenant_pilot_wave_outcomes.created_at) as occurred_at'),
+            DB::raw("'' as source_label"),
+            DB::raw("'' as source_code"),
         ]);
     }
 
@@ -746,6 +762,8 @@ class ReportsCenterPage extends Component
             'department' => (string) ($data['department'] ?? '-'),
             'owner' => (string) ($data['owner'] ?? '-'),
             'occurred_at' => $occurredAt,
+            'source_label' => (string) ($data['source_label'] ?? ''),
+            'source_code' => (string) ($data['source_code'] ?? ''),
             'url' => $this->activityRowUrl($moduleKey, $recordId, $code, $relatedId),
         ];
     }
@@ -1118,7 +1136,6 @@ class ReportsCenterPage extends Component
         return (bool) config('performance.cache.enabled', true);
     }
 }
-
 
 
 

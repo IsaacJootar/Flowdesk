@@ -10,8 +10,10 @@ use App\Domains\Budgets\Models\DepartmentBudget;
 use App\Domains\Company\Models\Company;
 use App\Domains\Company\Models\Department;
 use App\Domains\Expenses\Models\Expense;
+use App\Domains\Requests\Models\SpendRequest;
 use App\Domains\Vendors\Models\Vendor;
 use App\Enums\UserRole;
+use App\Livewire\Expenses\ExpensesPage;
 use App\Models\User;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -19,6 +21,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Livewire\Livewire;
 use Tests\TestCase;
 
 class ExpenseModuleTest extends TestCase
@@ -69,6 +72,52 @@ class ExpenseModuleTest extends TestCase
             'is_direct' => false,
             'request_id' => 1042,
         ]);
+    }
+
+    public function test_expenses_page_shows_direct_and_request_sources(): void
+    {
+        [$company, $department] = $this->createCompanyContext('Expense Source Labels');
+        $finance = $this->createUser($company, $department, UserRole::Finance->value);
+        $directExpense = $this->createExpense($company, $department, $finance, null);
+        $request = SpendRequest::query()->create([
+            'company_id' => $company->id,
+            'request_code' => 'FD-SRC-REQ-001',
+            'requested_by' => $finance->id,
+            'department_id' => $department->id,
+            'title' => 'Request source expense',
+            'amount' => 78000,
+            'approved_amount' => 78000,
+            'currency' => 'NGN',
+            'status' => 'settled',
+            'created_by' => $finance->id,
+            'updated_by' => $finance->id,
+        ]);
+        $requestExpense = Expense::query()->create([
+            'company_id' => $company->id,
+            'expense_code' => 'FD-EXP-SOURCE',
+            'request_id' => $request->id,
+            'department_id' => $department->id,
+            'title' => 'Linked request expense',
+            'amount' => 78000,
+            'expense_date' => now()->toDateString(),
+            'payment_method' => 'transfer',
+            'paid_by_user_id' => $finance->id,
+            'created_by' => $finance->id,
+            'status' => 'posted',
+            'is_direct' => false,
+        ]);
+
+        Livewire::actingAs($finance)
+            ->test(ExpensesPage::class)
+            ->call('loadData')
+            ->assertSee((string) $directExpense->expense_code)
+            ->assertSee('Direct')
+            ->assertSee((string) $requestExpense->expense_code)
+            ->assertSee('From Request')
+            ->assertSee('FD-SRC-REQ-001')
+            ->call('openViewModal', (int) $requestExpense->id)
+            ->assertSee('Source')
+            ->assertSee('Linked to FD-SRC-REQ-001');
     }
 
     public function test_budget_guardrail_blocks_creation_when_department_budget_is_exceeded(): void
