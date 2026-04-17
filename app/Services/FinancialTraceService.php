@@ -82,6 +82,7 @@ class FinancialTraceService
             purchaseOrders: $request->purchaseOrders,
             expenses: $request->expenses
         );
+        $gaps = $this->gaps($budget, $procurement, $payment, $expenses, $reconciliation);
 
         return [
             'request' => $this->requestTrace($request),
@@ -93,7 +94,8 @@ class FinancialTraceService
             'reconciliation' => $reconciliation,
             'audit' => $audit,
             'timeline' => $this->timeline($request, $budget, $approvals, $procurement, $payment, $expenses, $reconciliation, $audit),
-            'gaps' => $this->gaps($budget, $procurement, $payment, $expenses, $reconciliation),
+            'gaps' => $gaps,
+            'completion' => $this->completionStatus($request, $budget, $approvals, $procurement, $payment, $expenses, $reconciliation, $gaps),
         ];
     }
 
@@ -667,6 +669,88 @@ class FinancialTraceService
         }
 
         return $gaps;
+    }
+
+    /**
+     * @param  array<string,mixed>  $budget
+     * @param  array<int,array<string,mixed>>  $approvals
+     * @param  array<string,mixed>  $procurement
+     * @param  array<string,mixed>  $payment
+     * @param  array<int,array<string,mixed>>  $expenses
+     * @param  array<string,mixed>  $reconciliation
+     * @param  array<int,array{key:string,label:string,severity:string}>  $gaps
+     * @return array{key:string,label:string,severity:string}
+     */
+    private function completionStatus(
+        SpendRequest $request,
+        array $budget,
+        array $approvals,
+        array $procurement,
+        array $payment,
+        array $expenses,
+        array $reconciliation,
+        array $gaps
+    ): array {
+        $paymentStatus = (string) data_get($payment, 'summary.status', '');
+        $requestStatus = (string) $request->status;
+        $gapKeys = array_values(array_map(static fn (array $gap): string => (string) ($gap['key'] ?? ''), $gaps));
+
+        if ($paymentStatus === 'failed' || $requestStatus === 'failed') {
+            return $this->completionRow('payment_failed', 'Payment Failed', 'high');
+        }
+
+        if ($paymentStatus === 'reversed' || $requestStatus === 'reversed') {
+            return $this->completionRow('payment_reversed', 'Payment Reversed', 'high');
+        }
+
+        if (! (bool) ($budget['has_budget'] ?? false)) {
+            return $this->completionRow('needs_budget', 'Needs Budget', 'medium');
+        }
+
+        if (in_array('settled_without_expense', $gapKeys, true)) {
+            return $this->completionRow('needs_expense', 'Needs Expense', 'high');
+        }
+
+        if (in_array('settled_without_reconciliation', $gapKeys, true)) {
+            return $this->completionRow('needs_bank_match', 'Needs Bank Match', 'medium');
+        }
+
+        if (in_array('po_without_commitment', $gapKeys, true)) {
+            return $this->completionRow('needs_po_commitment', 'Needs PO Commitment', 'medium');
+        }
+
+        $hasPendingApproval = collect($approvals)->contains(
+            static fn (array $approval): bool => in_array((string) ($approval['status'] ?? ''), ['pending', 'queued'], true)
+        );
+        if ($hasPendingApproval || $requestStatus === 'in_review') {
+            return $this->completionRow('needs_approval', 'Needs Approval', 'medium');
+        }
+
+        if (in_array($paymentStatus, ['queued', 'processing', 'webhook_pending'], true) || in_array($requestStatus, ['execution_queued', 'execution_processing'], true)) {
+            return $this->completionRow('payment_in_progress', 'Payment In Progress', 'low');
+        }
+
+        if (in_array($requestStatus, ['approved', 'approved_for_execution'], true) && ! (bool) data_get($payment, 'summary.has_payment_attempt', false)) {
+            return $this->completionRow('needs_payment', 'Needs Payment', 'medium');
+        }
+
+        if ($paymentStatus === 'settled' && $expenses !== [] && (bool) data_get($reconciliation, 'summary.has_match', false) && $gaps === []) {
+            return $this->completionRow('complete', 'Complete', 'low');
+        }
+
+        return $this->completionRow('in_progress', 'In Progress', 'low');
+    }
+
+    /**
+     * @return array{key:string,label:string,severity:string}
+     */
+    private function completionRow(string $key, string $label, string $severity): array
+    {
+        return [
+            'key' => $key,
+            'label' => $label,
+            'severity' => $severity,
+        ];
     }
 
     private function referenceBudgetDate(SpendRequest $request): string

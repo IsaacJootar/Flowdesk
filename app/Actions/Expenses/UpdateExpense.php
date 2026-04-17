@@ -8,6 +8,7 @@ use App\Services\ActivityLogger;
 use App\Services\ExpenseBudgetGuardrail;
 use App\Services\ExpenseDuplicateDetector;
 use App\Services\ExpensePolicyResolver;
+use App\Services\SpendLifecycleControlService;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
@@ -19,7 +20,8 @@ class UpdateExpense
         private readonly ActivityLogger $activityLogger,
         private readonly ExpenseBudgetGuardrail $expenseBudgetGuardrail,
         private readonly ExpenseDuplicateDetector $expenseDuplicateDetector,
-        private readonly ExpensePolicyResolver $expensePolicyResolver
+        private readonly ExpensePolicyResolver $expensePolicyResolver,
+        private readonly SpendLifecycleControlService $spendLifecycleControlService
     ) {}
 
     /**
@@ -63,14 +65,54 @@ class UpdateExpense
             ]);
         }
 
+        if ($isDirect && $this->spendLifecycleControlService->directExpenseReasonRequired((int) $expense->company_id) && trim((string) ($validated['description'] ?? '')) === '') {
+            throw ValidationException::withMessages([
+                'description' => 'Enter a reason for this direct expense.',
+            ]);
+        }
+
         // Re-evaluate budget against edited values before persisting changes.
-        $budgetGuardrail = $this->expenseBudgetGuardrail->enforceOrFail(
+        $budgetGuardrail = $this->expenseBudgetGuardrail->evaluate(
             companyId: (int) $expense->company_id,
             departmentId: (int) $validated['department_id'],
             expenseDate: (string) $validated['expense_date'],
             incomingAmount: (int) $validated['amount'],
             editingExpense: $expense
         );
+        $budgetDecision = $this->spendLifecycleControlService->budgetDecision(
+            companyId: (int) $expense->company_id,
+            guardrail: $budgetGuardrail,
+            context: 'expense_posting',
+        );
+        if (! $budgetDecision['allowed']) {
+            $this->activityLogger->log(
+                action: 'expense.budget.blocked',
+                entityType: Expense::class,
+                entityId: (int) $expense->id,
+                metadata: [
+                    'expense_code' => (string) $expense->expense_code,
+                    'amount' => (int) $validated['amount'],
+                    'department_id' => (int) $validated['department_id'],
+                    'budget_guardrail' => $budgetGuardrail,
+                    'budget_decision' => $budgetDecision,
+                ],
+                companyId: (int) $expense->company_id,
+                userId: $user->id,
+            );
+
+            throw ValidationException::withMessages([
+                'amount' => (string) $budgetDecision['message'],
+            ]);
+        }
+
+        if ($budgetGuardrail['has_budget'] && $budgetGuardrail['is_blocked']) {
+            throw ValidationException::withMessages([
+                'amount' => sprintf(
+                    'Budget limit exceeded by NGN %s for this department period.',
+                    number_format($budgetGuardrail['over_amount'])
+                ),
+            ]);
+        }
 
         $before = $expense->only([
             'request_id',
@@ -117,6 +159,7 @@ class UpdateExpense
                 'before' => $before,
                 'after' => $after,
                 'budget_guardrail' => $budgetGuardrail,
+                'budget_decision' => $budgetDecision,
                 'duplicate_detection' => [
                     'risk' => $duplicateAnalysis['risk'],
                     'override_used' => $duplicateOverride,

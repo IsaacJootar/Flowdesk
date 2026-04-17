@@ -21,6 +21,97 @@
         <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
             <div>
                 <span class="inline-flex items-center rounded-full border border-slate-300 bg-slate-200 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-800">
+                    Spend Workflow Controls
+                </span>
+                <h2 class="mt-2 text-base font-semibold text-slate-900">Budget, Payout Handoff, and Receipt Controls</h2>
+                <p class="mt-1 text-sm text-slate-600">
+                    Set how strict Flowdesk should be from request to payment to expense record. Direct expense receipts stay optional unless you choose otherwise.
+                </p>
+            </div>
+        </div>
+
+        <div class="grid gap-4 lg:grid-cols-3">
+            <label class="block rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <span class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Budget Control</span>
+                <select
+                    wire:model.defer="lifecycleControls.budget_control_mode"
+                    class="mt-2 w-full rounded-xl border-slate-300 text-sm focus:border-slate-500 focus:ring-slate-500"
+                >
+                    @foreach ($budgetControlOptions as $value => $label)
+                        <option value="{{ $value }}">{{ $label }}</option>
+                    @endforeach
+                </select>
+                <span class="mt-2 block text-xs text-slate-500">Warn keeps work moving. Block modes stop missing or over-budget spend at key gates.</span>
+                @error('lifecycleControls.budget_control_mode')<span class="mt-2 block text-xs text-red-600">{{ $message }}</span>@enderror
+            </label>
+
+            <label class="block rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <span class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">After Payment Settles</span>
+                <select
+                    wire:model.defer="lifecycleControls.expense_handoff_mode"
+                    class="mt-2 w-full rounded-xl border-slate-300 text-sm focus:border-slate-500 focus:ring-slate-500"
+                >
+                    @foreach ($handoffModeOptions as $value => $label)
+                        <option value="{{ $value }}">{{ $label }}</option>
+                    @endforeach
+                </select>
+                <span class="mt-2 block text-xs text-slate-500">The handoff queue is the default: finance reviews settled payouts before posting expense records.</span>
+                @error('lifecycleControls.expense_handoff_mode')<span class="mt-2 block text-xs text-red-600">{{ $message }}</span>@enderror
+            </label>
+
+            <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <label class="block">
+                    <span class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Direct Expense Receipt</span>
+                    <select
+                        wire:model.defer="lifecycleControls.direct_expense_receipt_mode"
+                        class="mt-2 w-full rounded-xl border-slate-300 text-sm focus:border-slate-500 focus:ring-slate-500"
+                    >
+                        @foreach ($receiptModeOptions as $value => $label)
+                            <option value="{{ $value }}">{{ $label }}</option>
+                        @endforeach
+                    </select>
+                </label>
+                <label class="mt-3 block">
+                    <span class="mb-1 block text-xs font-medium text-slate-600">Receipt threshold</span>
+                    <input
+                        type="number"
+                        min="0"
+                        step="1"
+                        wire:model.defer="lifecycleControls.direct_expense_receipt_threshold"
+                        placeholder="0 means all amounts"
+                        class="w-full rounded-xl border-slate-300 text-sm focus:border-slate-500 focus:ring-slate-500"
+                    >
+                </label>
+                <span class="mt-2 block text-xs text-slate-500">Optional means internal spend can be posted without a receipt, but it is still logged.</span>
+                @error('lifecycleControls.direct_expense_receipt_mode')<span class="mt-2 block text-xs text-red-600">{{ $message }}</span>@enderror
+                @error('lifecycleControls.direct_expense_receipt_threshold')<span class="mt-2 block text-xs text-red-600">{{ $message }}</span>@enderror
+            </div>
+        </div>
+
+        <div class="mt-4 grid gap-3 sm:grid-cols-2">
+            <label class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white p-3 text-sm text-slate-700">
+                <input
+                    type="checkbox"
+                    wire:model.defer="lifecycleControls.direct_expense_reason_required"
+                    class="rounded border-slate-300 text-slate-700 focus:ring-slate-500"
+                >
+                Require a reason for direct expenses
+            </label>
+            <label class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white p-3 text-sm text-slate-700">
+                <input
+                    type="checkbox"
+                    wire:model.defer="lifecycleControls.finance_override_requires_reason"
+                    class="rounded border-slate-300 text-slate-700 focus:ring-slate-500"
+                >
+                Require reason when finance overrides controls
+            </label>
+        </div>
+    </div>
+
+    <div class="fd-card p-6">
+        <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div>
+                <span class="inline-flex items-center rounded-full border border-slate-300 bg-slate-200 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-800">
                     Expense Permission Matrix
                 </span>
                 <h2 class="mt-2 text-base font-semibold text-slate-900">Role, Department, and Limit Controls</h2>

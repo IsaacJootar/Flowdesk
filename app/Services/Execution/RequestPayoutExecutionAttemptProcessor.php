@@ -7,6 +7,7 @@ use App\Domains\Requests\Models\SpendRequest;
 use App\Services\Execution\DTO\AdapterOperationResult;
 use App\Services\Execution\DTO\AdapterOperationStatus;
 use App\Services\Execution\DTO\PayoutExecutionRequestData;
+use App\Services\ExpenseHandoffService;
 use App\Services\RequestCommunicationLogger;
 use App\Services\Treasury\SyncPayoutExecutionExceptionService;
 
@@ -16,6 +17,7 @@ class RequestPayoutExecutionAttemptProcessor
         private readonly TenantExecutionAdapterFactory $adapterFactory,
         private readonly RequestCommunicationLogger $requestCommunicationLogger,
         private readonly SyncPayoutExecutionExceptionService $syncPayoutExecutionExceptionService,
+        private readonly ExpenseHandoffService $expenseHandoffService,
     ) {
     }
 
@@ -117,6 +119,7 @@ class RequestPayoutExecutionAttemptProcessor
 
         $this->syncRequestStatus($request, $nextStatus, $attempt);
         $this->syncPayoutExecutionExceptionService->syncForAttempt($attempt, 'webhook');
+        $this->prepareExpenseHandoffIfSettled($attempt, (int) ($attempt->updated_by ?: $attempt->created_by ?: 0));
     }
 
     private function applyAdapterResult(
@@ -147,6 +150,7 @@ class RequestPayoutExecutionAttemptProcessor
         $this->syncRequestStatus($attempt->request, $status, $attempt);
         // Terminal payout outcomes must be mirrored into treasury exception queue for incident triage.
         $this->syncPayoutExecutionExceptionService->syncForAttempt($attempt, 'adapter');
+        $this->prepareExpenseHandoffIfSettled($attempt, (int) ($attempt->updated_by ?: $attempt->created_by ?: 0));
     }
 
     private function syncRequestStatus(?SpendRequest $request, string $executionStatus, RequestPayoutExecutionAttempt $attempt): void
@@ -191,5 +195,17 @@ class RequestPayoutExecutionAttemptProcessor
                 ]
             );
         }
+    }
+
+    private function prepareExpenseHandoffIfSettled(RequestPayoutExecutionAttempt $attempt, int $actorUserId): void
+    {
+        if ((string) $attempt->execution_status !== 'settled') {
+            return;
+        }
+
+        $this->expenseHandoffService->prepareForSettledPayout(
+            attempt: $attempt,
+            actorUserId: $actorUserId > 0 ? $actorUserId : null,
+        );
     }
 }

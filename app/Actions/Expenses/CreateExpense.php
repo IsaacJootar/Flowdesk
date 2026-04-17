@@ -9,6 +9,7 @@ use App\Services\ExpenseBudgetGuardrail;
 use App\Services\ExpenseCodeGenerator;
 use App\Services\ExpenseDuplicateDetector;
 use App\Services\ExpensePolicyResolver;
+use App\Services\SpendLifecycleControlService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Validator;
@@ -22,7 +23,8 @@ class CreateExpense
         private readonly ExpenseCodeGenerator $expenseCodeGenerator,
         private readonly ExpenseBudgetGuardrail $expenseBudgetGuardrail,
         private readonly ExpenseDuplicateDetector $expenseDuplicateDetector,
-        private readonly ExpensePolicyResolver $expensePolicyResolver
+        private readonly ExpensePolicyResolver $expensePolicyResolver,
+        private readonly SpendLifecycleControlService $spendLifecycleControlService
     ) {
     }
 
@@ -69,13 +71,64 @@ class CreateExpense
             ]);
         }
 
+        if ($isDirect && $this->spendLifecycleControlService->directExpenseReasonRequired((int) $user->company_id) && trim((string) ($validated['description'] ?? '')) === '') {
+            throw ValidationException::withMessages([
+                'description' => 'Enter a reason for this direct expense.',
+            ]);
+        }
+
         // Budget guardrail evaluates the target period before we insert a posted expense.
-        $budgetGuardrail = $this->expenseBudgetGuardrail->enforceOrFail(
+        $budgetGuardrail = $this->expenseBudgetGuardrail->evaluate(
             companyId: (int) $user->company_id,
             departmentId: (int) $validated['department_id'],
             expenseDate: (string) $validated['expense_date'],
             incomingAmount: (int) $validated['amount'],
         );
+        $budgetDecision = $this->spendLifecycleControlService->budgetDecision(
+            companyId: (int) $user->company_id,
+            guardrail: $budgetGuardrail,
+            context: 'expense_posting',
+        );
+
+        if (! $budgetDecision['allowed']) {
+            $this->activityLogger->log(
+                action: 'expense.budget.blocked',
+                entityType: Expense::class,
+                metadata: [
+                    'title' => trim($validated['title']),
+                    'amount' => (int) $validated['amount'],
+                    'department_id' => (int) $validated['department_id'],
+                    'is_direct' => $isDirect,
+                    'budget_guardrail' => $budgetGuardrail,
+                    'budget_decision' => $budgetDecision,
+                ],
+                companyId: (int) $user->company_id,
+                userId: $user->id,
+            );
+
+            throw ValidationException::withMessages([
+                'amount' => (string) $budgetDecision['message'],
+            ]);
+        }
+
+        if ($budgetGuardrail['has_budget'] && $budgetGuardrail['is_blocked']) {
+            throw ValidationException::withMessages([
+                'amount' => sprintf(
+                    'Budget limit exceeded by NGN %s for this department period.',
+                    number_format($budgetGuardrail['over_amount'])
+                ),
+            ]);
+        }
+
+        $directExpenseControls = [
+            'receipt_required' => $isDirect
+                ? $this->spendLifecycleControlService->directExpenseReceiptRequired((int) $user->company_id, (int) $validated['amount'])
+                : false,
+            'receipt_mode' => (string) ($this->spendLifecycleControlService->settingsForCompany((int) $user->company_id)['direct_expense_receipt_mode'] ?? SpendLifecycleControlService::RECEIPT_OPTIONAL),
+            'reason_required' => $isDirect
+                ? $this->spendLifecycleControlService->directExpenseReasonRequired((int) $user->company_id)
+                : false,
+        ];
 
         $expense = DB::transaction(function () use ($user, $validated, $requestId, $isDirect): Expense {
             // Create is wrapped in transaction so code generation/write and audit expectations remain atomic.
@@ -110,6 +163,8 @@ class CreateExpense
                 'payment_method' => $expense->payment_method,
                 'is_direct' => $expense->is_direct,
                 'budget_guardrail' => $budgetGuardrail,
+                'budget_decision' => $budgetDecision,
+                'direct_expense_controls' => $directExpenseControls,
                 'duplicate_detection' => [
                     'risk' => $duplicateAnalysis['risk'],
                     'override_used' => $duplicateOverride,

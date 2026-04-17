@@ -62,6 +62,10 @@ class TenantModuleEntitlementTest extends TestCase
         $this->actingAs($owner)
             ->get(route('reports.financial-trace'))
             ->assertForbidden();
+
+        $this->actingAs($owner)
+            ->get(route('reports.financial-trace-help'))
+            ->assertForbidden();
     }
 
     public function test_requests_communications_requires_both_requests_and_communications_modules(): void

@@ -15,6 +15,7 @@ use App\Services\RequestBudgetGuardrail;
 use App\Services\RequestCommunicationLogger;
 use App\Services\RequestDuplicateDetector;
 use App\Services\RequestApprovalRouter;
+use App\Services\SpendLifecycleControlService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
@@ -28,7 +29,8 @@ class SubmitSpendRequest
         private readonly RequestApprovalSlaService $requestApprovalSlaService,
         private readonly ApprovalTimingPolicyResolver $approvalTimingPolicyResolver,
         private readonly RequestBudgetGuardrail $requestBudgetGuardrail,
-        private readonly RequestDuplicateDetector $requestDuplicateDetector
+        private readonly RequestDuplicateDetector $requestDuplicateDetector,
+        private readonly SpendLifecycleControlService $spendLifecycleControlService
     ) {
     }
 
@@ -110,6 +112,33 @@ class SubmitSpendRequest
                 );
             }
         }
+        $budgetDecision = $this->spendLifecycleControlService->budgetDecision(
+            companyId: (int) $request->company_id,
+            guardrail: $budgetGuardrail,
+            context: 'request_submission',
+        );
+        if (! $budgetDecision['allowed']) {
+            $this->activityLogger->log(
+                action: 'request.budget.blocked',
+                entityType: SpendRequest::class,
+                entityId: (int) $request->id,
+                metadata: [
+                    'request_code' => (string) $request->request_code,
+                    'guardrail' => $budgetGuardrail,
+                    'budget_decision' => $budgetDecision,
+                ],
+                companyId: (int) $request->company_id,
+                userId: $user->id,
+            );
+
+            throw ValidationException::withMessages([
+                'amount' => (string) $budgetDecision['message'],
+            ]);
+        }
+
+        if ($budgetDecision['message'] !== '' && ! in_array((string) $budgetDecision['message'], $policyWarnings, true)) {
+            $policyWarnings[] = (string) $budgetDecision['message'];
+        }
 
         $duplicateAnalysis = [
             'risk' => 'none',
@@ -143,6 +172,7 @@ class SubmitSpendRequest
         $policyChecks = [
             'budget' => array_merge($budgetGuardrail, [
                 'mode' => (string) $policy->budget_guardrail_mode,
+                'lifecycle_decision' => $budgetDecision,
             ]),
             'duplicate' => [
                 'enabled' => (bool) $policy->duplicate_detection_enabled,
@@ -153,7 +183,7 @@ class SubmitSpendRequest
             ],
         ];
 
-        if ($budgetGuardrail['has_budget'] && $budgetGuardrail['is_exceeded'] && (string) $policy->budget_guardrail_mode === CompanyRequestPolicySetting::BUDGET_MODE_WARN) {
+        if (($budgetDecision['message'] !== '' && $budgetDecision['severity'] !== 'none') || ($budgetGuardrail['has_budget'] && $budgetGuardrail['is_exceeded'] && (string) $policy->budget_guardrail_mode === CompanyRequestPolicySetting::BUDGET_MODE_WARN)) {
             $this->activityLogger->log(
                 action: 'request.budget.warning',
                 entityType: SpendRequest::class,
@@ -161,6 +191,7 @@ class SubmitSpendRequest
                 metadata: [
                     'request_code' => (string) $request->request_code,
                     'guardrail' => $budgetGuardrail,
+                    'budget_decision' => $budgetDecision,
                 ],
                 companyId: (int) $request->company_id,
                 userId: $user->id,

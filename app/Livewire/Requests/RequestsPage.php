@@ -1658,6 +1658,7 @@ class RequestsPage extends Component
         $expenses = (array) ($trace['expenses'] ?? []);
         $reconciliation = (array) ($trace['reconciliation'] ?? []);
         $audit = (array) ($trace['audit'] ?? []);
+        $completion = (array) ($trace['completion'] ?? []);
 
         $paymentStatusKey = (string) data_get($payment, 'summary.status', '');
         $hasPaymentAttempt = (bool) data_get($payment, 'summary.has_payment_attempt', false);
@@ -1672,6 +1673,11 @@ class RequestsPage extends Component
         ));
 
         return [
+            'completion' => [
+                'key' => (string) ($completion['key'] ?? 'in_progress'),
+                'label' => (string) ($completion['label'] ?? 'In Progress'),
+                'severity' => (string) ($completion['severity'] ?? 'low'),
+            ],
             'budget' => [
                 'status_key' => (string) ($budget['status'] ?? 'no_budget_found'),
                 'status_label' => $this->financialTraceLabel((string) ($budget['status'] ?? 'no_budget_found')),

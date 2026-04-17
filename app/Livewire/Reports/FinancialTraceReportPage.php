@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -49,6 +50,7 @@ class FinancialTraceReportPage extends Component
 
     public bool $readyToLoad = false;
 
+    #[Url(as: 'search')]
     public string $search = '';
 
     public string $statusFilter = 'all';
@@ -317,6 +319,7 @@ class FinancialTraceReportPage extends Component
         $openExceptions = (int) data_get($trace, 'reconciliation.summary.open_exceptions', 0);
         $hasBankMatch = (bool) data_get($trace, 'reconciliation.summary.has_match', false);
         $auditCount = count((array) data_get($trace, 'audit.activity_logs', [])) + count((array) data_get($trace, 'audit.tenant_audit_events', []));
+        $completion = (array) ($trace['completion'] ?? []);
 
         return [
             'id' => (int) $request->id,
@@ -328,6 +331,9 @@ class FinancialTraceReportPage extends Component
             'amount' => (int) $request->amount,
             'currency' => strtoupper((string) $request->currency),
             'request_status' => (string) $request->status,
+            'trace_status' => (string) ($completion['label'] ?? 'In Progress'),
+            'trace_status_key' => (string) ($completion['key'] ?? 'in_progress'),
+            'trace_severity' => (string) ($completion['severity'] ?? 'low'),
             'budget_status' => $this->label((string) data_get($trace, 'budget.status', 'no_budget_found')),
             'approval_status' => $approvalCount > 0 ? $approvedSteps.' / '.$approvalCount.' approved' : 'No approval rows',
             'purchase_order_status' => count($purchaseOrders) > 0

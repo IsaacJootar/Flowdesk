@@ -1324,13 +1324,22 @@
                             $tracePaymentClass = in_array($tracePaymentStatus, ['settled', 'completed'], true)
                                 ? 'bg-emerald-100 text-emerald-700'
                                 : (in_array($tracePaymentStatus, ['failed', 'reversed'], true) ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-700');
+                            $traceCompletionSeverity = (string) data_get($financialTrace, 'completion.severity', 'low');
+                            $traceCompletionClass = $traceCompletionSeverity === 'high'
+                                ? 'bg-red-100 text-red-700'
+                                : ($traceCompletionSeverity === 'medium' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700');
                         @endphp
                         <div class="rounded-xl border border-slate-200 p-4">
                             <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
                                 <div>
                                     <p class="text-sm font-semibold text-slate-800">Financial Trace</p>
                                 </div>
-                                <span class="text-xs text-slate-500">{{ count((array) data_get($financialTrace, 'timeline', [])) }} event(s)</span>
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <span class="inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold {{ $traceCompletionClass }}">
+                                        {{ data_get($financialTrace, 'completion.label', 'In Progress') }}
+                                    </span>
+                                    <span class="text-xs text-slate-500">{{ count((array) data_get($financialTrace, 'timeline', [])) }} event(s)</span>
+                                </div>
                             </div>
 
                             <div class="grid gap-2 md:grid-cols-2 xl:grid-cols-4">

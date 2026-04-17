@@ -8,6 +8,7 @@
             <div class="flex flex-wrap items-center gap-2">
                 <a href="{{ route('reports.index') }}" class="inline-flex h-9 items-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50">Reports</a>
                 <a href="{{ route('requests.reports') }}" class="inline-flex h-9 items-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50">Request Reports</a>
+                <a href="{{ route('reports.financial-trace-help') }}" class="inline-flex h-9 items-center rounded-lg border border-slate-700 bg-slate-700 px-3 text-xs font-semibold text-white hover:bg-slate-800" style="background-color:#334155;border-color:#334155;color:#ffffff;">Trace Guide</a>
             </div>
         </div>
     </div>
@@ -156,6 +157,10 @@
                                 $bankClass = $row['reconciliation_status'] === 'Matched'
                                     ? 'bg-emerald-100 text-emerald-700'
                                     : ($row['reconciliation_status'] === 'Not matched' ? 'bg-slate-100 text-slate-700' : 'bg-amber-100 text-amber-700');
+
+                                $traceStatusClass = $row['trace_severity'] === 'high'
+                                    ? 'bg-red-100 text-red-700'
+                                    : ($row['trace_severity'] === 'medium' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700');
                             @endphp
                             <tr class="align-top hover:bg-slate-50" wire:key="financial-trace-report-row-{{ $row['id'] }}">
                                 <td class="px-4 py-3">
@@ -163,6 +168,9 @@
                                     <p class="text-xs text-slate-500">{{ $row['request_code'] }} &middot; {{ $row['department'] }}</p>
                                     <p class="mt-1 text-xs text-slate-500">{{ $row['requester'] }} &middot; {{ $row['vendor'] }}</p>
                                     <div class="mt-2 flex flex-wrap items-center gap-1.5">
+                                        <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold {{ $traceStatusClass }}">
+                                            {{ $row['trace_status'] }}
+                                        </span>
                                         <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold {{ $requestStatusClass }}">
                                             {{ ucfirst(str_replace('_', ' ', (string) $row['request_status'])) }}
                                         </span>

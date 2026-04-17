@@ -7,6 +7,8 @@ use App\Domains\Requests\Models\SpendRequest;
 use App\Jobs\Execution\RunRequestPayoutExecutionAttemptJob;
 use App\Models\User;
 use App\Services\Procurement\ProcurementPaymentGateService;
+use App\Services\RequestBudgetGuardrail;
+use App\Services\SpendLifecycleControlService;
 use App\Services\TenantAuditLogger;
 use App\Services\TenantExecutionModeService;
 
@@ -14,6 +16,8 @@ class RequestPayoutExecutionOrchestrator
 {
     public function __construct(
         private readonly ProcurementPaymentGateService $procurementPaymentGateService,
+        private readonly RequestBudgetGuardrail $requestBudgetGuardrail,
+        private readonly SpendLifecycleControlService $spendLifecycleControlService,
         private readonly TenantAuditLogger $tenantAuditLogger,
     ) {
     }
@@ -34,6 +38,42 @@ class RequestPayoutExecutionOrchestrator
 
         $amount = (int) ($request->approved_amount ?: $request->amount);
         if ($amount < 1) {
+            return null;
+        }
+
+        $budgetGate = $this->budgetGateDecision($request, $amount);
+        if (! (bool) ($budgetGate['allowed'] ?? true)) {
+            $actor = $actorUserId ? User::query()->where('company_id', (int) $request->company_id)->find($actorUserId) : null;
+            $existingMetadata = (array) ($request->metadata ?? []);
+            $request->forceFill([
+                'updated_by' => $actorUserId,
+                'metadata' => array_merge($existingMetadata, [
+                    'execution' => array_merge((array) data_get($existingMetadata, 'execution', []), [
+                        'budget_gate' => [
+                            'blocked' => true,
+                            'blocked_at' => now()->toDateTimeString(),
+                            'reason' => (string) ($budgetGate['message'] ?? 'Budget gate blocked payout queueing.'),
+                            'context' => (array) ($budgetGate['guardrail'] ?? []),
+                        ],
+                    ]),
+                ]),
+            ])->save();
+
+            $this->tenantAuditLogger->log(
+                companyId: (int) $request->company_id,
+                action: 'tenant.execution.payout.blocked_by_budget',
+                actor: $actor,
+                description: 'Payout queueing blocked by budget control.',
+                entityType: SpendRequest::class,
+                entityId: (int) $request->id,
+                metadata: [
+                    'request_code' => (string) $request->request_code,
+                    'reason' => (string) ($budgetGate['message'] ?? ''),
+                    'guardrail' => (array) ($budgetGate['guardrail'] ?? []),
+                    'decision' => (array) ($budgetGate['decision'] ?? []),
+                ],
+            );
+
             return null;
         }
 
@@ -131,5 +171,31 @@ class RequestPayoutExecutionOrchestrator
         }
 
         return $attempt;
+    }
+
+    /**
+     * @return array<string,mixed>
+     */
+    private function budgetGateDecision(SpendRequest $request, int $amount): array
+    {
+        $metadata = (array) ($request->metadata ?? []);
+        $effectiveDate = ! empty($metadata['needed_by']) ? (string) $metadata['needed_by'] : null;
+        $guardrail = $this->requestBudgetGuardrail->evaluate(
+            companyId: (int) $request->company_id,
+            departmentId: (int) $request->department_id,
+            incomingAmount: $amount,
+            effectiveDate: $effectiveDate
+        );
+        $decision = $this->spendLifecycleControlService->budgetDecision(
+            companyId: (int) $request->company_id,
+            guardrail: $guardrail,
+            context: 'payout_queueing'
+        );
+
+        return [
+            ...$decision,
+            'guardrail' => $guardrail,
+            'decision' => $decision,
+        ];
     }
 }

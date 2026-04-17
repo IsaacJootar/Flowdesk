@@ -13,6 +13,8 @@ use App\Services\Execution\RequestPayoutExecutionOrchestrator;
 use App\Services\RequestApprovalSlaService;
 use App\Services\RequestCommunicationLogger;
 use App\Services\RequestApprovalRouter;
+use App\Services\RequestBudgetGuardrail;
+use App\Services\SpendLifecycleControlService;
 use App\Services\TenantExecutionModeService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -28,7 +30,9 @@ class DecideSpendRequest
         private readonly RequestCommunicationLogger $requestCommunicationLogger,
         private readonly RequestApprovalSlaService $requestApprovalSlaService,
         private readonly ApprovalTimingPolicyResolver $approvalTimingPolicyResolver,
-        private readonly RequestPayoutExecutionOrchestrator $requestPayoutExecutionOrchestrator
+        private readonly RequestPayoutExecutionOrchestrator $requestPayoutExecutionOrchestrator,
+        private readonly RequestBudgetGuardrail $requestBudgetGuardrail,
+        private readonly SpendLifecycleControlService $spendLifecycleControlService
     ) {
     }
 
@@ -77,6 +81,7 @@ class DecideSpendRequest
         $action = (string) $validated['action'];
         $comment = $this->nullableString($validated['comment'] ?? null);
         $notificationChannels = $this->resolveDecisionChannels($request, $currentStep, $selectedChannels);
+        $this->enforceBudgetGateBeforeFinalApproval($user, $request, $currentStep, $action);
 
         $transitionedToPaymentAuthorization = false;
         $shouldQueueExecution = false;
@@ -389,6 +394,57 @@ class DecideSpendRequest
         $request->loadMissing('company.subscription');
 
         return (string) ($request->company?->subscription?->payment_execution_mode ?? '') === TenantExecutionModeService::MODE_EXECUTION_ENABLED;
+    }
+
+    /**
+     * @throws ValidationException
+     */
+    private function enforceBudgetGateBeforeFinalApproval(User $user, SpendRequest $request, ApprovalWorkflowStep $currentStep, string $action): void
+    {
+        if ($action !== 'approve') {
+            return;
+        }
+
+        $nextStep = $this->requestApprovalRouter->resolveNextStep($request, (int) $currentStep->step_order);
+        if ($nextStep instanceof ApprovalWorkflowStep) {
+            return;
+        }
+
+        $metadata = (array) ($request->metadata ?? []);
+        $effectiveDate = ! empty($metadata['needed_by']) ? (string) $metadata['needed_by'] : null;
+        $guardrail = $this->requestBudgetGuardrail->evaluate(
+            companyId: (int) $request->company_id,
+            departmentId: (int) $request->department_id,
+            incomingAmount: (int) ($request->approved_amount ?: $request->amount),
+            effectiveDate: $effectiveDate
+        );
+        $decision = $this->spendLifecycleControlService->budgetDecision(
+            companyId: (int) $request->company_id,
+            guardrail: $guardrail,
+            context: 'final_approval'
+        );
+
+        if ($decision['allowed']) {
+            return;
+        }
+
+        $this->activityLogger->log(
+            action: 'request.budget.blocked',
+            entityType: SpendRequest::class,
+            entityId: (int) $request->id,
+            metadata: [
+                'request_code' => (string) $request->request_code,
+                'guardrail' => $guardrail,
+                'budget_decision' => $decision,
+                'gate' => 'final_approval',
+            ],
+            companyId: (int) $request->company_id,
+            userId: $user->id,
+        );
+
+        throw ValidationException::withMessages([
+            'amount' => (string) $decision['message'],
+        ]);
     }
 
     private function startPaymentAuthorizationPhase(SpendRequest $request, User $user): bool

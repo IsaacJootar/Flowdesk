@@ -5,7 +5,7 @@
         description="Your command centre for the day-to-day running of Flowdesk — approvals needing action, pending payables, month-end close, and system health at a glance."
         :bullets="[
             'See everything that needs your attention across all modules without switching tabs.',
-            'Jump directly into Approvals, Vendor Payables, or Month-End Close from here.',
+            'Jump directly into Approvals, Expense Handoff, Vendor Payables, or Month-End Close from here.',
             'Bottlenecks and overdue items are highlighted so you know where to focus first.',
         ]"
     />
@@ -24,11 +24,17 @@
         </div>
     </section>
 
-    <section class="grid gap-4 lg:grid-cols-3">
+    <section class="grid gap-4 lg:grid-cols-4">
         <a href="{{ route('operations.approval-desk') }}" class="fd-card block border border-indigo-200 bg-indigo-50 p-5 transition hover:bg-indigo-100">
             <p class="text-xs font-semibold uppercase tracking-[0.14em] text-indigo-700">Approvals</p>
             <h3 class="mt-2 text-lg font-semibold text-indigo-900">Approvals Overview</h3>
             <p class="mt-2 text-sm text-indigo-800">Pending approvals, overdue items, and returned requests with one next action per row.</p>
+        </a>
+
+        <a href="{{ route('operations.expense-handoff') }}" class="fd-card block border border-emerald-200 bg-emerald-50 p-5 transition hover:bg-emerald-100">
+            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-emerald-700">Expense Handoff</p>
+            <h3 class="mt-2 text-lg font-semibold text-emerald-900">Payment to Expense Review</h3>
+            <p class="mt-2 text-sm text-emerald-800">Settled payouts waiting for a linked expense record or a logged exception.</p>
         </a>
 
         <a href="{{ route('operations.vendor-payables-desk') }}" class="fd-card block border border-amber-200 bg-amber-50 p-5 transition hover:bg-amber-100">

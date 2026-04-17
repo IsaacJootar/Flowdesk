@@ -22,8 +22,10 @@ use App\Livewire\Organization\DepartmentsPage;
 use App\Livewire\Organization\TeamPage;
 use App\Livewire\Operations\OperationsControlDeskPage;
 use App\Livewire\Operations\ApprovalOperationsDeskPage;
+use App\Livewire\Operations\ExpenseHandoffPage;
 use App\Livewire\Operations\VendorPayablesDeskPage;
 use App\Livewire\Operations\PeriodCloseDeskPage;
+use App\Livewire\Reports\FinancialTraceGuidePage;
 use App\Livewire\Reports\FinancialTraceReportPage;
 use App\Livewire\Reports\ReportsCenterPage;
 use App\Livewire\Requests\RequestCommunicationsPage;
@@ -110,6 +112,7 @@ Route::middleware(['auth', 'company.context'])->group(function (): void {
     Route::get('/dashboard', DashboardShell::class)->name('dashboard');
     Route::get('/operations/control-desk', OperationsControlDeskPage::class)->name('operations.control-desk');
     Route::get('/operations/approval-desk', ApprovalOperationsDeskPage::class)->name('operations.approval-desk');
+    Route::get('/operations/expense-handoff', ExpenseHandoffPage::class)->middleware('module.enabled:requests,expenses')->name('operations.expense-handoff');
     Route::get('/operations/vendor-payables-desk', VendorPayablesDeskPage::class)->name('operations.vendor-payables-desk');
     Route::get('/operations/period-close-desk', PeriodCloseDeskPage::class)->name('operations.period-close-desk');
     Route::get('/execution/health', ExecutionHealthPage::class)->name('execution.health');
@@ -117,6 +120,7 @@ Route::middleware(['auth', 'company.context'])->group(function (): void {
     Route::get('/execution/help', ExecutionUsageGuidePage::class)->name('execution.help');
     Route::get('/reports', ReportsCenterPage::class)->middleware('module.enabled:reports')->name('reports.index');
     Route::get('/reports/financial-trace', FinancialTraceReportPage::class)->middleware('module.enabled:reports,requests')->name('reports.financial-trace');
+    Route::get('/reports/financial-trace/help', FinancialTraceGuidePage::class)->middleware('module.enabled:reports,requests')->name('reports.financial-trace-help');
 
     Route::prefix('dashboard')->name('dashboard.')->group(function (): void {
         Route::get('/index', DashboardShell::class)->name('index');

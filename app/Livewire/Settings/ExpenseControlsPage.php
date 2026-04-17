@@ -6,6 +6,7 @@ use App\Domains\Company\Models\Department;
 use App\Domains\Expenses\Models\CompanyExpensePolicySetting;
 use App\Enums\UserRole;
 use App\Services\ExpensePolicyResolver;
+use App\Services\SpendLifecycleControlService;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\View\View;
 use Illuminate\Validation\Rule;
@@ -34,17 +35,22 @@ class ExpenseControlsPage extends Component
      */
     public array $roles = [];
 
-    public function mount(ExpensePolicyResolver $expensePolicyResolver): void
+    /**
+     * @var array<string, mixed>
+     */
+    public array $lifecycleControls = [];
+
+    public function mount(ExpensePolicyResolver $expensePolicyResolver, SpendLifecycleControlService $spendLifecycleControlService): void
     {
         $this->authorizeOwner();
         $this->roles = UserRole::values();
-        $this->hydrateFromSetting($expensePolicyResolver);
+        $this->hydrateFromSetting($expensePolicyResolver, $spendLifecycleControlService);
     }
 
     /**
      * @throws ValidationException
      */
-    public function save(ExpensePolicyResolver $expensePolicyResolver): void
+    public function save(ExpensePolicyResolver $expensePolicyResolver, SpendLifecycleControlService $spendLifecycleControlService): void
     {
         $this->authorizeOwner();
         $this->feedbackError = null;
@@ -65,6 +71,34 @@ class ExpenseControlsPage extends Component
                 $rules["actionPolicies.{$action}.amount_limits.{$role}"] = ['nullable', 'integer', 'min:1'];
             }
         }
+
+        $rules['lifecycleControls.budget_control_mode'] = [
+            'required',
+            Rule::in([
+                SpendLifecycleControlService::BUDGET_OFF,
+                SpendLifecycleControlService::BUDGET_WARN,
+                SpendLifecycleControlService::BUDGET_BLOCK_MISSING,
+                SpendLifecycleControlService::BUDGET_BLOCK_MISSING_OR_OVER,
+            ]),
+        ];
+        $rules['lifecycleControls.expense_handoff_mode'] = [
+            'required',
+            Rule::in([
+                SpendLifecycleControlService::HANDOFF_MANUAL,
+                SpendLifecycleControlService::HANDOFF_FINANCE_REVIEW,
+                SpendLifecycleControlService::HANDOFF_AUTO_CREATE,
+            ]),
+        ];
+        $rules['lifecycleControls.direct_expense_receipt_mode'] = [
+            'required',
+            Rule::in([
+                SpendLifecycleControlService::RECEIPT_OPTIONAL,
+                SpendLifecycleControlService::RECEIPT_REQUIRED,
+            ]),
+        ];
+        $rules['lifecycleControls.direct_expense_receipt_threshold'] = ['nullable', 'integer', 'min:0'];
+        $rules['lifecycleControls.direct_expense_reason_required'] = ['boolean'];
+        $rules['lifecycleControls.finance_override_requires_reason'] = ['boolean'];
 
         $validated = $this->validate($rules);
         $normalized = [];
@@ -100,7 +134,13 @@ class ExpenseControlsPage extends Component
         ])->save();
 
         $this->actionPolicies = $normalized;
-        $this->setFeedback('Expense permission controls updated.');
+        $spendLifecycleControlService->saveForCompany(
+            companyId: (int) \Illuminate\Support\Facades\Auth::user()->company_id,
+            input: (array) ($validated['lifecycleControls'] ?? []),
+            actorUserId: \Illuminate\Support\Facades\Auth::id(),
+        );
+        $this->lifecycleControls = $spendLifecycleControlService->settingsForCompany((int) \Illuminate\Support\Facades\Auth::user()->company_id);
+        $this->setFeedback('Expense workflow controls updated.');
     }
 
     public function resetToDefault(ExpensePolicyResolver $expensePolicyResolver): void
@@ -128,6 +168,9 @@ class ExpenseControlsPage extends Component
             'departments' => $departments,
             'actionDefinitions' => $this->actionDefinitions(),
             'roles' => UserRole::values(),
+            'budgetControlOptions' => $this->budgetControlOptions(),
+            'handoffModeOptions' => $this->handoffModeOptions(),
+            'receiptModeOptions' => $this->receiptModeOptions(),
         ]);
     }
 
@@ -141,6 +184,42 @@ class ExpenseControlsPage extends Component
             CompanyExpensePolicySetting::ACTION_CREATE_FROM_REQUEST => 'Create expense from approved request',
             CompanyExpensePolicySetting::ACTION_EDIT_POSTED => 'Edit posted expense',
             CompanyExpensePolicySetting::ACTION_VOID => 'Void expense',
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function budgetControlOptions(): array
+    {
+        return [
+            SpendLifecycleControlService::BUDGET_OFF => 'Off',
+            SpendLifecycleControlService::BUDGET_WARN => 'Warn only',
+            SpendLifecycleControlService::BUDGET_BLOCK_MISSING => 'Block if no budget',
+            SpendLifecycleControlService::BUDGET_BLOCK_MISSING_OR_OVER => 'Block no budget or over budget',
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function handoffModeOptions(): array
+    {
+        return [
+            SpendLifecycleControlService::HANDOFF_MANUAL => 'Manual review',
+            SpendLifecycleControlService::HANDOFF_FINANCE_REVIEW => 'Finance handoff queue',
+            SpendLifecycleControlService::HANDOFF_AUTO_CREATE => 'Auto-create when possible',
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function receiptModeOptions(): array
+    {
+        return [
+            SpendLifecycleControlService::RECEIPT_OPTIONAL => 'Optional',
+            SpendLifecycleControlService::RECEIPT_REQUIRED => 'Required by setting',
         ];
     }
 
@@ -162,7 +241,7 @@ class ExpenseControlsPage extends Component
         return $normalized;
     }
 
-    private function hydrateFromSetting(ExpensePolicyResolver $expensePolicyResolver): void
+    private function hydrateFromSetting(ExpensePolicyResolver $expensePolicyResolver, SpendLifecycleControlService $spendLifecycleControlService): void
     {
         $setting = $expensePolicyResolver->settingsForCompany((int) \Illuminate\Support\Facades\Auth::user()->company_id);
         $actionPolicies = [];
@@ -186,6 +265,7 @@ class ExpenseControlsPage extends Component
         }
 
         $this->actionPolicies = $actionPolicies;
+        $this->lifecycleControls = $spendLifecycleControlService->settingsForCompany((int) \Illuminate\Support\Facades\Auth::user()->company_id);
     }
 
     private function setFeedback(string $message): void
