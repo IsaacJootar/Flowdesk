@@ -990,6 +990,7 @@ class ReportsCenterPage extends Component
     private function quickLinks(): array
     {
         $links = [
+            ['label' => 'Financial Trace', 'route' => route('reports.financial-trace')],
             ['label' => 'Request Reports', 'route' => route('requests.reports')],
             ['label' => 'Expenses', 'route' => route('expenses.index')],
             ['label' => 'Asset Reports', 'route' => route('assets.reports')],
@@ -1117,7 +1118,6 @@ class ReportsCenterPage extends Component
         return (bool) config('performance.cache.enabled', true);
     }
 }
-
 
 
 

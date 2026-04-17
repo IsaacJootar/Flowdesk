@@ -53,6 +53,7 @@ class TenantModuleAccessService
             'requests.communications', 'requests.communications-help' => $this->moduleEnabled($user, ['requests', 'communications']),
             'requests.reports' => $this->moduleEnabled($user, ['requests', 'reports']),
             'reports.index' => $this->moduleEnabled($user, 'reports'),
+            'reports.financial-trace' => $this->moduleEnabled($user, ['requests', 'reports']),
             'expenses.index' => $this->moduleEnabled($user, 'expenses'),
             'vendors.index', 'vendors.show', 'vendors.reports' => $this->moduleEnabled($user, 'vendors'),
             'budgets.index' => $this->moduleEnabled($user, 'budgets'),

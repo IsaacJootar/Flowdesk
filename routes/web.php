@@ -24,6 +24,7 @@ use App\Livewire\Operations\OperationsControlDeskPage;
 use App\Livewire\Operations\ApprovalOperationsDeskPage;
 use App\Livewire\Operations\VendorPayablesDeskPage;
 use App\Livewire\Operations\PeriodCloseDeskPage;
+use App\Livewire\Reports\FinancialTraceReportPage;
 use App\Livewire\Reports\ReportsCenterPage;
 use App\Livewire\Requests\RequestCommunicationsPage;
 use App\Livewire\Requests\RequestCommunicationsGuidePage;
@@ -115,6 +116,7 @@ Route::middleware(['auth', 'company.context'])->group(function (): void {
     Route::get('/execution/payout-ready', PayoutReadyQueuePage::class)->name('execution.payout-ready');
     Route::get('/execution/help', ExecutionUsageGuidePage::class)->name('execution.help');
     Route::get('/reports', ReportsCenterPage::class)->middleware('module.enabled:reports')->name('reports.index');
+    Route::get('/reports/financial-trace', FinancialTraceReportPage::class)->middleware('module.enabled:reports,requests')->name('reports.financial-trace');
 
     Route::prefix('dashboard')->name('dashboard.')->group(function (): void {
         Route::get('/index', DashboardShell::class)->name('index');

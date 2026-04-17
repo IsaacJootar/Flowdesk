@@ -86,7 +86,7 @@ class NavAccessService
         return [
             ['route' => 'dashboard', 'pattern' => ['dashboard*'], 'label' => 'Dashboard'],
             ['route' => 'operations.control-desk', 'pattern' => ['operations.control-desk', 'operations.approval-desk', 'operations.vendor-payables-desk', 'operations.period-close-desk'], 'label' => 'Operations Overview'],
-            ['route' => 'reports.index', 'pattern' => ['reports.index'], 'label' => 'Reports'],
+            ['route' => 'reports.index', 'pattern' => ['reports.index', 'reports.financial-trace'], 'label' => 'Reports'],
             ['route' => 'execution.health', 'pattern' => ['execution.health', 'execution.payout-ready', 'execution.help'], 'label' => 'Payment Operations'],
             ['route' => 'requests.index', 'pattern' => ['requests.index', 'requests.lifecycle-desk', 'requests.lifecycle-help'], 'label' => 'Requests & Approvals'],
             ['route' => 'requests.communications', 'pattern' => ['requests.communications', 'requests.communications-help'], 'label' => 'Inbox & Logs'],
@@ -110,7 +110,7 @@ class NavAccessService
         return [
             ['route' => 'dashboard', 'pattern' => ['dashboard*'], 'label' => 'Dashboard'],
             ['route' => 'operations.control-desk', 'pattern' => ['operations.control-desk', 'operations.approval-desk', 'operations.vendor-payables-desk', 'operations.period-close-desk'], 'label' => 'Operations Overview'],
-            ['route' => 'reports.index', 'pattern' => ['reports.index'], 'label' => 'Reports'],
+            ['route' => 'reports.index', 'pattern' => ['reports.index', 'reports.financial-trace'], 'label' => 'Reports'],
             ['route' => 'execution.health', 'pattern' => ['execution.health', 'execution.payout-ready', 'execution.help'], 'label' => 'Payment Operations'],
             ['route' => 'requests.index', 'pattern' => ['requests.index', 'requests.lifecycle-desk', 'requests.lifecycle-help'], 'label' => 'Requests & Approvals'],
             ['route' => 'requests.communications', 'pattern' => ['requests.communications', 'requests.communications-help'], 'label' => 'Inbox & Logs'],
@@ -132,7 +132,7 @@ class NavAccessService
         return [
             ['route' => 'dashboard', 'pattern' => ['dashboard*'], 'label' => 'Dashboard'],
             ['route' => 'operations.control-desk', 'pattern' => ['operations.control-desk', 'operations.approval-desk', 'operations.vendor-payables-desk', 'operations.period-close-desk'], 'label' => 'Operations Overview'],
-            ['route' => 'reports.index', 'pattern' => ['reports.index'], 'label' => 'Reports'],
+            ['route' => 'reports.index', 'pattern' => ['reports.index', 'reports.financial-trace'], 'label' => 'Reports'],
             ['route' => 'execution.health', 'pattern' => ['execution.health', 'execution.payout-ready', 'execution.help'], 'label' => 'Payment Operations'],
             ['route' => 'requests.index', 'pattern' => ['requests.index', 'requests.lifecycle-desk', 'requests.lifecycle-help'], 'label' => 'Requests & Approvals'],
             ['route' => 'requests.communications', 'pattern' => ['requests.communications', 'requests.communications-help'], 'label' => 'Inbox & Logs'],
@@ -223,7 +223,7 @@ class NavAccessService
     {
         return match ($route) {
             'dashboard', 'platform.dashboard' => 'home',
-            'reports.index', 'requests.reports' => 'chart',
+            'reports.index', 'reports.financial-trace', 'requests.reports' => 'chart',
             'requests.index', 'requests.lifecycle-desk', 'requests.lifecycle-help' => 'clipboard',
             'requests.communications' => 'chat',
             'expenses.index' => 'receipt',

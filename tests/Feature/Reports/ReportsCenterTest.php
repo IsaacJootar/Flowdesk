@@ -52,10 +52,10 @@ class ReportsCenterTest extends TestCase
 
         Livewire::test(ReportsCenterPage::class)
             ->call('loadData')
-            ->assertSee('Unified Reports Center')
+            ->assertSee('Unified Reports')
             ->assertSee('Requests')
             ->assertSee('Posted Expenses')
-            ->assertSee('Procurement Controls')
+            ->assertSee('Procurement Health')
             ->assertSee('Assets')
             ->assertSee('Active Budgets');
     }
@@ -120,8 +120,8 @@ class ReportsCenterTest extends TestCase
 
         Livewire::test(ReportsCenterPage::class)
             ->call('loadData')
-            ->assertSee('Procurement Controls')
-            ->assertSee('Open exceptions: 1')
+            ->assertSee('Procurement Health')
+            ->assertSee('Open issues: 1')
             ->assertSee('Match pass rate: 50.0%')
             ->assertSee('Stale commitments: 1');
     }
