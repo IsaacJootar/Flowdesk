@@ -7,7 +7,7 @@
         <div class="flex items-center gap-2">
             <a href="{{ route('procurement.release-desk') }}" class="inline-flex items-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100">
                 <span aria-hidden="true">&larr;</span>
-                <span>Back to Release Desk</span>
+                <span>Back to Purchase Order Workspace</span>
             </a>
             <a href="{{ route('procurement.release-help') }}" class="inline-flex items-center rounded-lg border border-slate-700 bg-slate-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800" style="background-color:#334155;border-color:#334155;color:#ffffff;">
                 Purchase Order Guide

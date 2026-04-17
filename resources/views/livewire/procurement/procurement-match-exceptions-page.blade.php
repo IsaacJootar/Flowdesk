@@ -27,8 +27,8 @@
 
     <div class="flex items-center justify-between">
         <div>
-            <h2 class="text-base font-semibold text-slate-900">Procurement Match Issues</h2>
-            <p class="text-xs text-slate-500">Review 3-way match failures and apply controlled resolution actions.</p>
+            <h2 class="text-base font-semibold text-slate-900">Purchase Order Mismatches</h2>
+            <p class="text-xs text-slate-500">Review order, receipt, and invoice mismatches and apply controlled resolution actions.</p>
             <p class="mt-1 text-xs text-slate-500">Who can take action: {{ implode(', ', (array) $matchActionAllowedRoles) }}.</p>
             @if ($flowAgentsEnabled)
                 <p class="mt-1 text-xs text-sky-700">
@@ -41,7 +41,7 @@
         </div>
         <a href="{{ route('procurement.release-desk') }}" class="inline-flex items-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100">
             <span aria-hidden="true">&larr;</span>
-            <span>Back to Release Desk</span>
+            <span>Back to Purchase Order Workspace</span>
         </a>
     </div>
 

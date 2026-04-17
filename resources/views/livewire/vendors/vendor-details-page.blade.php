@@ -491,7 +491,7 @@
                             wire:target="processQueuedVendorCommunications"
                             class="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-700 hover:bg-amber-100 disabled:opacity-70"
                         >
-                            <span wire:loading.remove wire:target="processQueuedVendorCommunications">Process Queued</span>
+                            <span wire:loading.remove wire:target="processQueuedVendorCommunications">Process Pending</span>
                             <span wire:loading wire:target="processQueuedVendorCommunications">Processing...</span>
                         </button>
                     </div>

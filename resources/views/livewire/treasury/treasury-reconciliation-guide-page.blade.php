@@ -2,13 +2,13 @@
     <section class="fd-card p-5">
         <div class="flex flex-wrap items-start justify-between gap-3">
             <div>
-                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Treasury Help</p>
-                <h2 class="mt-1 text-xl font-semibold text-slate-900">Daily Reconciliation Desk Guide</h2>
-                <p class="mt-1 text-sm text-slate-600">Operational runbook for daily reconciliation, queue decisions, and incident escalation.</p>
+                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Reconciliation Guide</p>
+                <h2 class="mt-1 text-xl font-semibold text-slate-900">Daily Bank Reconciliation Guide</h2>
+                <p class="mt-1 text-sm text-slate-600">Daily guide for matching bank statement lines, reviewing unresolved items, and closing the day cleanly.</p>
             </div>
             <div class="flex flex-wrap gap-2">
-                <a href="{{ route('treasury.reconciliation') }}" class="inline-flex items-center rounded-lg border border-slate-700 bg-slate-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800" style="background-color:#334155;border-color:#334155;color:#ffffff;">Open Daily Desk</a>
-                <a href="{{ route('treasury.reconciliation-exceptions') }}" class="inline-flex items-center rounded-lg border border-rose-300 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100">Open Issue Queue</a>
+                <a href="{{ route('treasury.reconciliation') }}" class="inline-flex items-center rounded-lg border border-slate-700 bg-slate-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800" style="background-color:#334155;border-color:#334155;color:#ffffff;">Open Reconciliation</a>
+                <a href="{{ route('treasury.reconciliation-exceptions') }}" class="inline-flex items-center rounded-lg border border-rose-300 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100">Open Unresolved Items</a>
             </div>
         </div>
     </section>
@@ -18,8 +18,8 @@
         <ol class="mt-3 list-decimal space-y-2 pl-5 text-sm text-slate-700">
             <li>Select bank account and active statement scope.</li>
             <li>Import statement file for the day.</li>
-            <li>Run auto-reconcile to classify matched vs unmatched lines.</li>
-            <li>Review unmatched lines and open issues in the same desk.</li>
+            <li>Run auto-reconcile to classify matched and unmatched lines.</li>
+            <li>Review unmatched lines and open issues in the same workspace.</li>
             <li>Resolve or waive issues with clear notes. If two-person review is enabled, another authorized user must confirm the decision.</li>
             <li>Use close-day checklist to confirm readiness before signoff.</li>
         </ol>
@@ -31,7 +31,7 @@
             <li>If import fails, validate CSV columns and row limits, then retry import.</li>
             <li>If unmatched volume spikes, run auto-reconcile once after import and inspect references/descriptions on top lines.</li>
             <li>If issues persist, resolve/waive with precise notes and escalate policy blockers to owner/finance approvers.</li>
-            <li>If payment runs are stuck in processing, open Payment Runs and verify queue/provider state before close-day.</li>
+            <li>If payment runs are stuck in processing, open Payment Runs and verify provider state before close-day.</li>
             <li>If close-day checklist remains pending, do not sign off; capture incident notes and continue triage.</li>
         </ol>
     </section>

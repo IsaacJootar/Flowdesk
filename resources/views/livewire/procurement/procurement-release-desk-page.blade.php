@@ -55,7 +55,7 @@
             <p class="mt-2 text-2xl font-semibold">{{ number_format((int) ($summary['invoice_match_resolve'] ?? 0)) }}</p>
         </div>
         <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-900">
-            <p class="text-xs font-semibold uppercase tracking-[0.14em]">Ready for Payout</p>
+            <p class="text-xs font-semibold uppercase tracking-[0.14em]">Ready for Payment</p>
             <p class="mt-2 text-2xl font-semibold">{{ number_format((int) ($summary['ready_for_payout'] ?? 0)) }}</p>
         </div>
     </section>

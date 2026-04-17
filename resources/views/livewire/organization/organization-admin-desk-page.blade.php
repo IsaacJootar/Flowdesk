@@ -2,8 +2,8 @@
     <section class="fd-card border border-sky-200 bg-sky-50 p-5">
         <div class="flex flex-wrap items-start justify-between gap-3">
             <div>
-                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-sky-700">Organization Workspace</p>
-                <h2 class="mt-1 text-xl font-semibold text-slate-900">Organization Admin Desk</h2>
+                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-sky-700">Company Workspace</p>
+                <h2 class="mt-1 text-xl font-semibold text-slate-900">Company Administration</h2>
                 <p class="mt-1 text-sm text-slate-700">Set up departments, assign team members, and configure approval chains — all in one place.</p>
             </div>
 

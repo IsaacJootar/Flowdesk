@@ -24,7 +24,7 @@ class OrganizationAdminDeskPageTest extends TestCase
         $this->actingAs($owner)
             ->get(route('organization.admin-desk'))
             ->assertOk()
-            ->assertSee('Organization Admin Desk');
+            ->assertSee('Company Administration');
     }
 
     public function test_non_owner_cannot_open_organization_admin_desk(): void

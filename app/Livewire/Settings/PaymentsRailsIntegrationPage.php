@@ -96,7 +96,7 @@ class PaymentsRailsIntegrationPage extends Component
                 companyId: $companyId,
                 action: 'tenant.payments_rails.connect_failed',
                 actor: $user,
-                description: 'Payments rail connect failed from tenant settings page.',
+                description: 'Payment provider connection failed from settings page.',
                 entityType: CompanyPaymentRailSetting::class,
                 entityId: (int) $setting->id,
                 metadata: [
@@ -130,7 +130,7 @@ class PaymentsRailsIntegrationPage extends Component
             companyId: $companyId,
             action: 'tenant.payments_rails.connected',
             actor: $user,
-            description: 'Payments rail connected from tenant settings page.',
+            description: 'Payment provider connected from settings page.',
             entityType: CompanyPaymentRailSetting::class,
             entityId: (int) $setting->id,
             metadata: [
@@ -195,7 +195,7 @@ class PaymentsRailsIntegrationPage extends Component
             companyId: $companyId,
             action: $result['passed'] ? 'tenant.payments_rails.connection_tested' : 'tenant.payments_rails.connection_test_failed',
             actor: $user,
-            description: 'Payments rail connection test run from tenant settings page.',
+            description: 'Payment provider connection test run from settings page.',
             entityType: CompanyPaymentRailSetting::class,
             entityId: (int) $setting->id,
             metadata: [
@@ -228,14 +228,14 @@ class PaymentsRailsIntegrationPage extends Component
         $setting = $settingsService->settingsForCompany($companyId);
 
         if ((string) $setting->connection_status !== CompanyPaymentRailSetting::STATUS_CONNECTED) {
-            $this->setFeedbackError('Connect a payment rail before running sync.');
+            $this->setFeedbackError('Connect a payment provider before running sync.');
 
             return;
         }
 
         $provider = trim((string) $setting->provider_key);
         if ($provider === '') {
-            $this->setFeedbackError('Provider key is missing. Connect your rail again.');
+            $this->setFeedbackError('Provider key is missing. Connect your payment provider again.');
 
             return;
         }
@@ -260,7 +260,7 @@ class PaymentsRailsIntegrationPage extends Component
                 companyId: $companyId,
                 action: 'tenant.payments_rails.sync_failed',
                 actor: $user,
-                description: 'Payments rail sync failed from tenant settings page.',
+                description: 'Payment provider sync failed from settings page.',
                 entityType: CompanyPaymentRailSetting::class,
                 entityId: (int) $setting->id,
                 metadata: [
@@ -290,7 +290,7 @@ class PaymentsRailsIntegrationPage extends Component
             companyId: $companyId,
             action: 'tenant.payments_rails.sync_requested',
             actor: $user,
-            description: 'Payments rail sync requested from tenant settings page.',
+            description: 'Payment provider sync requested from settings page.',
             entityType: CompanyPaymentRailSetting::class,
             entityId: (int) $setting->id,
             metadata: [
@@ -337,7 +337,7 @@ class PaymentsRailsIntegrationPage extends Component
                     companyId: $companyId,
                     action: 'tenant.payments_rails.resume_failed',
                     actor: $user,
-                    description: 'Payments rail resume failed due to failed readiness check.',
+                    description: 'Payment provider resume failed due to failed readiness check.',
                     entityType: CompanyPaymentRailSetting::class,
                     entityId: (int) $setting->id,
                     metadata: [
@@ -370,7 +370,7 @@ class PaymentsRailsIntegrationPage extends Component
                 companyId: $companyId,
                 action: 'tenant.payments_rails.resumed',
                 actor: $user,
-                description: 'Payments rail resumed from tenant settings page.',
+                description: 'Payment provider resumed from settings page.',
                 entityType: CompanyPaymentRailSetting::class,
                 entityId: (int) $setting->id,
                 metadata: [
@@ -378,21 +378,21 @@ class PaymentsRailsIntegrationPage extends Component
                 ],
             );
 
-            $this->setFeedback('Payment rail resumed.');
+            $this->setFeedback('Payment provider resumed.');
             $this->hydrateForm($settingsService);
 
             return;
         }
 
         if ($current !== CompanyPaymentRailSetting::STATUS_CONNECTED) {
-            $this->setFeedbackError('Connect a payment rail before pausing it.');
+            $this->setFeedbackError('Connect a payment provider before pausing it.');
 
             return;
         }
 
         $metadata = is_array($setting->metadata) ? $setting->metadata : [];
         $metadata['rail_health_status'] = 'paused';
-        $metadata['rail_health_message'] = 'Payment rail is paused by admin.';
+        $metadata['rail_health_message'] = 'Payment provider is paused by admin.';
         $metadata['rail_health_checked_at'] = now()->toDateTimeString();
 
         $setting->forceFill([
@@ -407,7 +407,7 @@ class PaymentsRailsIntegrationPage extends Component
             companyId: $companyId,
             action: 'tenant.payments_rails.paused',
             actor: $user,
-            description: 'Payments rail paused from tenant settings page.',
+            description: 'Payment provider paused from settings page.',
             entityType: CompanyPaymentRailSetting::class,
             entityId: (int) $setting->id,
             metadata: [
@@ -415,7 +415,7 @@ class PaymentsRailsIntegrationPage extends Component
             ],
         );
 
-        $this->setFeedback('Payment rail paused.');
+        $this->setFeedback('Payment provider paused.');
         $this->hydrateForm($settingsService);
     }
 
@@ -480,7 +480,7 @@ class PaymentsRailsIntegrationPage extends Component
             return [
                 'key' => 'paused',
                 'label' => 'Paused',
-                'description' => 'Payments rail is paused. Resume when you are ready to continue processing.',
+                'description' => 'Payment provider is paused. Resume when you are ready to continue processing.',
                 'tone' => 'amber',
             ];
         }
@@ -498,7 +498,7 @@ class PaymentsRailsIntegrationPage extends Component
             return [
                 'key' => 'connected',
                 'label' => 'Connected',
-                'description' => 'Payments rail is connected and ready for execution-enabled processing.',
+                'description' => 'Payment provider is connected and ready to send approved payments.',
                 'tone' => 'emerald',
             ];
         }
@@ -542,7 +542,7 @@ class PaymentsRailsIntegrationPage extends Component
         return [
             'key' => 'policy_only',
             'label' => 'Policy-only mode',
-            'description' => 'Execution is currently in decision-only mode. Connect rail now or continue in policy-only mode.',
+            'description' => 'Payment sending is currently in decision-only mode. Connect a provider now or continue in policy-only mode.',
             'tone' => 'slate',
         ];
     }
@@ -669,7 +669,7 @@ class PaymentsRailsIntegrationPage extends Component
             return [
                 'label' => 'Paused',
                 'tone' => 'amber',
-                'note' => 'Rail is paused until resumed by admin.',
+                'note' => 'Payment provider is paused until resumed by admin.',
             ];
         }
 
@@ -690,7 +690,7 @@ class PaymentsRailsIntegrationPage extends Component
             'paused' => [
                 'label' => 'Paused',
                 'tone' => 'amber',
-                'note' => $message !== '' ? $message : 'Rail is paused until resumed.',
+                'note' => $message !== '' ? $message : 'Payment provider is paused until resumed.',
             ],
             default => [
                 'label' => 'Action needed',

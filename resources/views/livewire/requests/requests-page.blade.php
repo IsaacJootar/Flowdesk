@@ -155,7 +155,7 @@
                             <path d="M4 12h16"></path>
                             <path d="M4 18h16"></path>
                         </svg>
-                        <span>Progress Desk</span>
+                        <span>Request Tracker</span>
                     </a>
                     @can('create', \App\Domains\Requests\Models\SpendRequest::class)
                         <button
@@ -1588,4 +1588,3 @@
         </div>
     @endif
 </div>
-

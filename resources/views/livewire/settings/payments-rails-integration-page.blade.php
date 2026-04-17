@@ -256,7 +256,7 @@
     <section class="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-700">
         <p class="font-semibold text-slate-900">Usage note</p>
         <p class="mt-1 text-xs text-slate-600">
-            These controls are for your organization's payout rail status and routine checks.
+            These controls are for your company's payment provider status and routine checks.
         </p>
         <p class="mt-2 text-xs text-slate-600"><span class="font-semibold text-slate-800">Current rollout stage:</span> {{ $rolloutStageLabel }}.</p>
         <p class="mt-1 text-xs text-slate-600">{{ $rolloutStageNote }}</p>

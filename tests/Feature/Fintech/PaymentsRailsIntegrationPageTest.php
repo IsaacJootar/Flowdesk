@@ -35,7 +35,7 @@ class PaymentsRailsIntegrationPageTest extends TestCase
         $this->actingAs($owner)
             ->get(route('settings.payments-rails'))
             ->assertOk()
-            ->assertSee('Payments Rails Integration')
+            ->assertSee('Payment Provider Controls')
             ->assertSee('Connect')
             ->assertSee('Test Connection');
     }
@@ -50,13 +50,13 @@ class PaymentsRailsIntegrationPageTest extends TestCase
         Livewire::test(PaymentsRailsIntegrationPage::class)
             ->set('connectForm.provider_key', 'manual_ops')
             ->call('connect')
-            ->assertSet('feedbackMessage', 'Payment rail connected (manual operations mode).')
+            ->assertSet('feedbackMessage', 'Payment provider connected (manual operations mode).')
             ->call('syncNow')
             ->assertSet('feedbackMessage', 'Sync completed.')
             ->call('togglePause')
-            ->assertSet('feedbackMessage', 'Payment rail paused.')
+            ->assertSet('feedbackMessage', 'Payment provider paused.')
             ->call('togglePause')
-            ->assertSet('feedbackMessage', 'Payment rail resumed.');
+            ->assertSet('feedbackMessage', 'Payment provider resumed.');
 
         $setting = CompanyPaymentRailSetting::query()
             ->withoutGlobalScopes()

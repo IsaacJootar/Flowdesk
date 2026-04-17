@@ -303,7 +303,7 @@ class TenantModuleEntitlementTest extends TestCase
         $this->actingAs($owner)
             ->get(route('settings.payments-rails'))
             ->assertOk()
-            ->assertSee('Payments Rails Integration');
+            ->assertSee('Payment Provider Controls');
     }
 
     /**

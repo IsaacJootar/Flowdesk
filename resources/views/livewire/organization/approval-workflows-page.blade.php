@@ -33,7 +33,7 @@
     <div class="fd-card p-6">
         <div class="mb-4">
             <div class="mb-3 flex justify-end">
-                <a href="{{ route('organization.admin-desk') }}" class="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-slate-100 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.08em] text-slate-700 hover:bg-slate-200"><span aria-hidden="true">&larr;</span><span>Back to Organization Admin Desk</span></a>
+                <a href="{{ route('organization.admin-desk') }}" class="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-slate-100 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.08em] text-slate-700 hover:bg-slate-200"><span aria-hidden="true">&larr;</span><span>Back to Company Administration</span></a>
             </div>
             <span class="inline-flex items-center rounded-full border border-slate-300 bg-slate-200 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-800">
                 Workflow Governance

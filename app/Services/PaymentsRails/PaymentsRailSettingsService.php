@@ -69,7 +69,7 @@ class PaymentsRailSettingsService
     }
 
     /**
-     * Tenant-facing readiness check for the selected rail.
+     * Tenant-facing readiness check for the selected payment provider.
      *
      * @return array{passed:bool,message:string,health_status:string,webhook_status:string,details:array<string,mixed>}
      */
@@ -79,7 +79,7 @@ class PaymentsRailSettingsService
     }
 
     /**
-     * Trigger a manual rail sync probe and return health detail for UI/audit.
+     * Trigger a manual provider sync probe and return health detail for UI/audit.
      *
      * @return array{passed:bool,message:string,health_status:string,webhook_status:string,details:array<string,mixed>}
      */
@@ -341,7 +341,7 @@ class PaymentsRailSettingsService
     private function manualOpsContextMessage(string $context): string
     {
         return match ($context) {
-            'connect' => 'Payment rail connected (manual operations mode).',
+            'connect' => 'Payment provider connected (manual operations mode).',
             'sync' => 'Sync completed.',
             default => 'Connection test completed (manual operations mode).',
         };

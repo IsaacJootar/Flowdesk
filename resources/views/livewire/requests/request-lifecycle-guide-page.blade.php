@@ -38,7 +38,7 @@
     </section>
 
     <section class="fd-card p-5">
-        <h3 class="text-sm font-semibold text-slate-900">Operator Rules</h3>
+        <h3 class="text-sm font-semibold text-slate-900">Operator Guidance</h3>
         <ul class="mt-3 list-disc space-y-2 pl-5 text-sm text-slate-700">
             <li>Use Request Tracker first so all payment-prep decisions happen in one place.</li>
             <li>Use one Next Action per row to avoid scattered operations.</li>

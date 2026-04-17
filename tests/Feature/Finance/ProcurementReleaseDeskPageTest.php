@@ -17,7 +17,7 @@ class ProcurementReleaseDeskPageTest extends TestCase
 
     public function test_owner_can_open_release_desk_and_help_when_procurement_module_enabled(): void
     {
-        [$company, $department] = $this->createCompanyContext('Procurement Release Desk Owner');
+        [$company, $department] = $this->createCompanyContext('Purchase Order Workspace Owner');
         $owner = $this->createUser($company, $department, UserRole::Owner->value);
 
         TenantFeatureEntitlement::query()->create([
@@ -30,17 +30,17 @@ class ProcurementReleaseDeskPageTest extends TestCase
         $this->actingAs($owner)
             ->get(route('procurement.release-desk'))
             ->assertOk()
-            ->assertSee('Manage Procurement Workspace');
+            ->assertSee('Purchase Order Workspace');
 
         $this->actingAs($owner)
             ->get(route('procurement.release-help'))
             ->assertOk()
-            ->assertSee('Procurement Release Guide');
+            ->assertSee('Purchase Order Guide');
     }
 
     public function test_staff_is_forbidden_from_release_desk_even_when_module_enabled(): void
     {
-        [$company, $department] = $this->createCompanyContext('Procurement Release Desk Staff');
+        [$company, $department] = $this->createCompanyContext('Purchase Order Workspace Staff');
         $owner = $this->createUser($company, $department, UserRole::Owner->value);
         $staff = $this->createUser($company, $department, UserRole::Staff->value);
 

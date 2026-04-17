@@ -37,12 +37,12 @@ class TreasuryDailyReconciliationDeskPageTest extends TestCase
         $this->actingAs($owner)
             ->get(route('treasury.reconciliation'))
             ->assertOk()
-            ->assertSee('Treasury Daily Reconciliation Desk');
+            ->assertSee('Daily Bank Reconciliation');
 
         $this->actingAs($owner)
             ->get(route('treasury.reconciliation-help'))
             ->assertOk()
-            ->assertSee('Daily Reconciliation Desk Guide');
+            ->assertSee('Daily Bank Reconciliation Guide');
     }
 
     public function test_staff_cannot_open_daily_desk_or_help_page(): void

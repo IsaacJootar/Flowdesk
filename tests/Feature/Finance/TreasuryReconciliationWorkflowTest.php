@@ -44,27 +44,27 @@ class TreasuryReconciliationWorkflowTest extends TestCase
         $this->actingAs($owner)
             ->get(route('treasury.reconciliation'))
             ->assertOk()
-            ->assertSee('Treasury Daily Reconciliation Desk');
+            ->assertSee('Daily Bank Reconciliation');
 
         $this->actingAs($owner)
             ->get(route('treasury.reconciliation-help'))
             ->assertOk()
-            ->assertSee('Daily Reconciliation Desk Guide');
+            ->assertSee('Daily Bank Reconciliation Guide');
 
         $this->actingAs($owner)
             ->get(route('treasury.reconciliation-exceptions'))
             ->assertOk()
-            ->assertSee('Treasury Reconciliation Exceptions');
+            ->assertSee('Unresolved Bank Items');
 
         $this->actingAs($owner)
             ->get(route('treasury.payment-runs'))
             ->assertOk()
-            ->assertSee('Treasury Payment Runs');
+            ->assertSee('Payment Runs');
 
         $this->actingAs($owner)
             ->get(route('treasury.cash-position'))
             ->assertOk()
-            ->assertSee('Treasury Cash Position');
+            ->assertSee('Cash Position');
     }
 
 
@@ -102,7 +102,7 @@ class TreasuryReconciliationWorkflowTest extends TestCase
             ->call('openResolutionModal', (int) $exception->id, 'resolved')
             ->set('resolutionNotes', 'Manager trying to close exception.')
             ->call('applyResolution')
-            ->assertSet('feedbackError', 'Only [owner, finance] can resolve or waive treasury exceptions.');
+            ->assertSet('feedbackError', 'Only owner, finance can mark items as fixed or accept and close them.');
 
         $this->assertDatabaseHas('reconciliation_exceptions', [
             'id' => (int) $exception->id,
@@ -143,7 +143,7 @@ class TreasuryReconciliationWorkflowTest extends TestCase
             ->call('openResolutionModal', (int) $exception->id, 'resolved')
             ->set('resolutionNotes', 'Owner trying to self-resolve.')
             ->call('applyResolution')
-            ->assertSet('feedbackError', 'Maker-checker policy requires another authorized user to resolve or waive this exception.');
+            ->assertSet('feedbackError', 'A second person must confirm this decision — you cannot close an item you raised yourself.');
 
         $this->assertDatabaseHas('reconciliation_exceptions', [
             'id' => (int) $exception->id,
@@ -156,7 +156,7 @@ class TreasuryReconciliationWorkflowTest extends TestCase
             ->set('resolutionNotes', 'Finance completed independent review.')
             ->call('applyResolution')
             ->assertSet('feedbackError', null)
-            ->assertSet('feedbackMessage', 'Treasury exception updated.');
+            ->assertSet('feedbackMessage', 'Item marked as fixed and closed.');
 
         $this->assertDatabaseHas('reconciliation_exceptions', [
             'id' => (int) $exception->id,

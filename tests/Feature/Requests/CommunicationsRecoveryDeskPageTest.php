@@ -40,12 +40,12 @@ class CommunicationsRecoveryDeskPageTest extends TestCase
         $this->actingAs($owner)
             ->get(route('requests.communications'))
             ->assertOk()
-            ->assertSee('Recovery Desk');
+            ->assertSee('Notification Recovery');
 
         $this->actingAs($owner)
             ->get(route('requests.communications-help'))
             ->assertOk()
-            ->assertSee('Communications Recovery Desk');
+            ->assertSee('Notification Recovery');
     }
 
     public function test_owner_can_retry_failed_rows_across_requests_vendors_and_assets(): void
