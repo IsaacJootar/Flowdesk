@@ -28,6 +28,7 @@ use App\Models\User;
 use App\Services\AI\AiFeatureGateService;
 use App\Services\AI\RequestFlowAgentService;
 use App\Services\ExpensePolicyResolver;
+use App\Services\FinancialTraceService;
 use App\Services\RequestApprovalRouter;
 use App\Services\TenantModuleAccessService;
 use App\Services\Procurement\CreatePurchaseOrderFromRequestService;
@@ -1492,6 +1493,7 @@ class RequestsPage extends Component
                 ? 'Current approver(s) for this step: '.implode(', ', $currentApprovers).'.'
                 : 'This step is assigned by workflow policy. You can view updates, but cannot act on this step.';
         }
+        $financialTrace = app(FinancialTraceService::class)->buildForRequest($request);
 
         $this->selectedRequest = [
             'id' => $request->id,
@@ -1550,6 +1552,7 @@ class RequestsPage extends Component
                 'currency' => strtoupper((string) $linkedPurchaseOrder->currency_code),
                 'created_by' => (string) ($linkedPurchaseOrder->creator?->name ?? 'System'),
             ] : null,
+            'financial_trace' => $this->financialTraceViewData($financialTrace),
             'items' => $request->items
                 ->map(fn ($item): array => [
                     'name' => $item->item_name,
@@ -1639,6 +1642,135 @@ class RequestsPage extends Component
                 ->values()
                 ->all(),
         ];
+    }
+
+    /**
+     * @param  array<string,mixed>  $trace
+     * @return array<string,mixed>
+     */
+    private function financialTraceViewData(array $trace): array
+    {
+        $budget = (array) ($trace['budget'] ?? []);
+        $approvals = (array) ($trace['approvals'] ?? []);
+        $procurement = (array) ($trace['procurement'] ?? []);
+        $payment = (array) ($trace['payment'] ?? []);
+        $paymentAttempt = (array) ($payment['attempt'] ?? []);
+        $expenses = (array) ($trace['expenses'] ?? []);
+        $reconciliation = (array) ($trace['reconciliation'] ?? []);
+        $audit = (array) ($trace['audit'] ?? []);
+
+        $paymentStatusKey = (string) data_get($payment, 'summary.status', '');
+        $hasPaymentAttempt = (bool) data_get($payment, 'summary.has_payment_attempt', false);
+        $purchaseOrders = (array) ($procurement['purchase_orders'] ?? []);
+        $commitments = (array) ($procurement['commitments'] ?? []);
+        $matches = (array) ($reconciliation['matches'] ?? []);
+        $openExceptions = (int) data_get($reconciliation, 'summary.open_exceptions', 0);
+        $auditEventCount = count((array) ($audit['activity_logs'] ?? [])) + count((array) ($audit['tenant_audit_events'] ?? []));
+        $expenseTotal = array_sum(array_map(
+            static fn (mixed $expense): int => is_array($expense) ? (int) ($expense['amount'] ?? 0) : 0,
+            $expenses
+        ));
+
+        return [
+            'budget' => [
+                'status_key' => (string) ($budget['status'] ?? 'no_budget_found'),
+                'status_label' => $this->financialTraceLabel((string) ($budget['status'] ?? 'no_budget_found')),
+                'allocated_amount' => (int) ($budget['allocated_amount'] ?? 0),
+                'spent_amount' => (int) ($budget['spent_amount'] ?? 0),
+                'projected_amount' => (int) ($budget['projected_amount'] ?? 0),
+                'remaining_amount' => (int) ($budget['remaining_amount'] ?? 0),
+                'over_amount' => (int) ($budget['over_amount'] ?? 0),
+                'period' => trim(((string) ($budget['period_start'] ?? '')).' - '.((string) ($budget['period_end'] ?? '')), ' -'),
+            ],
+            'approval' => [
+                'count' => count($approvals),
+                'completed' => count(array_filter(
+                    $approvals,
+                    static fn (mixed $approval): bool => is_array($approval) && in_array((string) ($approval['status'] ?? ''), ['approved', 'rejected', 'returned', 'skipped'], true)
+                )),
+            ],
+            'procurement' => [
+                'purchase_order_count' => count($purchaseOrders),
+                'commitment_count' => count($commitments),
+                'commitment_amount' => (int) data_get($procurement, 'summary.active_commitment_amount', 0),
+                'latest_match_status' => $this->financialTraceLabel((string) data_get($procurement, 'summary.latest_match_status', '')),
+            ],
+            'payment' => [
+                'status_key' => $hasPaymentAttempt ? $paymentStatusKey : '',
+                'status_label' => $hasPaymentAttempt ? $this->financialTraceLabel($paymentStatusKey) : 'Not queued',
+                'method' => $this->financialTraceLabel((string) ($paymentAttempt['method'] ?? '')),
+                'provider' => (string) ($paymentAttempt['provider'] ?? ''),
+                'reference' => (string) ($paymentAttempt['provider_reference'] ?? ''),
+                'amount' => (int) ($paymentAttempt['amount'] ?? 0),
+                'currency' => strtoupper((string) ($paymentAttempt['currency'] ?? data_get($trace, 'request.currency', 'NGN'))),
+            ],
+            'expense' => [
+                'count' => count($expenses),
+                'amount' => (int) $expenseTotal,
+            ],
+            'reconciliation' => [
+                'status_label' => (bool) data_get($reconciliation, 'summary.has_match', false)
+                    ? ($openExceptions > 0 ? 'Matched with exceptions' : 'Matched')
+                    : 'Not matched',
+                'match_count' => count($matches),
+                'open_exceptions' => $openExceptions,
+            ],
+            'audit' => [
+                'event_count' => $auditEventCount,
+            ],
+            'timeline' => collect((array) ($trace['timeline'] ?? []))
+                ->map(fn (mixed $row): array => $this->financialTraceTimelineRow(is_array($row) ? $row : []))
+                ->values()
+                ->all(),
+            'gaps' => collect((array) ($trace['gaps'] ?? []))
+                ->map(fn (mixed $gap): array => [
+                    'label' => is_array($gap) ? (string) ($gap['label'] ?? '') : '',
+                    'severity' => is_array($gap) ? (string) ($gap['severity'] ?? 'medium') : 'medium',
+                ])
+                ->filter(fn (array $gap): bool => $gap['label'] !== '')
+                ->values()
+                ->all(),
+        ];
+    }
+
+    /**
+     * @param  array<string,mixed>  $row
+     * @return array<string,mixed>
+     */
+    private function financialTraceTimelineRow(array $row): array
+    {
+        return [
+            'stage' => $this->financialTraceLabel((string) ($row['stage'] ?? '')),
+            'stage_key' => (string) ($row['stage'] ?? ''),
+            'label' => (string) ($row['label'] ?? ''),
+            'status' => $this->financialTraceLabel((string) ($row['status'] ?? '')),
+            'status_key' => (string) ($row['status'] ?? ''),
+            'occurred_at' => $this->formatFinancialTraceDate($row['occurred_at'] ?? null),
+            'amount' => array_key_exists('amount', $row) && $row['amount'] !== null ? (int) $row['amount'] : null,
+        ];
+    }
+
+    private function financialTraceLabel(string $value): string
+    {
+        $normalized = trim($value);
+        if ($normalized === '') {
+            return '-';
+        }
+
+        return ucwords(str_replace('_', ' ', $normalized));
+    }
+
+    private function formatFinancialTraceDate(mixed $value): string
+    {
+        if ($value === null || $value === '') {
+            return '-';
+        }
+
+        try {
+            return \Illuminate\Support\Carbon::parse($value)->format('M d, Y H:i');
+        } catch (Throwable) {
+            return (string) $value;
+        }
     }
 
     private function prepareSubmitChannels(SpendRequest $request): void
@@ -2502,4 +2634,3 @@ class RequestsPage extends Component
             ->all();
     }
 }
-

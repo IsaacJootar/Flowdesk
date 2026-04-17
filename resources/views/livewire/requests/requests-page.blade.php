@@ -1314,6 +1314,132 @@
                             </div>
                         @endif
 
+                        @php
+                            $financialTrace = $selectedRequest['financial_trace'] ?? [];
+                            $traceBudgetStatus = (string) data_get($financialTrace, 'budget.status_key', '');
+                            $tracePaymentStatus = (string) data_get($financialTrace, 'payment.status_key', '');
+                            $traceBudgetClass = $traceBudgetStatus === 'within_budget'
+                                ? 'bg-emerald-100 text-emerald-700'
+                                : (in_array($traceBudgetStatus, ['over_budget', 'no_budget_found'], true) ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-700');
+                            $tracePaymentClass = in_array($tracePaymentStatus, ['settled', 'completed'], true)
+                                ? 'bg-emerald-100 text-emerald-700'
+                                : (in_array($tracePaymentStatus, ['failed', 'reversed'], true) ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-700');
+                        @endphp
+                        <div class="rounded-xl border border-slate-200 p-4">
+                            <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+                                <div>
+                                    <p class="text-sm font-semibold text-slate-800">Financial Trace</p>
+                                </div>
+                                <span class="text-xs text-slate-500">{{ count((array) data_get($financialTrace, 'timeline', [])) }} event(s)</span>
+                            </div>
+
+                            <div class="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+                                <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                                    <div class="flex items-center justify-between gap-2">
+                                        <p class="text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-500">Budget Check</p>
+                                        <span class="inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold {{ $traceBudgetClass }}">
+                                            {{ data_get($financialTrace, 'budget.status_label', '-') }}
+                                        </span>
+                                    </div>
+                                    <p class="mt-1 text-sm font-semibold text-slate-900">{{ $selectedRequest['currency'] }} {{ number_format((int) data_get($financialTrace, 'budget.projected_amount', 0)) }}</p>
+                                    @if (! empty(data_get($financialTrace, 'budget.period')))
+                                        <p class="mt-0.5 text-[11px] text-slate-500">{{ data_get($financialTrace, 'budget.period') }}</p>
+                                    @endif
+                                </div>
+
+                                <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                                    <p class="text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-500">Approval</p>
+                                    <p class="mt-1 text-sm font-semibold text-slate-900">{{ (int) data_get($financialTrace, 'approval.completed', 0) }} / {{ (int) data_get($financialTrace, 'approval.count', 0) }} completed</p>
+                                    <p class="mt-0.5 text-[11px] text-slate-500">{{ $selectedRequest['current_step_label'] ?: ucfirst(str_replace('_', ' ', $selectedRequest['status'])) }}</p>
+                                </div>
+
+                                <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                                    <p class="text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-500">Order / Commitment</p>
+                                    <p class="mt-1 text-sm font-semibold text-slate-900">{{ (int) data_get($financialTrace, 'procurement.purchase_order_count', 0) }} order(s)</p>
+                                    <p class="mt-0.5 text-[11px] text-slate-500">{{ $selectedRequest['currency'] }} {{ number_format((int) data_get($financialTrace, 'procurement.commitment_amount', 0)) }} committed</p>
+                                </div>
+
+                                <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                                    <div class="flex items-center justify-between gap-2">
+                                        <p class="text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-500">Payment</p>
+                                        <span class="inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold {{ $tracePaymentClass }}">
+                                            {{ data_get($financialTrace, 'payment.status_label', 'Not queued') }}
+                                        </span>
+                                    </div>
+                                    <p class="mt-1 text-sm font-semibold text-slate-900">{{ data_get($financialTrace, 'payment.method', '-') }}</p>
+                                    @if (! empty(data_get($financialTrace, 'payment.reference')))
+                                        <p class="mt-0.5 text-[11px] text-slate-500">{{ data_get($financialTrace, 'payment.reference') }}</p>
+                                    @endif
+                                </div>
+
+                                <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                                    <p class="text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-500">Expense Record</p>
+                                    <p class="mt-1 text-sm font-semibold text-slate-900">{{ (int) data_get($financialTrace, 'expense.count', 0) }} record(s)</p>
+                                    <p class="mt-0.5 text-[11px] text-slate-500">{{ $selectedRequest['currency'] }} {{ number_format((int) data_get($financialTrace, 'expense.amount', 0)) }} posted</p>
+                                </div>
+
+                                <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                                    <p class="text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-500">Bank Match</p>
+                                    <p class="mt-1 text-sm font-semibold text-slate-900">{{ data_get($financialTrace, 'reconciliation.status_label', 'Not matched') }}</p>
+                                    <p class="mt-0.5 text-[11px] text-slate-500">{{ (int) data_get($financialTrace, 'reconciliation.open_exceptions', 0) }} open exception(s)</p>
+                                </div>
+
+                                <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                                    <p class="text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-500">Audit Events</p>
+                                    <p class="mt-1 text-sm font-semibold text-slate-900">{{ (int) data_get($financialTrace, 'audit.event_count', 0) }} event(s)</p>
+                                    <p class="mt-0.5 text-[11px] text-slate-500">Request-linked records</p>
+                                </div>
+                            </div>
+
+                            @if (! empty(data_get($financialTrace, 'gaps')))
+                                <div class="mt-3 space-y-2">
+                                    @foreach ((array) data_get($financialTrace, 'gaps', []) as $gap)
+                                        <p class="rounded-lg border {{ ($gap['severity'] ?? '') === 'high' ? 'border-red-200 bg-red-50 text-red-700' : 'border-amber-200 bg-amber-50 text-amber-700' }} px-3 py-2 text-xs">
+                                            {{ $gap['label'] }}
+                                        </p>
+                                    @endforeach
+                                </div>
+                            @endif
+
+                            <div class="mt-4">
+                                <p class="text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">Trace Timeline</p>
+                                <div class="mt-2 max-h-72 space-y-2 overflow-y-auto pr-1">
+                                    @forelse ((array) data_get($financialTrace, 'timeline', []) as $traceStep)
+                                        @php
+                                            $traceStageClass = 'bg-slate-100 text-slate-700';
+                                            if (in_array(($traceStep['stage_key'] ?? ''), ['budget', 'budget_commitment'], true)) {
+                                                $traceStageClass = 'bg-emerald-100 text-emerald-700';
+                                            } elseif (($traceStep['stage_key'] ?? '') === 'payment') {
+                                                $traceStageClass = 'bg-sky-100 text-sky-700';
+                                            } elseif (in_array(($traceStep['stage_key'] ?? ''), ['reconciliation', 'reconciliation_exception'], true)) {
+                                                $traceStageClass = 'bg-indigo-100 text-indigo-700';
+                                            } elseif (($traceStep['stage_key'] ?? '') === 'audit') {
+                                                $traceStageClass = 'bg-slate-200 text-slate-700';
+                                            }
+                                        @endphp
+                                        <div class="rounded-lg border border-slate-200 bg-white px-3 py-2">
+                                            <div class="flex flex-wrap items-center justify-between gap-2">
+                                                <div class="flex flex-wrap items-center gap-2">
+                                                    <span class="inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold {{ $traceStageClass }}">{{ $traceStep['stage'] }}</span>
+                                                    <p class="text-xs font-semibold text-slate-800">{{ $traceStep['label'] }}</p>
+                                                </div>
+                                                <span class="text-[11px] text-slate-500">{{ $traceStep['occurred_at'] }}</span>
+                                            </div>
+                                            <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-slate-500">
+                                                <span>Status: {{ $traceStep['status'] }}</span>
+                                                @if (($traceStep['amount'] ?? null) !== null)
+                                                    <span>&middot;</span>
+                                                    <span>{{ $selectedRequest['currency'] }} {{ number_format((int) $traceStep['amount']) }}</span>
+                                                @endif
+                                            </div>
+                                        </div>
+                                    @empty
+                                        <p class="text-sm text-slate-500">No trace events logged yet.</p>
+                                    @endforelse
+                                </div>
+                            </div>
+                        </div>
+
                         <div class="rounded-xl border border-slate-200 p-4">
                             <div class="mb-3 flex items-center justify-between">
                                 <p class="text-sm font-semibold text-slate-800">Request Thread</p>
