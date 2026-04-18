@@ -8,6 +8,7 @@ use App\Actions\Budgets\UpdateDepartmentBudget;
 use App\Domains\Budgets\Models\DepartmentBudget;
 use App\Domains\Company\Models\Department;
 use App\Domains\Expenses\Models\Expense;
+use App\Domains\Requests\Models\SpendRequest;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Gate;
@@ -39,6 +40,15 @@ class BudgetsPage extends Component
     public bool $isEditing = false;
 
     public ?int $editingBudgetId = null;
+
+    public bool $showCloseModal = false;
+
+    public ?int $closingBudgetId = null;
+
+    public string $closeReason = '';
+
+    /** @var array<string, mixed>|null */
+    public ?array $closeImpact = null;
 
     public ?string $feedbackMessage = null;
 
@@ -154,6 +164,34 @@ class BudgetsPage extends Component
         $this->resetValidation();
     }
 
+    /**
+     * @throws AuthorizationException
+     */
+    public function openCloseModal(int $budgetId): void
+    {
+        $budget = $this->findBudgetOrFail($budgetId);
+        Gate::authorize('update', $budget);
+
+        $this->resetValidation();
+        $this->feedbackError = null;
+        $this->showFormModal = false;
+        $this->isEditing = false;
+        $this->editingBudgetId = null;
+        $this->closingBudgetId = (int) $budget->id;
+        $this->closeReason = '';
+        $this->closeImpact = $this->buildCloseImpact($budget);
+        $this->showCloseModal = true;
+    }
+
+    public function closeCloseModal(): void
+    {
+        $this->showCloseModal = false;
+        $this->closingBudgetId = null;
+        $this->closeReason = '';
+        $this->closeImpact = null;
+        $this->resetValidation();
+    }
+
     public function save(CreateDepartmentBudget $createBudget, UpdateDepartmentBudget $updateBudget): void
     {
         $this->feedbackError = null;
@@ -191,13 +229,26 @@ class BudgetsPage extends Component
     /**
      * @throws AuthorizationException
      */
-    public function closeBudget(int $budgetId, CloseDepartmentBudget $closeBudget): void
+    public function submitCloseBudget(CloseDepartmentBudget $closeBudget): void
     {
         $this->feedbackError = null;
-        $budget = $this->findBudgetOrFail($budgetId);
+        $this->validate([
+            'closeReason' => ['required', 'string', 'min:8', 'max:500'],
+        ], [
+            'closeReason.required' => 'Add a reason before closing this budget.',
+            'closeReason.min' => 'Reason must be at least 8 characters.',
+            'closeReason.max' => 'Reason must be 500 characters or less.',
+        ]);
+
+        if (! $this->closingBudgetId) {
+            return;
+        }
+
+        $budget = $this->findBudgetOrFail($this->closingBudgetId);
+        $impact = $this->buildCloseImpact($budget);
 
         try {
-            $closeBudget(Auth::user(), $budget);
+            $closeBudget(Auth::user(), $budget, trim($this->closeReason), $impact);
         } catch (ValidationException $exception) {
             throw ValidationException::withMessages($this->normalizeValidationErrors($exception->errors()));
         } catch (Throwable $exception) {
@@ -206,7 +257,8 @@ class BudgetsPage extends Component
             return;
         }
 
-        $this->setFeedback('Budget closed successfully.');
+        $this->closeCloseModal();
+        $this->setFeedback('Budget closed. Future checks will ignore it unless it is reopened by a new active budget.');
         $this->resetPage();
     }
 
@@ -288,6 +340,41 @@ class BudgetsPage extends Component
             ->whereDate('expense_date', '>=', $budget->period_start?->toDateString())
             ->whereDate('expense_date', '<=', $budget->period_end?->toDateString())
             ->sum('amount');
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function buildCloseImpact(DepartmentBudget $budget): array
+    {
+        $spent = $this->calculateSpent($budget);
+        $remaining = (int) $budget->allocated_amount - $spent;
+        $openStatuses = [
+            'draft',
+            'returned',
+            'in_review',
+            'approved',
+            'approved_for_execution',
+            'execution_queued',
+            'execution_processing',
+            'failed',
+        ];
+
+        $openRequests = SpendRequest::query()
+            ->where('department_id', (int) $budget->department_id)
+            ->whereIn('status', $openStatuses)
+            ->whereDate('created_at', '>=', $budget->period_start?->toDateString())
+            ->whereDate('created_at', '<=', $budget->period_end?->toDateString());
+
+        return [
+            'department' => (string) ($budget->department?->name ?? 'Department'),
+            'period' => trim((string) optional($budget->period_start)->format('M d, Y').' - '.(string) optional($budget->period_end)->format('M d, Y')),
+            'allocated' => (int) $budget->allocated_amount,
+            'spent' => $spent,
+            'remaining' => $remaining,
+            'open_request_count' => (int) (clone $openRequests)->count(),
+            'open_request_amount' => (int) (clone $openRequests)->sum('amount'),
+        ];
     }
 
     private function findBudgetOrFail(int $budgetId): DepartmentBudget

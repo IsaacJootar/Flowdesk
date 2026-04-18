@@ -17,7 +17,7 @@ class CloseDepartmentBudget
     /**
      * @throws ValidationException
      */
-    public function __invoke(User $user, DepartmentBudget $budget): DepartmentBudget
+    public function __invoke(User $user, DepartmentBudget $budget, ?string $reason = null, array $impact = []): DepartmentBudget
     {
         Gate::forUser($user)->authorize('update', $budget);
 
@@ -38,6 +38,8 @@ class CloseDepartmentBudget
                 'period_start' => optional($budget->period_start)?->toDateString(),
                 'period_end' => optional($budget->period_end)?->toDateString(),
                 'allocated_amount' => $budget->allocated_amount,
+                'reason' => $reason,
+                'impact' => $impact,
             ],
             companyId: $budget->company_id,
             userId: $user->id,
@@ -46,4 +48,3 @@ class CloseDepartmentBudget
         return $budget;
     }
 }
-

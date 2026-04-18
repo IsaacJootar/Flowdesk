@@ -4,6 +4,9 @@ namespace Tests\Feature\Budgets;
 
 use App\Domains\Company\Models\Company;
 use App\Domains\Company\Models\Department;
+use App\Domains\Budgets\Models\DepartmentBudget;
+use App\Domains\Expenses\Models\Expense;
+use App\Domains\Requests\Models\SpendRequest;
 use App\Enums\UserRole;
 use App\Livewire\Budgets\BudgetsPage;
 use App\Models\User;
@@ -52,6 +55,60 @@ class BudgetsPageValidationHardeningTest extends TestCase
             ->assertHasErrors(['form.department_id']);
     }
 
+    public function test_close_budget_requires_review_reason_and_closes_after_confirmation(): void
+    {
+        [$company, $department] = $this->createCompanyContext('Budget Close Review');
+        $finance = $this->createUser($company, $department, UserRole::Finance->value);
+        $budget = $this->createBudget($company, $department, $finance);
+
+        Expense::query()->create([
+            'company_id' => $company->id,
+            'expense_code' => 'FD-EXP-BUDGET-CLOSE',
+            'department_id' => $department->id,
+            'title' => 'Posted budget spend',
+            'amount' => 125000,
+            'expense_date' => '2026-04-10',
+            'payment_method' => 'transfer',
+            'paid_by_user_id' => $finance->id,
+            'created_by' => $finance->id,
+            'status' => 'posted',
+            'is_direct' => true,
+        ]);
+
+        SpendRequest::query()->create([
+            'company_id' => $company->id,
+            'request_code' => 'FD-REQ-BUDGET-CLOSE',
+            'requested_by' => $finance->id,
+            'department_id' => $department->id,
+            'title' => 'Open request before close',
+            'amount' => 200000,
+            'approved_amount' => 200000,
+            'currency' => 'NGN',
+            'status' => 'in_review',
+            'created_by' => $finance->id,
+            'updated_by' => $finance->id,
+        ]);
+
+        $this->actingAs($finance);
+
+        Livewire::test(BudgetsPage::class)
+            ->call('openCloseModal', (int) $budget->id)
+            ->assertSet('showCloseModal', true)
+            ->assertSee('Budget Close Review')
+            ->assertSee('1 request(s)')
+            ->call('submitCloseBudget')
+            ->assertHasErrors(['closeReason'])
+            ->set('closeReason', 'Period reviewed and ready for close.')
+            ->call('submitCloseBudget')
+            ->assertHasNoErrors()
+            ->assertSet('showCloseModal', false);
+
+        $this->assertDatabaseHas('department_budgets', [
+            'id' => $budget->id,
+            'status' => 'closed',
+        ]);
+    }
+
     /**
      * @return array{0:Company,1:Department}
      */
@@ -83,5 +140,20 @@ class BudgetsPageValidationHardeningTest extends TestCase
             'is_active' => true,
         ]);
     }
-}
 
+    private function createBudget(Company $company, Department $department, User $creator): DepartmentBudget
+    {
+        return DepartmentBudget::query()->create([
+            'company_id' => $company->id,
+            'department_id' => $department->id,
+            'period_type' => 'monthly',
+            'period_start' => '2026-04-01',
+            'period_end' => '2026-04-30',
+            'allocated_amount' => 500000,
+            'used_amount' => 0,
+            'remaining_amount' => 500000,
+            'status' => 'active',
+            'created_by' => $creator->id,
+        ]);
+    }
+}

@@ -181,29 +181,28 @@
                                                 type="button"
                                                 wire:click="openEditModal({{ $budget->id }})"
                                                 wire:loading.attr="disabled"
-                                                wire:target="openEditModal"
+                                                wire:target="openEditModal({{ $budget->id }})"
                                                 class="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-70"
                                             >
-                                                <span wire:loading.remove wire:target="openEditModal" class="inline-flex items-center gap-1.5">
+                                                <span wire:loading.remove wire:target="openEditModal({{ $budget->id }})" class="inline-flex items-center gap-1.5">
                                                     <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                                                         <path d="M12 20h9"></path>
                                                         <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"></path>
                                                     </svg>
                                                     <span>Edit</span>
                                                 </span>
-                                                <span wire:loading wire:target="openEditModal">Opening...</span>
+                                                <span wire:loading wire:target="openEditModal({{ $budget->id }})">Opening...</span>
                                             </button>
                                             @if ($budget->status === 'active')
                                                 <button
                                                     type="button"
-                                                    wire:click="closeBudget({{ $budget->id }})"
+                                                    wire:click="openCloseModal({{ $budget->id }})"
                                                     wire:loading.attr="disabled"
-                                                    wire:target="closeBudget"
-                                                    wire:confirm="Close this budget?"
+                                                    wire:target="openCloseModal({{ $budget->id }})"
                                                     class="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-70"
                                                 >
-                                                    <span wire:loading.remove wire:target="closeBudget">Close</span>
-                                                    <span wire:loading wire:target="closeBudget">Closing...</span>
+                                                    <span wire:loading.remove wire:target="openCloseModal({{ $budget->id }})">Close</span>
+                                                    <span wire:loading wire:target="openCloseModal({{ $budget->id }})">Reviewing...</span>
                                                 </button>
                                             @endif
                                         </div>
@@ -311,6 +310,67 @@
                             </button>
                         </div>
                     </form>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    @if ($showCloseModal && $closeImpact)
+        <div wire:click="closeCloseModal" class="fixed left-0 right-0 bottom-0 top-0 z-50 overflow-y-auto bg-slate-900/40 p-3">
+            <div class="flex items-start justify-center pt-1">
+                <div wire:click.stop class="fd-card w-full max-w-2xl p-6" style="max-height: calc(100vh - 3rem); overflow-y: auto;">
+                    <div class="mb-4 flex items-start justify-between gap-4">
+                        <div>
+                            <span class="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-amber-700">
+                                Budget Close Review
+                            </span>
+                            <h2 class="mt-2 text-lg font-semibold text-slate-900">Close {{ $closeImpact['department'] }} budget?</h2>
+                            <p class="text-sm text-slate-500">Closed budgets are removed from future budget checks, but the history and audit trail stay available.</p>
+                        </div>
+                        <button type="button" wire:click="closeCloseModal" class="rounded-lg border border-slate-200 px-3 py-1 text-sm text-slate-600 hover:bg-slate-50">Close</button>
+                    </div>
+
+                    <div class="grid gap-3 sm:grid-cols-2">
+                        <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                            <p class="text-xs uppercase tracking-[0.1em] text-slate-500">Period</p>
+                            <p class="mt-1 font-semibold text-slate-900">{{ $closeImpact['period'] }}</p>
+                        </div>
+                        <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                            <p class="text-xs uppercase tracking-[0.1em] text-slate-500">Open Requests In Period</p>
+                            <p class="mt-1 font-semibold text-slate-900">{{ number_format((int) $closeImpact['open_request_count']) }} request(s)</p>
+                            <p class="mt-1 text-xs text-slate-500">NGN {{ number_format((int) $closeImpact['open_request_amount']) }}</p>
+                        </div>
+                        <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                            <p class="text-xs uppercase tracking-[0.1em] text-slate-500">Allocated</p>
+                            <p class="mt-1 font-semibold text-slate-900">NGN {{ number_format((int) $closeImpact['allocated']) }}</p>
+                        </div>
+                        <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                            <p class="text-xs uppercase tracking-[0.1em] text-slate-500">Spent / Remaining</p>
+                            <p class="mt-1 font-semibold text-slate-900">NGN {{ number_format((int) $closeImpact['spent']) }}</p>
+                            <p class="mt-1 text-xs {{ (int) $closeImpact['remaining'] < 0 ? 'text-red-600' : 'text-emerald-700' }}">
+                                Remaining: NGN {{ number_format((int) $closeImpact['remaining']) }}
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                        <p class="font-semibold">What closing does</p>
+                        <p class="mt-1">Future request and direct expense checks will no longer use this budget as the active limit for this department and period. Posted expenses remain recorded, and older requests keep their original budget-check snapshots in audit/trace history.</p>
+                    </div>
+
+                    <label class="mt-4 block">
+                        <span class="mb-1 block text-sm font-medium text-slate-700">Close reason</span>
+                        <textarea wire:model.defer="closeReason" rows="3" class="w-full rounded-xl border-slate-300 text-sm focus:border-amber-400 focus:ring-amber-300" placeholder="Example: Period ended and finance has reviewed spend."></textarea>
+                        @error('closeReason')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+                    </label>
+
+                    <div class="sticky bottom-0 -mx-6 mt-4 flex justify-end gap-3 border-t border-slate-200 bg-white px-6 py-4">
+                        <button type="button" wire:click="closeCloseModal" class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Cancel</button>
+                        <button type="button" wire:click="submitCloseBudget" wire:loading.attr="disabled" wire:target="submitCloseBudget" class="rounded-xl border border-red-700 bg-red-700 px-4 py-2 text-sm font-semibold text-white hover:bg-red-800 disabled:opacity-70" style="background-color:#b91c1c;border-color:#b91c1c;color:#ffffff;">
+                            <span wire:loading.remove wire:target="submitCloseBudget">Close Budget</span>
+                            <span wire:loading wire:target="submitCloseBudget">Closing...</span>
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
