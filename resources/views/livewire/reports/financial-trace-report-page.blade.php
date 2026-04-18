@@ -116,162 +116,148 @@
         </div>
     </div>
 
-    <div class="fd-card overflow-hidden">
+    <div class="space-y-3">
         @if (! $readyToLoad)
-            <div class="space-y-3 p-4">
+            <div class="fd-card space-y-3 p-4">
                 @for ($i = 0; $i < 8; $i++)
                     <div class="h-11 animate-pulse rounded-lg bg-slate-100"></div>
                 @endfor
             </div>
         @else
-            <div wire:loading.flex wire:target="search,statusFilter,traceStatusFilter,paymentFilter,departmentFilter,dateFrom,dateTo,perPage,gotoPage,previousPage,nextPage" class="border-b border-slate-200 px-4 py-3 text-sm text-slate-500">
+            <div wire:loading.flex wire:target="search,statusFilter,traceStatusFilter,paymentFilter,departmentFilter,dateFrom,dateTo,perPage,gotoPage,previousPage,nextPage" class="fd-card px-4 py-3 text-sm text-slate-500">
                 Loading trace rows...
             </div>
 
-            <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-slate-200 text-sm">
-                    <thead class="bg-slate-50 text-xs uppercase tracking-[0.12em] text-slate-500">
-                        <tr>
-                            <th class="px-4 py-3 text-left font-semibold">Request</th>
-                            <th class="px-4 py-3 text-left font-semibold">Status</th>
-                            <th class="px-4 py-3 text-left font-semibold">Amount</th>
-                            <th class="px-4 py-3 text-left font-semibold">Budget</th>
-                            <th class="px-4 py-3 text-left font-semibold">Approval</th>
-                            <th class="px-4 py-3 text-left font-semibold">Order / Commitment</th>
-                            <th class="px-4 py-3 text-left font-semibold">Payment</th>
-                            <th class="px-4 py-3 text-left font-semibold">Expense</th>
-                            <th class="px-4 py-3 text-left font-semibold">Bank Match</th>
-                            <th class="px-4 py-3 text-left font-semibold">Audit</th>
-                            <th class="px-4 py-3 text-left font-semibold">Action</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-slate-100">
-                        @forelse ($traceRows as $row)
-                            @php
-                                $requestStatusClass = 'bg-slate-100 text-slate-700';
-                                if (in_array($row['request_status'], ['approved', 'settled'], true)) {
-                                    $requestStatusClass = 'bg-emerald-100 text-emerald-700';
-                                } elseif (in_array($row['request_status'], ['failed', 'reversed', 'rejected'], true)) {
-                                    $requestStatusClass = 'bg-red-100 text-red-700';
-                                } elseif (in_array($row['request_status'], ['in_review', 'execution_queued', 'execution_processing'], true)) {
-                                    $requestStatusClass = 'bg-amber-100 text-amber-700';
-                                }
+            <div class="space-y-3">
+                @forelse ($traceRows as $row)
+                    @php
+                        $requestStatusClass = 'bg-slate-100 text-slate-700';
+                        if (in_array($row['request_status'], ['approved', 'settled'], true)) {
+                            $requestStatusClass = 'bg-emerald-100 text-emerald-700';
+                        } elseif (in_array($row['request_status'], ['failed', 'reversed', 'rejected'], true)) {
+                            $requestStatusClass = 'bg-red-100 text-red-700';
+                        } elseif (in_array($row['request_status'], ['in_review', 'execution_queued', 'execution_processing'], true)) {
+                            $requestStatusClass = 'bg-amber-100 text-amber-700';
+                        }
 
-                                $paymentClass = 'bg-slate-100 text-slate-700';
-                                if ($row['payment_status'] === 'Settled') {
-                                    $paymentClass = 'bg-emerald-100 text-emerald-700';
-                                } elseif (in_array($row['payment_status'], ['Failed', 'Reversed'], true)) {
-                                    $paymentClass = 'bg-red-100 text-red-700';
-                                } elseif (in_array($row['payment_status'], ['Queued', 'Processing'], true)) {
-                                    $paymentClass = 'bg-amber-100 text-amber-700';
-                                }
+                        $paymentClass = 'bg-slate-100 text-slate-700';
+                        if ($row['payment_status'] === 'Settled') {
+                            $paymentClass = 'bg-emerald-100 text-emerald-700';
+                        } elseif (in_array($row['payment_status'], ['Failed', 'Reversed'], true)) {
+                            $paymentClass = 'bg-red-100 text-red-700';
+                        } elseif (in_array($row['payment_status'], ['Queued', 'Processing'], true)) {
+                            $paymentClass = 'bg-amber-100 text-amber-700';
+                        }
 
-                                $bankClass = $row['reconciliation_status'] === 'Matched'
-                                    ? 'bg-emerald-100 text-emerald-700'
-                                    : ($row['reconciliation_status'] === 'Not matched' ? 'bg-slate-100 text-slate-700' : 'bg-amber-100 text-amber-700');
+                        $bankClass = $row['reconciliation_status'] === 'Matched'
+                            ? 'bg-emerald-100 text-emerald-700'
+                            : ($row['reconciliation_status'] === 'Not matched' ? 'bg-slate-100 text-slate-700' : 'bg-amber-100 text-amber-700');
 
-                                $traceStatusClass = $row['trace_severity'] === 'high'
-                                    ? 'bg-red-100 text-red-700'
-                                    : ($row['trace_severity'] === 'medium' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700');
+                        $traceStatusClass = $row['trace_severity'] === 'high'
+                            ? 'bg-red-100 text-red-700'
+                            : ($row['trace_severity'] === 'medium' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700');
 
-                                $requestStatusLabel = ucwords(str_replace('_', ' ', (string) $row['request_status']));
-                            @endphp
-                            <tr class="align-top hover:bg-slate-50" wire:key="financial-trace-report-row-{{ $row['id'] }}">
-                                <td class="w-[24rem] min-w-[20rem] px-4 py-3">
-                                    <div class="space-y-2">
-                                        <div>
-                                            <p class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">{{ $row['request_code'] }}</p>
-                                            <p class="mt-0.5 max-w-[22rem] font-medium leading-5 text-slate-900">{{ $row['title'] }}</p>
-                                        </div>
+                        $requestStatusLabel = ucwords(str_replace('_', ' ', (string) $row['request_status']));
+                    @endphp
 
-                                        <dl class="grid gap-x-4 gap-y-1 text-xs sm:grid-cols-2">
-                                            <div>
-                                                <dt class="text-slate-400">Department</dt>
-                                                <dd class="mt-0.5 font-medium text-slate-700">{{ $row['department'] }}</dd>
-                                            </div>
-                                            <div>
-                                                <dt class="text-slate-400">Requester</dt>
-                                                <dd class="mt-0.5 font-medium text-slate-700">{{ $row['requester'] }}</dd>
-                                            </div>
-                                            <div class="sm:col-span-2">
-                                                <dt class="text-slate-400">Vendor</dt>
-                                                <dd class="mt-0.5 font-medium text-slate-700">{{ $row['vendor'] }}</dd>
-                                            </div>
-                                        </dl>
+                    <article class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm" wire:key="financial-trace-report-row-{{ $row['id'] }}">
+                        <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                            <div class="min-w-0 flex-1">
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <span class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">{{ $row['request_code'] }}</span>
+                                    <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold {{ $traceStatusClass }}">{{ $row['trace_status'] }}</span>
+                                    <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold {{ $requestStatusClass }}">{{ $requestStatusLabel }}</span>
+                                </div>
+
+                                <h2 class="mt-2 break-words text-base font-semibold leading-6 text-slate-900">{{ $row['title'] }}</h2>
+
+                                <dl class="mt-3 grid gap-3 text-sm sm:grid-cols-3">
+                                    <div class="min-w-0">
+                                        <dt class="text-xs font-medium text-slate-400">Department</dt>
+                                        <dd class="mt-0.5 break-words font-medium text-slate-700">{{ $row['department'] }}</dd>
                                     </div>
-                                </td>
-                                <td class="min-w-[11rem] px-4 py-3">
-                                    <div class="space-y-2">
-                                        <div>
-                                            <p class="mb-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">Trace</p>
-                                            <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold {{ $traceStatusClass }}">
-                                                {{ $row['trace_status'] }}
-                                            </span>
-                                        </div>
-                                        <div>
-                                            <p class="mb-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">Request</p>
-                                            <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold {{ $requestStatusClass }}">
-                                                {{ $requestStatusLabel }}
-                                            </span>
-                                        </div>
+                                    <div class="min-w-0">
+                                        <dt class="text-xs font-medium text-slate-400">Requester</dt>
+                                        <dd class="mt-0.5 break-words font-medium text-slate-700">{{ $row['requester'] }}</dd>
                                     </div>
-                                </td>
-                                <td class="min-w-[9rem] px-4 py-3">
-                                    <p class="font-semibold text-slate-900">{{ \App\Support\Money::formatCurrency((int) $row['amount'], (string) $row['currency']) }}</p>
-                                    <p class="mt-1 text-xs text-slate-500">{{ $row['currency'] }}</p>
-                                </td>
-                                <td class="px-4 py-3 text-slate-700">{{ $row['budget_status'] }}</td>
-                                <td class="px-4 py-3 text-slate-700">{{ $row['approval_status'] }}</td>
-                                <td class="px-4 py-3 text-slate-700">{{ $row['purchase_order_status'] }}</td>
-                                <td class="px-4 py-3">
-                                    <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold {{ $paymentClass }}">
-                                        {{ $row['payment_status'] }}
-                                    </span>
-                                    @if ($row['payment_method'] !== '-')
-                                        <p class="mt-1 text-xs text-slate-500">{{ $row['payment_method'] }}</p>
-                                    @endif
-                                    @if ($row['payment_reference'] !== '')
-                                        <p class="mt-1 text-xs text-slate-500">{{ $row['payment_reference'] }}</p>
-                                    @endif
-                                </td>
-                                <td class="px-4 py-3 text-slate-700">{{ $row['expense_status'] }}</td>
-                                <td class="px-4 py-3">
-                                    <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold {{ $bankClass }}">
-                                        {{ $row['reconciliation_status'] }}
-                                    </span>
-                                </td>
-                                <td class="px-4 py-3 text-slate-700">{{ $row['audit_status'] }}</td>
-                                <td class="px-4 py-3">
-                                    <a href="{{ $row['url'] }}" class="inline-flex rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50">
-                                        Open
-                                    </a>
-                                </td>
-                            </tr>
-                            @if (count($row['gaps']) > 0)
-                                <tr wire:key="financial-trace-report-gaps-{{ $row['id'] }}">
-                                    <td colspan="11" class="bg-slate-50 px-4 py-3">
-                                        <div class="flex flex-wrap gap-2">
-                                            @foreach ($row['gaps'] as $gap)
-                                                <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold {{ ($gap['severity'] ?? '') === 'high' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700' }}">
-                                                    {{ $gap['label'] }}
-                                                </span>
-                                            @endforeach
-                                        </div>
-                                    </td>
-                                </tr>
-                            @endif
-                        @empty
-                            <tr>
-                                <td colspan="11" class="px-4 py-10 text-center text-sm text-slate-500">
-                                    No trace rows found for the selected filters.
-                                </td>
-                            </tr>
-                        @endforelse
-                    </tbody>
-                </table>
+                                    <div class="min-w-0">
+                                        <dt class="text-xs font-medium text-slate-400">Vendor</dt>
+                                        <dd class="mt-0.5 break-words font-medium text-slate-700">{{ $row['vendor'] }}</dd>
+                                    </div>
+                                </dl>
+                            </div>
+
+                            <div class="flex shrink-0 flex-col gap-2 sm:flex-row lg:flex-col lg:items-end">
+                                <div class="sm:min-w-[10rem] lg:text-right">
+                                    <p class="text-xs font-medium text-slate-400">Amount</p>
+                                    <p class="mt-0.5 text-base font-semibold text-slate-900">{{ \App\Support\Money::formatCurrency((int) $row['amount'], (string) $row['currency']) }}</p>
+                                </div>
+                                <a href="{{ $row['url'] }}" class="inline-flex h-9 items-center justify-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50">
+                                    Open request
+                                </a>
+                            </div>
+                        </div>
+
+                        <div class="mt-4 grid gap-x-5 gap-y-4 border-t border-slate-100 pt-4 md:grid-cols-2 xl:grid-cols-4">
+                            <div class="min-w-0 border-l-2 border-slate-200 py-1 pl-3">
+                                <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Budget</p>
+                                <p class="mt-1 break-words text-sm font-medium text-slate-800">{{ $row['budget_status'] }}</p>
+                            </div>
+                            <div class="min-w-0 border-l-2 border-slate-200 py-1 pl-3">
+                                <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Approval</p>
+                                <p class="mt-1 break-words text-sm font-medium text-slate-800">{{ $row['approval_status'] }}</p>
+                            </div>
+                            <div class="min-w-0 border-l-2 border-slate-200 py-1 pl-3">
+                                <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Order</p>
+                                <p class="mt-1 break-words text-sm font-medium text-slate-800">{{ $row['purchase_order_status'] }}</p>
+                            </div>
+                            <div class="min-w-0 border-l-2 border-slate-200 py-1 pl-3">
+                                <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Payment</p>
+                                <div class="mt-1 flex flex-wrap items-center gap-1.5">
+                                    <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold {{ $paymentClass }}">{{ $row['payment_status'] }}</span>
+                                </div>
+                                @if ($row['payment_method'] !== '-')
+                                    <p class="mt-2 break-words text-sm text-slate-700">{{ $row['payment_method'] }}</p>
+                                @endif
+                                @if ($row['payment_reference'] !== '')
+                                    <p class="mt-1 break-words text-xs text-slate-500">{{ $row['payment_reference'] }}</p>
+                                @endif
+                            </div>
+                            <div class="min-w-0 border-l-2 border-slate-200 py-1 pl-3">
+                                <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Expense</p>
+                                <p class="mt-1 break-words text-sm font-medium text-slate-800">{{ $row['expense_status'] }}</p>
+                            </div>
+                            <div class="min-w-0 border-l-2 border-slate-200 py-1 pl-3">
+                                <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Bank Match</p>
+                                <span class="mt-1 inline-flex rounded-full px-2.5 py-1 text-xs font-semibold {{ $bankClass }}">{{ $row['reconciliation_status'] }}</span>
+                            </div>
+                            <div class="min-w-0 border-l-2 border-slate-200 py-1 pl-3">
+                                <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Audit</p>
+                                <p class="mt-1 break-words text-sm font-medium text-slate-800">{{ $row['audit_status'] }}</p>
+                            </div>
+                        </div>
+
+                        @if (count($row['gaps']) > 0)
+                            <div class="mt-4 border-t border-slate-100 pt-3">
+                                <p class="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Needs Attention</p>
+                                <div class="flex flex-wrap gap-2">
+                                    @foreach ($row['gaps'] as $gap)
+                                        <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold {{ ($gap['severity'] ?? '') === 'high' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700' }}">
+                                            {{ $gap['label'] }}
+                                        </span>
+                                    @endforeach
+                                </div>
+                            </div>
+                        @endif
+                    </article>
+                @empty
+                    <div class="fd-card px-4 py-10 text-center text-sm text-slate-500">
+                        No trace rows found for the selected filters.
+                    </div>
+                @endforelse
             </div>
 
-            <div class="border-t border-slate-200 px-4 py-3">
+            <div class="fd-card px-4 py-3">
                 <div class="flex flex-wrap items-center justify-between gap-3 text-sm">
                     <p class="text-slate-500">
                         Showing
