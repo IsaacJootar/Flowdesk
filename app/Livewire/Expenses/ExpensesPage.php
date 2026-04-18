@@ -47,6 +47,8 @@ class ExpensesPage extends Component
 
     public string $statusFilter = 'all';
 
+    public string $sourceFilter = 'all';
+
     public int $perPage = 10;
 
     public bool $showFormModal = false;
@@ -183,6 +185,12 @@ class ExpensesPage extends Component
     public function updatedStatusFilter(): void
     {
         $this->statusFilter = $this->normalizeStatusFilter($this->statusFilter);
+        $this->resetPage();
+    }
+
+    public function updatedSourceFilter(): void
+    {
+        $this->sourceFilter = $this->normalizeSourceFilter($this->sourceFilter);
         $this->resetPage();
     }
 
@@ -681,6 +689,13 @@ class ExpensesPage extends Component
             ->when($this->departmentFilter !== 'all', fn ($query) => $query->where('department_id', $this->departmentFilter))
             ->when($this->paymentMethodFilter !== 'all', fn ($query) => $query->where('payment_method', $this->paymentMethodFilter))
             ->when($this->statusFilter !== 'all', fn ($query) => $query->where('status', $this->statusFilter))
+            ->when($this->sourceFilter === 'direct', fn ($query) => $query->where('is_direct', true))
+            ->when($this->sourceFilter === 'from_request', function ($query): void {
+                $query->where(function ($inner): void {
+                    $inner->where('is_direct', false)
+                        ->orWhereNotNull('request_id');
+                });
+            })
             ->latest('expense_date')
             ->latest('id');
     }
@@ -847,6 +862,7 @@ class ExpensesPage extends Component
     private function normalizeFilterState(): void
     {
         $this->statusFilter = $this->normalizeStatusFilter($this->statusFilter);
+        $this->sourceFilter = $this->normalizeSourceFilter($this->sourceFilter);
         $this->paymentMethodFilter = $this->normalizePaymentMethodFilter($this->paymentMethodFilter);
         $this->vendorFilter = $this->normalizeEntityFilter($this->vendorFilter);
         $this->departmentFilter = $this->normalizeEntityFilter($this->departmentFilter);
@@ -861,6 +877,13 @@ class ExpensesPage extends Component
         $normalized = strtolower(trim($value));
 
         return in_array($normalized, ['all', 'posted', 'void'], true) ? $normalized : 'all';
+    }
+
+    private function normalizeSourceFilter(string $value): string
+    {
+        $normalized = strtolower(trim($value));
+
+        return in_array($normalized, ['all', 'direct', 'from_request'], true) ? $normalized : 'all';
     }
 
     private function normalizePaymentMethodFilter(string $value): string
@@ -1111,4 +1134,3 @@ class ExpensesPage extends Component
         ];
     }
 }
-

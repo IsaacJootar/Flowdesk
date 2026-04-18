@@ -40,7 +40,7 @@
     </div>
 
     <div class="fd-card p-5">
-        <div class="grid gap-3 lg:grid-cols-4">
+        <div class="grid gap-3 lg:grid-cols-5">
             <label class="block">
                 <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Search</span>
                 <input
@@ -68,6 +68,15 @@
                     @foreach ($vendors as $vendor)
                         <option value="{{ $vendor->id }}">{{ $vendor->name }}</option>
                     @endforeach
+                </select>
+            </label>
+
+            <label class="block">
+                <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Source</span>
+                <select wire:model.live="sourceFilter" class="w-full rounded-xl border-slate-300 text-sm focus:border-slate-500 focus:ring-slate-500">
+                    <option value="all">All sources</option>
+                    <option value="direct">Direct</option>
+                    <option value="from_request">From Request</option>
                 </select>
             </label>
 
@@ -141,7 +150,7 @@
                 @endfor
             </div>
         @else
-            <div wire:loading.flex wire:target="search,dateFrom,dateTo,vendorFilter,departmentFilter,paymentMethodFilter,statusFilter,perPage,gotoPage,previousPage,nextPage" class="border-b border-slate-200 px-4 py-3 text-sm text-slate-500">
+            <div wire:loading.flex wire:target="search,dateFrom,dateTo,vendorFilter,departmentFilter,sourceFilter,paymentMethodFilter,statusFilter,perPage,gotoPage,previousPage,nextPage" class="border-b border-slate-200 px-4 py-3 text-sm text-slate-500">
                 Loading expenses...
             </div>
 

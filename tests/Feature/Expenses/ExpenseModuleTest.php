@@ -120,6 +120,54 @@ class ExpenseModuleTest extends TestCase
             ->assertSee('Linked to FD-SRC-REQ-001');
     }
 
+    public function test_expenses_page_can_filter_by_source(): void
+    {
+        [$company, $department] = $this->createCompanyContext('Expense Source Filter');
+        $finance = $this->createUser($company, $department, UserRole::Finance->value);
+        $directExpense = $this->createExpense($company, $department, $finance, null);
+        $request = SpendRequest::query()->create([
+            'company_id' => $company->id,
+            'request_code' => 'FD-SRC-FILTER-001',
+            'requested_by' => $finance->id,
+            'department_id' => $department->id,
+            'title' => 'Request source filter expense',
+            'amount' => 66000,
+            'approved_amount' => 66000,
+            'currency' => 'NGN',
+            'status' => 'settled',
+            'created_by' => $finance->id,
+            'updated_by' => $finance->id,
+        ]);
+        $requestExpense = Expense::query()->create([
+            'company_id' => $company->id,
+            'expense_code' => 'FD-EXP-SOURCE-FILTER',
+            'request_id' => $request->id,
+            'department_id' => $department->id,
+            'title' => 'Linked request source filter expense',
+            'amount' => 66000,
+            'expense_date' => now()->toDateString(),
+            'payment_method' => 'transfer',
+            'paid_by_user_id' => $finance->id,
+            'created_by' => $finance->id,
+            'status' => 'posted',
+            'is_direct' => false,
+        ]);
+
+        Livewire::actingAs($finance)
+            ->test(ExpensesPage::class)
+            ->call('loadData')
+            ->set('sourceFilter', 'direct')
+            ->assertSee((string) $directExpense->expense_code)
+            ->assertDontSee((string) $requestExpense->expense_code);
+
+        Livewire::actingAs($finance)
+            ->test(ExpensesPage::class)
+            ->call('loadData')
+            ->set('sourceFilter', 'from_request')
+            ->assertSee((string) $requestExpense->expense_code)
+            ->assertDontSee((string) $directExpense->expense_code);
+    }
+
     public function test_budget_guardrail_blocks_creation_when_department_budget_is_exceeded(): void
     {
         [$company, $department] = $this->createCompanyContext('Expense Budget Creation');
