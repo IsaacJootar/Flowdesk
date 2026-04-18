@@ -12,7 +12,9 @@ use App\Domains\Company\Models\TenantManualPayment;
 use App\Domains\Company\Models\TenantPlanChangeHistory;
 use App\Domains\Company\Models\TenantSubscription;
 use App\Enums\UserRole;
+use App\Mail\StaffWelcomeMail;
 use App\Models\User;
+use Illuminate\Support\Facades\Mail;
 use App\Services\PlatformAccessService;
 use App\Services\TenantAuditLogger;
 use App\Services\TenantBillingAutomationService;
@@ -993,12 +995,19 @@ class TenantManagementPage extends Component
             'name' => $company->name.' Admin',
             'email' => $email,
             'password' => $temporaryPassword,
+            'provisional_password' => $temporaryPassword,
             'role' => UserRole::Owner->value,
             'is_active' => true,
         ]);
 
         if (! $department->manager_user_id) {
             $department->forceFill(['manager_user_id' => $owner->id])->save();
+        }
+
+        try {
+            Mail::to($email)->send(new StaffWelcomeMail($owner, $temporaryPassword, (string) $company->name));
+        } catch (Throwable $e) {
+            report($e);
         }
 
         return [

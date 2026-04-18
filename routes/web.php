@@ -58,6 +58,8 @@ use App\Livewire\Platform\AiRuntimeHealthPage;
 use App\Livewire\Platform\ExecutionTestChecklistPage;
 use App\Livewire\Platform\IncidentHistoryPage;
 use App\Livewire\Platform\PilotRolloutKpiPage;
+use App\Http\Controllers\Platform\ImpersonateTenantUserController;
+use App\Http\Controllers\Platform\StopImpersonationController;
 use App\Livewire\Vendors\VendorDetailsPage;
 use App\Livewire\Vendors\VendorCommandCenterPage;
 use App\Livewire\Vendors\VendorReportsPage;
@@ -91,7 +93,10 @@ Route::middleware('auth')->group(function (): void {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 
+Route::middleware('auth')->post('/impersonation/stop', StopImpersonationController::class)->name('impersonation.stop');
+
 Route::middleware(['auth', 'platform.access'])->prefix('platform')->name('platform.')->group(function (): void {
+    Route::post('/impersonate/{userId}', ImpersonateTenantUserController::class)->name('impersonate');
     Route::get('/', PlatformDashboardPage::class)->name('dashboard');
     Route::get('/tenants', TenantManagementPage::class)->name('tenants');
     Route::get('/tenants/{company}/plan-entitlements', TenantPlanEntitlementsPage::class)->name('tenants.plan-entitlements');

@@ -3,8 +3,8 @@
         <div class="flex flex-wrap items-start justify-between gap-3">
             <div>
                 <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Execution Test Checklist</p>
-                <h2 class="mt-1 text-xl font-semibold text-slate-900">UI dry-run checklist for operators</h2>
-                <p class="mt-1 text-sm text-slate-600">Use this page to validate execution mode and operations workflows from the UI without relying on CLI commands.</p>
+                <h2 class="mt-1 text-xl font-semibold text-slate-900">Step-by-step test guide for operators</h2>
+                <p class="mt-1 text-sm text-slate-600">Use this page to walk through and verify the payments and operations flow from the UI — no command line needed.</p>
             </div>
 </div>
     </div>
@@ -24,8 +24,8 @@
             @if ($latestTenant)
                 <ol class="mt-3 list-decimal space-y-2 pl-5 text-sm text-slate-700">
                     <li>Open <a href="{{ route('platform.tenants.execution-mode', $latestTenant) }}" class="font-medium text-slate-900 underline">Organization Execution Mode</a>.</li>
-                    <li>Set mode to <span class="font-semibold">execution_enabled</span> for execution tests.</li>
-                    <li>Use <span class="font-semibold">Use manual_ops</span> quick button to set provider baseline.</li>
+                    <li>Set mode to <span class="font-semibold">payments enabled</span> for payment tests.</li>
+                    <li>Use the <span class="font-semibold">Use manual provider</span> quick button to set a safe baseline.</li>
                     <li>Save and confirm success toast.</li>
                 </ol>
             @else
@@ -41,7 +41,7 @@
                 <li>If provider callbacks are available, verify webhook events are captured.</li>
             </ol>
             <p class="mt-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
-                Tip: Start with <span class="font-semibold">manual_ops</span> provider for safe dry-runs.
+                Tip: Start with the <span class="font-semibold">manual provider</span> for safe test runs.
             </p>
         </section>
 
@@ -58,15 +58,15 @@
     </div>
 
     <section class="fd-card p-5" id="provider-config">
-        <h3 class="text-sm font-semibold text-slate-900">Runbook: Recovery breakdown quick checks</h3>
+        <h3 class="text-sm font-semibold text-slate-900">Common issues and what to check</h3>
         <div class="mt-3 grid gap-3 md:grid-cols-2">
             <article id="missing-request" class="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
                 <p class="font-semibold text-slate-900">Missing request</p>
-                <p class="mt-1">Verify `request_payout_execution_attempts.request_id` points to a real row in `spend_requests` (including soft-deleted records).</p>
+                <p class="mt-1">Check that this payout attempt is linked to a real spend request (including ones that may have been archived).</p>
             </article>
             <article id="missing-subscription" class="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
                 <p class="font-semibold text-slate-900">Missing subscription</p>
-                <p class="mt-1">Verify `tenant_subscription_id` links to an active subscription and the provider mode is still valid.</p>
+                <p class="mt-1">Check that this organization has an active subscription and that the payment provider mode is still set correctly.</p>
             </article>
             <article id="state-changed" class="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
                 <p class="font-semibold text-slate-900">State changed</p>

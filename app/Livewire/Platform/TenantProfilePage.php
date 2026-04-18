@@ -34,8 +34,20 @@ class TenantProfilePage extends Component
             ->with(['subscription', 'featureEntitlements'])
             ->findOrFail((int) $this->company->id);
 
+        $ownerUser = $company->users()
+            ->where('role', 'owner')
+            ->orderBy('id')
+            ->first(['id', 'name', 'email', 'role', 'provisional_password', 'created_at']);
+
+        $allUsers = $company->users()
+            ->orderByRaw("FIELD(role, 'owner', 'admin', 'manager', 'staff', 'viewer')")
+            ->orderBy('name')
+            ->get(['id', 'name', 'email', 'role', 'is_active']);
+
         return view('livewire.platform.tenant-profile-page', [
             'company' => $company,
+            'ownerUser' => $ownerUser,
+            'allUsers' => $allUsers,
         ]);
     }
 }

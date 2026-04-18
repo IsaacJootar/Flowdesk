@@ -210,7 +210,48 @@
                         </label>
                         <label class="block">
                             <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Industry</span>
-                            <input type="text" wire:model.defer="tenantForm.industry" class="w-full rounded-xl border-slate-300 text-sm">
+                            <select wire:model.defer="tenantForm.industry" class="w-full rounded-xl border-slate-300 text-sm">
+                                <option value="">Select industry</option>
+                                <optgroup label="Finance &amp; Business">
+                                    <option value="Banking &amp; Financial Services">Banking &amp; Financial Services</option>
+                                    <option value="Insurance">Insurance</option>
+                                    <option value="Investment &amp; Asset Management">Investment &amp; Asset Management</option>
+                                    <option value="Accounting &amp; Audit">Accounting &amp; Audit</option>
+                                    <option value="Legal Services">Legal Services</option>
+                                    <option value="Consulting">Consulting</option>
+                                </optgroup>
+                                <optgroup label="Technology">
+                                    <option value="Software &amp; SaaS">Software &amp; SaaS</option>
+                                    <option value="Fintech">Fintech</option>
+                                    <option value="E-commerce">E-commerce</option>
+                                    <option value="Telecommunications">Telecommunications</option>
+                                    <option value="Media &amp; Digital">Media &amp; Digital</option>
+                                </optgroup>
+                                <optgroup label="Trade &amp; Commerce">
+                                    <option value="Retail">Retail</option>
+                                    <option value="Wholesale &amp; Distribution">Wholesale &amp; Distribution</option>
+                                    <option value="Import &amp; Export">Import &amp; Export</option>
+                                    <option value="FMCG">FMCG</option>
+                                </optgroup>
+                                <optgroup label="Industry &amp; Manufacturing">
+                                    <option value="Manufacturing">Manufacturing</option>
+                                    <option value="Oil &amp; Gas">Oil &amp; Gas</option>
+                                    <option value="Energy &amp; Utilities">Energy &amp; Utilities</option>
+                                    <option value="Mining &amp; Resources">Mining &amp; Resources</option>
+                                    <option value="Construction &amp; Real Estate">Construction &amp; Real Estate</option>
+                                    <option value="Agriculture &amp; Agribusiness">Agriculture &amp; Agribusiness</option>
+                                </optgroup>
+                                <optgroup label="Services">
+                                    <option value="Healthcare &amp; Pharmaceuticals">Healthcare &amp; Pharmaceuticals</option>
+                                    <option value="Education">Education</option>
+                                    <option value="Logistics &amp; Transport">Logistics &amp; Transport</option>
+                                    <option value="Hospitality &amp; Tourism">Hospitality &amp; Tourism</option>
+                                    <option value="NGO &amp; Non-profit">NGO &amp; Non-profit</option>
+                                    <option value="Government &amp; Public Sector">Government &amp; Public Sector</option>
+                                    <option value="Security &amp; Facilities">Security &amp; Facilities</option>
+                                </optgroup>
+                                <option value="Other">Other</option>
+                            </select>
                         </label>
                         <label class="block">
                             <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Currency</span>

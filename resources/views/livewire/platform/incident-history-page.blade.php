@@ -2,9 +2,9 @@
     <div class="fd-card p-5">
         <div class="flex flex-wrap items-start justify-between gap-3">
             <div>
-                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Execution Incident Timeline</p>
+                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Platform Operations</p>
                 <h2 class="mt-1 text-xl font-semibold text-slate-900">Incident History</h2>
-                <p class="mt-1 text-sm text-slate-600">Central history for manual retries/recoveries, auto-recovery runs, webhook reconciliation outcomes, and rollout decisions.</p>
+                <p class="mt-1 text-sm text-slate-600">A log of all manual fixes, retries, and system auto-recoveries across organizations.</p>
             </div>
             <div class="flex flex-wrap items-center gap-2">
                 <a href="{{ route('platform.operations.execution-checklist') }}" class="inline-flex h-9 items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50">Open Test Checklist<svg class="h-3 w-3 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg></a>
@@ -90,15 +90,15 @@
             <p class="mt-2 text-2xl font-semibold text-sky-900">{{ number_format((int) $stats['total']) }}</p>
         </div>
         <div class="rounded-2xl border border-amber-200 bg-amber-50 p-4">
-            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-amber-700">Manual Ops Actions</p>
+            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-amber-700">Manual Actions Taken</p>
             <p class="mt-2 text-2xl font-semibold text-amber-900">{{ number_format((int) $stats['manual']) }}</p>
         </div>
         <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
-            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-emerald-700">Auto Recovery Events</p>
+            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-emerald-700">System Auto-Fixes</p>
             <p class="mt-2 text-2xl font-semibold text-emerald-900">{{ number_format((int) $stats['auto']) }}</p>
         </div>
         <div class="rounded-2xl border border-rose-200 bg-rose-50 p-4">
-            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-rose-700">Manual Reconcile Failed</p>
+            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-rose-700">Failed Manual Fixes</p>
             <p class="mt-2 text-2xl font-semibold text-rose-900">{{ number_format((int) $stats['manual_failed']) }}</p>
         </div>
     </section>
@@ -153,7 +153,7 @@
         <div class="mb-3 flex items-center justify-between gap-3">
             <div>
                 <h3 class="text-sm font-semibold text-slate-900">Incident Events</h3>
-                <p class="text-xs text-slate-500">Recovery and execution-operations audit entries with metadata drill-down.</p>
+                <p class="text-xs text-slate-500">All fixes, retries, and system events — tap View to see details for any entry.</p>
             </div>
         </div>
 

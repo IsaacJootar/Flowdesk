@@ -221,6 +221,20 @@
                     </div>
                 </header>
 
+                @if (session('impersonator_id'))
+                    <div class="flex items-center justify-between gap-3 bg-amber-500 px-4 py-2 text-sm font-medium text-white">
+                        <span>
+                            You are logged in as <strong>{{ Auth::user()?->name }}</strong>
+                            ({{ Auth::user()?->company?->name }}) —
+                            impersonated by <strong>{{ session('impersonator_name') }}</strong>.
+                        </span>
+                        <form method="POST" action="{{ route('impersonation.stop') }}">
+                            @csrf
+                            <button type="submit" class="rounded-lg border border-amber-300 bg-amber-600 px-3 py-1 text-xs font-semibold hover:bg-amber-700">End Session &amp; Return</button>
+                        </form>
+                    </div>
+                @endif
+
                 <main class="p-4 sm:p-6 lg:p-8">
                     @if (session('status'))
                         <div

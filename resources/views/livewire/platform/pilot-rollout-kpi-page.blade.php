@@ -23,9 +23,9 @@
     <div class="fd-card p-5">
         <div class="flex flex-wrap items-start justify-between gap-3">
             <div>
-                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Rollout Operations</p>
-                <h2 class="mt-1 text-xl font-semibold text-slate-900">Pilot KPI Capture</h2>
-                <p class="mt-1 text-sm text-slate-600">Capture baseline and pilot windows for procurement + treasury control KPIs, then review organization-level deltas.</p>
+                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Platform Operations</p>
+                <h2 class="mt-1 text-xl font-semibold text-slate-900">Payment Rollout Tracker</h2>
+                <p class="mt-1 text-sm text-slate-600">Track the health of each organization before and after payments go live — then decide whether to proceed, pause, or stop.</p>
             </div>
             <div class="flex flex-wrap items-center gap-2">
                 <a href="{{ route('platform.operations.execution') }}" class="inline-flex h-9 items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50">Execution Operations<svg class="h-3 w-3 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg></a>
@@ -34,15 +34,25 @@
         </div>
     </div>
 
+    <section class="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">
+        <p class="font-semibold">How this works — 3 steps per organization:</p>
+        <ol class="mt-1 list-decimal space-y-0.5 pl-5 text-sky-800">
+            <li><span class="font-semibold">Baseline snapshot</span> — record numbers before payments go live (issues, match rates, incidents).</li>
+            <li><span class="font-semibold">Pilot snapshot</span> — record the same numbers after payments go live.</li>
+            <li><span class="font-semibold">Decision</span> — compare the two and record: Go (proceed), Hold (pause), or No-go (stop).</li>
+        </ol>
+        <p class="mt-1.5 text-xs text-sky-700">The progress table at the bottom shows where each organization is in this process.</p>
+    </section>
+
     <section class="fd-card p-4">
         <div class="mb-3">
-            <h3 class="text-sm font-semibold text-slate-900">Capture Window</h3>
-            <p class="text-xs text-slate-500">Run KPI capture for all eligible organizations or one selected organization.</p>
+            <h3 class="text-sm font-semibold text-slate-900">Step 1 & 2 — Record a Snapshot</h3>
+            <p class="text-xs text-slate-500">Take a numbers snapshot for one or all organizations. Choose <strong>Baseline</strong> before going live, <strong>Pilot</strong> after.</p>
         </div>
 
         <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
             <label class="block">
-                <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Organization Scope</span>
+                <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Organization</span>
                 <select wire:model.defer="captureTenant" class="w-full rounded-xl border-slate-300 text-sm">
                     <option value="all">All eligible organizations</option>
                     @foreach ($tenantOptions as $tenant)
@@ -55,7 +65,7 @@
             </label>
 
             <label class="block">
-                <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Window Label</span>
+                <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Snapshot Type</span>
                 <select wire:model.defer="captureWindowLabel" class="w-full rounded-xl border-slate-300 text-sm">
                     <option value="baseline">Baseline</option>
                     <option value="pilot">Pilot</option>
@@ -101,8 +111,8 @@
 
     <section class="fd-card p-4">
         <div class="mb-3">
-            <h3 class="text-sm font-semibold text-slate-900">Pilot Wave Outcome</h3>
-            <p class="text-xs text-slate-500">Record go, hold, or no-go decisions per organization rollout wave with accountable notes.</p>
+            <h3 class="text-sm font-semibold text-slate-900">Step 3 — Record a Rollout Decision</h3>
+            <p class="text-xs text-slate-500">After reviewing the baseline vs pilot results, record your decision for this organization: Go, Hold, or No-go.</p>
         </div>
 
         <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
@@ -120,8 +130,8 @@
             </label>
 
             <label class="block">
-                <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Wave Label</span>
-                <input type="text" wire:model.defer="outcomeWaveLabel" maxlength="40" class="w-full rounded-xl border-slate-300 text-sm" placeholder="wave-1" />
+                <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Phase Name</span>
+                <input type="text" wire:model.defer="outcomeWaveLabel" maxlength="40" class="w-full rounded-xl border-slate-300 text-sm" placeholder="e.g. wave-1" />
                 @error('outcomeWaveLabel')
                     <p class="mt-1 text-xs text-rose-600">{{ $message }}</p>
                 @enderror
@@ -158,15 +168,15 @@
 
         <div class="mt-4">
             <button type="button" wire:click="recordWaveOutcome" wire:loading.attr="disabled" wire:target="recordWaveOutcome" class="inline-flex h-10 items-center rounded-xl bg-slate-900 px-4 text-xs font-semibold text-white hover:bg-slate-800 disabled:opacity-60">
-                <span wire:loading.remove wire:target="recordWaveOutcome">Record Wave Outcome</span>
-                <span wire:loading wire:target="recordWaveOutcome">Recording...</span>
+                <span wire:loading.remove wire:target="recordWaveOutcome">Save Decision</span>
+                <span wire:loading wire:target="recordWaveOutcome">Saving...</span>
             </button>
         </div>
     </section>
 
     <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <div class="rounded-2xl border border-sky-200 bg-sky-50 p-4">
-            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-sky-700">Captured Windows</p>
+            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-sky-700">Snapshots Taken</p>
             <p class="mt-2 text-2xl font-semibold text-sky-900">{{ number_format((int) $stats['captures']) }}</p>
         </div>
         <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
@@ -174,11 +184,11 @@
             <p class="mt-2 text-2xl font-semibold text-emerald-900">{{ number_format((int) $stats['tenants']) }}</p>
         </div>
         <div class="rounded-2xl border border-indigo-200 bg-indigo-50 p-4">
-            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-indigo-700">Avg Match Pass Rate</p>
+            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-indigo-700">Avg Payment Match Rate</p>
             <p class="mt-2 text-2xl font-semibold text-indigo-900">{{ number_format((float) $stats['avg_match_pass_rate_percent'], 1) }}%</p>
         </div>
         <div class="rounded-2xl border border-amber-200 bg-amber-50 p-4">
-            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-amber-700">Avg Auto Recon Rate</p>
+            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-amber-700">Avg Auto-Reconciliation Rate</p>
             <p class="mt-2 text-2xl font-semibold text-amber-900">{{ number_format((float) $stats['avg_auto_reconciliation_rate_percent'], 1) }}%</p>
         </div>
     </section>
@@ -205,8 +215,8 @@
     <section class="fd-card p-4">
         <div class="mb-3 flex items-center justify-between gap-3">
             <div>
-                <h3 class="text-sm font-semibold text-slate-900">Recent Wave Outcomes</h3>
-                <p class="text-xs text-slate-500">Latest rollout decisions captured across pilot organizations.</p>
+                <h3 class="text-sm font-semibold text-slate-900">Recent Rollout Decisions</h3>
+                <p class="text-xs text-slate-500">The most recent Go / Hold / No-go decisions recorded across organizations.</p>
             </div>
         </div>
 
@@ -216,8 +226,8 @@
                     <tr class="border-b border-slate-200 text-left text-xs uppercase tracking-[0.14em] text-slate-500">
                         <th class="px-3 py-2">Decision Time</th>
                         <th class="px-3 py-2">Organization</th>
-                        <th class="px-3 py-2">Wave</th>
-                        <th class="px-3 py-2">Outcome</th>
+                        <th class="px-3 py-2">Phase</th>
+                        <th class="px-3 py-2">Decision</th>
                         <th class="px-3 py-2">Decided By</th>
                         <th class="px-3 py-2">Notes</th>
                     </tr>
@@ -253,8 +263,8 @@
 
     <section class="fd-card p-4">
         <div class="mb-3">
-            <h3 class="text-sm font-semibold text-slate-900">Cohort Progress Tracker</h3>
-            <p class="text-xs text-slate-500">Track each organization through baseline capture, pilot capture, and rollout outcome recording.</p>
+            <h3 class="text-sm font-semibold text-slate-900">Where Each Organization Is</h3>
+            <p class="text-xs text-slate-500">Shows which step each organization is on — Baseline → Pilot → Decision.</p>
         </div>
 
         <div class="overflow-x-auto">
@@ -332,15 +342,15 @@
 
     @if ($delta)
         <section class="fd-card p-4">
-            <h3 class="text-sm font-semibold text-slate-900">Latest Baseline vs Pilot Delta</h3>
-            <p class="mt-1 text-xs text-slate-500">Deltas are calculated from the most recent baseline and pilot captures for the selected organization.</p>
+            <h3 class="text-sm font-semibold text-slate-900">Before vs After — What Changed</h3>
+            <p class="mt-1 text-xs text-slate-500">Difference between the most recent baseline and pilot snapshots for this organization. Positive = improved, negative = got worse.</p>
             <div class="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-5 text-sm">
                 <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                    <p class="text-xs uppercase tracking-[0.14em] text-slate-500">Match Pass Rate</p>
+                    <p class="text-xs uppercase tracking-[0.14em] text-slate-500">Payment Match Rate</p>
                     <p class="mt-1 font-semibold text-slate-900">{{ number_format((float) $delta['match_pass_rate_delta'], 2) }} pts</p>
                 </div>
                 <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                    <p class="text-xs uppercase tracking-[0.14em] text-slate-500">Auto Recon Rate</p>
+                    <p class="text-xs uppercase tracking-[0.14em] text-slate-500">Auto-Reconciliation Rate</p>
                     <p class="mt-1 font-semibold text-slate-900">{{ number_format((float) $delta['auto_reconciliation_rate_delta'], 2) }} pts</p>
                 </div>
                 <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
@@ -397,11 +407,11 @@
                     <tr class="border-b border-slate-200 text-left text-xs uppercase tracking-[0.14em] text-slate-500">
                         <th class="px-3 py-2">Captured</th>
                         <th class="px-3 py-2">Organization</th>
-                        <th class="px-3 py-2">Window</th>
+                        <th class="px-3 py-2">Snapshot Type</th>
                         <th class="px-3 py-2">Match Pass</th>
-                        <th class="px-3 py-2">Open Proc Ex</th>
-                        <th class="px-3 py-2">Auto Recon</th>
-                        <th class="px-3 py-2">Open Treasury Ex</th>
+                        <th class="px-3 py-2">Open Procurement Issues</th>
+                        <th class="px-3 py-2">Auto-Match Rate</th>
+                        <th class="px-3 py-2">Open Treasury Issues</th>
                         <th class="px-3 py-2">Blocked Payouts</th>
                         <th class="px-3 py-2">Overrides</th>
                         <th class="px-3 py-2">Incidents / Week</th>

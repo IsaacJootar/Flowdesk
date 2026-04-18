@@ -27,6 +27,7 @@ class User extends Authenticatable
         'avatar_path',
         'gender',
         'password',
+        'provisional_password',
         'role',
         'platform_role',
         'reports_to_user_id',
