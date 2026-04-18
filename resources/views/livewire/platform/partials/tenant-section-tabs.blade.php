@@ -33,9 +33,9 @@
             @foreach ($links as $link)
                 <a
                     href="{{ route($link['route'], $company) }}"
-                    class="inline-flex items-center rounded-lg border px-3 py-1.5 text-xs font-semibold transition {{ request()->routeIs($link['active']) ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50' }}"
+                    class="inline-flex items-center gap-1 rounded-lg border px-3 py-1.5 text-xs font-semibold transition {{ request()->routeIs($link['active']) ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50' }}"
                 >
-                    {{ $link['label'] }}
+                    {{ $link['label'] }}<svg class="h-3 w-3 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
                 </a>
             @endforeach
         </div>
