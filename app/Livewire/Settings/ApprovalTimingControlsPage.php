@@ -227,6 +227,7 @@ class ApprovalTimingControlsPage extends Component
 
         // Fetch all active departments for override selection
         $departments = Department::query()
+            ->where('company_id', $companyId)
             ->where('is_active', true)
             ->orderBy('name')
             ->get(['id', 'name']);
