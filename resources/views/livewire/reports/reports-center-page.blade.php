@@ -1,9 +1,20 @@
 <div wire:init="loadData" class="space-y-5">
+    <x-module-explainer
+        key="reports"
+        title="Reports"
+        description="Review spending, requests, budgets, vendors, assets, and bank matching from one place."
+        :bullets="[
+            'Compare spend, approvals, payments, and budget usage across the company.',
+            'Open focused reports when you need more detail for a request, vendor, asset, or payment.',
+            'Use the Budget to Payment Trace to follow money from budget check to request, approval, payment, expense, and bank match.',
+        ]"
+    />
+
     <div class="fd-card p-5">
         <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div>
-                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Unified Reports</p>
-                <p class="mt-1 text-sm text-slate-600">Monitor requests, expenses, vendors, procurement, treasury, assets, and budgets from one reporting surface.</p>
+                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Reports</p>
+                <p class="mt-1 text-sm text-slate-600">See the numbers and records finance needs to review work, spend, and controls.</p>
             </div>
             <div class="flex flex-wrap items-center gap-2">
                 @foreach ($quickLinks as $link)
@@ -21,7 +32,7 @@
     <div class="fd-card p-5">
         <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
             <label class="block">
-                <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Module</span>
+                <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Area</span>
                 <select wire:model.live="moduleFilter" class="w-full rounded-xl border-slate-300 text-sm focus:border-slate-500 focus:ring-slate-500">
                     @foreach ($moduleOptions as $key => $label)
                         <option value="{{ $key }}">{{ $label }}</option>
@@ -106,11 +117,11 @@
                 @endif
             </div>
             <div class="rounded-2xl border border-orange-200 bg-orange-50 p-4">
-                <p class="text-xs uppercase tracking-[0.1em] text-orange-700 break-words leading-tight">Procurement Health</p>
+                <p class="text-xs uppercase tracking-[0.1em] text-orange-700 break-words leading-tight">Purchase Order Checks</p>
                 <p class="mt-1 text-2xl font-semibold text-orange-900">{{ number_format((int) $metrics['procurement']['linked_invoices']) }}</p>
                 <p class="mt-1 text-xs text-orange-700">Open issues: {{ number_format((int) $metrics['procurement']['open_exceptions']) }}</p>
-                <p class="text-xs text-orange-700">Match pass rate: {{ number_format((float) $metrics['procurement']['match_pass_rate_percent'], 1) }}%</p>
-                <p class="text-xs text-orange-700">Stale commitments: {{ number_format((int) $metrics['procurement']['stale_commitments']) }}</p>
+                <p class="text-xs text-orange-700">Invoice match rate: {{ number_format((float) $metrics['procurement']['match_pass_rate_percent'], 1) }}%</p>
+                <p class="text-xs text-orange-700">Old budget holds: {{ number_format((int) $metrics['procurement']['stale_commitments']) }}</p>
             </div>
             <div class="rounded-2xl border border-indigo-200 bg-indigo-50 p-4">
                 <p class="text-xs uppercase tracking-[0.1em] text-indigo-700 break-words leading-tight">Assets</p>
@@ -125,13 +136,13 @@
                 <p class="text-xs text-slate-700">Allocated: {{ \App\Support\Money::formatCurrency((int) $metrics['budgets']['allocated'], $currencyCode) }}</p>
             </div>
             <div class="rounded-2xl border border-cyan-200 bg-cyan-50 p-4">
-                <p class="text-xs uppercase tracking-[0.1em] text-cyan-700 break-words leading-tight">Treasury Health</p>
+                <p class="text-xs uppercase tracking-[0.1em] text-cyan-700 break-words leading-tight">Bank Matching</p>
                 <p class="mt-1 text-2xl font-semibold text-cyan-900">{{ \App\Support\Money::formatCount((int) $metrics['treasury']['reconciled_lines']) }}</p>
                 <p class="mt-1 text-xs text-cyan-700">Open issues: {{ \App\Support\Money::formatCount((int) $metrics['treasury']['open_exceptions']) }}</p>
-                <p class="text-xs text-cyan-700">Unreconciled value: {{ \App\Support\Money::formatCurrency((int) $metrics['treasury']['unreconciled_value'], $currencyCode) }}</p>
+                <p class="text-xs text-cyan-700">Unmatched amount: {{ \App\Support\Money::formatCurrency((int) $metrics['treasury']['unreconciled_value'], $currencyCode) }}</p>
             </div>
             <div class="rounded-2xl border border-teal-200 bg-teal-50 p-4">
-                <p class="text-xs uppercase tracking-[0.1em] text-teal-700 break-words leading-tight">Pilot Rollout Decisions</p>
+                <p class="text-xs uppercase tracking-[0.1em] text-teal-700 break-words leading-tight">Provider Rollout Decisions</p>
                 <p class="mt-1 text-2xl font-semibold text-teal-900">{{ number_format((int) $metrics['rollout']['total']) }}</p>
                 <p class="mt-1 text-xs text-teal-700">Go: {{ number_format((int) $metrics['rollout']['go']) }}</p>
                 <p class="text-xs text-teal-700">Hold: {{ number_format((int) $metrics['rollout']['hold']) }} | No-go: {{ number_format((int) $metrics['rollout']['no_go']) }}</p>
@@ -148,14 +159,14 @@
             </div>
         @else
             <div wire:loading.flex wire:target="moduleFilter,search,departmentFilter,dateFrom,dateTo,perPage,gotoPage,previousPage,nextPage" class="border-b border-slate-200 px-4 py-3 text-sm text-slate-500">
-                Loading unified report rows...
+                Loading reports...
             </div>
 
             <div class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-slate-200 text-sm">
                     <thead class="bg-slate-50 text-xs uppercase tracking-[0.12em] text-slate-500">
                         <tr>
-                            <th class="px-4 py-3 text-left font-semibold">Module</th>
+                            <th class="px-4 py-3 text-left font-semibold">Area</th>
                             <th class="px-4 py-3 text-left font-semibold">Record</th>
                             <th class="px-4 py-3 text-left font-semibold">Department</th>
                             <th class="px-4 py-3 text-left font-semibold">Owner</th>
@@ -172,9 +183,10 @@
                                     'Requests' => 'bg-sky-100 text-sky-700',
                                     'Expenses' => 'bg-emerald-100 text-emerald-700',
                                     'Vendors' => 'bg-amber-100 text-amber-700',
-                                    'Procurement' => 'bg-orange-100 text-orange-700',
+                                    'Purchase Orders' => 'bg-orange-100 text-orange-700',
                                     'Assets' => 'bg-indigo-100 text-indigo-700',
-                                    'Rollout' => 'bg-teal-100 text-teal-700',
+                                    'Provider Rollout' => 'bg-teal-100 text-teal-700',
+                                    'Bank Reconciliation' => 'bg-cyan-100 text-cyan-700',
                                     default => 'bg-slate-100 text-slate-700',
                                 };
 
@@ -187,7 +199,7 @@
                                     $statusClass = 'bg-red-100 text-red-700';
                                 }
                             @endphp
-                            <tr class="hover:bg-slate-50" wire:key="unified-report-row-{{ $activity['module'] }}-{{ $activity['code'] }}-{{ $loop->index }}">
+                            <tr class="hover:bg-slate-50" wire:key="report-row-{{ $activity['module'] }}-{{ $activity['code'] }}-{{ $loop->index }}">
                                 <td class="px-4 py-3">
                                     <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold {{ $moduleClass }}">
                                         {{ $activity['module'] }}
@@ -228,7 +240,7 @@
                         @empty
                             <tr>
                                 <td colspan="8" class="px-4 py-10 text-center text-sm text-slate-500">
-                                    No report rows found for the selected filters.
+                                    No report rows match these filters. Try clearing a filter or choosing a wider date range.
                                 </td>
                             </tr>
                         @endforelse

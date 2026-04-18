@@ -2,13 +2,13 @@
     <section class="fd-card p-5">
         <div class="flex flex-wrap items-start justify-between gap-3">
             <div>
-                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Financial Trace Guide</p>
+                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Reports</p>
                 <h2 class="mt-1 text-xl font-semibold text-slate-900">Budget to Payment Guide</h2>
                 <p class="mt-1 text-sm text-slate-600">How to read the money trail from budget check to audit evidence.</p>
             </div>
 
             <div class="flex flex-wrap gap-2">
-                <a href="{{ route('reports.financial-trace') }}" class="inline-flex items-center rounded-lg border border-slate-700 bg-slate-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800" style="background-color:#334155;border-color:#334155;color:#ffffff;">Open Financial Trace</a>
+                <a href="{{ route('reports.financial-trace') }}" class="inline-flex items-center rounded-lg border border-slate-700 bg-slate-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800" style="background-color:#334155;border-color:#334155;color:#ffffff;">Open Budget to Payment Trace</a>
                 <a href="{{ route('requests.index') }}" class="inline-flex items-center rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">Open Requests</a>
             </div>
         </div>
@@ -53,7 +53,7 @@
             </article>
             <article class="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
                 <p class="font-semibold text-slate-900">Bank Match</p>
-                <p class="mt-1">Matched means the bank line has been reconciled to the payment or expense. Open exceptions need reconciliation review.</p>
+                <p class="mt-1">Matched means the bank line has been linked to the payment or expense. Open issues need bank review.</p>
             </article>
         </div>
     </section>
@@ -88,7 +88,7 @@
             <li><span class="font-semibold">Purchase order issue</span>: open Purchase Order Management and check order issuance or match status.</li>
             <li><span class="font-semibold">Payment issue</span>: open Payments Ready to Send or Payment Provider Health.</li>
             <li><span class="font-semibold">Expense issue</span>: open the request and create or verify the linked expense record.</li>
-            <li><span class="font-semibold">Bank match issue</span>: open Bank Reconciliation and resolve unmatched items or exceptions.</li>
+            <li><span class="font-semibold">Bank match issue</span>: open Bank Reconciliation and resolve unmatched items.</li>
         </ul>
     </section>
 </div>

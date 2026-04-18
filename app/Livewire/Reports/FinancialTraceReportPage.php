@@ -447,7 +447,7 @@ class FinancialTraceReportPage extends Component
                 ? count($expenses).' request-linked record(s), '.\App\Support\Money::formatCurrency((int) $expenseAmount, strtoupper((string) $request->currency)).' posted'
                 : 'No expense record',
             'reconciliation_status' => $hasBankMatch
-                ? ($openExceptions > 0 ? 'Matched with exceptions' : 'Matched')
+                ? ($openExceptions > 0 ? 'Matched with open issues' : 'Matched')
                 : 'Not matched',
             'audit_status' => $auditCount.' event(s)',
             'gaps' => collect((array) ($trace['gaps'] ?? []))

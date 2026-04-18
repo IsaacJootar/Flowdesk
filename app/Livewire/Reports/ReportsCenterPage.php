@@ -133,13 +133,13 @@ class ReportsCenterPage extends Component
     private function moduleOptions(): array
     {
         $options = [
-            'all' => 'All modules',
+            'all' => 'All areas',
             'requests' => 'Requests',
             'expenses' => 'Expenses',
             'assets' => 'Assets',
             'budgets' => 'Budgets',
-            'treasury' => 'Treasury',
-            'rollout' => 'Rollout',
+            'treasury' => 'Bank Reconciliation',
+            'rollout' => 'Provider Rollout',
         ];
 
         if ($this->canViewVendors()) {
@@ -671,13 +671,13 @@ class ReportsCenterPage extends Component
         }
 
         return $query->select([
-            DB::raw("'Treasury' as module"),
+            DB::raw("'Bank Reconciliation' as module"),
             DB::raw("'treasury' as module_key"),
             'reconciliation_exceptions.id as record_id',
             DB::raw('NULL as related_id'),
             'reconciliation_exceptions.id as sort_id',
-            DB::raw('UPPER(COALESCE(reconciliation_exceptions.exception_code, \'exception\')) as code'),
-            DB::raw("'Reconciliation exception' as title"),
+            DB::raw('UPPER(COALESCE(reconciliation_exceptions.exception_code, \'bank_item\')) as code'),
+            DB::raw("'Unresolved bank item' as title"),
             'reconciliation_exceptions.exception_status as status',
             DB::raw('0 as amount'),
             DB::raw("'-' as department"),
@@ -714,13 +714,13 @@ class ReportsCenterPage extends Component
         }
 
         return $query->select([
-            DB::raw("'Rollout' as module"),
+            DB::raw("'Provider Rollout' as module"),
             DB::raw("'rollout' as module_key"),
             'tenant_pilot_wave_outcomes.id as record_id',
             DB::raw('NULL as related_id'),
             'tenant_pilot_wave_outcomes.id as sort_id',
             DB::raw('UPPER(COALESCE(tenant_pilot_wave_outcomes.wave_label, \'wave\')) as code'),
-            DB::raw("'Pilot wave decision' as title"),
+            DB::raw("'Provider rollout decision' as title"),
             'tenant_pilot_wave_outcomes.outcome as status',
             DB::raw('0 as amount'),
             DB::raw("'-' as department"),
@@ -1008,7 +1008,7 @@ class ReportsCenterPage extends Component
     private function quickLinks(): array
     {
         $links = [
-            ['label' => 'Financial Trace', 'route' => route('reports.financial-trace')],
+            ['label' => 'Budget to Payment Trace', 'route' => route('reports.financial-trace')],
             ['label' => 'Request Reports', 'route' => route('requests.reports')],
             ['label' => 'Expenses', 'route' => route('expenses.index')],
             ['label' => 'Asset Reports', 'route' => route('assets.reports')],
@@ -1136,7 +1136,6 @@ class ReportsCenterPage extends Component
         return (bool) config('performance.cache.enabled', true);
     }
 }
-
 
 
 

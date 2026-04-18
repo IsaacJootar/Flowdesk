@@ -14,6 +14,7 @@ use App\Domains\Vendors\Models\VendorInvoice;
 use App\Enums\UserRole;
 use App\Livewire\Reports\ReportsCenterPage;
 use App\Models\User;
+use App\Services\NavAccessService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
 use Livewire\Livewire;
@@ -52,12 +53,26 @@ class ReportsCenterTest extends TestCase
 
         Livewire::test(ReportsCenterPage::class)
             ->call('loadData')
-            ->assertSee('Unified Reports')
+            ->assertSee('Reports')
             ->assertSee('Requests')
             ->assertSee('Posted Expenses')
-            ->assertSee('Procurement Health')
+            ->assertSee('Purchase Order Checks')
             ->assertSee('Assets')
             ->assertSee('Active Budgets');
+    }
+
+    public function test_financial_trace_is_sidebar_link_for_report_roles_but_not_staff(): void
+    {
+        [$company, $department] = $this->createCompanyContext('Reports Center Trace Nav');
+        $finance = $this->createUser($company, $department, UserRole::Finance->value);
+        $manager = $this->createUser($company, $department, UserRole::Manager->value);
+        $auditor = $this->createUser($company, $department, UserRole::Auditor->value);
+        $staff = $this->createUser($company, $department, UserRole::Staff->value);
+
+        $this->assertContains('reports.financial-trace', array_column(app(NavAccessService::class)->forUser($finance)['items'], 'route'));
+        $this->assertContains('reports.financial-trace', array_column(app(NavAccessService::class)->forUser($manager)['items'], 'route'));
+        $this->assertContains('reports.financial-trace', array_column(app(NavAccessService::class)->forUser($auditor)['items'], 'route'));
+        $this->assertNotContains('reports.financial-trace', array_column(app(NavAccessService::class)->forUser($staff)['items'], 'route'));
     }
 
     public function test_reports_center_shows_procurement_rollout_kpis(): void
@@ -120,10 +135,10 @@ class ReportsCenterTest extends TestCase
 
         Livewire::test(ReportsCenterPage::class)
             ->call('loadData')
-            ->assertSee('Procurement Health')
+            ->assertSee('Purchase Order Checks')
             ->assertSee('Open issues: 1')
-            ->assertSee('Match pass rate: 50.0%')
-            ->assertSee('Stale commitments: 1');
+            ->assertSee('Invoice match rate: 50.0%')
+            ->assertSee('Old budget holds: 1');
     }
 
 
@@ -152,7 +167,7 @@ class ReportsCenterTest extends TestCase
 
         Livewire::test(ReportsCenterPage::class)
             ->call('loadData')
-            ->assertSee('Pilot Rollout Decisions')
+            ->assertSee('Provider Rollout Decisions')
             ->assertSee('Go: 1')
             ->assertSee('Hold: 1 | No-go: 0');
     }

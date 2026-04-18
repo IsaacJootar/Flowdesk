@@ -51,6 +51,11 @@ class TenantModuleEntitlementTest extends TestCase
             'updated_by' => $owner->id,
         ]);
 
+        $routes = array_column(app(NavAccessService::class)->forUser($owner)['items'], 'route');
+
+        $this->assertNotContains('reports.index', $routes);
+        $this->assertNotContains('reports.financial-trace', $routes);
+
         $this->actingAs($owner)
             ->get(route('reports.index'))
             ->assertForbidden();
