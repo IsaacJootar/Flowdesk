@@ -161,15 +161,11 @@
                     @endphp
 
                     <article class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm" wire:key="financial-trace-report-row-{{ $row['id'] }}">
-                        <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                            <div class="min-w-0 flex-1">
-                                <div class="flex flex-wrap items-center gap-2">
-                                    <span class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">{{ $row['request_code'] }}</span>
-                                    <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold {{ $traceStatusClass }}">{{ $row['trace_status'] }}</span>
-                                    <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold {{ $requestStatusClass }}">{{ $requestStatusLabel }}</span>
-                                </div>
-
-                                <h2 class="mt-2 break-words text-base font-semibold leading-6 text-slate-900">{{ $row['title'] }}</h2>
+                        <div class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_14rem_12rem] lg:items-start">
+                            <div class="min-w-0">
+                                <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Request</p>
+                                <p class="mt-1 text-sm font-semibold text-slate-600">{{ $row['request_code'] }}</p>
+                                <h2 class="mt-1 break-words text-base font-semibold leading-6 text-slate-900">{{ $row['title'] }}</h2>
 
                                 <dl class="mt-3 grid gap-3 text-sm sm:grid-cols-3">
                                     <div class="min-w-0">
@@ -187,14 +183,28 @@
                                 </dl>
                             </div>
 
-                            <div class="flex shrink-0 flex-col gap-2 sm:flex-row lg:flex-col lg:items-end">
-                                <div class="sm:min-w-[10rem] lg:text-right">
-                                    <p class="text-xs font-medium text-slate-400">Amount</p>
-                                    <p class="mt-0.5 text-base font-semibold text-slate-900">{{ \App\Support\Money::formatCurrency((int) $row['amount'], (string) $row['currency']) }}</p>
+                            <div class="min-w-0 border-t border-slate-100 pt-3 lg:border-l lg:border-t-0 lg:pl-4 lg:pt-0">
+                                <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Current Status</p>
+                                <div class="mt-2 space-y-3">
+                                    <div>
+                                        <p class="mb-1 text-xs font-medium text-slate-400">Trace</p>
+                                        <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold {{ $traceStatusClass }}">{{ $row['trace_status'] }}</span>
+                                    </div>
+                                    <div>
+                                        <p class="mb-1 text-xs font-medium text-slate-400">Request</p>
+                                        <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold {{ $requestStatusClass }}">{{ $requestStatusLabel }}</span>
+                                    </div>
                                 </div>
-                                <a href="{{ $row['url'] }}" class="inline-flex h-9 items-center justify-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50">
-                                    Open request
-                                </a>
+                            </div>
+
+                            <div class="min-w-0 border-t border-slate-100 pt-3 lg:border-l lg:border-t-0 lg:pl-4 lg:pt-0 lg:text-right">
+                                <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Amount</p>
+                                <p class="mt-1 text-base font-semibold text-slate-900">{{ \App\Support\Money::formatCurrency((int) $row['amount'], (string) $row['currency']) }}</p>
+                                <div class="mt-3">
+                                    <a href="{{ $row['url'] }}" class="inline-flex h-9 items-center justify-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50">
+                                        Open request
+                                    </a>
+                                </div>
                             </div>
                         </div>
 
