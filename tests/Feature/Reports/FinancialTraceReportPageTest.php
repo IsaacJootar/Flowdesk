@@ -117,6 +117,14 @@ class FinancialTraceReportPageTest extends TestCase
             ->assertSee('PAY-TRACE-RPT-001')
             ->assertSee('Not matched')
             ->assertSee('Payment is settled, but no linked expense is recorded yet.');
+
+        Livewire::test(FinancialTraceReportPage::class)
+            ->call('loadData')
+            ->set('traceStatusFilter', 'needs_expense')
+            ->assertSee('FD-TRACE-RPT-001')
+            ->assertSee('Needs Expense')
+            ->set('traceStatusFilter', 'complete')
+            ->assertDontSee('FD-TRACE-RPT-001');
     }
 
     public function test_staff_cannot_view_budget_to_payment_trace_report(): void

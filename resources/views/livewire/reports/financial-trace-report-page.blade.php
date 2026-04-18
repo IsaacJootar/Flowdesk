@@ -36,6 +36,16 @@
             </label>
 
             <label class="block">
+                <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Trace Status</span>
+                <select wire:model.live="traceStatusFilter" class="w-full rounded-xl border-slate-300 text-sm focus:border-slate-500 focus:ring-slate-500">
+                    <option value="all">All trace statuses</option>
+                    @foreach ($traceStatusOptions as $status => $label)
+                        <option value="{{ $status }}">{{ $label }}</option>
+                    @endforeach
+                </select>
+            </label>
+
+            <label class="block">
                 <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Payment Status</span>
                 <select wire:model.live="paymentFilter" class="w-full rounded-xl border-slate-300 text-sm focus:border-slate-500 focus:ring-slate-500">
                     <option value="all">All payments</option>
@@ -114,7 +124,7 @@
                 @endfor
             </div>
         @else
-            <div wire:loading.flex wire:target="search,statusFilter,paymentFilter,departmentFilter,dateFrom,dateTo,perPage,gotoPage,previousPage,nextPage" class="border-b border-slate-200 px-4 py-3 text-sm text-slate-500">
+            <div wire:loading.flex wire:target="search,statusFilter,traceStatusFilter,paymentFilter,departmentFilter,dateFrom,dateTo,perPage,gotoPage,previousPage,nextPage" class="border-b border-slate-200 px-4 py-3 text-sm text-slate-500">
                 Loading trace rows...
             </div>
 

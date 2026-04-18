@@ -8,6 +8,8 @@ use App\Enums\UserRole;
 use App\Services\FinancialTraceService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -48,6 +50,20 @@ class FinancialTraceReportPage extends Component
         'reversed',
     ];
 
+    private const TRACE_STATUS_OPTIONS = [
+        'complete' => 'Complete',
+        'in_progress' => 'In Progress',
+        'needs_budget' => 'Needs Budget',
+        'needs_approval' => 'Needs Approval',
+        'needs_po_commitment' => 'Needs PO Commitment',
+        'needs_payment' => 'Needs Payment',
+        'payment_in_progress' => 'Payment In Progress',
+        'needs_expense' => 'Needs Expense',
+        'needs_bank_match' => 'Needs Bank Match',
+        'payment_failed' => 'Payment Failed',
+        'payment_reversed' => 'Payment Reversed',
+    ];
+
     public bool $readyToLoad = false;
 
     #[Url(as: 'search')]
@@ -56,6 +72,8 @@ class FinancialTraceReportPage extends Component
     public string $statusFilter = 'all';
 
     public string $paymentFilter = 'all';
+
+    public string $traceStatusFilter = 'all';
 
     public string $departmentFilter = 'all';
 
@@ -91,6 +109,12 @@ class FinancialTraceReportPage extends Component
     public function updatedPaymentFilter(): void
     {
         $this->paymentFilter = $this->normalizePaymentFilter($this->paymentFilter);
+        $this->resetPage();
+    }
+
+    public function updatedTraceStatusFilter(): void
+    {
+        $this->traceStatusFilter = $this->normalizeTraceStatusFilter($this->traceStatusFilter);
         $this->resetPage();
     }
 
@@ -131,29 +155,24 @@ class FinancialTraceReportPage extends Component
             ->get(['id', 'name']);
 
         $baseQuery = $this->baseQuery();
-        $metrics = $this->readyToLoad ? $this->buildMetrics(clone $baseQuery) : $this->emptyMetrics();
 
-        $requests = $this->readyToLoad
-            ? (clone $baseQuery)
-                ->with([
-                    'requester:id,name',
-                    'department:id,name',
-                    'vendor:id,name',
-                    'approvals.actor:id,name',
-                    'approvals.workflowStep:id,step_order,step_key,actor_type,actor_value',
-                    'purchaseOrders.commitments',
-                    'purchaseOrders.matchResults',
-                    'expenses',
-                    'payoutExecutionAttempt',
-                ])
-                ->latest('updated_at')
-                ->latest('id')
-                ->paginate($this->perPage)
-            : SpendRequest::query()->whereRaw('1 = 0')->paginate($this->perPage);
+        if ($this->readyToLoad && $this->traceStatusFilter !== 'all') {
+            [$requests, $traceRows, $metrics] = $this->traceStatusFilteredResults(clone $baseQuery, $financialTraceService);
+        } else {
+            $metrics = $this->readyToLoad ? $this->buildMetrics(clone $baseQuery) : $this->emptyMetrics();
 
-        $traceRows = $this->readyToLoad
-            ? $this->traceRows($requests->getCollection(), $financialTraceService)
-            : [];
+            $requests = $this->readyToLoad
+                ? (clone $baseQuery)
+                    ->with($this->traceRelations())
+                    ->latest('updated_at')
+                    ->latest('id')
+                    ->paginate($this->perPage)
+                : SpendRequest::query()->whereRaw('1 = 0')->paginate($this->perPage);
+
+            $traceRows = $this->readyToLoad
+                ? $this->traceRows($requests->getCollection(), $financialTraceService)
+                : [];
+        }
 
         if ($this->readyToLoad) {
             $metrics['trace_notes_on_page'] = array_sum(array_map(
@@ -169,6 +188,7 @@ class FinancialTraceReportPage extends Component
             'metrics' => $metrics,
             'statusOptions' => array_values(array_filter(self::ALLOWED_STATUS_FILTERS, static fn (string $status): bool => $status !== 'all')),
             'paymentOptions' => array_values(array_filter(self::ALLOWED_PAYMENT_FILTERS, static fn (string $status): bool => $status !== 'all')),
+            'traceStatusOptions' => self::TRACE_STATUS_OPTIONS,
             'currencyCode' => strtoupper((string) (Auth::user()?->company?->currency_code ?: 'NGN')),
         ]);
     }
@@ -223,6 +243,70 @@ class FinancialTraceReportPage extends Component
         return $this->applyRoleScope($query);
     }
 
+    /**
+     * @return array{0:LengthAwarePaginator<int,array<string,mixed>>,1:array<int,array<string,mixed>>,2:array<string,int>}
+     */
+    private function traceStatusFilteredResults(Builder $query, FinancialTraceService $financialTraceService): array
+    {
+        $requests = $query
+            ->with($this->traceRelations())
+            ->latest('updated_at')
+            ->latest('id')
+            ->get();
+
+        $allRows = collect($this->traceRows($requests, $financialTraceService));
+        $filteredRows = $allRows
+            ->filter(fn (array $row): bool => (string) ($row['trace_status_key'] ?? '') === $this->traceStatusFilter)
+            ->values();
+
+        $filteredIds = $filteredRows
+            ->pluck('id')
+            ->map(fn (mixed $id): int => (int) $id)
+            ->all();
+
+        $filteredRequests = $requests
+            ->filter(fn (SpendRequest $request): bool => in_array((int) $request->id, $filteredIds, true))
+            ->values();
+
+        $page = max(1, (int) $this->getPage());
+        $pageRows = $filteredRows->forPage($page, $this->perPage)->values();
+
+        $paginator = new LengthAwarePaginator(
+            $pageRows,
+            $filteredRows->count(),
+            $this->perPage,
+            $page,
+            [
+                'path' => request()->url(),
+                'query' => request()->query(),
+            ]
+        );
+
+        return [
+            $paginator,
+            $pageRows->all(),
+            $this->buildMetricsFromCollection($filteredRequests),
+        ];
+    }
+
+    /**
+     * @return array<int,string>
+     */
+    private function traceRelations(): array
+    {
+        return [
+            'requester:id,name',
+            'department:id,name',
+            'vendor:id,name',
+            'approvals.actor:id,name',
+            'approvals.workflowStep:id,step_order,step_key,actor_type,actor_value',
+            'purchaseOrders.commitments',
+            'purchaseOrders.matchResults',
+            'expenses',
+            'payoutExecutionAttempt',
+        ];
+    }
+
     private function applyRoleScope(Builder $query): Builder
     {
         $user = Auth::user();
@@ -263,6 +347,23 @@ class FinancialTraceReportPage extends Component
             )->count(),
             'purchase_orders' => (int) (clone $query)->has('purchaseOrders')->count(),
             'linked_expenses' => (int) (clone $query)->has('expenses')->count(),
+            'trace_notes_on_page' => 0,
+        ];
+    }
+
+    /**
+     * @param  Collection<int,SpendRequest>  $requests
+     * @return array{total_requests:int,total_amount:int,payment_attempts:int,settled_payments:int,purchase_orders:int,linked_expenses:int,trace_notes_on_page:int}
+     */
+    private function buildMetricsFromCollection(Collection $requests): array
+    {
+        return [
+            'total_requests' => $requests->count(),
+            'total_amount' => (int) $requests->sum(fn (SpendRequest $request): int => (int) $request->amount),
+            'payment_attempts' => $requests->filter(fn (SpendRequest $request): bool => $request->payoutExecutionAttempt !== null)->count(),
+            'settled_payments' => $requests->filter(fn (SpendRequest $request): bool => (string) ($request->payoutExecutionAttempt?->execution_status ?? '') === 'settled')->count(),
+            'purchase_orders' => $requests->filter(fn (SpendRequest $request): bool => $request->purchaseOrders->isNotEmpty())->count(),
+            'linked_expenses' => $requests->filter(fn (SpendRequest $request): bool => $request->expenses->isNotEmpty())->count(),
             'trace_notes_on_page' => 0,
         ];
     }
@@ -366,6 +467,7 @@ class FinancialTraceReportPage extends Component
         $this->search = $this->normalizeSearch($this->search);
         $this->statusFilter = $this->normalizeStatusFilter($this->statusFilter);
         $this->paymentFilter = $this->normalizePaymentFilter($this->paymentFilter);
+        $this->traceStatusFilter = $this->normalizeTraceStatusFilter($this->traceStatusFilter);
         $this->departmentFilter = $this->normalizeDepartmentFilter($this->departmentFilter);
         $this->dateFrom = $this->normalizeDate($this->dateFrom);
         $this->dateTo = $this->normalizeDate($this->dateTo);
@@ -390,6 +492,15 @@ class FinancialTraceReportPage extends Component
         $normalized = strtolower(trim($value));
 
         return in_array($normalized, self::ALLOWED_PAYMENT_FILTERS, true) ? $normalized : 'all';
+    }
+
+    private function normalizeTraceStatusFilter(string $value): string
+    {
+        $normalized = strtolower(trim($value));
+
+        return $normalized === 'all' || array_key_exists($normalized, self::TRACE_STATUS_OPTIONS)
+            ? $normalized
+            : 'all';
     }
 
     private function normalizeDepartmentFilter(string $value): string
