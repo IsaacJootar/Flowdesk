@@ -83,7 +83,13 @@
                                 $actionTone = $actionToneClasses[$loop->index % count($actionToneClasses)];
                             @endphp
                             <a href="{{ $action['url'] }}" class="block rounded-xl border px-3 py-2 transition-colors {{ $actionTone }}">
-                                <p class="text-sm font-semibold">{{ $action['label'] }}</p>
+                                <div class="flex items-start justify-between gap-3">
+                                    <p class="text-sm font-semibold">{{ $action['label'] }}</p>
+                                    <span class="inline-flex items-center gap-1 text-xs font-semibold">
+                                        Open
+                                        <svg class="h-3 w-3 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                                    </span>
+                                </div>
                                 <p class="mt-0.5 text-xs opacity-80">{{ $action['hint'] }}</p>
                             </a>
                         @endforeach
