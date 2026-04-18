@@ -84,10 +84,8 @@
             <div class="inline-flex items-center gap-2">
                 <a
                     href="{{ route('assets.reports') }}"
-                    class="inline-flex items-center rounded-xl border border-slate-300 bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-200"
-                >
-                    Asset Reports
-                </a>
+                    class="inline-flex items-center gap-1 rounded-xl border border-slate-300 bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-200"
+                >Asset Reports<svg class="h-3 w-3 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg></a>
                 <label class="inline-flex items-center gap-2 text-xs text-slate-500">
                     <span>Rows</span>
                     <select wire:model.live="perPage" class="rounded-lg border-slate-300 text-xs focus:border-slate-500 focus:ring-slate-500">

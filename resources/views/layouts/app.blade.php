@@ -206,6 +206,10 @@
                                     @endif
                                 </div>
 
+                                @auth
+                                    @livewire('shell.notification-bell')
+                                @endauth
+
                                 <a href="{{ route('profile.edit') }}" class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600">Profile</a>
 
                                 <form method="POST" action="{{ route('logout') }}">

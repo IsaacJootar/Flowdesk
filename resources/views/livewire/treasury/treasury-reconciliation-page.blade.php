@@ -57,17 +57,17 @@
         <div class="rounded-2xl border border-amber-200 bg-amber-50 p-4">
             <p class="text-xs font-semibold uppercase tracking-[0.14em] text-amber-700">Unmatched Lines</p>
             <p class="mt-2 text-2xl font-semibold text-amber-900">{{ number_format((int) ($summary['unreconciled'] ?? 0)) }}</p>
-            <p class="text-xs text-amber-700">Value {{ number_format((int) ($summary['unreconciled_value'] ?? 0)) }}</p>
+            <p class="text-xs text-amber-700">Total: {{ number_format((int) ($summary['unreconciled_value'] ?? 0)) }}</p>
         </div>
         <div class="rounded-2xl border border-rose-200 bg-rose-50 p-4">
             <p class="text-xs font-semibold uppercase tracking-[0.14em] text-rose-700">Open Issues</p>
             <p class="mt-2 text-2xl font-semibold text-rose-900">{{ number_format((int) ($summary['open_exceptions'] ?? 0)) }}</p>
-            <p class="text-xs text-rose-700">Resolve or waive before close-day.</p>
+            <p class="text-xs text-rose-700">Fix or close these before end of day.</p>
         </div>
         <div class="rounded-2xl border border-indigo-200 bg-indigo-50 p-4">
             <p class="text-xs font-semibold uppercase tracking-[0.14em] text-indigo-700">Payment Runs</p>
             <p class="mt-2 text-2xl font-semibold text-indigo-900">{{ number_format((int) ($summary['processing_runs'] ?? 0)) }}</p>
-            <p class="text-xs text-indigo-700">Processing now | failed today {{ number_format((int) ($paymentRunSummary['failed_today'] ?? 0)) }}</p>
+            <p class="text-xs text-indigo-700">Processing now · Failed today: {{ number_format((int) ($paymentRunSummary['failed_today'] ?? 0)) }}</p>
         </div>
     </div>
 
@@ -145,7 +145,7 @@
             </label>
 
             <label class="block">
-                <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Search Line</span>
+                <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Search</span>
                 <input type="text" wire:model.live.debounce.300ms="lineSearch" class="w-full rounded-xl border-slate-300 text-sm focus:border-slate-500 focus:ring-slate-500" placeholder="Reference or description">
             </label>
 
@@ -162,14 +162,14 @@
         </div>
 
         <div class="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
-            <p>Rows imported: {{ number_format((int) ($importStatus['rows_imported'] ?? 0)) }} | skipped duplicates: {{ number_format((int) ($importStatus['rows_skipped'] ?? 0)) }}</p>
-            <p>Latest closing balance: {{ number_format((int) ($importStatus['closing_balance'] ?? 0)) }} | Last payment run update: {{ $paymentRunSummary['last_run_at'] ?: 'N/A' }}</p>
+            <p>Lines loaded: {{ number_format((int) ($importStatus['rows_imported'] ?? 0)) }} · Duplicates skipped: {{ number_format((int) ($importStatus['rows_skipped'] ?? 0)) }}</p>
+            <p>Closing balance: {{ number_format((int) ($importStatus['closing_balance'] ?? 0)) }} · Last payment update: {{ $paymentRunSummary['last_run_at'] ?: 'None yet' }}</p>
         </div>
     </div>
 
     <div class="fd-card p-5">
-        <h3 class="text-sm font-semibold text-slate-900">Bank Account Setup</h3>
-        <p class="mt-1 text-xs text-slate-500">Add account references used for statement ingestion and reconciliation context.</p>
+        <h3 class="text-sm font-semibold text-slate-900">Add a Bank Account</h3>
+        <p class="mt-1 text-xs text-slate-500">Add your bank account details so Flowdesk can match your bank statement to payments.</p>
 
         @if ($errors->has('bankAccountForm.account_name') || $errors->has('bankAccountForm.bank_name') || $errors->has('bankAccountForm.currency_code'))
             <div class="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
@@ -219,106 +219,124 @@
         @endif
     </div>
 
-    <div class="fd-card p-5">
-        <h3 class="text-sm font-semibold text-slate-900">Statement Import and Auto-Reconcile</h3>
+    <div class="fd-card divide-y divide-slate-100">
 
-        @if ($activeMonoAccount)
-            {{-- Mono Connect is linked: primary sync panel --}}
-            <div class="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
-                <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                        <p class="text-xs font-semibold uppercase tracking-[0.12em] text-emerald-700">Mono Connect — Live Bank Feed</p>
-                        <p class="mt-1 text-sm font-medium text-slate-900">{{ $activeMonoAccount->institution_name ?? 'Linked Bank' }} · {{ $activeMonoAccount->account_name ?? 'Account' }}</p>
-                        <p class="text-xs text-slate-500">
-                            Last synced: {{ $activeMonoAccount->last_synced_at ? $activeMonoAccount->last_synced_at->format('M d, Y H:i') : 'Never' }}
-                            @if ($activeMonoAccount->balance_amount)
-                                &nbsp;·&nbsp; Balance: NGN {{ number_format($activeMonoAccount->balance_major, 2) }}
-                            @endif
-                        </p>
-                    </div>
-                    @if ($canOperate)
-                        <div class="flex items-center gap-2">
-                            <label class="inline-flex items-center gap-1.5 text-xs text-slate-600">
-                                <span>Days back</span>
-                                <select wire:model.live="monoSyncDays" class="rounded-lg border-slate-300 text-xs focus:border-slate-500 focus:ring-slate-500">
-                                    <option value="1">1</option>
-                                    <option value="3">3</option>
-                                    <option value="7">7</option>
-                                    <option value="14">14</option>
-                                    <option value="30">30</option>
-                                </select>
-                            </label>
-                            <button type="button" wire:click="syncMonoStatement" wire:loading.attr="disabled" wire:target="syncMonoStatement" class="rounded-lg border border-emerald-600 bg-emerald-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-70">
-                                <span wire:loading.remove wire:target="syncMonoStatement">Sync via Mono</span>
-                                <span wire:loading wire:target="syncMonoStatement">Syncing...</span>
-                            </button>
+        {{-- Step 1 --}}
+        <div class="p-5">
+            <div class="flex items-start gap-3">
+                <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-800 text-xs font-bold text-white">1</span>
+                <div class="min-w-0 flex-1">
+                    <p class="text-sm font-semibold text-slate-900">Load your bank statement</p>
+                    <p class="mt-0.5 text-xs text-slate-500">Pull in today's transactions — either automatically from your bank or by uploading a CSV file.</p>
+                </div>
+            </div>
+
+            @if ($activeMonoAccount)
+                {{-- Mono Connect is linked --}}
+                <div class="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+                    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                            <p class="text-xs font-semibold uppercase tracking-[0.12em] text-emerald-700">Live Bank Connection (Mono)</p>
+                            <p class="mt-1 text-sm font-medium text-slate-900">{{ $activeMonoAccount->institution_name ?? 'Linked Bank' }} · {{ $activeMonoAccount->account_name ?? 'Account' }}</p>
+                            <p class="text-xs text-slate-500">
+                                Last synced: {{ $activeMonoAccount->last_synced_at ? $activeMonoAccount->last_synced_at->format('M d, Y H:i') : 'Never' }}
+                                @if ($activeMonoAccount->balance_amount)
+                                    &nbsp;·&nbsp; Balance: NGN {{ number_format($activeMonoAccount->balance_major, 2) }}
+                                @endif
+                            </p>
                         </div>
+                        @if ($canOperate)
+                            <div class="flex items-center gap-2">
+                                <label class="inline-flex items-center gap-1.5 text-xs text-slate-600">
+                                    <span>Days back</span>
+                                    <select wire:model.live="monoSyncDays" class="rounded-lg border-slate-300 text-xs focus:border-slate-500 focus:ring-slate-500">
+                                        <option value="1">1</option>
+                                        <option value="3">3</option>
+                                        <option value="7">7</option>
+                                        <option value="14">14</option>
+                                        <option value="30">30</option>
+                                    </select>
+                                </label>
+                                <button type="button" wire:click="syncMonoStatement" wire:loading.attr="disabled" wire:target="syncMonoStatement" class="rounded-lg border border-emerald-600 bg-emerald-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-70">
+                                    <span wire:loading.remove wire:target="syncMonoStatement">Sync Now</span>
+                                    <span wire:loading wire:target="syncMonoStatement">Syncing...</span>
+                                </button>
+                            </div>
+                        @endif
+                    </div>
+                    @if ($activeMonoAccount->sync_error)
+                        <p class="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs text-amber-700">Last sync error: {{ $activeMonoAccount->sync_error }}</p>
                     @endif
                 </div>
-                @if ($activeMonoAccount->sync_error)
-                    <p class="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs text-amber-700">Last sync error: {{ $activeMonoAccount->sync_error }}</p>
-                @endif
-            </div>
 
-            {{-- CSV as fallback when Mono is linked --}}
-            <div class="mt-4 border-t border-slate-100 pt-4">
-                <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Manual CSV Upload (fallback)</p>
-                <p class="mt-1 text-xs text-slate-400">Use only if Mono sync is unavailable. Columns: posted_at, direction, amount, optional value_date/description/line_reference/currency_code/balance_after.</p>
-                <div class="mt-2 grid gap-3 sm:grid-cols-[1fr,auto]">
-                    <input type="file" wire:model="statementFile" accept=".csv,.txt" class="rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-500">
-                    @if ($canOperate)
-                        <button type="button" wire:click="importStatement" wire:loading.attr="disabled" wire:target="importStatement,statementFile" class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-500 hover:bg-slate-50 disabled:opacity-70">
-                            <span wire:loading.remove wire:target="importStatement,statementFile">Upload CSV</span>
-                            <span wire:loading wire:target="importStatement,statementFile">Uploading...</span>
-                        </button>
-                    @endif
+                {{-- CSV fallback --}}
+                <div class="mt-4 border-t border-slate-100 pt-4">
+                    <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Or upload a CSV instead</p>
+                    <p class="mt-1 text-xs text-slate-400">Use this only if the live connection is unavailable. Download your statement from your bank's portal and upload it here.</p>
+                    <div class="mt-2 grid gap-3 sm:grid-cols-[1fr,auto]">
+                        <input type="file" wire:model="statementFile" accept=".csv,.txt" class="rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-500">
+                        @if ($canOperate)
+                            <button type="button" wire:click="importStatement" wire:loading.attr="disabled" wire:target="importStatement,statementFile" class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-500 hover:bg-slate-50 disabled:opacity-70">
+                                <span wire:loading.remove wire:target="importStatement,statementFile">Upload CSV</span>
+                                <span wire:loading wire:target="importStatement,statementFile">Uploading...</span>
+                            </button>
+                        @endif
+                    </div>
+                    @error('statementFile')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
                 </div>
-                @error('statementFile')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
-            </div>
+            @else
+                {{-- No Mono: CSV is the primary method --}}
+                @if ($selectedBankAccountId)
+                    <div class="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+                        <p class="text-xs font-semibold uppercase tracking-[0.12em] text-amber-700">No live bank connection</p>
+                        <p class="mt-1 text-xs text-slate-600">Connect this account to your bank to get live transaction updates — no manual uploads needed. Ask your admin to complete the setup.</p>
+                    </div>
+                @endif
 
-            {{-- Auto-reconcile always available --}}
-            @if ($canOperate)
-                <div class="mt-3 flex justify-end">
-                    <button type="button" wire:click="runAutoReconcile" wire:loading.attr="disabled" wire:target="runAutoReconcile" class="rounded-lg border border-indigo-300 bg-indigo-50 px-3 py-1.5 text-xs font-medium text-indigo-700 hover:bg-indigo-100 disabled:opacity-70">
-                        <span wire:loading.remove wire:target="runAutoReconcile">Run Auto-Reconcile</span>
-                        <span wire:loading wire:target="runAutoReconcile">Running...</span>
-                    </button>
+                <div class="mt-4">
+                    <p class="text-xs text-slate-500">Download your statement from your bank's portal and upload it here.</p>
+                    <div class="mt-2 grid gap-3 sm:grid-cols-[1fr,auto]">
+                        <input type="file" wire:model="statementFile" accept=".csv,.txt" class="rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-700">
+                        @if ($canOperate)
+                            <button type="button" wire:click="importStatement" wire:loading.attr="disabled" wire:target="importStatement,statementFile" class="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-70">
+                                <span wire:loading.remove wire:target="importStatement,statementFile">Upload Statement</span>
+                                <span wire:loading wire:target="importStatement,statementFile">Uploading...</span>
+                            </button>
+                        @endif
+                    </div>
+                    @error('statementFile')<p class="mt-2 text-xs text-red-600">{{ $message }}</p>@enderror
                 </div>
             @endif
-        @else
-            {{-- No Mono account linked: CSV is primary, amber nudge to link --}}
-            @if ($selectedBankAccountId)
-                <div class="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
-                    <p class="text-xs font-semibold uppercase tracking-[0.12em] text-amber-700">Mono Connect not linked</p>
-                    <p class="mt-1 text-xs text-slate-600">Link this bank account via Mono Connect to enable live transaction sync and eliminate manual CSV uploads. Contact your treasury admin to complete the widget linking flow.</p>
-                </div>
-            @endif
 
-            <p class="mt-3 text-xs text-slate-500">CSV columns: posted_at, direction, amount, optional value_date/description/line_reference/currency_code/balance_after.</p>
-            <div class="mt-2 grid gap-3 sm:grid-cols-[1fr,auto,auto]">
-                <input type="file" wire:model="statementFile" accept=".csv,.txt" class="rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-700">
-                @if ($canOperate)
-                    <button type="button" wire:click="importStatement" wire:loading.attr="disabled" wire:target="importStatement,statementFile" class="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-70">
-                        <span wire:loading.remove wire:target="importStatement,statementFile">Import Statement</span>
-                        <span wire:loading wire:target="importStatement,statementFile">Importing...</span>
+            @error('selectedBankAccountId')<p class="mt-2 text-xs text-red-600">{{ $message }}</p>@enderror
+        </div>
+
+        {{-- Step 2 --}}
+        @if ($canOperate)
+            <div class="p-5">
+                <div class="flex items-start justify-between gap-4">
+                    <div class="flex items-start gap-3">
+                        <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-indigo-700 text-xs font-bold text-white">2</span>
+                        <div>
+                            <p class="text-sm font-semibold text-slate-900">Match to payments</p>
+                            <p class="mt-0.5 text-xs text-slate-500">Once the statement is loaded, run this to automatically pair each bank line with an approved payment. Any lines that don't match are flagged for review.</p>
+                        </div>
+                    </div>
+                    <button type="button" wire:click="runAutoReconcile" wire:loading.attr="disabled" wire:target="runAutoReconcile" class="shrink-0 rounded-lg border border-indigo-300 bg-indigo-50 px-4 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100 disabled:opacity-70">
+                        <span wire:loading.remove wire:target="runAutoReconcile">Run Auto-Match</span>
+                        <span wire:loading wire:target="runAutoReconcile">Matching...</span>
                     </button>
-                    <button type="button" wire:click="runAutoReconcile" wire:loading.attr="disabled" wire:target="runAutoReconcile" class="rounded-lg border border-indigo-300 bg-indigo-50 px-3 py-1.5 text-xs font-medium text-indigo-700 hover:bg-indigo-100 disabled:opacity-70">
-                        <span wire:loading.remove wire:target="runAutoReconcile">Run Auto-Reconcile</span>
-                        <span wire:loading wire:target="runAutoReconcile">Running...</span>
-                    </button>
-                @endif
+                </div>
             </div>
-            @error('statementFile')<p class="mt-2 text-xs text-red-600">{{ $message }}</p>@enderror
         @endif
 
-        @error('selectedBankAccountId')<p class="mt-2 text-xs text-red-600">{{ $message }}</p>@enderror
     </div>
 
     @include('livewire.treasury.partials.recon-transactions-table')
     @include('livewire.treasury.partials.recon-items-queue')
     <div class="fd-card p-5">
-        <h3 class="text-sm font-semibold text-slate-900">Close-Day Checklist</h3>
-        <p class="mt-1 text-xs text-slate-500">Use this checklist before confirming daily treasury close. Backlog threshold: {{ number_format((int) $backlogAlertThreshold) }} unreconciled lines.</p>
+        <h3 class="text-sm font-semibold text-slate-900">End-of-Day Checklist</h3>
+        <p class="mt-1 text-xs text-slate-500">Work through these before closing the day. You'll be flagged if unmatched lines exceed {{ number_format((int) $backlogAlertThreshold) }}.</p>
 
         <div class="mt-3 space-y-2">
             @foreach ($closeDayChecklist as $item)

@@ -348,23 +348,30 @@ class TreasuryReconciliationPage extends Component
             return;
         }
 
+        if (! $this->selectedBankAccountId) {
+            $this->setFeedbackError('Select a bank account before running auto-reconcile.');
+
+            return;
+        }
+
         $statement = null;
         if ($this->selectedStatementId) {
             $statement = BankStatement::query()
                 ->where('company_id', (int) $user->company_id)
+                ->where('bank_account_id', (int) $this->selectedBankAccountId)
                 ->find((int) $this->selectedStatementId);
         }
 
         if (! $statement instanceof BankStatement) {
             $statement = BankStatement::query()
                 ->where('company_id', (int) $user->company_id)
-                ->when($this->selectedBankAccountId, fn (Builder $query) => $query->where('bank_account_id', (int) $this->selectedBankAccountId))
+                ->where('bank_account_id', (int) $this->selectedBankAccountId)
                 ->latest('id')
                 ->first();
         }
 
         if (! $statement instanceof BankStatement) {
-            $this->setFeedbackError('No statement found to reconcile. Import a statement first.');
+            $this->setFeedbackError('No statement found for this account. Import a statement first.');
 
             return;
         }
@@ -372,11 +379,21 @@ class TreasuryReconciliationPage extends Component
         $summary = $autoReconcileStatementService->run($user, $statement);
         $this->selectedStatementId = (int) $statement->id;
 
+        $matched = (int) $summary['matched'];
+        $exceptions = (int) $summary['exceptions'];
+        $conflicts = (int) $summary['conflicts'];
+
+        if ($matched === 0 && $exceptions === 0 && $conflicts === 0) {
+            $this->setFeedback('All lines are already matched — nothing new to process.');
+
+            return;
+        }
+
         $this->setFeedback(sprintf(
-            'Auto-reconcile complete. Matched %d line(s), opened %d exception(s), conflicts %d.',
-            (int) $summary['matched'],
-            (int) $summary['exceptions'],
-            (int) $summary['conflicts']
+            'Auto-reconcile done. Matched %d line(s)%s%s.',
+            $matched,
+            $exceptions > 0 ? ", {$exceptions} item(s) need attention" : '',
+            $conflicts > 0 ? ", {$conflicts} conflict(s) flagged" : ''
         ));
     }
 

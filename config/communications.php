@@ -16,6 +16,11 @@ return [
         // Inline keeps user actions responsive and avoids unnecessary queues.
         'mode' => env('FLOWDESK_COMM_DELIVERY_MODE', 'inline'),
     ],
+    'rate_limit' => [
+        // Cooldown window in minutes: duplicate logs for the same recipient+event+channel
+        // within this window are dropped to prevent notification flooding.
+        'cooldown_minutes' => (int) env('FLOWDESK_COMM_RATE_LIMIT_COOLDOWN_MINUTES', 5),
+    ],
     'recovery' => [
         // Hard ceiling to prevent runaway retry workloads from UI/CLI overrides.
         'max_batch_size' => (int) env('FLOWDESK_COMM_RECOVERY_MAX_BATCH_SIZE', 500),

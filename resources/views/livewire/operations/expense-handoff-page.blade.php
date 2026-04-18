@@ -39,8 +39,8 @@
                 <p class="mt-1 text-sm text-slate-700">Review settled payments, post the linked expense, or record why no expense is required.</p>
             </div>
             <div class="flex flex-wrap gap-2">
-                <a href="{{ route('reports.financial-trace') }}" class="inline-flex items-center rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">Financial Trace</a>
-                <a href="{{ route('expenses.index') }}" class="inline-flex items-center rounded-lg border border-emerald-300 bg-emerald-100 px-3 py-1.5 text-xs font-semibold text-emerald-800 hover:bg-emerald-200">Expenses</a>
+                <a href="{{ route('reports.financial-trace') }}" class="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">Financial Trace<svg class="h-3 w-3 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg></a>
+                <a href="{{ route('expenses.index') }}" class="inline-flex items-center gap-1 rounded-lg border border-emerald-300 bg-emerald-100 px-3 py-1.5 text-xs font-semibold text-emerald-800 hover:bg-emerald-200">Expenses<svg class="h-3 w-3 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg></a>
             </div>
         </div>
 

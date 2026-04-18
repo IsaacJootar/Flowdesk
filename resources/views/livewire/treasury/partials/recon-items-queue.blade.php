@@ -3,7 +3,7 @@
         <div>
             <h3 class="text-sm font-semibold text-slate-900">Items That Need Attention</h3>
             <p class="text-xs text-slate-500">Fix or skip each item below. Open the full list to work through everything at once.</p>
-            <p class="mt-1 text-xs text-slate-500">Who can take action: {{ implode(', ', (array) $exceptionActionAllowedRoles) }}.</p>
+            <p class="mt-1 text-xs text-slate-500">Who can act: {{ implode(', ', (array) $exceptionActionAllowedRoles) }}.</p>
             @if ($makerCheckerRequired)
                 <p class="text-xs text-amber-700">A second person must confirm your decision — you cannot close an item you raised.</p>
             @endif

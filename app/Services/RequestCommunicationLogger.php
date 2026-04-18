@@ -74,7 +74,22 @@ class RequestCommunicationLogger
         array $metadata,
         bool $forceQueue
     ): void {
+        $cooldownMinutes = (int) config('communications.rate_limit.cooldown_minutes', 5);
+
         foreach ($channels as $channel) {
+            $recentExists = RequestCommunicationLog::query()
+                ->where('company_id', (int) $request->company_id)
+                ->where('request_id', (int) $request->id)
+                ->where('event', $event)
+                ->where('channel', $channel)
+                ->where('recipient_user_id', $recipientUserId)
+                ->where('created_at', '>=', now()->subMinutes($cooldownMinutes))
+                ->exists();
+
+            if ($recentExists) {
+                continue;
+            }
+
             $log = RequestCommunicationLog::query()->create([
                 'company_id' => (int) $request->company_id,
                 'request_id' => (int) $request->id,
