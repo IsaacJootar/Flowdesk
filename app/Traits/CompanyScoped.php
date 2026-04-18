@@ -2,6 +2,7 @@
 
 namespace App\Traits;
 
+use App\Enums\PlatformUserRole;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
@@ -35,6 +36,10 @@ trait CompanyScoped
     private static function resolveCompanyScopeId(): ?int
     {
         if (Auth::check() && Auth::user()?->company_id) {
+            if (in_array((string) (Auth::user()?->platform_role ?? ''), PlatformUserRole::values(), true)) {
+                return app(\App\Support\TenantContext::class)->companyId();
+            }
+
             return (int) Auth::user()->company_id;
         }
 
