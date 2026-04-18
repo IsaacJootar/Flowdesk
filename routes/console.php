@@ -9,6 +9,7 @@ use App\Services\Execution\SubscriptionAutoBillingOrchestrator;
 use App\Services\Execution\SubscriptionBillingAttemptProcessor;
 use App\Services\Execution\ExecutionOpsAlertService;
 use App\Services\Execution\ExecutionOpsAutoRecoveryService;
+use App\Services\ExpenseHandoffBackfillService;
 use App\Services\Operations\ProductionReadinessValidator;
 use App\Services\Operations\RuntimeOperationsHealthService;
 use App\Services\Procurement\LegacyVendorLinkBackfillService;
@@ -194,6 +195,33 @@ Artisan::command('procurement:backfill-vendor-links {--company=} {--dry-run} {--
 
     return self::SUCCESS;
 })->purpose('Backfill legacy vendor invoice/payment links into procurement controls safely');
+Artisan::command('expenses:backfill-handoffs {--company=} {--dry-run} {--batch=200}', function (ExpenseHandoffBackfillService $service): int {
+    $companyId = $this->option('company');
+    $companyId = is_numeric($companyId) ? (int) $companyId : null;
+
+    $batch = $this->option('batch');
+    $batch = is_numeric($batch) ? (int) $batch : 200;
+
+    $summary = $service->run(
+        companyId: $companyId,
+        dryRun: (bool) $this->option('dry-run'),
+        batchSize: max(1, $batch),
+    );
+
+    $this->info('Expense handoff backfill completed.');
+    $this->line('Dry-run: '.($summary['dry_run'] ? 'yes' : 'no'));
+    $this->line('Company scope: '.($summary['company_scope'] ?: 'all'));
+    $this->line('Scanned settled payouts: '.$summary['scanned']);
+    $this->line('Eligible for handoff: '.$summary['eligible']);
+    $this->line('Created handoffs: '.$summary['created']);
+    $this->line('Already has expense: '.$summary['already_has_expense']);
+    $this->line('Already has handoff: '.$summary['already_has_handoff']);
+    $this->line('Skipped manual mode: '.$summary['manual_mode_skipped']);
+    $this->line('Missing request: '.$summary['missing_request']);
+    $this->line('Errors: '.$summary['errors']);
+
+    return $summary['errors'] > 0 ? self::FAILURE : self::SUCCESS;
+})->purpose('Backfill settled payout handoffs for requests without linked expenses');
 Artisan::command('rollout:pilot:capture-kpis {--company=} {--label=pilot} {--start=} {--end=} {--window-days=14} {--notes=}', function (CapturePilotKpiSnapshotService $service): int {
     $companyId = $this->option('company');
     $companyId = is_numeric($companyId) ? (int) $companyId : null;
