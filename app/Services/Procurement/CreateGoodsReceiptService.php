@@ -2,11 +2,13 @@
 
 namespace App\Services\Procurement;
 
+use App\Domains\Company\Models\CompanyCommunicationSetting;
 use App\Domains\Procurement\Models\GoodsReceipt;
 use App\Domains\Procurement\Models\GoodsReceiptItem;
 use App\Domains\Procurement\Models\PurchaseOrder;
 use App\Domains\Procurement\Models\PurchaseOrderItem;
 use App\Models\User;
+use App\Services\RequestCommunicationLogger;
 use App\Services\TenantAuditLogger;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -18,6 +20,7 @@ class CreateGoodsReceiptService
     public function __construct(
         private readonly ProcurementControlSettingsService $settingsService,
         private readonly TenantAuditLogger $tenantAuditLogger,
+        private readonly RequestCommunicationLogger $requestCommunicationLogger,
     ) {
     }
 
@@ -208,6 +211,30 @@ class CreateGoodsReceiptService
                 'allow_over_receipt' => $allowOverReceipt,
             ],
         );
+
+        // Notify the requester that goods have been received against their order.
+        $spendRequest = $order->spendRequest()->withoutGlobalScopes()->first();
+        if ($spendRequest && $spendRequest->requested_by) {
+            $communicationSettings = CompanyCommunicationSetting::query()
+                ->firstOrCreate(
+                    ['company_id' => (int) $order->company_id],
+                    CompanyCommunicationSetting::defaultAttributes()
+                );
+
+            $this->requestCommunicationLogger->log(
+                request: $spendRequest,
+                event: 'request.goods_received',
+                channels: $communicationSettings->selectableChannels() ?: ['in_app'],
+                recipientUserIds: [(int) $spendRequest->requested_by],
+                requestApprovalId: null,
+                metadata: [
+                    'request_code' => (string) $spendRequest->request_code,
+                    'po_number' => (string) $order->po_number,
+                    'receipt_number' => (string) $receipt->receipt_number,
+                    'received_value' => $processedValue,
+                ],
+            );
+        }
 
         return $receipt;
     }

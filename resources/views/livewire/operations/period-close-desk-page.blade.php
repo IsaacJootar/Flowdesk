@@ -18,8 +18,8 @@
                 <p class="mt-1 text-sm text-slate-700">One page for month-end readiness checks across bank reconciliation, purchase orders, payment retries, and audit flags.</p>
             </div>
             <div class="flex flex-wrap gap-2">
-                <a href="{{ route('operations.approval-desk') }}" class="inline-flex items-center rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100">Approvals Overview</a>
-                <a href="{{ route('operations.vendor-payables-desk') }}" class="inline-flex items-center rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700 hover:bg-amber-100">Vendor Payables</a>
+                <a href="{{ route('operations.approval-desk') }}" class="inline-flex items-center gap-1 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100">Approvals Overview<svg class="h-3 w-3 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg></a>
+                <a href="{{ route('operations.vendor-payables-desk') }}" class="inline-flex items-center gap-1 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700 hover:bg-amber-100">Vendor Payables<svg class="h-3 w-3 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg></a>
             </div>
         </div>
     </section>
@@ -90,7 +90,7 @@
                                 <td class="px-3 py-3 text-slate-600">{{ $row['note'] }}</td>
                                 <td class="px-3 py-3 text-right">
                                     @if (! empty($row['next_action_url']) && ! empty($row['next_action_label']))
-                                        <a href="{{ $row['next_action_url'] }}" class="inline-flex rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100">{{ $row['next_action_label'] }}</a>
+                                        <a href="{{ $row['next_action_url'] }}" class="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100">{{ $row['next_action_label'] }}<svg class="h-3 w-3 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg></a>
                                     @else
                                         <span class="text-xs text-slate-400">No action</span>
                                     @endif

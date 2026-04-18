@@ -18,11 +18,11 @@
             </div>
 
             <div class="flex flex-wrap gap-2">
-                <a href="{{ route('procurement.orders') }}" class="inline-flex items-center rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100">Orders</a>
-                <a href="{{ route('procurement.receipts') }}" class="inline-flex items-center rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100">Receipts</a>
-                <a href="{{ route('procurement.match-exceptions') }}" class="inline-flex items-center rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100">Invoice Mismatches</a>
-                <a href="{{ route('requests.lifecycle-desk') }}" class="inline-flex items-center rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100">Request Tracker</a>
-                <a href="{{ route('procurement.release-help') }}" class="inline-flex items-center rounded-lg border border-slate-700 bg-slate-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800" style="background-color:#334155;border-color:#334155;color:#ffffff;">Purchase Order Guide</a>
+                <a href="{{ route('procurement.orders') }}" class="inline-flex items-center gap-1 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100">Orders<svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg></a>
+                <a href="{{ route('procurement.receipts') }}" class="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100">Receipts<svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg></a>
+                <a href="{{ route('procurement.match-exceptions') }}" class="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100">Invoice Mismatches<svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg></a>
+                <a href="{{ route('requests.lifecycle-desk') }}" class="inline-flex items-center gap-1 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100">Request Tracker<svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg></a>
+                <a href="{{ route('procurement.release-help') }}" class="inline-flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800" style="background-color:#334155;border-color:#334155;color:#ffffff;">Purchase Order Guide<svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg></a>
             </div>
         </div>
 
@@ -68,7 +68,7 @@
                 <p class="mt-1 text-sm text-slate-700">Open items: <span class="font-semibold">{{ number_format((int) ($summary['workload_total'] ?? 0)) }}</span></p>
                 <p class="text-xs text-slate-500">Biggest hold-up: {{ $summary['bottleneck_label'] ?? 'None' }} ({{ number_format((int) ($summary['bottleneck_count'] ?? 0)) }})</p>
             </div>
-            <a href="{{ route('execution.payout-ready') }}" class="inline-flex items-center rounded-lg border border-slate-700 bg-slate-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800" style="background-color:#334155;border-color:#334155;color:#ffffff;">Payments Ready to Send</a>
+            <a href="{{ route('execution.payout-ready') }}" class="inline-flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800" style="background-color:#334155;border-color:#334155;color:#ffffff;">Payments Ready to Send<svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg></a>
         </div>
 
         <div class="mt-4 h-3 overflow-hidden rounded-full bg-slate-100">
@@ -106,7 +106,7 @@
                 <h3 class="text-sm font-semibold text-slate-900">Approved Requests — Create a Purchase Order</h3>
                 <p class="text-xs text-slate-500">These requests are approved. The next step is to create a Purchase Order for each one.</p>
             </div>
-            <a href="{{ route('requests.index') }}" class="rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700 hover:bg-amber-100">Open Requests</a>
+            <a href="{{ route('requests.index') }}" class="inline-flex items-center gap-1 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700 hover:bg-amber-100">Open Requests<svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg></a>
         </div>
         <div class="overflow-x-auto">
             <table class="min-w-full text-sm">
@@ -128,7 +128,7 @@
                             <td class="px-3 py-3 text-slate-700">{{ $row['meta'] }}</td>
                             <td class="px-3 py-3"><span class="inline-flex rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800">{{ $row['status'] }}</span></td>
                             <td class="px-3 py-3 text-right">
-                                <a href="{{ $row['next_action_url'] }}" class="inline-flex rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700 hover:bg-amber-100">{{ $row['next_action_label'] }}</a>
+                                <a href="{{ $row['next_action_url'] }}" class="inline-flex items-center gap-1 rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700 hover:bg-amber-100">{{ $row['next_action_label'] }}<svg class="h-3 w-3 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg></a>
                             </td>
                         </tr>
                     @empty
@@ -145,7 +145,7 @@
                 <h3 class="text-sm font-semibold text-slate-900">Purchase Orders — Not Yet Sent to Vendor</h3>
                 <p class="text-xs text-slate-500">These Purchase Orders are saved as drafts. Send them to the vendor to move forward.</p>
             </div>
-            <a href="{{ route('procurement.orders') }}" class="rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700 hover:bg-indigo-100">Open Orders</a>
+            <a href="{{ route('procurement.orders') }}" class="inline-flex items-center gap-1 rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700 hover:bg-indigo-100">Open Orders<svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg></a>
         </div>
         <div class="overflow-x-auto">
             <table class="min-w-full text-sm">
@@ -167,7 +167,7 @@
                             <td class="px-3 py-3 text-slate-700">{{ $row['meta'] }}</td>
                             <td class="px-3 py-3"><span class="inline-flex rounded-full border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-800">{{ $row['status'] }}</span></td>
                             <td class="px-3 py-3 text-right">
-                                <a href="{{ $row['next_action_url'] }}" class="inline-flex rounded-lg border border-indigo-300 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100">{{ $row['next_action_label'] }}</a>
+                                <a href="{{ $row['next_action_url'] }}" class="inline-flex items-center gap-1 rounded-lg border border-indigo-300 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100">{{ $row['next_action_label'] }}<svg class="h-3 w-3 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg></a>
                             </td>
                         </tr>
                     @empty
@@ -184,7 +184,7 @@
                 <h3 class="text-sm font-semibold text-slate-900">Purchase Orders — Waiting for Delivery</h3>
                 <p class="text-xs text-slate-500">Goods have been ordered but not confirmed as received yet. Confirm delivery to move forward.</p>
             </div>
-            <a href="{{ route('procurement.orders') }}" class="rounded-lg border border-sky-200 bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700 hover:bg-sky-100">Open Orders</a>
+            <a href="{{ route('procurement.orders') }}" class="inline-flex items-center gap-1 rounded-lg border border-sky-200 bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700 hover:bg-sky-100">Open Orders<svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg></a>
         </div>
         <div class="overflow-x-auto">
             <table class="min-w-full text-sm">
@@ -206,7 +206,7 @@
                             <td class="px-3 py-3 text-slate-700">{{ $row['meta'] }}</td>
                             <td class="px-3 py-3"><span class="inline-flex rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-800">{{ $row['status'] }}</span></td>
                             <td class="px-3 py-3 text-right">
-                                <a href="{{ $row['next_action_url'] }}" class="inline-flex rounded-lg border border-sky-300 bg-sky-50 px-3 py-1.5 text-xs font-semibold text-sky-700 hover:bg-sky-100">{{ $row['next_action_label'] }}</a>
+                                <a href="{{ $row['next_action_url'] }}" class="inline-flex items-center gap-1 rounded-lg border border-sky-300 bg-sky-50 px-3 py-1.5 text-xs font-semibold text-sky-700 hover:bg-sky-100">{{ $row['next_action_label'] }}<svg class="h-3 w-3 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg></a>
                             </td>
                         </tr>
                     @empty
@@ -223,7 +223,7 @@
                 <h3 class="text-sm font-semibold text-slate-900">Invoices — Mismatch to Fix</h3>
                 <p class="text-xs text-slate-500">These orders have an invoice that doesn't match the Purchase Order. Fix the mismatch to release payment.</p>
             </div>
-            <a href="{{ route('procurement.match-exceptions') }}" class="rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-100">View All Mismatches</a>
+            <a href="{{ route('procurement.match-exceptions') }}" class="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-100">View All Mismatches<svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg></a>
         </div>
         <div class="overflow-x-auto">
             <table class="min-w-full text-sm">
@@ -253,7 +253,7 @@
                             <td class="px-3 py-3 text-slate-700">{{ $row['meta'] }}</td>
                             <td class="px-3 py-3"><span class="inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold {{ $statusTone }}">{{ $row['status'] }}</span></td>
                             <td class="px-3 py-3 text-right">
-                                <a href="{{ $row['next_action_url'] }}" class="inline-flex rounded-lg border px-3 py-1.5 text-xs font-semibold {{ $actionTone }}">{{ $row['next_action_label'] }}</a>
+                                <a href="{{ $row['next_action_url'] }}" class="inline-flex items-center gap-1 rounded-lg border px-3 py-1.5 text-xs font-semibold {{ $actionTone }}">{{ $row['next_action_label'] }}<svg class="h-3 w-3 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg></a>
                             </td>
                         </tr>
                     @empty
@@ -270,7 +270,7 @@
                 <h3 class="text-sm font-semibold text-slate-900">Ready to Pay</h3>
                 <p class="text-xs text-slate-500">Everything checks out on these orders — invoice matched, goods received. Send the payment.</p>
             </div>
-            <a href="{{ route('execution.payout-ready') }}" class="rounded-lg border border-slate-300 bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-200">Payments Ready to Send</a>
+            <a href="{{ route('execution.payout-ready') }}" class="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-200">Payments Ready to Send<svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg></a>
         </div>
         <div class="overflow-x-auto">
             <table class="min-w-full text-sm">
@@ -292,7 +292,7 @@
                             <td class="px-3 py-3 text-slate-700">{{ $row['meta'] }}</td>
                             <td class="px-3 py-3"><span class="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800">{{ $row['status'] }}</span></td>
                             <td class="px-3 py-3 text-right">
-                                <a href="{{ $row['next_action_url'] }}" class="inline-flex rounded-lg border border-slate-700 bg-slate-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800" style="background-color:#334155;border-color:#334155;color:#ffffff;">{{ $row['next_action_label'] }}</a>
+                                <a href="{{ $row['next_action_url'] }}" class="inline-flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800" style="background-color:#334155;border-color:#334155;color:#ffffff;">{{ $row['next_action_label'] }}<svg class="h-3 w-3 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg></a>
                             </td>
                         </tr>
                     @empty

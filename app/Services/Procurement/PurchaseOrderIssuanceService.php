@@ -2,9 +2,11 @@
 
 namespace App\Services\Procurement;
 
+use App\Domains\Company\Models\CompanyCommunicationSetting;
 use App\Domains\Procurement\Models\ProcurementCommitment;
 use App\Domains\Procurement\Models\PurchaseOrder;
 use App\Models\User;
+use App\Services\RequestCommunicationLogger;
 use App\Services\TenantAuditLogger;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -14,6 +16,7 @@ class PurchaseOrderIssuanceService
     public function __construct(
         private readonly ProcurementControlSettingsService $settingsService,
         private readonly TenantAuditLogger $tenantAuditLogger,
+        private readonly RequestCommunicationLogger $requestCommunicationLogger,
     ) {
     }
 
@@ -114,6 +117,29 @@ class PurchaseOrderIssuanceService
                     'department_budget_id' => $commitment->department_budget_id ? (int) $commitment->department_budget_id : null,
                     'amount' => (int) $commitment->amount,
                     'currency_code' => (string) $commitment->currency_code,
+                ],
+            );
+        }
+
+        // Notify the request requester that their PO has been formally issued.
+        $spendRequest = $issuedOrder->spendRequest()->withoutGlobalScopes()->first();
+        if ($spendRequest && $spendRequest->requested_by) {
+            $communicationSettings = CompanyCommunicationSetting::query()
+                ->firstOrCreate(
+                    ['company_id' => (int) $issuedOrder->company_id],
+                    CompanyCommunicationSetting::defaultAttributes()
+                );
+
+            $this->requestCommunicationLogger->log(
+                request: $spendRequest,
+                event: 'request.purchase_order.issued',
+                channels: $communicationSettings->selectableChannels() ?: ['in_app'],
+                recipientUserIds: [(int) $spendRequest->requested_by],
+                requestApprovalId: null,
+                metadata: [
+                    'request_code' => (string) $spendRequest->request_code,
+                    'po_number' => (string) $issuedOrder->po_number,
+                    'amount' => (int) $issuedOrder->total_amount,
                 ],
             );
         }

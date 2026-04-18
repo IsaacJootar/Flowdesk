@@ -2,11 +2,14 @@
 
 namespace App\Services\Procurement;
 
+use App\Domains\Company\Models\CompanyCommunicationSetting;
 use App\Domains\Procurement\Models\InvoiceMatchException;
 use App\Domains\Procurement\Models\InvoiceMatchResult;
 use App\Domains\Procurement\Models\PurchaseOrder;
 use App\Domains\Vendors\Models\VendorInvoice;
+use App\Enums\UserRole;
 use App\Models\User;
+use App\Services\RequestCommunicationLogger;
 use App\Services\TenantAuditLogger;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -17,6 +20,7 @@ class EvaluateInvoiceThreeWayMatchService
     public function __construct(
         private readonly ProcurementControlSettingsService $settingsService,
         private readonly TenantAuditLogger $tenantAuditLogger,
+        private readonly RequestCommunicationLogger $requestCommunicationLogger,
     ) {
     }
 
@@ -225,6 +229,46 @@ class EvaluateInvoiceThreeWayMatchService
                     ->count(),
             ],
         );
+
+        // Notify finance/owner roles when a match fails — they are the ones who must act to unblock payment.
+        if (! $isMatched) {
+            $spendRequest = $order->spendRequest()->withoutGlobalScopes()->first();
+            if ($spendRequest) {
+                $communicationSettings = CompanyCommunicationSetting::query()
+                    ->firstOrCreate(
+                        ['company_id' => (int) $order->company_id],
+                        CompanyCommunicationSetting::defaultAttributes()
+                    );
+
+                $financeOwnerIds = User::query()
+                    ->where('company_id', (int) $order->company_id)
+                    ->whereIn('role', [UserRole::Owner->value, UserRole::Finance->value])
+                    ->where('is_active', true)
+                    ->pluck('id')
+                    ->map(fn ($id) => (int) $id)
+                    ->all();
+
+                $openExceptionCount = (int) $result->exceptions
+                    ->where('exception_status', InvoiceMatchException::STATUS_OPEN)
+                    ->count();
+
+                if ($financeOwnerIds !== []) {
+                    $this->requestCommunicationLogger->log(
+                        request: $spendRequest,
+                        event: 'request.invoice.mismatch',
+                        channels: $communicationSettings->selectableChannels() ?: ['in_app'],
+                        recipientUserIds: $financeOwnerIds,
+                        requestApprovalId: null,
+                        metadata: [
+                            'request_code' => (string) $spendRequest->request_code,
+                            'po_number' => (string) $order->po_number,
+                            'match_score' => (float) $result->match_score,
+                            'open_exception_count' => $openExceptionCount,
+                        ],
+                    );
+                }
+            }
+        }
 
         return $result;
     }

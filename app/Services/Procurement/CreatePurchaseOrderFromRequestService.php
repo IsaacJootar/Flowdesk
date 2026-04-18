@@ -3,10 +3,12 @@
 namespace App\Services\Procurement;
 
 use App\Domains\Budgets\Models\DepartmentBudget;
+use App\Domains\Company\Models\CompanyCommunicationSetting;
 use App\Domains\Procurement\Models\PurchaseOrder;
 use App\Domains\Procurement\Models\PurchaseOrderItem;
 use App\Domains\Requests\Models\SpendRequest;
 use App\Models\User;
+use App\Services\RequestCommunicationLogger;
 use App\Services\TenantAuditLogger;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -18,6 +20,7 @@ class CreatePurchaseOrderFromRequestService
     public function __construct(
         private readonly ProcurementControlSettingsService $settingsService,
         private readonly TenantAuditLogger $tenantAuditLogger,
+        private readonly RequestCommunicationLogger $requestCommunicationLogger,
     ) {
     }
 
@@ -131,6 +134,25 @@ class CreatePurchaseOrderFromRequestService
                 'request_code' => (string) $request->request_code,
                 'po_number' => (string) $po->po_number,
                 'vendor_id' => (int) $po->vendor_id,
+                'amount' => (int) $po->total_amount,
+            ],
+        );
+
+        $communicationSettings = CompanyCommunicationSetting::query()
+            ->firstOrCreate(
+                ['company_id' => (int) $request->company_id],
+                CompanyCommunicationSetting::defaultAttributes()
+            );
+
+        $this->requestCommunicationLogger->log(
+            request: $request,
+            event: 'request.purchase_order.created',
+            channels: $communicationSettings->selectableChannels() ?: ['in_app'],
+            recipientUserIds: [(int) $request->requested_by],
+            requestApprovalId: null,
+            metadata: [
+                'request_code' => (string) $request->request_code,
+                'po_number' => (string) $po->po_number,
                 'amount' => (int) $po->total_amount,
             ],
         );

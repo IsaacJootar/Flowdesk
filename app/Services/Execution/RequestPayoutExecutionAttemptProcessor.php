@@ -2,6 +2,7 @@
 
 namespace App\Services\Execution;
 
+use App\Domains\Company\Models\CompanyCommunicationSetting;
 use App\Domains\Requests\Models\RequestPayoutExecutionAttempt;
 use App\Domains\Requests\Models\SpendRequest;
 use App\Services\Execution\DTO\AdapterOperationResult;
@@ -181,12 +182,18 @@ class RequestPayoutExecutionAttemptProcessor
             ]),
         ])->save();
 
-        // Notify requester on terminal execution outcomes.
+        // Notify requester on terminal execution outcomes via all org-configured channels.
         if (in_array($requestStatus, ['settled', 'failed', 'reversed'], true)) {
+            $communicationSettings = CompanyCommunicationSetting::query()
+                ->firstOrCreate(
+                    ['company_id' => (int) $request->company_id],
+                    CompanyCommunicationSetting::defaultAttributes()
+                );
+
             $this->requestCommunicationLogger->log(
                 request: $request,
                 event: 'request.execution.'.$requestStatus,
-                channels: ['in_app'],
+                channels: $communicationSettings->selectableChannels() ?: ['in_app'],
                 recipientUserIds: [(int) $request->requested_by],
                 requestApprovalId: null,
                 metadata: [

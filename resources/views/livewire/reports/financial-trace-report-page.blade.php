@@ -6,9 +6,9 @@
                 <h1 class="mt-1 text-xl font-semibold text-slate-900">Budget to Payment Trace</h1>
             </div>
             <div class="flex flex-wrap items-center gap-2">
-                <a href="{{ route('reports.index') }}" class="inline-flex h-9 items-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50">Reports</a>
-                <a href="{{ route('requests.reports') }}" class="inline-flex h-9 items-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50">Request Reports</a>
-                <a href="{{ route('reports.financial-trace-help') }}" class="inline-flex h-9 items-center rounded-lg border border-slate-700 bg-slate-700 px-3 text-xs font-semibold text-white hover:bg-slate-800" style="background-color:#334155;border-color:#334155;color:#ffffff;">Trace Guide</a>
+                <a href="{{ route('reports.index') }}" class="inline-flex h-9 items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50">Reports<svg class="h-3 w-3 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg></a>
+                <a href="{{ route('requests.reports') }}" class="inline-flex h-9 items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50">Request Reports<svg class="h-3 w-3 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg></a>
+                <a href="{{ route('reports.financial-trace-help') }}" class="inline-flex h-9 items-center gap-1 rounded-lg border border-slate-700 bg-slate-700 px-3 text-xs font-semibold text-white hover:bg-slate-800" style="background-color:#334155;border-color:#334155;color:#ffffff;">Trace Guide<svg class="h-3 w-3 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg></a>
             </div>
         </div>
     </div>
@@ -158,97 +158,114 @@
                             : ($row['trace_severity'] === 'medium' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700');
 
                         $requestStatusLabel = ucwords(str_replace('_', ' ', (string) $row['request_status']));
+
+                        // Pipeline item color classifier — drives left border + label + value colours
+                        $pipelineColor = static function (string $value): string {
+                            $v = strtolower($value);
+                            if (str_contains($v, 'failed') || str_contains($v, 'reversed') || str_contains($v, 'over budget') || str_contains($v, 'rejected') || str_contains($v, 'returned') || str_contains($v, 'open issues')) {
+                                return 'fail';
+                            }
+                            if (str_contains($v, 'within budget') || str_contains($v, 'settled') || str_contains($v, 'matched') || str_contains($v, 'approved')) {
+                                return 'success';
+                            }
+                            if (str_contains($v, 'queued') || str_contains($v, 'processing')) {
+                                return 'pending';
+                            }
+                            return 'neutral';
+                        };
+
+                        $pipelineClasses = [
+                            'fail'    => ['border' => 'border-red-400',     'label' => 'text-red-500',     'value' => 'text-red-700'],
+                            'success' => ['border' => 'border-emerald-300', 'label' => 'text-emerald-600', 'value' => 'text-emerald-800'],
+                            'pending' => ['border' => 'border-amber-300',   'label' => 'text-amber-500',   'value' => 'text-amber-800'],
+                            'neutral' => ['border' => 'border-slate-200',   'label' => 'text-slate-400',   'value' => 'text-slate-800'],
+                        ];
+
+                        $budgetPc   = $pipelineClasses[$pipelineColor($row['budget_status'])];
+                        $approvalPc = $pipelineClasses[$pipelineColor($row['approval_status'])];
+                        $orderPc    = $pipelineClasses[$pipelineColor($row['purchase_order_status'])];
+                        $paymentPc  = $pipelineClasses[$pipelineColor($row['payment_status'])];
+                        $expensePc  = $pipelineClasses[$pipelineColor($row['expense_status'])];
+                        $bankPc     = $pipelineClasses[$pipelineColor($row['reconciliation_status'])];
+                        $auditPc    = $pipelineClasses['neutral'];
                     @endphp
 
-                    <article class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm" wire:key="financial-trace-report-row-{{ $row['id'] }}">
-                        <div class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_14rem_12rem] lg:items-start">
-                            <div class="min-w-0">
-                                <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Request</p>
-                                <p class="mt-1 text-sm font-semibold text-slate-600">{{ $row['request_code'] }}</p>
-                                <h2 class="mt-1 break-words text-base font-semibold leading-6 text-slate-900">{{ $row['title'] }}</h2>
+                    <article class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm" wire:key="financial-trace-report-row-{{ $row['id'] }}">
 
-                                <dl class="mt-3 grid gap-3 text-sm sm:grid-cols-3">
-                                    <div class="min-w-0">
-                                        <dt class="text-xs font-medium text-slate-400">Department</dt>
-                                        <dd class="mt-0.5 break-words font-medium text-slate-700">{{ $row['department'] }}</dd>
-                                    </div>
-                                    <div class="min-w-0">
-                                        <dt class="text-xs font-medium text-slate-400">Requester</dt>
-                                        <dd class="mt-0.5 break-words font-medium text-slate-700">{{ $row['requester'] }}</dd>
-                                    </div>
-                                    <div class="min-w-0">
-                                        <dt class="text-xs font-medium text-slate-400">Vendor</dt>
-                                        <dd class="mt-0.5 break-words font-medium text-slate-700">{{ $row['vendor'] }}</dd>
-                                    </div>
-                                </dl>
-                            </div>
-
-                            <div class="min-w-0 border-t border-slate-100 pt-3 lg:border-l lg:border-t-0 lg:pl-4 lg:pt-0">
-                                <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Current Status</p>
-                                <div class="mt-2 space-y-3">
-                                    <div>
-                                        <p class="mb-1 text-xs font-medium text-slate-400">Trace</p>
+                        {{-- Header: request identity + amount + status badges --}}
+                        <div class="p-4">
+                            <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                <div class="min-w-0">
+                                    <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">{{ $row['request_code'] }}</p>
+                                    <h2 class="mt-1 break-words text-base font-semibold leading-6 text-slate-900">{{ $row['title'] }}</h2>
+                                    <dl class="mt-3 flex flex-wrap gap-x-6 gap-y-2 text-sm">
+                                        <div class="min-w-0">
+                                            <dt class="text-xs font-medium text-slate-400">Department</dt>
+                                            <dd class="mt-0.5 break-words font-medium text-slate-700">{{ $row['department'] }}</dd>
+                                        </div>
+                                        <div class="min-w-0">
+                                            <dt class="text-xs font-medium text-slate-400">Requester</dt>
+                                            <dd class="mt-0.5 break-words font-medium text-slate-700">{{ $row['requester'] }}</dd>
+                                        </div>
+                                        <div class="min-w-0">
+                                            <dt class="text-xs font-medium text-slate-400">Vendor</dt>
+                                            <dd class="mt-0.5 break-words font-medium text-slate-700">{{ $row['vendor'] }}</dd>
+                                        </div>
+                                    </dl>
+                                </div>
+                                <div class="flex shrink-0 flex-col items-start gap-2 sm:items-end">
+                                    <p class="text-base font-semibold text-slate-900">{{ \App\Support\Money::formatCurrency((int) $row['amount'], (string) $row['currency']) }}</p>
+                                    <div class="flex flex-wrap gap-1.5 sm:justify-end">
                                         <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold {{ $traceStatusClass }}">{{ $row['trace_status'] }}</span>
-                                    </div>
-                                    <div>
-                                        <p class="mb-1 text-xs font-medium text-slate-400">Request</p>
                                         <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold {{ $requestStatusClass }}">{{ $requestStatusLabel }}</span>
                                     </div>
                                 </div>
                             </div>
-
-                            <div class="min-w-0 border-t border-slate-100 pt-3 lg:border-l lg:border-t-0 lg:pl-4 lg:pt-0 lg:text-right">
-                                <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Amount</p>
-                                <p class="mt-1 text-base font-semibold text-slate-900">{{ \App\Support\Money::formatCurrency((int) $row['amount'], (string) $row['currency']) }}</p>
-                                <div class="mt-3">
-                                    <a href="{{ $row['url'] }}" class="inline-flex h-9 items-center justify-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50">
-                                        Open request
-                                    </a>
-                                </div>
-                            </div>
                         </div>
 
-                        <div class="mt-4 grid gap-x-5 gap-y-4 border-t border-slate-100 pt-4 md:grid-cols-2 xl:grid-cols-4">
-                            <div class="min-w-0 border-l-2 border-slate-200 py-1 pl-3">
-                                <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Budget</p>
-                                <p class="mt-1 break-words text-sm font-medium text-slate-800">{{ $row['budget_status'] }}</p>
+                        {{-- Trace pipeline --}}
+                        <div class="grid gap-x-4 gap-y-3 border-t border-slate-100 bg-slate-50/60 px-4 py-4 md:grid-cols-4 xl:grid-cols-7">
+                            <div class="min-w-0 border-l-2 {{ $budgetPc['border'] }} py-1 pl-3">
+                                <p class="text-xs font-semibold uppercase tracking-[0.12em] {{ $budgetPc['label'] }}">Budget</p>
+                                <p class="mt-1 break-words text-sm font-medium {{ $budgetPc['value'] }}">{{ $row['budget_status'] }}</p>
                             </div>
-                            <div class="min-w-0 border-l-2 border-slate-200 py-1 pl-3">
-                                <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Approval</p>
-                                <p class="mt-1 break-words text-sm font-medium text-slate-800">{{ $row['approval_status'] }}</p>
+                            <div class="min-w-0 border-l-2 {{ $approvalPc['border'] }} py-1 pl-3">
+                                <p class="text-xs font-semibold uppercase tracking-[0.12em] {{ $approvalPc['label'] }}">Approval</p>
+                                <p class="mt-1 break-words text-sm font-medium {{ $approvalPc['value'] }}">{{ $row['approval_status'] }}</p>
                             </div>
-                            <div class="min-w-0 border-l-2 border-slate-200 py-1 pl-3">
-                                <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Order</p>
-                                <p class="mt-1 break-words text-sm font-medium text-slate-800">{{ $row['purchase_order_status'] }}</p>
+                            <div class="min-w-0 border-l-2 {{ $orderPc['border'] }} py-1 pl-3">
+                                <p class="text-xs font-semibold uppercase tracking-[0.12em] {{ $orderPc['label'] }}">Order</p>
+                                <p class="mt-1 break-words text-sm font-medium {{ $orderPc['value'] }}">{{ $row['purchase_order_status'] }}</p>
                             </div>
-                            <div class="min-w-0 border-l-2 border-slate-200 py-1 pl-3">
-                                <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Payment</p>
+                            <div class="min-w-0 border-l-2 {{ $paymentPc['border'] }} py-1 pl-3">
+                                <p class="text-xs font-semibold uppercase tracking-[0.12em] {{ $paymentPc['label'] }}">Payment</p>
                                 <div class="mt-1 flex flex-wrap items-center gap-1.5">
                                     <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold {{ $paymentClass }}">{{ $row['payment_status'] }}</span>
                                 </div>
                                 @if ($row['payment_method'] !== '-')
-                                    <p class="mt-2 break-words text-sm text-slate-700">{{ $row['payment_method'] }}</p>
+                                    <p class="mt-1.5 break-words text-xs text-slate-600">{{ $row['payment_method'] }}</p>
                                 @endif
                                 @if ($row['payment_reference'] !== '')
-                                    <p class="mt-1 break-words text-xs text-slate-500">{{ $row['payment_reference'] }}</p>
+                                    <p class="mt-0.5 break-words text-xs text-slate-400">{{ $row['payment_reference'] }}</p>
                                 @endif
                             </div>
-                            <div class="min-w-0 border-l-2 border-slate-200 py-1 pl-3">
-                                <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Expense</p>
-                                <p class="mt-1 break-words text-sm font-medium text-slate-800">{{ $row['expense_status'] }}</p>
+                            <div class="min-w-0 border-l-2 {{ $expensePc['border'] }} py-1 pl-3">
+                                <p class="text-xs font-semibold uppercase tracking-[0.12em] {{ $expensePc['label'] }}">Expense</p>
+                                <p class="mt-1 break-words text-sm font-medium {{ $expensePc['value'] }}">{{ $row['expense_status'] }}</p>
                             </div>
-                            <div class="min-w-0 border-l-2 border-slate-200 py-1 pl-3">
-                                <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Bank Match</p>
+                            <div class="min-w-0 border-l-2 {{ $bankPc['border'] }} py-1 pl-3">
+                                <p class="text-xs font-semibold uppercase tracking-[0.12em] {{ $bankPc['label'] }}">Bank Match</p>
                                 <span class="mt-1 inline-flex rounded-full px-2.5 py-1 text-xs font-semibold {{ $bankClass }}">{{ $row['reconciliation_status'] }}</span>
                             </div>
-                            <div class="min-w-0 border-l-2 border-slate-200 py-1 pl-3">
-                                <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Audit</p>
-                                <p class="mt-1 break-words text-sm font-medium text-slate-800">{{ $row['audit_status'] }}</p>
+                            <div class="min-w-0 border-l-2 {{ $auditPc['border'] }} py-1 pl-3">
+                                <p class="text-xs font-semibold uppercase tracking-[0.12em] {{ $auditPc['label'] }}">Audit</p>
+                                <p class="mt-1 break-words text-sm font-medium {{ $auditPc['value'] }}">{{ $row['audit_status'] }}</p>
                             </div>
                         </div>
 
+                        {{-- Gaps (optional) --}}
                         @if (count($row['gaps']) > 0)
-                            <div class="mt-4 border-t border-slate-100 pt-3">
+                            <div class="border-t border-slate-100 px-4 py-3">
                                 <p class="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Needs Attention</p>
                                 <div class="flex flex-wrap gap-2">
                                     @foreach ($row['gaps'] as $gap)
@@ -259,6 +276,17 @@
                                 </div>
                             </div>
                         @endif
+
+                        {{-- Footer: Open request (always last) --}}
+                        <div class="flex items-center justify-end border-t border-slate-100 px-4 py-3">
+                            <a href="{{ $row['url'] }}" class="inline-flex h-8 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                </svg>
+                                View request
+                            </a>
+                        </div>
+
                     </article>
                 @empty
                     <div class="fd-card px-4 py-10 text-center text-sm text-slate-500">

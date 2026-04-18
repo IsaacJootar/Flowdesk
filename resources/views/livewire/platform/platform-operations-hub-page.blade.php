@@ -56,8 +56,8 @@
                     <p class="mt-1 text-sm text-slate-700">Latest recovery action: {{ $executionSummary['last_recovery'] ?? 'No recovery actions logged yet.' }}</p>
                 </div>
                 <div class="flex flex-wrap items-center gap-2">
-                    <a href="{{ route('platform.operations.ai-runtime-health') }}" class="inline-flex h-9 items-center rounded-lg border border-emerald-300 bg-white px-3 text-xs font-semibold text-emerald-800 hover:bg-emerald-100">Open AI Runtime Health</a>
-                    <a href="{{ route('platform.operations.execution') }}" class="inline-flex h-9 items-center rounded-lg border border-emerald-300 bg-emerald-100 px-3 text-xs font-semibold text-emerald-800 hover:bg-emerald-200">Open Full Execution Operations</a>
+                    <a href="{{ route('platform.operations.ai-runtime-health') }}" class="inline-flex h-9 items-center gap-1 rounded-lg border border-emerald-300 bg-white px-3 text-xs font-semibold text-emerald-800 hover:bg-emerald-100">Open AI Runtime Health<svg class="h-3 w-3 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg></a>
+                    <a href="{{ route('platform.operations.execution') }}" class="inline-flex h-9 items-center gap-1 rounded-lg border border-emerald-300 bg-emerald-100 px-3 text-xs font-semibold text-emerald-800 hover:bg-emerald-200">Open Full Execution Operations<svg class="h-3 w-3 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg></a>
                 </div>
             </div>
         </section>
@@ -109,7 +109,7 @@
                 <li>Use execution operations to retry/recover/reconcile and confirm audit writes.</li>
             </ol>
             <div class="mt-4">
-                <a href="{{ route('platform.operations.execution-checklist') }}" class="inline-flex h-9 items-center rounded-lg border border-amber-300 bg-amber-100 px-3 text-xs font-semibold text-amber-800 hover:bg-amber-200">Open Full Checklist Page</a>
+                <a href="{{ route('platform.operations.execution-checklist') }}" class="inline-flex h-9 items-center gap-1 rounded-lg border border-amber-300 bg-amber-100 px-3 text-xs font-semibold text-amber-800 hover:bg-amber-200">Open Full Checklist Page<svg class="h-3 w-3 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg></a>
             </div>
         </section>
 
@@ -160,7 +160,7 @@
                     <h3 class="text-sm font-semibold text-slate-900">Recent Incident Events</h3>
                     <p class="text-xs text-slate-500">Latest recovery and rollout signals across organizations.</p>
                 </div>
-                <a href="{{ route('platform.operations.incident-history') }}" class="inline-flex h-9 items-center rounded-lg border border-indigo-300 bg-indigo-100 px-3 text-xs font-semibold text-indigo-800 hover:bg-indigo-200">Open Full Incident History</a>
+                <a href="{{ route('platform.operations.incident-history') }}" class="inline-flex h-9 items-center gap-1 rounded-lg border border-indigo-300 bg-indigo-100 px-3 text-xs font-semibold text-indigo-800 hover:bg-indigo-200">Open Full Incident History<svg class="h-3 w-3 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg></a>
             </div>
 
             <div class="overflow-x-auto">
@@ -212,7 +212,7 @@
                         <h3 class="text-sm font-semibold text-slate-900">Recent Pilot Outcomes</h3>
                         <p class="text-xs text-slate-500">Latest go/hold/no-go decisions across pilot waves.</p>
                     </div>
-                    <a href="{{ route('platform.operations.pilot-rollout') }}" class="inline-flex h-9 items-center rounded-lg border border-cyan-300 bg-cyan-100 px-3 text-xs font-semibold text-cyan-800 hover:bg-cyan-200">Open Full Pilot Rollout</a>
+                    <a href="{{ route('platform.operations.pilot-rollout') }}" class="inline-flex h-9 items-center gap-1 rounded-lg border border-cyan-300 bg-cyan-100 px-3 text-xs font-semibold text-cyan-800 hover:bg-cyan-200">Open Full Pilot Rollout<svg class="h-3 w-3 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg></a>
                 </div>
 
                 <div class="overflow-x-auto">

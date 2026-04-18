@@ -17,36 +17,52 @@
                 <p class="mt-1 text-sm text-slate-600">Review approvals, vendor payables, payment readiness, and month-end close from one operations view.</p>
             </div>
             <div class="flex flex-wrap gap-2">
-                <a href="{{ route('execution.payout-ready') }}" class="inline-flex items-center rounded-lg border border-slate-700 bg-slate-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800" style="background-color:#334155;border-color:#334155;color:#ffffff;">Payments Ready to Send</a>
-                <a href="{{ route('procurement.release-desk') }}" class="inline-flex items-center rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100">Purchase Order Management</a>
-                <a href="{{ route('treasury.reconciliation') }}" class="inline-flex items-center rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100">Bank Reconciliation</a>
+                <a href="{{ route('execution.payout-ready') }}" class="inline-flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800" style="background-color:#334155;border-color:#334155;color:#ffffff;">Payments Ready to Send<svg class="h-3 w-3 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg></a>
+                <a href="{{ route('procurement.release-desk') }}" class="inline-flex items-center gap-1 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100">Purchase Order Management<svg class="h-3 w-3 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg></a>
+                <a href="{{ route('treasury.reconciliation') }}" class="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100">Bank Reconciliation<svg class="h-3 w-3 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg></a>
             </div>
         </div>
     </section>
 
     <section class="grid gap-4 lg:grid-cols-4">
-        <a href="{{ route('operations.approval-desk') }}" class="fd-card block border border-indigo-200 bg-indigo-50 p-5 transition hover:bg-indigo-100">
+        <a href="{{ route('operations.approval-desk') }}" class="fd-card flex flex-col border border-indigo-200 bg-indigo-50 p-5 transition hover:bg-indigo-100">
             <p class="text-xs font-semibold uppercase tracking-[0.14em] text-indigo-700">Approvals</p>
             <h3 class="mt-2 text-lg font-semibold text-indigo-900">Approvals Overview</h3>
             <p class="mt-2 text-sm text-indigo-800">Pending approvals, overdue items, and returned requests with one next action per row.</p>
+            <div class="mt-4 flex items-center gap-1 text-xs font-semibold text-indigo-600">
+                <span>Open</span>
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+            </div>
         </a>
 
-        <a href="{{ route('operations.expense-handoff') }}" class="fd-card block border border-emerald-200 bg-emerald-50 p-5 transition hover:bg-emerald-100">
+        <a href="{{ route('operations.expense-handoff') }}" class="fd-card flex flex-col border border-emerald-200 bg-emerald-50 p-5 transition hover:bg-emerald-100">
             <p class="text-xs font-semibold uppercase tracking-[0.14em] text-emerald-700">Expense Handoff</p>
             <h3 class="mt-2 text-lg font-semibold text-emerald-900">Payment to Expense Review</h3>
             <p class="mt-2 text-sm text-emerald-800">Settled payouts waiting for a linked expense record or a logged exception.</p>
+            <div class="mt-4 flex items-center gap-1 text-xs font-semibold text-emerald-600">
+                <span>Open</span>
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+            </div>
         </a>
 
-        <a href="{{ route('operations.vendor-payables-desk') }}" class="fd-card block border border-amber-200 bg-amber-50 p-5 transition hover:bg-amber-100">
+        <a href="{{ route('operations.vendor-payables-desk') }}" class="fd-card flex flex-col border border-amber-200 bg-amber-50 p-5 transition hover:bg-amber-100">
             <p class="text-xs font-semibold uppercase tracking-[0.14em] text-amber-700">Payables</p>
             <h3 class="mt-2 text-lg font-semibold text-amber-900">Vendor Payables</h3>
             <p class="mt-2 text-sm text-amber-800">Open invoices, part-paid balances, blocked payment steps, and failed payment retries.</p>
+            <div class="mt-4 flex items-center gap-1 text-xs font-semibold text-amber-600">
+                <span>Open</span>
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+            </div>
         </a>
 
-        <a href="{{ route('operations.period-close-desk') }}" class="fd-card block border border-rose-200 bg-rose-50 p-5 transition hover:bg-rose-100">
+        <a href="{{ route('operations.period-close-desk') }}" class="fd-card flex flex-col border border-rose-200 bg-rose-50 p-5 transition hover:bg-rose-100">
             <p class="text-xs font-semibold uppercase tracking-[0.14em] text-rose-700">Month-End</p>
             <h3 class="mt-2 text-lg font-semibold text-rose-900">Month-End Close</h3>
             <p class="mt-2 text-sm text-rose-800">Close-readiness checklist for bank reconciliation, purchase order issues, payment retries, and audit flags.</p>
+            <div class="mt-4 flex items-center gap-1 text-xs font-semibold text-rose-600">
+                <span>Open</span>
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+            </div>
         </a>
     </section>
 </div>
