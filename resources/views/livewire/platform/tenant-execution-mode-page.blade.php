@@ -76,7 +76,7 @@
                             wire:click="useManualOperationsProvider"
                             wire:loading.attr="disabled"
                             wire:target="useManualOperationsProvider"
-                            class="inline-flex h-8 items-center rounded-lg border border-slate-300 bg-white px-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                            class="inline-flex h-8 items-center rounded-lg border border-slate-900 bg-slate-900 px-2.5 text-xs font-semibold text-white hover:bg-slate-800 disabled:opacity-70"
                         >
                             <span wire:loading.remove wire:target="useManualOperationsProvider">Use manual_ops</span>
                             <span wire:loading wire:target="useManualOperationsProvider">Setting...</span>
