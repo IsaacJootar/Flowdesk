@@ -73,6 +73,7 @@ class CreateAccountingSyncEvent
             }
 
             $event->fill([
+                'provider' => $provider,
                 'category_key' => $categoryKey,
                 'amount' => (int) $validated['amount'],
                 'currency_code' => strtoupper((string) $validated['currency_code']),

@@ -6,6 +6,7 @@ use App\Http\Controllers\RequestAttachmentDownloadController;
 use App\Http\Controllers\UserAvatarController;
 use App\Http\Controllers\ExecutionWebhookController;
 use App\Http\Controllers\MailerSendWebhookController;
+use App\Http\Controllers\AccountingExportDownloadController;
 use App\Http\Controllers\VendorInvoiceAttachmentDownloadController;
 use App\Http\Controllers\VendorInvoicePaymentAttachmentDownloadController;
 use App\Http\Controllers\VendorStatementCsvExportController;
@@ -27,6 +28,7 @@ use App\Livewire\Operations\VendorPayablesDeskPage;
 use App\Livewire\Operations\PeriodCloseDeskPage;
 use App\Livewire\Reports\FinancialTraceGuidePage;
 use App\Livewire\Reports\FinancialTraceReportPage;
+use App\Livewire\Reports\AccountingExportPage;
 use App\Livewire\Reports\ReportsCenterPage;
 use App\Livewire\Requests\RequestCommunicationsPage;
 use App\Livewire\Requests\RequestCommunicationsGuidePage;
@@ -127,6 +129,10 @@ Route::middleware(['auth', 'company.context'])->group(function (): void {
     Route::get('/reports', ReportsCenterPage::class)->middleware('module.enabled:reports')->name('reports.index');
     Route::get('/reports/financial-trace', FinancialTraceReportPage::class)->middleware('module.enabled:reports,requests')->name('reports.financial-trace');
     Route::get('/reports/financial-trace/help', FinancialTraceGuidePage::class)->middleware('module.enabled:reports,requests')->name('reports.financial-trace-help');
+    Route::get('/reports/accounting-export', AccountingExportPage::class)->middleware('module.enabled:reports,expenses')->name('reports.accounting-export');
+    Route::get('/reports/accounting-export/{batch}/download', AccountingExportDownloadController::class)
+        ->middleware(['module.enabled:reports,expenses', 'throttle:tenant-exports'])
+        ->name('reports.accounting-export.download');
 
     Route::prefix('dashboard')->name('dashboard.')->group(function (): void {
         Route::get('/index', DashboardShell::class)->name('index');

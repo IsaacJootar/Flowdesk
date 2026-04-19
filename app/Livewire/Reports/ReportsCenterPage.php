@@ -1015,6 +1015,10 @@ class ReportsCenterPage extends Component
             ['label' => 'Budgets', 'route' => route('budgets.index')],
         ];
 
+        if ($this->canViewAccountingExport()) {
+            $links[] = ['label' => 'Accounting Export', 'route' => route('reports.accounting-export')];
+        }
+
         if ($this->canViewVendors()) {
             $links[] = ['label' => 'Vendor Reports', 'route' => route('vendors.reports')];
         }
@@ -1042,6 +1046,17 @@ class ReportsCenterPage extends Component
         $user = Auth::user();
 
         return (bool) ($user && Gate::forUser($user)->allows('viewAny', Vendor::class));
+    }
+
+    private function canViewAccountingExport(): bool
+    {
+        $user = Auth::user();
+
+        return (bool) ($user && in_array((string) $user->role, [
+            UserRole::Owner->value,
+            UserRole::Finance->value,
+            UserRole::Auditor->value,
+        ], true));
     }
 
     private function emptyPaginator(): LengthAwarePaginator
@@ -1136,7 +1151,6 @@ class ReportsCenterPage extends Component
         return (bool) config('performance.cache.enabled', true);
     }
 }
-
 
 
 

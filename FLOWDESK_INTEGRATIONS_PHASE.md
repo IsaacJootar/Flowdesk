@@ -707,12 +707,23 @@ Completed in the event outbox slice:
 
 ### Phase 3 - CSV Export
 
-- [ ] Build export page.
-- [ ] Add date range filters.
-- [ ] Validate mappings before export.
-- [ ] Create CSV file.
-- [ ] Store export batch.
-- [ ] Show recent export history.
+- [x] Build export page.
+- [x] Add date range filters.
+- [x] Validate mappings before export.
+- [x] Create CSV file.
+- [x] Store export batch.
+- [x] Show recent export history.
+
+Completed in the CSV export slice:
+
+- Added Reports -> Accounting Export at `/reports/accounting-export`.
+- Added sidebar and Reports Center links for owner, finance, and auditor roles.
+- Owner and finance can export ready accounting records.
+- Auditor can view export readiness and export history without creating new exports.
+- Staff and manager roles are blocked from accounting export.
+- Export is blocked when any record in the selected date range needs Chart of Accounts mapping.
+- CSV files are stored as private local files and downloaded through a company-scoped route.
+- Exported events are marked `exported` and linked to the export batch for audit history.
 
 ### Phase 4 - Integration Shell
 

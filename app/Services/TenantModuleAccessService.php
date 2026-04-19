@@ -54,6 +54,7 @@ class TenantModuleAccessService
             'requests.reports' => $this->moduleEnabled($user, ['requests', 'reports']),
             'reports.index' => $this->moduleEnabled($user, 'reports'),
             'reports.financial-trace', 'reports.financial-trace-help' => $this->moduleEnabled($user, ['requests', 'reports']),
+            'reports.accounting-export', 'reports.accounting-export.download' => $this->moduleEnabled($user, ['expenses', 'reports']),
             'operations.expense-handoff' => $this->moduleEnabled($user, ['requests', 'expenses']),
             'expenses.index' => $this->moduleEnabled($user, 'expenses'),
             'vendors.index', 'vendors.show', 'vendors.reports' => $this->moduleEnabled($user, 'vendors'),
