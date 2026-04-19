@@ -2,10 +2,12 @@
 
 namespace App\Actions\Expenses;
 
+use App\Actions\Accounting\CreateAccountingSyncEvent;
 use App\Domains\Expenses\Models\Expense;
 use App\Domains\Requests\Models\SpendRequest;
 use App\Enums\AccountingCategory;
 use App\Models\User;
+use App\Services\Accounting\AccountingEventBuilder;
 use App\Services\ActivityLogger;
 use App\Services\ExpenseBudgetGuardrail;
 use App\Services\ExpenseCodeGenerator;
@@ -26,7 +28,9 @@ class CreateExpense
         private readonly ExpenseBudgetGuardrail $expenseBudgetGuardrail,
         private readonly ExpenseDuplicateDetector $expenseDuplicateDetector,
         private readonly ExpensePolicyResolver $expensePolicyResolver,
-        private readonly SpendLifecycleControlService $spendLifecycleControlService
+        private readonly SpendLifecycleControlService $spendLifecycleControlService,
+        private readonly AccountingEventBuilder $accountingEventBuilder,
+        private readonly CreateAccountingSyncEvent $createAccountingSyncEvent,
     ) {
     }
 
@@ -198,6 +202,11 @@ class CreateExpense
                 userId: $user->id,
             );
         }
+
+        ($this->createAccountingSyncEvent)(
+            input: $this->accountingEventBuilder->fromExpense($expense),
+            actorUserId: (int) $user->id,
+        );
 
         return $expense;
     }

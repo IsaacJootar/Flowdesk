@@ -2,8 +2,12 @@
 
 namespace App\Actions\Expenses;
 
+use App\Actions\Accounting\CreateAccountingSyncEvent;
+use App\Domains\Accounting\Models\AccountingSyncEvent;
 use App\Domains\Expenses\Models\Expense;
+use App\Enums\AccountingSyncStatus;
 use App\Models\User;
+use App\Services\Accounting\AccountingEventBuilder;
 use App\Services\ActivityLogger;
 use App\Services\ExpensePolicyResolver;
 use Illuminate\Support\Facades\Gate;
@@ -14,7 +18,9 @@ class VoidExpense
 {
     public function __construct(
         private readonly ActivityLogger $activityLogger,
-        private readonly ExpensePolicyResolver $expensePolicyResolver
+        private readonly ExpensePolicyResolver $expensePolicyResolver,
+        private readonly AccountingEventBuilder $accountingEventBuilder,
+        private readonly CreateAccountingSyncEvent $createAccountingSyncEvent,
     ) {}
 
     /**
@@ -69,6 +75,47 @@ class VoidExpense
             userId: $user->id,
         );
 
+        $this->syncAccountingVoidEvent($expense, $user);
+
         return $expense;
+    }
+
+    private function syncAccountingVoidEvent(Expense $expense, User $user): void
+    {
+        $postedEvent = AccountingSyncEvent::query()
+            ->withoutGlobalScopes()
+            ->where('company_id', (int) $expense->company_id)
+            ->where('source_type', 'expense')
+            ->where('source_id', (int) $expense->id)
+            ->where('event_type', 'expense_posted')
+            ->where('provider', 'csv')
+            ->first();
+
+        if (! $postedEvent) {
+            return;
+        }
+
+        if (in_array((string) $postedEvent->status, [
+            AccountingSyncStatus::Exported->value,
+            AccountingSyncStatus::Synced->value,
+        ], true)) {
+            ($this->createAccountingSyncEvent)(
+                input: $this->accountingEventBuilder->fromExpenseVoid($expense),
+                actorUserId: (int) $user->id,
+            );
+
+            return;
+        }
+
+        if (in_array((string) $postedEvent->status, [
+            AccountingSyncStatus::Pending->value,
+            AccountingSyncStatus::NeedsMapping->value,
+            AccountingSyncStatus::Failed->value,
+        ], true)) {
+            $postedEvent->forceFill([
+                'status' => AccountingSyncStatus::Skipped->value,
+                'last_error' => 'Expense was voided before accounting export or sync.',
+            ])->save();
+        }
     }
 }

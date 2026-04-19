@@ -664,13 +664,13 @@ A finance admin should be able to:
 
 - [x] Create accounting enums.
 - [x] Create `chart_of_account_mappings` migration and model.
-- [ ] Create migrations and models for integrations, provider accounts, sync events, and export batches.
+- [x] Create migrations and models for integrations, provider accounts, sync events, and export batches.
 - [x] Add access checks for Chart of Accounts.
 - [x] Add ActivityLogger entries for mapping changes.
 - [ ] Add ActivityLogger entries for integration status changes.
 - [x] Build Settings -> Chart of Accounts.
 - [x] Confirm category source fields exist in request/expense flows.
-- [ ] Confirm payout completion flow can pass Spend Type into accounting events.
+- [x] Confirm payout completion flow can pass Spend Type into accounting events through the accounting event builder.
 
 Completed in this slice:
 
@@ -682,14 +682,26 @@ Completed in this slice:
 - Each save writes an audit log entry.
 - Mapping rows are scoped to the authenticated user's company only.
 
+Completed in the event outbox slice:
+
+- Added accounting integration, provider account, export batch, and sync event tables.
+- Added the accounting sync event model set.
+- Added provider/status enums for shared accounting workflow state.
+- Added `CreateAccountingSyncEvent` as the idempotent outbox writer.
+- Added `AccountingEventBuilder` for posted expenses, void reversals, and settled payouts.
+- Posted expenses now queue accounting events automatically.
+- If a mapped account exists, the event is marked "Ready"; if not, it is marked "Needs account mapping".
+- Voiding an unexported expense skips the original event so finance does not export a voided spend.
+- Voiding an already exported/synced expense creates a reversal event instead of changing history silently.
+
 ### Phase 2 - Event Outbox
 
-- [ ] Add `CreateAccountingSyncEvent`.
-- [ ] Add `AccountingEventBuilder`.
+- [x] Add `CreateAccountingSyncEvent`.
+- [x] Add `AccountingEventBuilder`.
 - [ ] Create events from completed payout.
-- [ ] Create events from posted expense.
-- [ ] Create reversal events from voided synced/exported expense.
-- [ ] Add idempotency checks.
+- [x] Create events from posted expense.
+- [x] Create reversal events from voided synced/exported expense.
+- [x] Add idempotency checks.
 
 ### Phase 3 - CSV Export
 
