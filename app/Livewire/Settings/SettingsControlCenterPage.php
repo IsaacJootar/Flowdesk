@@ -130,6 +130,12 @@ class SettingsControlCenterPage extends Component
                     'module' => 'expenses',
                 ],
                 [
+                    'label' => 'Accounting Integrations',
+                    'description' => 'Track CSV, QuickBooks, Sage, and Xero readiness.',
+                    'route' => 'settings.accounting-integrations',
+                    'module' => 'expenses',
+                ],
+                [
                     'label' => 'Vendor Controls',
                     'description' => 'Vendor profile requirements and payables action controls.',
                     'route' => 'settings.vendor-controls',

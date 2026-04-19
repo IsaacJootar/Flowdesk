@@ -727,11 +727,21 @@ Completed in the CSV export slice:
 
 ### Phase 4 - Integration Shell
 
-- [ ] Create Settings -> Integrations page.
-- [ ] Add provider connection status cards.
+- [x] Create Settings -> Integrations page.
+- [x] Add provider connection status cards.
 - [ ] Add provider account list refresh action.
 - [ ] Add failed sync event list.
 - [ ] Add retry one/retry all actions.
+
+Completed in the provider shell slice:
+
+- Added Settings -> Accounting Integrations at `/settings/accounting-integrations`.
+- Added QuickBooks, Sage, and Xero status cards.
+- Added a shared provider client contract and null provider factory so real adapters have one place to plug in.
+- Owner and finance can mark a provider disabled or available.
+- Auditor can view provider readiness without changing anything.
+- Staff and manager roles are blocked.
+- Provider status records are company-scoped and activity logged.
 
 ### Phase 5 - QuickBooks
 

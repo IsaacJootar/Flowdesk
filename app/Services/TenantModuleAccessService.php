@@ -64,6 +64,7 @@ class TenantModuleAccessService
             'approval-workflows.index', 'settings.request-configuration', 'settings.approval-timing-controls' => $this->moduleEnabled($user, 'requests'),
             'settings.communications' => $this->moduleEnabled($user, 'communications'),
             'settings.expense-controls', 'settings.chart-of-accounts' => $this->moduleEnabled($user, 'expenses'),
+            'settings.accounting-integrations' => $this->moduleEnabled($user, ['expenses', 'reports']),
             'settings.vendor-controls' => $this->moduleEnabled($user, 'vendors'),
             'settings.asset-controls' => $this->moduleEnabled($user, 'assets'),
             'settings.procurement-controls' => $this->moduleEnabled($user, 'procurement'),
