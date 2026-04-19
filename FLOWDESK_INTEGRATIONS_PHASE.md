@@ -259,7 +259,7 @@ Stores each company's mapping from Flowdesk category to accounting account.
 | `category_key` | Required, one of the locked Flowdesk category keys |
 | `account_code` | Required for activation/export |
 | `account_name` | Optional display label |
-| `provider` | Nullable; null means generic CSV mapping, otherwise `quickbooks`, `sage`, or `xero` |
+| `provider` | Required; use `csv` for the generic CSV mapping, otherwise `quickbooks`, `sage`, or `xero` |
 | `provider_account_id` | Nullable external account ID |
 | `created_by` | User who created it |
 | `updated_by` | User who last changed it |
@@ -663,12 +663,24 @@ A finance admin should be able to:
 ### Phase 1 - Accounting Foundation
 
 - [x] Create accounting enums.
-- [ ] Create migrations and models for mappings, integrations, provider accounts, sync events, and export batches.
-- [ ] Add policies/access checks.
-- [ ] Add ActivityLogger entries for mapping changes and integration status changes.
-- [ ] Build Settings -> Chart of Accounts.
+- [x] Create `chart_of_account_mappings` migration and model.
+- [ ] Create migrations and models for integrations, provider accounts, sync events, and export batches.
+- [x] Add access checks for Chart of Accounts.
+- [x] Add ActivityLogger entries for mapping changes.
+- [ ] Add ActivityLogger entries for integration status changes.
+- [x] Build Settings -> Chart of Accounts.
 - [x] Confirm category source fields exist in request/expense flows.
 - [ ] Confirm payout completion flow can pass Spend Type into accounting events.
+
+Completed in this slice:
+
+- Settings -> Chart of Accounts is available at `/settings/chart-of-accounts`.
+- Sidebar shows "Accounting Setup" for owner, finance, and auditor when Expenses is enabled.
+- Owner and finance can map Spend Types to account code/account name.
+- Auditor can view mappings without editing.
+- Manager and staff cannot access the page.
+- Each save writes an audit log entry.
+- Mapping rows are scoped to the authenticated user's company only.
 
 ### Phase 2 - Event Outbox
 

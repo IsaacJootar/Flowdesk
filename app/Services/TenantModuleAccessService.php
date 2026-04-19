@@ -62,7 +62,7 @@ class TenantModuleAccessService
             'procurement.release-desk', 'procurement.release-help', 'procurement.orders', 'procurement.receipts', 'procurement.match-exceptions' => $this->moduleEnabled($user, 'procurement'),
             'approval-workflows.index', 'settings.request-configuration', 'settings.approval-timing-controls' => $this->moduleEnabled($user, 'requests'),
             'settings.communications' => $this->moduleEnabled($user, 'communications'),
-            'settings.expense-controls' => $this->moduleEnabled($user, 'expenses'),
+            'settings.expense-controls', 'settings.chart-of-accounts' => $this->moduleEnabled($user, 'expenses'),
             'settings.vendor-controls' => $this->moduleEnabled($user, 'vendors'),
             'settings.asset-controls' => $this->moduleEnabled($user, 'assets'),
             'settings.procurement-controls' => $this->moduleEnabled($user, 'procurement'),

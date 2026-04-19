@@ -34,6 +34,7 @@ use App\Livewire\Requests\RequestLifecycleDeskPage;
 use App\Livewire\Requests\RequestLifecycleGuidePage;
 use App\Livewire\Requests\RequestReportsPage;
 use App\Livewire\Settings\CommunicationSettingsPage;
+use App\Livewire\Settings\ChartOfAccountsPage;
 use App\Livewire\Settings\CompanySetup;
 use App\Livewire\Settings\AssetControlsPage;
 use App\Livewire\Settings\ApprovalTimingControlsPage;
@@ -217,6 +218,7 @@ Route::middleware(['auth', 'company.context'])->group(function (): void {
         Route::get('/request-configuration', RequestConfigurationPage::class)->middleware('module.enabled:requests')->name('request-configuration');
         Route::get('/approval-timing-controls', ApprovalTimingControlsPage::class)->middleware('module.enabled:requests')->name('approval-timing-controls');
         Route::get('/expense-controls', ExpenseControlsPage::class)->middleware('module.enabled:expenses')->name('expense-controls');
+        Route::get('/chart-of-accounts', ChartOfAccountsPage::class)->middleware('module.enabled:expenses')->name('chart-of-accounts');
         Route::get('/asset-controls', AssetControlsPage::class)->middleware('module.enabled:assets')->name('asset-controls');
         Route::get('/vendor-controls', VendorControlsPage::class)->middleware('module.enabled:vendors')->name('vendor-controls');
         Route::get('/procurement-controls', ProcurementControlsPage::class)->middleware('module.enabled:procurement')->name('procurement-controls');

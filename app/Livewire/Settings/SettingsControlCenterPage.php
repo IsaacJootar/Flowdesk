@@ -124,6 +124,12 @@ class SettingsControlCenterPage extends Component
                     'module' => 'expenses',
                 ],
                 [
+                    'label' => 'Chart of Accounts',
+                    'description' => 'Map each Spend Type to the account code in your books.',
+                    'route' => 'settings.chart-of-accounts',
+                    'module' => 'expenses',
+                ],
+                [
                     'label' => 'Vendor Controls',
                     'description' => 'Vendor profile requirements and payables action controls.',
                     'route' => 'settings.vendor-controls',
@@ -220,4 +226,3 @@ class SettingsControlCenterPage extends Component
         return (string) $user->role === UserRole::Owner->value;
     }
 }
-
