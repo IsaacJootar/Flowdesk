@@ -7,6 +7,7 @@ use App\Domains\Company\Models\Department;
 use App\Domains\Expenses\Models\RequestExpenseHandoff;
 use App\Domains\Requests\Models\RequestPayoutExecutionAttempt;
 use App\Domains\Requests\Models\SpendRequest;
+use App\Enums\AccountingCategory;
 use App\Enums\UserRole;
 use App\Livewire\Operations\ExpenseHandoffPage;
 use App\Models\User;
@@ -133,6 +134,7 @@ class ExpenseHandoffPageTest extends TestCase
             'amount' => 250000,
             'approved_amount' => 250000,
             'currency' => 'NGN',
+            'accounting_category_key' => AccountingCategory::VendorPayment->value,
             'status' => 'settled',
             'submitted_at' => now()->subDays(2),
             'decided_at' => now()->subDay(),

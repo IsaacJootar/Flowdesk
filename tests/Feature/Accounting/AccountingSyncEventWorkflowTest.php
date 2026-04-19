@@ -9,10 +9,13 @@ use App\Domains\Accounting\Models\AccountingSyncEvent;
 use App\Domains\Accounting\Models\ChartOfAccountMapping;
 use App\Domains\Company\Models\Company;
 use App\Domains\Company\Models\Department;
+use App\Domains\Requests\Models\RequestPayoutExecutionAttempt;
+use App\Domains\Requests\Models\SpendRequest;
 use App\Enums\AccountingCategory;
 use App\Enums\AccountingSyncStatus;
 use App\Enums\UserRole;
 use App\Models\User;
+use App\Services\ExpenseHandoffService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -176,6 +179,65 @@ class AccountingSyncEventWorkflowTest extends TestCase
         $this->assertSame('5400', (string) $reversal->debit_account_code);
     }
 
+    public function test_settled_payout_with_pending_handoff_creates_payout_accounting_event(): void
+    {
+        [$company, $department] = $this->createCompanyContext('Accounting Event Payout');
+        $finance = $this->createUser($company, $department, UserRole::Finance->value);
+        $this->mapCategory($company, $finance, AccountingCategory::VendorPayment->value, '2100');
+        $request = $this->createRequest($company, $department, $finance, [
+            'accounting_category_key' => AccountingCategory::VendorPayment->value,
+        ]);
+        $attempt = $this->createSettledPayoutAttempt($company, $request, $finance);
+
+        $this->actingAs($finance);
+
+        app(ExpenseHandoffService::class)->prepareForSettledPayout($attempt, (int) $finance->id);
+
+        $this->assertDatabaseHas('accounting_sync_events', [
+            'company_id' => $company->id,
+            'source_type' => 'payout',
+            'source_id' => $attempt->id,
+            'event_type' => 'payout_completed',
+            'category_key' => AccountingCategory::VendorPayment->value,
+            'debit_account_code' => '2100',
+            'status' => AccountingSyncStatus::Pending->value,
+        ]);
+    }
+
+    public function test_linked_expense_skips_previous_payout_accounting_event(): void
+    {
+        [$company, $department] = $this->createCompanyContext('Accounting Event Payout Skip');
+        $finance = $this->createUser($company, $department, UserRole::Finance->value);
+        $this->mapCategory($company, $finance, AccountingCategory::VendorPayment->value, '2100');
+        $request = $this->createRequest($company, $department, $finance, [
+            'accounting_category_key' => AccountingCategory::VendorPayment->value,
+        ]);
+        $attempt = $this->createSettledPayoutAttempt($company, $request, $finance);
+
+        $this->actingAs($finance);
+
+        $handoff = app(ExpenseHandoffService::class)->prepareForSettledPayout($attempt, (int) $finance->id);
+        $this->assertNotNull($handoff);
+
+        app(ExpenseHandoffService::class)->createLinkedExpense($handoff, $finance);
+
+        $this->assertDatabaseHas('accounting_sync_events', [
+            'company_id' => $company->id,
+            'source_type' => 'payout',
+            'source_id' => $attempt->id,
+            'event_type' => 'payout_completed',
+            'status' => AccountingSyncStatus::Skipped->value,
+        ]);
+
+        $this->assertDatabaseHas('accounting_sync_events', [
+            'company_id' => $company->id,
+            'source_type' => 'expense',
+            'event_type' => 'expense_posted',
+            'category_key' => AccountingCategory::VendorPayment->value,
+            'status' => AccountingSyncStatus::Pending->value,
+        ]);
+    }
+
     /**
      * @return array{0: Company, 1: Department}
      */
@@ -219,6 +281,53 @@ class AccountingSyncEventWorkflowTest extends TestCase
             'category_key' => $categoryKey,
             'account_code' => $accountCode,
             'account_name' => AccountingCategory::labelFor($categoryKey),
+            'created_by' => (int) $actor->id,
+            'updated_by' => (int) $actor->id,
+        ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $overrides
+     */
+    private function createRequest(Company $company, Department $department, User $requester, array $overrides = []): SpendRequest
+    {
+        return SpendRequest::query()->create(array_merge([
+            'company_id' => (int) $company->id,
+            'request_code' => 'FD-REQ-'.str_pad((string) random_int(1, 999999), 6, '0', STR_PAD_LEFT),
+            'requested_by' => (int) $requester->id,
+            'department_id' => (int) $department->id,
+            'title' => 'Payout accounting request',
+            'description' => 'Request used to verify payout accounting events.',
+            'amount' => 85000,
+            'approved_amount' => 85000,
+            'currency' => 'NGN',
+            'status' => 'settled',
+            'paid_amount' => 0,
+            'metadata' => [
+                'type' => 'spend',
+                'request_type_code' => 'spend',
+            ],
+        ], $overrides));
+    }
+
+    private function createSettledPayoutAttempt(Company $company, SpendRequest $request, User $actor): RequestPayoutExecutionAttempt
+    {
+        return RequestPayoutExecutionAttempt::query()->create([
+            'company_id' => (int) $company->id,
+            'request_id' => (int) $request->id,
+            'tenant_subscription_id' => null,
+            'provider_key' => 'manual_ops',
+            'execution_channel' => 'bank_transfer',
+            'idempotency_key' => 'request:'.$request->id.':payout:test',
+            'execution_status' => 'settled',
+            'amount' => 85000,
+            'currency_code' => 'NGN',
+            'provider_reference' => 'PAYOUT-'.$request->id,
+            'attempt_count' => 1,
+            'queued_at' => now()->subMinutes(5),
+            'processed_at' => now()->subMinutes(2),
+            'settled_at' => now(),
+            'metadata' => ['request_code' => (string) $request->request_code],
             'created_by' => (int) $actor->id,
             'updated_by' => (int) $actor->id,
         ]);

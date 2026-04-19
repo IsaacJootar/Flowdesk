@@ -2,12 +2,16 @@
 
 namespace App\Services;
 
+use App\Actions\Accounting\CreateAccountingSyncEvent;
 use App\Actions\Expenses\CreateExpense;
+use App\Domains\Accounting\Models\AccountingSyncEvent;
 use App\Domains\Expenses\Models\Expense;
 use App\Domains\Expenses\Models\RequestExpenseHandoff;
 use App\Domains\Requests\Models\RequestPayoutExecutionAttempt;
 use App\Domains\Requests\Models\SpendRequest;
+use App\Enums\AccountingSyncStatus;
 use App\Models\User;
+use App\Services\Accounting\AccountingEventBuilder;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
@@ -18,6 +22,8 @@ class ExpenseHandoffService
         private readonly ActivityLogger $activityLogger,
         private readonly CreateExpense $createExpense,
         private readonly SpendLifecycleControlService $spendLifecycleControlService,
+        private readonly AccountingEventBuilder $accountingEventBuilder,
+        private readonly CreateAccountingSyncEvent $createAccountingSyncEvent,
     ) {
     }
 
@@ -39,6 +45,8 @@ class ExpenseHandoffService
 
         $mode = $this->spendLifecycleControlService->expenseHandoffMode((int) $attempt->company_id);
         if ($mode === SpendLifecycleControlService::HANDOFF_MANUAL) {
+            $this->queuePayoutAccountingEvent($attempt, $actorUserId);
+
             $this->activityLogger->log(
                 action: 'expense.handoff.manual_trace_gap_logged',
                 entityType: SpendRequest::class,
@@ -83,7 +91,12 @@ class ExpenseHandoffService
             }
         }
 
-        return $handoff->fresh(['request', 'payoutAttempt', 'expense']) ?? $handoff;
+        $freshHandoff = $handoff->fresh(['request', 'payoutAttempt', 'expense']) ?? $handoff;
+        if ((string) $freshHandoff->handoff_status === RequestExpenseHandoff::STATUS_PENDING) {
+            $this->queuePayoutAccountingEvent($attempt, $actorUserId);
+        }
+
+        return $freshHandoff;
     }
 
     public function pendingQuery(User $user): Builder
@@ -164,6 +177,10 @@ class ExpenseHandoffService
             companyId: (int) $handoff->company_id,
             userId: (int) $actor->id,
         );
+
+        if ($attempt instanceof RequestPayoutExecutionAttempt) {
+            $this->skipPayoutAccountingEvent($attempt);
+        }
 
         return $expense;
     }
@@ -258,5 +275,38 @@ class ExpenseHandoffService
             'card' => 'online',
             default => null,
         };
+    }
+
+    private function queuePayoutAccountingEvent(RequestPayoutExecutionAttempt $attempt, ?int $actorUserId): void
+    {
+        ($this->createAccountingSyncEvent)(
+            input: $this->accountingEventBuilder->fromPayoutAttempt($attempt),
+            actorUserId: $actorUserId,
+        );
+    }
+
+    private function skipPayoutAccountingEvent(RequestPayoutExecutionAttempt $attempt): void
+    {
+        $event = AccountingSyncEvent::query()
+            ->withoutGlobalScopes()
+            ->where('company_id', (int) $attempt->company_id)
+            ->where('source_type', 'payout')
+            ->where('source_id', (int) $attempt->id)
+            ->where('event_type', 'payout_completed')
+            ->where('provider', 'csv')
+            ->first();
+
+        if (! $event || ! in_array((string) $event->status, [
+            AccountingSyncStatus::Pending->value,
+            AccountingSyncStatus::NeedsMapping->value,
+            AccountingSyncStatus::Failed->value,
+        ], true)) {
+            return;
+        }
+
+        $event->forceFill([
+            'status' => AccountingSyncStatus::Skipped->value,
+            'last_error' => 'Linked expense now carries the accounting record for this payout.',
+        ])->save();
     }
 }

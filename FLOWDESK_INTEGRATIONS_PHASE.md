@@ -690,6 +690,8 @@ Completed in the event outbox slice:
 - Added `CreateAccountingSyncEvent` as the idempotent outbox writer.
 - Added `AccountingEventBuilder` for posted expenses, void reversals, and settled payouts.
 - Posted expenses now queue accounting events automatically.
+- Settled payouts waiting for finance handoff now queue payout accounting events.
+- When finance creates the linked expense, Flowdesk skips the earlier payout event so accounting does not double count it.
 - If a mapped account exists, the event is marked "Ready"; if not, it is marked "Needs account mapping".
 - Voiding an unexported expense skips the original event so finance does not export a voided spend.
 - Voiding an already exported/synced expense creates a reversal event instead of changing history silently.
@@ -698,7 +700,7 @@ Completed in the event outbox slice:
 
 - [x] Add `CreateAccountingSyncEvent`.
 - [x] Add `AccountingEventBuilder`.
-- [ ] Create events from completed payout.
+- [x] Create events from completed payout.
 - [x] Create events from posted expense.
 - [x] Create reversal events from voided synced/exported expense.
 - [x] Add idempotency checks.
