@@ -429,6 +429,7 @@ class RequestPayoutExecutionPhaseFourTest extends TestCase
             'description' => 'Phase four flow',
             'amount' => $amount,
             'currency' => 'NGN',
+            'accounting_category_key' => 'spend_operations',
             'status' => 'draft',
             'metadata' => [
                 'type' => 'spend',

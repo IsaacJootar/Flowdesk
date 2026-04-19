@@ -33,6 +33,7 @@ class Expense extends Model
         'amount',
         'expense_date',
         'payment_method',
+        'accounting_category_key',
         'paid_by_user_id',
         'created_by',
         'voided_by',

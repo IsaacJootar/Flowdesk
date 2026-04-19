@@ -122,6 +122,7 @@ class ApprovalTimingControlsTest extends TestCase
             'title' => 'Timing override request',
             'amount' => 150000,
             'currency' => 'NGN',
+            'accounting_category_key' => 'spend_operations',
             'status' => 'draft',
             'paid_amount' => 0,
             'metadata' => [

@@ -3,6 +3,8 @@
 namespace App\Actions\Expenses;
 
 use App\Domains\Expenses\Models\Expense;
+use App\Domains\Requests\Models\SpendRequest;
+use App\Enums\AccountingCategory;
 use App\Models\User;
 use App\Services\ActivityLogger;
 use App\Services\ExpenseBudgetGuardrail;
@@ -53,6 +55,12 @@ class CreateExpense
 
         $isDirect = array_key_exists('is_direct', $validated) ? (bool) $validated['is_direct'] : true;
         $requestId = $isDirect ? null : (int) ($validated['request_id'] ?? 0);
+        $accountingCategoryKey = $this->resolveAccountingCategoryKey(
+            companyId: (int) $user->company_id,
+            validated: $validated,
+            requestId: $requestId,
+            isDirect: $isDirect
+        );
         $permissionDecision = $isDirect
             ? $this->expensePolicyResolver->canCreateDirect(
                 user: $user,
@@ -130,7 +138,7 @@ class CreateExpense
                 : false,
         ];
 
-        $expense = DB::transaction(function () use ($user, $validated, $requestId, $isDirect): Expense {
+        $expense = DB::transaction(function () use ($user, $validated, $requestId, $isDirect, $accountingCategoryKey): Expense {
             // Create is wrapped in transaction so code generation/write and audit expectations remain atomic.
             return Expense::query()->create([
                 'company_id' => $user->company_id,
@@ -143,6 +151,7 @@ class CreateExpense
                 'amount' => (int) $validated['amount'],
                 'expense_date' => $validated['expense_date'],
                 'payment_method' => $validated['payment_method'] ?? null,
+                'accounting_category_key' => $accountingCategoryKey,
                 'paid_by_user_id' => $validated['paid_by_user_id'] ? (int) $validated['paid_by_user_id'] : null,
                 'created_by' => $user->id,
                 'status' => 'posted',
@@ -161,6 +170,7 @@ class CreateExpense
                 'department_id' => $expense->department_id,
                 'vendor_id' => $expense->vendor_id,
                 'payment_method' => $expense->payment_method,
+                'accounting_category_key' => $expense->accounting_category_key,
                 'is_direct' => $expense->is_direct,
                 'budget_guardrail' => $budgetGuardrail,
                 'budget_decision' => $budgetDecision,
@@ -210,6 +220,7 @@ class CreateExpense
             'amount' => ['required', 'integer', 'min:1'],
             'expense_date' => ['required', 'date'],
             'payment_method' => ['nullable', Rule::in(['cash', 'transfer', 'pos', 'online', 'cheque'])],
+            'accounting_category_key' => ['nullable', 'string', Rule::in(AccountingCategory::values())],
             'paid_by_user_id' => [
                 'nullable',
                 Rule::exists('users', 'id')
@@ -269,5 +280,61 @@ class CreateExpense
                 'duplicate_override' => 'Possible duplicate found. Review the matches and tick override to continue.',
             ]);
         }
+    }
+
+    /**
+     * @param  array<string, mixed>  $validated
+     *
+     * @throws ValidationException
+     */
+    private function resolveAccountingCategoryKey(int $companyId, array $validated, ?int $requestId, bool $isDirect): string
+    {
+        $directCategory = AccountingCategory::normalize($validated['accounting_category_key'] ?? null);
+        if ($directCategory !== null) {
+            return $directCategory;
+        }
+
+        if ($isDirect) {
+            throw ValidationException::withMessages([
+                'accounting_category_key' => 'Choose a Spend Type before posting this expense.',
+            ]);
+        }
+
+        if (! $requestId) {
+            throw ValidationException::withMessages([
+                'accounting_category_key' => 'Choose a Spend Type before posting this request-linked expense.',
+            ]);
+        }
+
+        $request = SpendRequest::query()
+            ->with('items:id,request_id,accounting_category_key')
+            ->where('company_id', $companyId)
+            ->find($requestId);
+
+        if (! $request) {
+            throw ValidationException::withMessages([
+                'request_id' => 'Selected request could not be found for this organization.',
+            ]);
+        }
+
+        $categories = collect([AccountingCategory::normalize($request->accounting_category_key)])
+            ->merge($request->items->map(fn ($item): ?string => AccountingCategory::normalize($item->accounting_category_key)))
+            ->filter()
+            ->unique()
+            ->values();
+
+        if ($categories->count() === 1) {
+            return (string) $categories->first();
+        }
+
+        if ($categories->isEmpty()) {
+            throw ValidationException::withMessages([
+                'accounting_category_key' => 'Choose a Spend Type on the request before creating its expense.',
+            ]);
+        }
+
+        throw ValidationException::withMessages([
+            'accounting_category_key' => 'This request has more than one Spend Type. Split it into separate expenses before posting.',
+        ]);
     }
 }

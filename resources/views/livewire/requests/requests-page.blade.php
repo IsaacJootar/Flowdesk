@@ -532,6 +532,18 @@
                             </label>
 
                             <label class="block">
+                                <span class="mb-1 block text-sm font-medium text-slate-700">Spend Type</span>
+                                <select wire:model.defer="form.accounting_category_key" class="w-full rounded-xl border-slate-300 text-sm focus:border-slate-500 focus:ring-slate-500">
+                                    <option value="">Select spend type</option>
+                                    @foreach ($accountingCategories as $category)
+                                        <option value="{{ $category['key'] }}">{{ $category['label'] }}</option>
+                                    @endforeach
+                                </select>
+                                <p class="mt-1 text-xs text-slate-500">This tells accounting what the money is for. It is required before submission.</p>
+                                @error('form.accounting_category_key')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+                            </label>
+
+                            <label class="block">
                                 <span class="mb-1 block text-sm font-medium text-slate-700">Needed By (Optional)</span>
                                 <input type="date" wire:model.defer="form.needed_by" class="w-full rounded-xl border-slate-300 text-sm focus:border-slate-500 focus:ring-slate-500">
                                 @error('form.needed_by')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
@@ -607,26 +619,26 @@
                             <div class="space-y-3">
                                 @foreach ($lineItems as $index => $item)
                                     <div class="rounded-xl border border-slate-200 bg-white p-3">
-                                        <div class="grid gap-3 sm:grid-cols-6">
-                                            <label class="block sm:col-span-2">
+                                        <div class="grid gap-3 sm:grid-cols-12">
+                                            <label class="block sm:col-span-3">
                                                 <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Item</span>
                                                 <input type="text" wire:model.defer="lineItems.{{ $index }}.name" class="w-full rounded-lg border-slate-300 text-sm focus:border-slate-500 focus:ring-slate-500">
                                                 @error('lineItems.'.$index.'.name')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
                                             </label>
 
-                                            <label class="block">
+                                            <label class="block sm:col-span-1">
                                                 <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Qty</span>
                                                 <input type="number" min="1" wire:model.defer="lineItems.{{ $index }}.quantity" class="w-full rounded-lg border-slate-300 text-sm focus:border-slate-500 focus:ring-slate-500">
                                                 @error('lineItems.'.$index.'.quantity')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
                                             </label>
 
-                                            <label class="block">
+                                            <label class="block sm:col-span-2">
                                                 <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Unit Cost</span>
                                                 <input type="number" min="1" wire:model.defer="lineItems.{{ $index }}.unit_cost" class="w-full rounded-lg border-slate-300 text-sm focus:border-slate-500 focus:ring-slate-500">
                                                 @error('lineItems.'.$index.'.unit_cost')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
                                             </label>
 
-                                            <label class="block">
+                                            <label class="block sm:col-span-3">
                                                 <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Vendor</span>
                                                 <select wire:model.defer="lineItems.{{ $index }}.vendor_id" class="w-full rounded-lg border-slate-300 text-sm focus:border-slate-500 focus:ring-slate-500">
                                                     <option value="">-</option>
@@ -637,8 +649,19 @@
                                                 @error('lineItems.'.$index.'.vendor_id')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
                                             </label>
 
-                                            <label class="block">
-                                                <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500"> Category</span>
+                                            <label class="block sm:col-span-3">
+                                                <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Spend Type</span>
+                                                <select wire:model.defer="lineItems.{{ $index }}.accounting_category_key" class="w-full rounded-lg border-slate-300 text-sm focus:border-slate-500 focus:ring-slate-500">
+                                                    <option value="">Use request spend type</option>
+                                                    @foreach ($accountingCategories as $category)
+                                                        <option value="{{ $category['key'] }}">{{ $category['label'] }}</option>
+                                                    @endforeach
+                                                </select>
+                                                @error('lineItems.'.$index.'.accounting_category_key')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+                                            </label>
+
+                                            <label class="block sm:col-span-3">
+                                                <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Internal Category</span>
                                                 <select wire:model.defer="lineItems.{{ $index }}.category" class="w-full rounded-lg border-slate-300 text-sm focus:border-slate-500 focus:ring-slate-500">
                                                     <option value="">Select category</option>
                                                     @foreach ($spendCategories as $category)
@@ -850,7 +873,7 @@
                     <div class="p-6">
                         <div class="{{ $showFlowAgentsPanel && $flowAgentsContext === 'view' ? 'grid gap-4 xl:grid-cols-3' : '' }}">
                         <div class="space-y-4 {{ $showFlowAgentsPanel && $flowAgentsContext === 'view' ? 'xl:col-span-2' : '' }}">
-                        <div class="grid gap-3 sm:grid-cols-3">
+                        <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                             @php
                                 $statusClass = 'bg-slate-100 text-slate-700';
                                 if (in_array((string) ($selectedRequest['status'] ?? ''), ['approved', 'settled'], true)) {
@@ -884,6 +907,11 @@
                                 <p class="mt-1 text-sm font-semibold text-slate-900">
                                     {{ $selectedRequest['current_step_label'] ?: 'Process complete' }}
                                 </p>
+                            </div>
+                            <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                                <p class="text-xs uppercase tracking-[0.1em] text-slate-500">Spend Type</p>
+                                <p class="mt-1 text-sm font-semibold text-slate-900">{{ $selectedRequest['accounting_category_label'] }}</p>
+                                <p class="mt-1 text-xs text-slate-500">Used for accounting export and sync.</p>
                             </div>
                         </div>
 
@@ -956,6 +984,7 @@
                                             <th class="py-2 text-left font-semibold">Unit</th>
                                             <th class="py-2 text-left font-semibold">Total</th>
                                             <th class="py-2 text-left font-semibold">Vendor</th>
+                                            <th class="py-2 text-left font-semibold">Spend Type</th>
                                         </tr>
                                     </thead>
                                     <tbody class="divide-y divide-slate-100">
@@ -969,6 +998,7 @@
                                                 <td class="py-2 text-slate-700">{{ $selectedRequest['currency'] }} {{ number_format((int) $item['unit_cost']) }}</td>
                                                 <td class="py-2 font-medium text-slate-800">{{ $selectedRequest['currency'] }} {{ number_format((int) $item['line_total']) }}</td>
                                                 <td class="py-2 text-slate-700">{{ $item['vendor'] }}</td>
+                                                <td class="py-2 text-slate-700">{{ $item['accounting_category_label'] }}</td>
                                             </tr>
                                         @endforeach
                                     </tbody>

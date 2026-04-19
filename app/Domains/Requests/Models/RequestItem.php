@@ -27,6 +27,7 @@ class RequestItem extends Model
         'line_total',
         'vendor_id',
         'category',
+        'accounting_category_key',
         'metadata',
     ];
 
@@ -50,4 +51,3 @@ class RequestItem extends Model
         return $this->belongsTo(Vendor::class, 'vendor_id');
     }
 }
-

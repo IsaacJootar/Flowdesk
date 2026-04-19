@@ -37,6 +37,7 @@ class SpendRequest extends Model
         'description',
         'amount',
         'currency',
+        'accounting_category_key',
         'status',
         'approved_amount',
         'paid_amount',

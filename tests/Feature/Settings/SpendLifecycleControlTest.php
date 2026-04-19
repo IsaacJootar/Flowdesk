@@ -49,6 +49,7 @@ class SpendLifecycleControlTest extends TestCase
                 'amount' => 50000,
                 'expense_date' => now()->toDateString(),
                 'payment_method' => 'cash',
+                'accounting_category_key' => 'petty_cash',
                 'paid_by_user_id' => (int) $finance->id,
                 'is_direct' => true,
             ]);

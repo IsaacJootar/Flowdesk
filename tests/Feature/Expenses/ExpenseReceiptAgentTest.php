@@ -122,6 +122,7 @@ class ExpenseReceiptAgentTest extends TestCase
             'amount' => 45000,
             'expense_date' => '2026-03-01',
             'payment_method' => 'transfer',
+            'accounting_category_key' => 'spend_operations',
             'paid_by_user_id' => (int) $finance->id,
         ]);
 
@@ -134,6 +135,7 @@ class ExpenseReceiptAgentTest extends TestCase
             ->set('form.amount', '45000')
             ->set('form.expense_date', '2026-03-01')
             ->set('form.payment_method', 'transfer')
+            ->set('form.accounting_category_key', 'spend_operations')
             ->set('form.paid_by_user_id', (string) $finance->id)
             ->call('save')
             ->assertSet('duplicateRisk', 'soft')

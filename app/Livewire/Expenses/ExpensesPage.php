@@ -9,6 +9,7 @@ use App\Actions\Expenses\VoidExpense;
 use App\Domains\Company\Models\Department;
 use App\Domains\Expenses\Models\Expense;
 use App\Domains\Vendors\Models\Vendor;
+use App\Enums\AccountingCategory;
 use App\Services\ActivityLogger;
 use App\Services\AI\ExpenseReceiptIntelligenceService;
 use App\Services\ExpenseDuplicateDetector;
@@ -87,6 +88,7 @@ class ExpensesPage extends Component
         'amount' => '',
         'expense_date' => '',
         'payment_method' => '',
+        'accounting_category_key' => '',
         'paid_by_user_id' => '',
     ];
 
@@ -667,6 +669,7 @@ class ExpensesPage extends Component
             'vendorPickerOptions' => $vendorPickerOptions,
             'users' => $users,
             'paymentMethods' => $this->paymentMethods(),
+            'accountingCategories' => AccountingCategory::options(),
         ]);
     }
 
@@ -721,6 +724,7 @@ class ExpensesPage extends Component
             'amount' => (int) $this->form['amount'],
             'expense_date' => (string) $this->form['expense_date'],
             'payment_method' => $this->nullableString($this->form['payment_method']),
+            'accounting_category_key' => $this->nullableString($this->form['accounting_category_key'] ?? null),
             'paid_by_user_id' => $this->form['paid_by_user_id'] !== '' ? (int) $this->form['paid_by_user_id'] : null,
             'duplicate_override' => $this->duplicateOverride,
         ];
@@ -736,6 +740,7 @@ class ExpensesPage extends Component
             'amount' => '',
             'expense_date' => $this->companyToday(),
             'payment_method' => '',
+            'accounting_category_key' => '',
             'paid_by_user_id' => \Illuminate\Support\Facades\Auth::id() ?? '',
         ];
         $this->vendorPickerSearch = '';
@@ -755,6 +760,7 @@ class ExpensesPage extends Component
             'amount' => (string) $expense->amount,
             'expense_date' => $expense->expense_date?->format('Y-m-d') ?? $this->companyToday(),
             'payment_method' => (string) ($expense->payment_method ?? ''),
+            'accounting_category_key' => (string) ($expense->accounting_category_key ?? ''),
             'paid_by_user_id' => $expense->paid_by_user_id ? (string) $expense->paid_by_user_id : '',
         ];
         $this->vendorPickerSearch = '';
@@ -804,6 +810,7 @@ class ExpensesPage extends Component
             'form.amount' => ['required', 'integer', 'min:1'],
             'form.expense_date' => ['required', 'date'],
             'form.payment_method' => ['nullable', Rule::in($this->paymentMethods())],
+            'form.accounting_category_key' => ['required', Rule::in(AccountingCategory::values())],
             'form.paid_by_user_id' => [
                 'nullable',
                 'integer',
@@ -826,6 +833,8 @@ class ExpensesPage extends Component
             'form.amount.min' => 'Amount must be greater than zero.',
             'form.expense_date.required' => 'Expense date is required.',
             'form.payment_method.in' => 'Select a valid payment method.',
+            'form.accounting_category_key.required' => 'Choose a Spend Type before posting this expense.',
+            'form.accounting_category_key.in' => 'Choose a valid Spend Type.',
             'newAttachments.*.max' => 'Each attachment must be 10MB or less.',
             'newAttachments.*.mimes' => 'Only PDF and image files are supported.',
         ];
@@ -969,6 +978,7 @@ class ExpensesPage extends Component
             'amount',
             'expense_date',
             'payment_method',
+            'accounting_category_key',
             'paid_by_user_id',
         ];
 
@@ -1119,6 +1129,7 @@ class ExpensesPage extends Component
             'department' => $expense->department?->name ?? '-',
             'vendor' => $expense->vendor?->name ?? 'Unlinked',
             'payment_method' => $expense->payment_method ? ucfirst($expense->payment_method) : 'Not specified',
+            'accounting_category_label' => AccountingCategory::labelFor($expense->accounting_category_key),
             'created_by' => $expense->creator?->name ?? '-',
             'paid_by' => $expense->paidBy?->name ?? 'Unspecified',
             'description' => $expense->description ?: '-',

@@ -1023,6 +1023,7 @@ class RequestApprovalAutomationTest extends TestCase
             'description' => 'Automated test request',
             'amount' => 175000,
             'currency' => 'NGN',
+            'accounting_category_key' => 'spend_operations',
             'status' => 'draft',
             'approved_amount' => null,
             'paid_amount' => 0,

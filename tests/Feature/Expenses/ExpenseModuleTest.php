@@ -582,6 +582,7 @@ class ExpenseModuleTest extends TestCase
             'amount' => 125000,
             'expense_date' => now()->toDateString(),
             'payment_method' => 'transfer',
+            'accounting_category_key' => 'spend_operations',
             'paid_by_user_id' => null,
         ];
     }

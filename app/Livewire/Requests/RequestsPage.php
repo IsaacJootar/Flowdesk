@@ -23,6 +23,7 @@ use App\Domains\Requests\Models\CompanyRequestType;
 use App\Domains\Requests\Models\CompanySpendCategory;
 use App\Domains\Company\Models\Department;
 use App\Domains\Vendors\Models\Vendor;
+use App\Enums\AccountingCategory;
 use App\Enums\UserRole;
 use App\Models\User;
 use App\Services\AI\AiFeatureGateService;
@@ -99,6 +100,7 @@ class RequestsPage extends Component
         'department_id' => '',
         'vendor_id' => '',
         'workflow_id' => '',
+        'accounting_category_key' => '',
         'currency' => 'NGN',
         'amount' => '',
         'needed_by' => '',
@@ -109,7 +111,7 @@ class RequestsPage extends Component
         'handover_user_id' => '',
     ];
 
-    /** @var array<int, array{name: string, description: string, quantity: string, unit_cost: string, vendor_id: string, category: string}> */
+    /** @var array<int, array{name: string, description: string, quantity: string, unit_cost: string, vendor_id: string, category: string, accounting_category_key: string}> */
     public array $lineItems = [];
 
     /** @var array<string, array<string, mixed>> */
@@ -508,6 +510,7 @@ class RequestsPage extends Component
             'unit_cost' => '',
             'vendor_id' => '',
             'category' => '',
+            'accounting_category_key' => '',
         ];
     }
 
@@ -689,6 +692,7 @@ class RequestsPage extends Component
             'amount' => $amount,
             'expense_date' => now()->toDateString(),
             'payment_method' => null,
+            'accounting_category_key' => $this->requestAccountingCategoryKeyForExpense($request),
             'paid_by_user_id' => (int) \Illuminate\Support\Facades\Auth::id(),
             'is_direct' => false,
             'request_id' => (int) $request->id,
@@ -849,6 +853,7 @@ class RequestsPage extends Component
             'workflows' => $workflows,
             'requestTypes' => $requestTypes,
             'spendCategories' => $spendCategories,
+            'accountingCategories' => AccountingCategory::options(),
             'users' => $users,
             'statuses' => $this->requestStatusOptions(),
             'approvableRequestIds' => $approvableRequestIds,
@@ -1500,6 +1505,8 @@ class RequestsPage extends Component
             'request_code' => $request->request_code,
             'type' => (string) (($request->metadata ?? [])['type'] ?? 'spend'),
             'request_type_name' => (string) (($request->metadata ?? [])['request_type_name'] ?? ucfirst((string) (($request->metadata ?? [])['type'] ?? 'spend'))),
+            'accounting_category_key' => AccountingCategory::normalize($request->accounting_category_key),
+            'accounting_category_label' => AccountingCategory::labelFor($request->accounting_category_key),
             'title' => $request->title,
             'description' => $request->description ?: '-',
             'amount' => (int) $request->amount,
@@ -1561,6 +1568,8 @@ class RequestsPage extends Component
                     'line_total' => (int) $item->line_total,
                     'vendor' => $item->vendor?->name ?? '-',
                     'category' => $item->category ?: '-',
+                    'accounting_category_key' => AccountingCategory::normalize($item->accounting_category_key),
+                    'accounting_category_label' => AccountingCategory::labelFor($item->accounting_category_key),
                     'description' => $item->description ?: '-',
                 ])
                 ->values()
@@ -2006,6 +2015,7 @@ class RequestsPage extends Component
                 'unit_cost' => (int) ($item['unit_cost'] === '' ? 0 : $item['unit_cost']),
                 'vendor_id' => $item['vendor_id'] !== '' ? (int) $item['vendor_id'] : null,
                 'category' => $this->nullableString($item['category'] ?? null),
+                'accounting_category_key' => $this->nullableString($item['accounting_category_key'] ?? null),
             ])->values()->all()
             : [];
 
@@ -2016,6 +2026,7 @@ class RequestsPage extends Component
             'department_id' => $departmentId ? (int) $departmentId : null,
             'vendor_id' => $this->form['vendor_id'] !== '' ? (int) $this->form['vendor_id'] : null,
             'workflow_id' => $this->form['workflow_id'] !== '' ? (int) $this->form['workflow_id'] : null,
+            'accounting_category_key' => $this->nullableString($this->form['accounting_category_key'] ?? null),
             'amount' => $this->form['amount'] !== '' ? (int) $this->form['amount'] : null,
             'needed_by' => $this->form['needed_by'] !== '' ? $this->form['needed_by'] : null,
             'start_date' => $this->form['start_date'] !== '' ? $this->form['start_date'] : null,
@@ -2038,6 +2049,7 @@ class RequestsPage extends Component
             'department_id' => $this->currentUserDepartmentId() ? (string) $this->currentUserDepartmentId() : '',
             'vendor_id' => '',
             'workflow_id' => '',
+            'accounting_category_key' => '',
             'currency' => $this->companyCurrency(),
             'amount' => '',
             'needed_by' => '',
@@ -2064,6 +2076,7 @@ class RequestsPage extends Component
             'department_id' => $this->currentUserDepartmentId() ? (string) $this->currentUserDepartmentId() : '',
             'vendor_id' => $request->vendor_id ? (string) $request->vendor_id : '',
             'workflow_id' => $request->workflow_id ? (string) $request->workflow_id : '',
+            'accounting_category_key' => (string) ($request->accounting_category_key ?? ''),
             'currency' => strtoupper((string) ($request->currency ?: $this->companyCurrency())),
             'amount' => (string) ((int) $request->amount),
             'needed_by' => (string) (($request->metadata ?? [])['needed_by'] ?? ''),
@@ -2082,6 +2095,7 @@ class RequestsPage extends Component
                 'unit_cost' => (string) $item->unit_cost,
                 'vendor_id' => $item->vendor_id ? (string) $item->vendor_id : '',
                 'category' => (string) ($item->category ?? ''),
+                'accounting_category_key' => (string) ($item->accounting_category_key ?? ''),
             ])
             ->values()
             ->all();
@@ -2359,6 +2373,19 @@ class RequestsPage extends Component
         return $user?->department?->name ?? 'Not assigned';
     }
 
+    private function requestAccountingCategoryKeyForExpense(SpendRequest $request): ?string
+    {
+        $request->loadMissing('items:id,request_id,accounting_category_key');
+
+        $categories = collect([AccountingCategory::normalize($request->accounting_category_key)])
+            ->merge($request->items->map(fn ($item): ?string => AccountingCategory::normalize($item->accounting_category_key)))
+            ->filter()
+            ->unique()
+            ->values();
+
+        return $categories->count() === 1 ? (string) $categories->first() : null;
+    }
+
     private function setFeedback(string $message): void
     {
         $this->feedbackWarning = null;
@@ -2431,6 +2458,7 @@ class RequestsPage extends Component
             'destination',
             'leave_type',
             'handover_user_id',
+            'accounting_category_key',
             'items',
         ];
 
@@ -2457,6 +2485,12 @@ class RequestsPage extends Component
             }
 
             if (in_array($key, ['amount', 'workflow', 'status', 'approver', 'duplicate_override'], true)) {
+                $mapped['submitPolicy'] = $messages;
+                continue;
+            }
+
+            if ($key === 'accounting_category_key') {
+                $mapped['form.accounting_category_key'] = $messages;
                 $mapped['submitPolicy'] = $messages;
                 continue;
             }

@@ -174,6 +174,7 @@
                                 <td class="px-4 py-3">
                                     <p class="font-medium text-slate-800">{{ $expense->title }}</p>
                                     <p class="text-xs text-slate-500">{{ $expense->expense_code }}</p>
+                                    <p class="mt-1 text-xs text-slate-500">Spend Type: {{ \App\Enums\AccountingCategory::labelFor($expense->accounting_category_key) }}</p>
                                 </td>
                                 <td class="px-4 py-3">
                                     @if ($expense->is_direct)
@@ -349,6 +350,18 @@
                                     @endforeach
                                 </select>
                                 @error('form.payment_method')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+                            </label>
+
+                            <label class="block">
+                                <span class="mb-1 block text-sm font-medium text-slate-700">Spend Type</span>
+                                <select wire:model.defer="form.accounting_category_key" class="w-full rounded-xl border-slate-300 text-sm focus:border-slate-500 focus:ring-slate-500">
+                                    <option value="">Select spend type</option>
+                                    @foreach ($accountingCategories as $category)
+                                        <option value="{{ $category['key'] }}">{{ $category['label'] }}</option>
+                                    @endforeach
+                                </select>
+                                <p class="mt-1 text-xs text-slate-500">This tells accounting what the money was for.</p>
+                                @error('form.accounting_category_key')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
                             </label>
 
                             <label class="block">
@@ -587,6 +600,7 @@
                                 <div><dt class="text-xs uppercase tracking-[0.1em] text-slate-500">Department</dt><dd class="mt-1 font-medium text-slate-800">{{ $viewExpense['department'] }}</dd></div>
                                 <div><dt class="text-xs uppercase tracking-[0.1em] text-slate-500">Vendor</dt><dd class="mt-1 font-medium text-slate-800">{{ $viewExpense['vendor'] }}</dd></div>
                                 <div><dt class="text-xs uppercase tracking-[0.1em] text-slate-500">Payment Method</dt><dd class="mt-1 font-medium text-slate-800">{{ $viewExpense['payment_method'] }}</dd></div>
+                                <div><dt class="text-xs uppercase tracking-[0.1em] text-slate-500">Spend Type</dt><dd class="mt-1 font-medium text-slate-800">{{ $viewExpense['accounting_category_label'] }}</dd></div>
                                 <div><dt class="text-xs uppercase tracking-[0.1em] text-slate-500">Expense Date</dt><dd class="mt-1 font-medium text-slate-800">{{ $viewExpense['expense_date'] }}</dd></div>
                                 <div><dt class="text-xs uppercase tracking-[0.1em] text-slate-500">Created By</dt><dd class="mt-1 font-medium text-slate-800">{{ $viewExpense['created_by'] }}</dd></div>
                                 <div><dt class="text-xs uppercase tracking-[0.1em] text-slate-500">Paid By</dt><dd class="mt-1 font-medium text-slate-800">{{ $viewExpense['paid_by'] }}</dd></div>

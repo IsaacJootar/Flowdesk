@@ -7,6 +7,7 @@ use App\Domains\Requests\Models\CompanyRequestType;
 use App\Domains\Requests\Models\CompanySpendCategory;
 use App\Domains\Requests\Models\RequestItem;
 use App\Domains\Requests\Models\SpendRequest;
+use App\Enums\AccountingCategory;
 use App\Models\User;
 use App\Services\ActivityLogger;
 use App\Services\RequestCodeGenerator;
@@ -41,8 +42,9 @@ class CreateRequestDraft
         $requestType = $this->resolveRequestType($companyId, (string) ($input['type'] ?? ''));
         $validated = Validator::make($input, $this->rules($companyId, $requestType))->validate();
         $notificationChannels = $this->resolveRequestChannels($companyId, $validated);
+        $requestAccountingCategoryKey = $this->nullableAccountingCategory($validated['accounting_category_key'] ?? null);
         $normalizedItems = $requestType->requires_line_items
-            ? $this->normalizeItems($validated['items'] ?? [])
+            ? $this->normalizeItems($validated['items'] ?? [], $requestAccountingCategoryKey)
             : [];
         // Amount source is type-dependent: line-item total for structured requests, direct input otherwise.
         $totalAmount = $this->resolveAmount($requestType, $validated, $normalizedItems);
@@ -61,6 +63,7 @@ class CreateRequestDraft
                 'description' => $validated['description'] ?? null,
                 'amount' => $totalAmount,
                 'currency' => $currency,
+                'accounting_category_key' => $requestAccountingCategoryKey,
                 'status' => 'draft',
                 'created_by' => $user->id,
                 'updated_by' => $user->id,
@@ -79,6 +82,7 @@ class CreateRequestDraft
                         'line_total' => $item['line_total'],
                         'vendor_id' => $item['vendor_id'],
                         'category' => $item['category'],
+                        'accounting_category_key' => $item['accounting_category_key'],
                     ]);
                 }
             }
@@ -149,6 +153,7 @@ class CreateRequestDraft
             'type' => ['required', Rule::in([(string) $requestType->code])],
             'title' => ['required', 'string', 'max:180'],
             'description' => ['nullable', 'string', 'max:3000'],
+            'accounting_category_key' => ['nullable', 'string', Rule::in(AccountingCategory::values())],
             'amount' => $requestType->requires_line_items
                 ? ['nullable', 'integer', 'min:0']
                 : ($requestType->requires_amount ? ['required', 'integer', 'min:1'] : ['nullable', 'integer', 'min:0']),
@@ -171,16 +176,17 @@ class CreateRequestDraft
                 $vendorRule,
             ],
             'items.*.category' => $categoryRules,
+            'items.*.accounting_category_key' => ['nullable', 'string', Rule::in(AccountingCategory::values())],
         ];
     }
 
     /**
      * @param  array<int, array<string, mixed>>  $items
-     * @return array<int, array{name: string, description: ?string, quantity: int, unit_cost: int, line_total: int, vendor_id: ?int, category: ?string}>
+     * @return array<int, array{name: string, description: ?string, quantity: int, unit_cost: int, line_total: int, vendor_id: ?int, category: ?string, accounting_category_key: ?string}>
      */
-    private function normalizeItems(array $items): array
+    private function normalizeItems(array $items, ?string $requestAccountingCategoryKey = null): array
     {
-        return array_map(function (array $item): array {
+        return array_map(function (array $item) use ($requestAccountingCategoryKey): array {
             $quantity = (int) $item['quantity'];
             $unitCost = (int) $item['unit_cost'];
 
@@ -192,6 +198,8 @@ class CreateRequestDraft
                 'line_total' => $quantity * $unitCost,
                 'vendor_id' => ! empty($item['vendor_id']) ? (int) $item['vendor_id'] : null,
                 'category' => $this->nullableString($item['category'] ?? null),
+                'accounting_category_key' => $this->nullableAccountingCategory($item['accounting_category_key'] ?? null)
+                    ?: $requestAccountingCategoryKey,
             ];
         }, $items);
     }
@@ -316,6 +324,11 @@ class CreateRequestDraft
         $value = trim((string) $value);
 
         return $value === '' ? null : $value;
+    }
+
+    private function nullableAccountingCategory(mixed $value): ?string
+    {
+        return AccountingCategory::normalize($value);
     }
 
     private function companyCurrency(User $user): string

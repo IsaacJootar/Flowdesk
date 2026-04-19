@@ -7,6 +7,7 @@ use App\Domains\Company\Models\CompanyCommunicationSetting;
 use App\Domains\Requests\Models\CompanyRequestPolicySetting;
 use App\Domains\Requests\Models\CompanyRequestType;
 use App\Domains\Requests\Models\SpendRequest;
+use App\Enums\AccountingCategory;
 use App\Models\User;
 use App\Services\ApprovalTimingPolicyResolver;
 use App\Services\ActivityLogger;
@@ -52,6 +53,8 @@ class SubmitSpendRequest
                 'attachments' => 'This request type requires at least one attachment before submission.',
             ]);
         }
+
+        $this->ensureSpendTypeIsReady($request);
 
         $workflow = $this->requestApprovalRouter->resolveActiveWorkflow($request);
         $steps = $this->requestApprovalRouter->resolveApplicableSteps($request);
@@ -387,6 +390,44 @@ class SubmitSpendRequest
             ->first();
 
         return (bool) ($type?->requires_attachments ?? false);
+    }
+
+    /**
+     * @throws ValidationException
+     */
+    private function ensureSpendTypeIsReady(SpendRequest $request): void
+    {
+        $request->loadMissing('items');
+        $requestCategoryKey = AccountingCategory::normalize($request->accounting_category_key);
+
+        if ($request->items->isEmpty()) {
+            if ($requestCategoryKey === null) {
+                throw ValidationException::withMessages([
+                    'accounting_category_key' => 'Choose a Spend Type before submitting this request.',
+                ]);
+            }
+
+            return;
+        }
+
+        $missingItems = $request->items
+            ->filter(fn ($item): bool => AccountingCategory::normalize($item->accounting_category_key) === null);
+
+        if ($missingItems->isEmpty()) {
+            return;
+        }
+
+        if ($requestCategoryKey === null) {
+            throw ValidationException::withMessages([
+                'accounting_category_key' => 'Choose a Spend Type for each line item before submitting this request.',
+            ]);
+        }
+
+        $request->items()
+            ->whereIn('id', $missingItems->pluck('id')->all())
+            ->update(['accounting_category_key' => $requestCategoryKey]);
+
+        $request->load('items');
     }
 
     /**
