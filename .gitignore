@@ -18,6 +18,13 @@ yarn-error.log
 /.idea
 /.vscode
 
+# Local agent and dev server files
+/.claude/settings.local.json
+laravel-*.log
+vite-*.log
+*.out.log
+*.err.log
+
 # Ignore markdown docs
 *.md
 !README.md
